@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #040408; font-family: 'Inter', sans-serif; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .panel { background: #08080f; border: 1px solid rgba(60,30,160,0.18); border-radius: 10px; padding: 16px 18px; }
+  .label { font-size: 9px; color: #2e2c40; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
+</style></head><body>
+
+<!-- Logo — el que usa el sitio real -->
+<div class="panel">
+  <div class="label">Logo — Iarcania · Playfair Display</div>
+  <a href="#" style="font-family:'Playfair Display',serif; font-size:22px; font-weight:700; letter-spacing:1px; text-decoration:none; background:linear-gradient(135deg,#e8e6f0 0%,#f0d060 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Iarcania</a>
+</div>
+
+<!-- Rain-inside-letters effect -->
+<div class="panel">
+  <div class="label">Rain text — efecto lluvia dentro de las letras</div>
+  <canvas id="rainText" style="display:block;"></canvas>
+</div>
+
+<!-- Gradient Text treatment -->
+<div class="panel">
+  <div class="label">Gradient Text — una frase clave por H2</div>
+  <div style="font-family:'Playfair Display',serif; font-size:28px; font-weight:700; line-height:1.2; color:#c8c6d8;">
+    Todo lo que necesitas para <span style="background:linear-gradient(135deg,#7b5ce0 0%,#3d1f8f 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">automatizar</span>
+  </div>
+</div>
+
+<!-- Section Label -->
+<div class="panel">
+  <div class="label">Section Label</div>
+  <div style="display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#8a7030;">
+    <span style="display:block; width:20px; height:1px; background:#8a7030;"></span>
+    Servicios
+  </div>
+</div>
+
+<!-- Tags -->
+<div class="panel">
+  <div class="label">Tags — Purple variant</div>
+  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+    <span style="font-size:11px; font-weight:600; padding:4px 10px; border-radius:100px; background:rgba(60,30,160,0.14); border:1px solid rgba(60,30,160,0.22); color:#7b5ce0;">Atención 24/7</span>
+    <span style="font-size:11px; font-weight:600; padding:4px 10px; border-radius:100px; background:rgba(60,30,160,0.14); border:1px solid rgba(60,30,160,0.22); color:#7b5ce0;">Pedidos</span>
+    <span style="font-size:11px; font-weight:600; padding:4px 10px; border-radius:100px; background:rgba(60,30,160,0.14); border:1px solid rgba(60,30,160,0.22); color:#7b5ce0;">Sin código</span>
+    <span style="font-size:11px; font-weight:600; padding:4px 10px; border-radius:100px; background:rgba(60,30,160,0.14); border:1px solid rgba(60,30,160,0.22); color:#7b5ce0;">CRM</span>
+  </div>
+</div>
+
+<!-- Hero Badge -->
+<div class="panel">
+  <div class="label">Hero Badge</div>
+  <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(60,30,160,0.10); border:1px solid rgba(60,30,160,0.20); border-radius:100px; padding:6px 16px; font-size:13px; font-weight:500; color:#7b5ce0;">
+    <span style="width:5px; height:5px; background:#7b5ce0; border-radius:50%; display:inline-block; animation:pulse 2s ease-in-out infinite;"></span>
+    Automatización con IA para negocios colombianos
+  </div>
+</div>
+
+<script>
+document.fonts.ready.then(() => {
+  const canvas = document.getElementById('rainText');
+  const ctx = canvas.getContext('2d');
+
+  const FONT_SIZE = 56;
+  const WORD = 'automatizar';
+  const FONT = `700 ${FONT_SIZE}px 'Playfair Display', serif`;
+
+  ctx.font = FONT;
+  const W = Math.ceil(ctx.measureText(WORD).width) + 20;
+  const H = FONT_SIZE + 20;
+  canvas.width = W;
+  canvas.height = H;
+
+  const drops = Array.from({ length: 110 }, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    speed: 1.2 + Math.random() * 2.2,
+    len:   10 + Math.random() * 18,
+    opacity: 0.6 + Math.random() * 0.4,
+  }));
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Base: deep-purple letterforms — dark but clearly visible
+    ctx.font = FONT;
+    ctx.fillStyle = '#1c0a4a';
+    ctx.fillText(WORD, 10, FONT_SIZE);
+
+    // Clip rain (bright lavender drops) inside the letters
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+
+    // Subtle lighter purple wash so letters feel illuminated from within
+    ctx.fillStyle = 'rgba(90,50,180,0.18)';
+    ctx.fillText(WORD, 10, FONT_SIZE);
+
+    drops.forEach(d => {
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - 0.8, d.y + d.len);
+      ctx.strokeStyle = `rgba(190, 155, 255, ${d.opacity})`;
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      d.y += d.speed;
+      if (d.y > H) { d.y = -d.len; d.x = Math.random() * W; }
+    });
+    ctx.restore();
+
+    // Crisp outline for letter legibility
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.font = FONT;
+    ctx.strokeStyle = 'rgba(130, 90, 230, 0.55)';
+    ctx.lineWidth = 0.7;
+    ctx.strokeText(WORD, 10, FONT_SIZE);
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+});
+</script>
+</body></html>

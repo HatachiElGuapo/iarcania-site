@@ -1,0 +1,200 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #040408; font-family: 'Inter', sans-serif; padding: 24px; display: flex; flex-direction: column; gap: 32px; }
+  .opt-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: #8a7030; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .opt-label::before { content:''; display:block; width:14px; height:1px; background:#8a7030; }
+  .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .tag { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 100px; display: inline-block; }
+
+  /* ──────────────────────────────────────────
+     OPCIÓN A — Spotlight hover (mouse glow)
+  ────────────────────────────────────────── */
+  .card-spot {
+    position: relative; border-radius: 20px; padding: 30px 26px;
+    background: #0a0914;
+    border: 1px solid rgba(80,40,200,0.18);
+    overflow: hidden; cursor: default;
+    transition: border-color 0.4s, transform 0.3s;
+  }
+  .card-spot:hover { border-color: rgba(100,60,220,0.45); transform: translateY(-5px); }
+  .card-spot .spotlight {
+    position: absolute; width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(90,45,224,0.18) 0%, transparent 70%);
+    pointer-events: none; transition: opacity 0.3s;
+    transform: translate(-50%,-50%); opacity: 0;
+    filter: blur(20px);
+  }
+  .card-spot:hover .spotlight { opacity: 1; }
+  .spot-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 20px; position: relative; z-index: 1; }
+  .spot-title { font-size: 16px; font-weight: 700; color: #ccc8e0; margin-bottom: 10px; position: relative; z-index: 1; }
+  .spot-desc { font-size: 13px; color: #3e3b55; line-height: 1.75; margin-bottom: 18px; position: relative; z-index: 1; }
+
+  /* ──────────────────────────────────────────
+     OPCIÓN B — Número grande + stat mini
+  ────────────────────────────────────────── */
+  .card-num {
+    position: relative; border-radius: 20px; padding: 26px 24px;
+    background: #070610; border: 1px solid rgba(60,30,140,0.16);
+    overflow: hidden; transition: border-color 0.3s, transform 0.3s;
+  }
+  .card-num:hover { border-color: rgba(90,45,224,0.38); transform: translateY(-5px); }
+  .card-num .bg-num {
+    position: absolute; bottom: -16px; right: 8px;
+    font-family: 'Playfair Display', serif; font-size: 88px; font-weight: 700;
+    color: rgba(70,40,180,0.09); line-height: 1; pointer-events: none; user-select: none;
+  }
+  .card-num .num-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .card-num .stat-chip { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: rgba(100,70,200,0.55); line-height: 1; }
+  .card-num .stat-sub { font-size: 9px; color: #2e2c40; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; text-align: right; }
+
+  /* ──────────────────────────────────────────
+     OPCIÓN C — Línea de progreso + dark premium
+  ────────────────────────────────────────── */
+  .card-prem {
+    position: relative; border-radius: 20px; padding: 28px 24px;
+    background: linear-gradient(160deg, #0d0b1e 0%, #070610 100%);
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    box-shadow: 0 0 0 1px rgba(80,45,200,0.14);
+    overflow: hidden; transition: box-shadow 0.35s, transform 0.3s;
+  }
+  .card-prem:hover { box-shadow: 0 0 0 1px rgba(90,55,220,0.45), 0 16px 48px rgba(60,30,160,0.22); transform: translateY(-5px); }
+  .card-prem .top-line {
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(90,45,224,0.7), transparent);
+    opacity: 0; transition: opacity 0.35s;
+  }
+  .card-prem:hover .top-line { opacity: 1; }
+  .card-prem .progress-bar { height: 3px; background: rgba(255,255,255,0.04); border-radius: 2px; overflow: hidden; margin-top: 18px; }
+  .card-prem .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #3d1f8f, #7b5ce0); }
+</style></head><body>
+
+<!-- OPCIÓN A — Spotlight hover -->
+<div>
+  <div class="opt-label">Opción A — Spotlight hover</div>
+  <div class="grid">
+    <div class="card-spot" onmousemove="moveSpot(event,this)" onmouseleave="leaveSpot(this)">
+      <div class="spotlight"></div>
+      <div class="spot-icon" style="background:rgba(90,45,224,0.10); border:1px solid rgba(90,45,224,0.18);">🤖</div>
+      <div class="spot-title">Agentes de WhatsApp</div>
+      <div class="spot-desc">Responde preguntas, toma pedidos y agenda citas desde WhatsApp, sin horarios ni intervención humana.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;position:relative;z-index:1;">
+        <span class="tag" style="background:rgba(80,40,180,0.12);border:1px solid rgba(80,40,180,0.20);color:#6a50c0;">24/7</span>
+        <span class="tag" style="background:rgba(80,40,180,0.12);border:1px solid rgba(80,40,180,0.20);color:#6a50c0;">Pedidos</span>
+        <span class="tag" style="background:rgba(90,60,10,0.12);border:1px solid rgba(90,60,10,0.20);color:#7a6020;">WhatsApp</span>
+      </div>
+    </div>
+    <div class="card-spot" onmousemove="moveSpot(event,this)" onmouseleave="leaveSpot(this)">
+      <div class="spotlight"></div>
+      <div class="spot-icon" style="background:rgba(90,45,224,0.10); border:1px solid rgba(90,45,224,0.18);">⚡</div>
+      <div class="spot-title">Automatización de Procesos</div>
+      <div class="spot-desc">Conectamos tus herramientas y eliminamos el trabajo manual repetitivo que consume tiempo y genera errores.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;position:relative;z-index:1;">
+        <span class="tag" style="background:rgba(80,40,180,0.12);border:1px solid rgba(80,40,180,0.20);color:#6a50c0;">Flujos</span>
+        <span class="tag" style="background:rgba(90,60,10,0.12);border:1px solid rgba(90,60,10,0.20);color:#7a6020;">Sin código</span>
+      </div>
+    </div>
+    <div class="card-spot" onmousemove="moveSpot(event,this)" onmouseleave="leaveSpot(this)">
+      <div class="spotlight"></div>
+      <div class="spot-icon" style="background:rgba(90,45,224,0.10); border:1px solid rgba(90,45,224,0.18);">📈</div>
+      <div class="spot-title">Seguimiento de Ventas</div>
+      <div class="spot-desc">Tu equipo nunca pierde un lead. Seguimiento automático, cotizaciones recordadas sin esfuerzo.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;position:relative;z-index:1;">
+        <span class="tag" style="background:rgba(80,40,180,0.12);border:1px solid rgba(80,40,180,0.20);color:#6a50c0;">Leads</span>
+        <span class="tag" style="background:rgba(90,60,10,0.12);border:1px solid rgba(90,60,10,0.20);color:#7a6020;">CRM</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPCIÓN B — Número grande + mini stat -->
+<div>
+  <div class="opt-label">Opción B — Número de fondo + stat</div>
+  <div class="grid">
+    <div class="card-num">
+      <div class="bg-num">01</div>
+      <div class="num-header">
+        <div style="width:44px;height:44px;border-radius:10px;background:rgba(70,35,180,0.10);border:1px solid rgba(70,35,180,0.18);display:flex;align-items:center;justify-content:center;font-size:20px;">🤖</div>
+        <div><div class="stat-chip">−92%</div><div class="stat-sub">resp. rápida</div></div>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:#c0bcd8;margin-bottom:8px;position:relative;z-index:1;">Agentes de WhatsApp</div>
+      <div style="font-size:12px;color:#3a3850;line-height:1.7;position:relative;z-index:1;">Responde, toma pedidos y agenda citas sin horarios ni intervención humana.</div>
+    </div>
+    <div class="card-num">
+      <div class="bg-num">02</div>
+      <div class="num-header">
+        <div style="width:44px;height:44px;border-radius:10px;background:rgba(70,35,180,0.10);border:1px solid rgba(70,35,180,0.18);display:flex;align-items:center;justify-content:center;font-size:20px;">⚡</div>
+        <div><div class="stat-chip">−78%</div><div class="stat-sub">tareas manuales</div></div>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:#c0bcd8;margin-bottom:8px;position:relative;z-index:1;">Automatización de Procesos</div>
+      <div style="font-size:12px;color:#3a3850;line-height:1.7;position:relative;z-index:1;">Conectamos tus herramientas y eliminamos el trabajo repetitivo.</div>
+    </div>
+    <div class="card-num">
+      <div class="bg-num">03</div>
+      <div class="num-header">
+        <div style="width:44px;height:44px;border-radius:10px;background:rgba(70,35,180,0.10);border:1px solid rgba(70,35,180,0.18);display:flex;align-items:center;justify-content:center;font-size:20px;">📈</div>
+        <div><div class="stat-chip">−85%</div><div class="stat-sub">leads perdidos</div></div>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:#c0bcd8;margin-bottom:8px;position:relative;z-index:1;">Seguimiento de Ventas</div>
+      <div style="font-size:12px;color:#3a3850;line-height:1.7;position:relative;z-index:1;">Tu equipo nunca pierde un lead. Seguimiento automático y cotizaciones registradas.</div>
+    </div>
+  </div>
+</div>
+
+<!-- OPCIÓN C — Premium dark con línea top -->
+<div>
+  <div class="opt-label">Opción C — Premium dark con línea top</div>
+  <div class="grid">
+    <div class="card-prem">
+      <div class="top-line"></div>
+      <div style="width:46px;height:46px;border-radius:11px;background:rgba(60,30,150,0.12);border:1px solid rgba(60,30,150,0.20);display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:18px;">🤖</div>
+      <div style="font-size:15px;font-weight:700;color:#c8c4de;margin-bottom:9px;">Agentes de WhatsApp</div>
+      <div style="font-size:12px;color:#3a3855;line-height:1.75;margin-bottom:16px;">Responde preguntas, toma pedidos y agenda citas desde WhatsApp, sin horarios.</div>
+      <div style="display:flex;gap:6px;margin-bottom:16px;">
+        <span class="tag" style="background:rgba(60,30,150,0.12);border:1px solid rgba(60,30,150,0.20);color:#5a40b0;">24/7</span>
+        <span class="tag" style="background:rgba(80,55,8,0.12);border:1px solid rgba(80,55,8,0.20);color:#6a5018;">WhatsApp</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:92%;"></div></div>
+      <div style="font-size:9px;color:#2e2c42;margin-top:5px;text-align:right;letter-spacing:0.5px;">−92% tiempo de respuesta</div>
+    </div>
+    <div class="card-prem">
+      <div class="top-line"></div>
+      <div style="width:46px;height:46px;border-radius:11px;background:rgba(60,30,150,0.12);border:1px solid rgba(60,30,150,0.20);display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:18px;">⚡</div>
+      <div style="font-size:15px;font-weight:700;color:#c8c4de;margin-bottom:9px;">Automatización de Procesos</div>
+      <div style="font-size:12px;color:#3a3855;line-height:1.75;margin-bottom:16px;">Conectamos tus herramientas y eliminamos el trabajo repetitivo que genera errores.</div>
+      <div style="display:flex;gap:6px;margin-bottom:16px;">
+        <span class="tag" style="background:rgba(60,30,150,0.12);border:1px solid rgba(60,30,150,0.20);color:#5a40b0;">Flujos</span>
+        <span class="tag" style="background:rgba(80,55,8,0.12);border:1px solid rgba(80,55,8,0.20);color:#6a5018;">Sin código</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:78%;"></div></div>
+      <div style="font-size:9px;color:#2e2c42;margin-top:5px;text-align:right;letter-spacing:0.5px;">−78% tareas manuales</div>
+    </div>
+    <div class="card-prem">
+      <div class="top-line"></div>
+      <div style="width:46px;height:46px;border-radius:11px;background:rgba(60,30,150,0.12);border:1px solid rgba(60,30,150,0.20);display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:18px;">📈</div>
+      <div style="font-size:15px;font-weight:700;color:#c8c4de;margin-bottom:9px;">Seguimiento de Ventas</div>
+      <div style="font-size:12px;color:#3a3855;line-height:1.75;margin-bottom:16px;">Tu equipo nunca pierde un lead. Seguimiento automático y cotizaciones registradas.</div>
+      <div style="display:flex;gap:6px;margin-bottom:16px;">
+        <span class="tag" style="background:rgba(60,30,150,0.12);border:1px solid rgba(60,30,150,0.20);color:#5a40b0;">Leads</span>
+        <span class="tag" style="background:rgba(80,55,8,0.12);border:1px solid rgba(80,55,8,0.20);color:#6a5018;">CRM</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:85%;"></div></div>
+      <div style="font-size:9px;color:#2e2c42;margin-top:5px;text-align:right;letter-spacing:0.5px;">−85% leads perdidos</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function moveSpot(e, card) {
+    const rect = card.getBoundingClientRect();
+    const spot = card.querySelector('.spotlight');
+    spot.style.left = (e.clientX - rect.left) + 'px';
+    spot.style.top  = (e.clientY - rect.top)  + 'px';
+  }
+  function leaveSpot(card) {
+    card.querySelector('.spotlight').style.opacity = '0';
+  }
+</script>
+</body></html>

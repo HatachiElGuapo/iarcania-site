@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #090910; font-family: 'Inter', sans-serif; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .label { font-size: 10px; color: #5a5870; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+  .panel { background: #13131f; border: 1px solid rgba(168,85,247,0.12); border-radius: 10px; padding: 16px 18px; }
+  .state-label { font-size: 9px; color: #5a5870; text-align: center; margin-top: 6px; }
+  .btn-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+</style></head><body>
+
+<div class="panel">
+  <div class="label">Primary CTA</div>
+  <div class="row">
+    <div class="btn-group">
+      <button style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:15px; font-weight:600; padding:16px 32px; border-radius:8px; border:none; cursor:pointer; box-shadow:0 0 30px rgba(124,58,237,0.35); font-family:'Inter',sans-serif;">
+        Quiero automatizar mi negocio
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+      <div class="state-label">Default</div>
+    </div>
+    <div class="btn-group">
+      <button style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:15px; font-weight:600; padding:16px 32px; border-radius:8px; border:none; cursor:pointer; box-shadow:0 8px 40px rgba(124,58,237,0.5); transform:translateY(-2px); font-family:'Inter',sans-serif;">
+        Quiero automatizar mi negocio
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+      <div class="state-label">Hover</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="label">Secondary / Ghost</div>
+  <div class="row">
+    <div class="btn-group">
+      <button style="display:inline-flex; align-items:center; gap:8px; background:transparent; color:#9896b0; font-size:15px; font-weight:500; padding:16px 28px; border-radius:8px; border:1px solid rgba(168,85,247,0.15); cursor:pointer; font-family:'Inter',sans-serif;">
+        Ver servicios
+      </button>
+      <div class="state-label">Default</div>
+    </div>
+    <div class="btn-group">
+      <button style="display:inline-flex; align-items:center; gap:8px; background:transparent; color:#f1f0f7; font-size:15px; font-weight:500; padding:16px 28px; border-radius:8px; border:1px solid #a855f7; cursor:pointer; font-family:'Inter',sans-serif;">
+        Ver servicios
+      </button>
+      <div class="state-label">Hover</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="label">Gold CTA — Fundadores only</div>
+  <div class="row">
+    <div class="btn-group">
+      <button style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#b8860b,#daa520); color:#fff; font-size:15px; font-weight:600; padding:16px 40px; border-radius:8px; border:none; cursor:pointer; box-shadow:0 4px 24px rgba(212,175,55,0.2); font-family:'Inter',sans-serif;">
+        Quiero mi cupo →
+      </button>
+      <div class="state-label">Default</div>
+    </div>
+  </div>
+  <div style="font-size:11px; color:#5a5870; margin-top:10px;">Llamada de 20 minutos · Sin costo · Sin compromiso</div>
+</div>
+
+<div class="panel">
+  <div class="label">Nav Button</div>
+  <div class="row">
+    <button style="background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; padding:10px 22px; border-radius:8px; font-weight:600; font-size:13px; border:none; cursor:pointer; font-family:'Inter',sans-serif;">Hablemos</button>
+  </div>
+</div>
+
+</body></html>

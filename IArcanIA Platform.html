@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IArcanIA — Plataforma</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { font-family: 'Inter', sans-serif; background: #060609; color: #F0EEF8; overflow-x: hidden; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(155,114,240,0.28); border-radius: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    @keyframes fadeIn  { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes slideUp { from{opacity:0;transform:translateY(20px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+    @keyframes modalBg { from{opacity:0} to{opacity:1} }
+    @keyframes pulse   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
+    @keyframes spin    { to{transform:rotate(360deg)} }
+    @keyframes float1  { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,40px)} }
+    @keyframes float2  { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-20px,-30px)} }
+    #rain { position:fixed; inset:0; pointer-events:none; z-index:0; }
+    .page { position:relative; z-index:1; }
+  </style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+<div id="root"></div>
+
+<script>
+(function(){
+  const c=document.getElementById('rain'),ctx=c.getContext('2d');let drops=[];
+  function init(){c.width=innerWidth;c.height=innerHeight;drops=Array.from({length:Math.floor(innerWidth/12)},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,speed:1+Math.random()*1.6,len:14+Math.random()*24,op:.04+Math.random()*0.08,w:.4+Math.random()*.5}));}
+  function draw(){ctx.clearRect(0,0,c.width,c.height);drops.forEach(d=>{ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x-.6,d.y+d.len);ctx.strokeStyle=`rgba(172,138,255,${d.op})`;ctx.lineWidth=d.w;ctx.stroke();d.y+=d.speed;if(d.y>c.height){d.y=-d.len;d.x=Math.random()*c.width;}});requestAnimationFrame(draw);}
+  addEventListener('resize',init);init();draw();
+})();
+</script>
+
+<script type="text/babel">
+const {useState,useEffect,useCallback,useRef,useMemo}=React;
+
+/* ── Tokens ── */
+const T={
+  bg:'#060609',s1:'#0e0d16',s2:'#151422',s3:'#1c1a2e',s4:'#22203a',
+  border:'rgba(155,114,240,0.14)',borderH:'rgba(155,114,240,0.38)',borderG:'rgba(201,168,76,0.22)',
+  purple:'#9b72f0',purpleL:'#c4b0ff',purpleD:'#7c3aed',purpleDark:'#3d1f8f',
+  gold:'#c9a84c',goldL:'#e8c96e',
+  text:'#F0EEF8',muted:'#7a788f',dim:'#3a3850',dimmer:'#252338',
+  green:'#4ade80',blue:'#60a5fa',red:'#f87171',amber:'#fbbf24',
+};
+
+/* ── Hardcoded users ── */
+const USERS=[
+  {id:1,email:'admin@iarcania.co',password:'admin123',nombre:'Alejandro M.',rol:'admin',avatar:'A'},
+  {id:2,email:'mod@iarcania.co',password:'mod123',nombre:'María C.',rol:'moderador',avatar:'M'},
+  {id:3,email:'user@iarcania.co',password:'user123',nombre:'Carlos R.',rol:'usuario',avatar:'C'},
+];
+
+/* ── Roles ── */
+const ROL_CONFIG={
+  admin:   {label:'Administrador',color:T.gold,     bg:'rgba(201,168,76,0.12)',   border:'rgba(201,168,76,0.28)'},
+  moderador:{label:'Moderador',   color:T.purple,   bg:'rgba(155,114,240,0.12)',  border:'rgba(155,114,240,0.28)'},
+  usuario:  {label:'Usuario',     color:T.blue,     bg:'rgba(96,165,250,0.10)',   border:'rgba(96,165,250,0.24)'},
+};
+
+/* ── Resource seed data ── */
+const SEED_RESOURCES=[
+  {id:1,titulo:'Prompt de bienvenida para WhatsApp',descripcion:'Plantilla para respuesta inicial de agentes de WhatsApp. Personalizable con nombre del negocio y horarios.',tipo:'prompt',contenido:'Hola [NOMBRE_CLIENTE] 👋 Bienvenido a [NOMBRE_NEGOCIO].\n\nSoy tu asistente virtual disponible 24/7. Estoy aquí para ayudarte con:\n• 📦 Estado de pedidos\n• 📅 Agendar citas\n• ❓ Responder preguntas\n\n¿En qué te puedo ayudar hoy?',visibilidad:'usuarios',categoria:'herramientas',createdAt:'2026-04-10'},
+  {id:2,titulo:'Flujo de atención al cliente — JSON',descripcion:'Estructura JSON para configurar el flujo de atención en n8n. Incluye nodos de decisión y respuestas automáticas.',tipo:'json',contenido:'{\n  "flow": "customer_support",\n  "version": "2.1",\n  "nodes": [\n    {\n      "id": "welcome",\n      "type": "message",\n      "text": "Bienvenido a soporte",\n      "next": "intent_detection"\n    },\n    {\n      "id": "intent_detection",\n      "type": "ai_classifier",\n      "model": "gpt-4",\n      "categories": ["pedido", "queja", "info", "humano"],\n      "next_map": {\n        "pedido": "order_flow",\n        "queja": "complaint_flow",\n        "info": "faq_flow",\n        "humano": "handoff"\n      }\n    }\n  ]\n}',visibilidad:'moderadores',categoria:'flujos',createdAt:'2026-04-12'},
+  {id:3,titulo:'Procedimiento de onboarding de cliente',descripcion:'Guía paso a paso para el proceso de incorporación de un nuevo cliente al sistema IArcanIA.',tipo:'procedimiento',contenido:'## Onboarding de Cliente Nuevo\n\n### Paso 1 — Reunión de diagnóstico (Día 1)\n- Confirmar objetivos del cliente\n- Identificar procesos a automatizar\n- Recopilar accesos y credenciales\n\n### Paso 2 — Configuración técnica (Días 2–5)\n- Setup de cuenta en plataforma\n- Conexión de WhatsApp Business\n- Configuración de Make/n8n\n\n### Paso 3 — Pruebas y ajustes (Días 6–8)\n- Testing de flujos en ambiente de prueba\n- Ajuste de respuestas y tiempos\n\n### Paso 4 — Go Live (Día 9)\n- Activación en producción\n- Monitoreo primeras 24h',visibilidad:'todos',categoria:'estándares',createdAt:'2026-04-15'},
+  {id:4,titulo:'Video tutorial: Configurar agente de ventas',descripcion:'Grabación de pantalla con el proceso completo para configurar un agente de ventas desde cero.',tipo:'video',contenido:'https://www.youtube.com/watch?v=dQw4w9WgXcQ',visibilidad:'todos',categoria:'herramientas',createdAt:'2026-04-18'},
+  {id:5,titulo:'Prompt de seguimiento de leads',descripcion:'Secuencia de mensajes para el seguimiento automático de prospectos que no respondieron.',tipo:'prompt',contenido:'[MENSAJE 1 — Día 2]\nHola [NOMBRE], vi que consultaste sobre [PRODUCTO/SERVICIO]. ¿Tuviste la oportunidad de revisarlo? Quedo a tu disposición 🙌\n\n[MENSAJE 2 — Día 5]\n[NOMBRE], solo quería asegurarme de que recibiste la información. Si tienes dudas, puedo agendar una llamada de 15 min sin costo. ¿Te interesa?\n\n[MENSAJE 3 — Día 10]\nÚltimo mensaje de mi parte. Si en algún momento necesitas ayuda con [SERVICIO], aquí estaré. ¡Mucho éxito! 🚀',visibilidad:'moderadores',categoria:'CRM',createdAt:'2026-04-20'},
+  {id:6,titulo:'Estándares de calidad — Respuestas IA',descripcion:'Guía interna de criterios de calidad para evaluar y mejorar las respuestas de los agentes de IA.',tipo:'procedimiento',contenido:'## Estándares de Calidad — Respuestas de Agentes IA\n\n### Criterios de evaluación (escala 1–5)\n\n1. **Precisión** — ¿La respuesta es correcta y relevante?\n2. **Tono** — ¿Mantiene el tono de marca del cliente?\n3. **Claridad** — ¿Es fácil de entender?\n4. **Resolución** — ¿Resolvió la consulta o derivó correctamente?\n5. **Tiempo** — ¿Respondió en menos de 5 segundos?\n\n### Score mínimo aceptable: 4.0/5.0\n\n### Proceso de revisión\n- Revisión semanal de 50 conversaciones aleatorias\n- Reporte a cliente el primer lunes de cada mes',visibilidad:'todos',categoria:'estándares',createdAt:'2026-04-22'},
+  {id:7,titulo:'Config JSON — CRM Básico',descripcion:'Estructura de datos para integrar un CRM básico con los agentes. Compatible con Airtable y Notion.',tipo:'json',contenido:'{\n  "crm_config": {\n    "provider": "airtable",\n    "base_id": "appXXXXXXXXXX",\n    "tables": {\n      "contacts": "tblContacts",\n      "deals": "tblDeals",\n      "interactions": "tblInteractions"\n    },\n    "sync_interval": 300,\n    "fields_map": {\n      "name": "Nombre",\n      "phone": "Teléfono",\n      "status": "Estado",\n      "last_contact": "Último Contacto"\n    }\n  }\n}',visibilidad:'moderadores',categoria:'CRM',createdAt:'2026-04-25'},
+  {id:8,titulo:'Prompt de cierre de venta',descripcion:'Mensaje final para convertir prospectos calificados en clientes. Alta tasa de conversión.',tipo:'prompt',contenido:'[NOMBRE], hemos hablado varias veces y creo que [PRODUCTO/SERVICIO] puede transformar cómo trabajas.\n\nHoy tengo disponibilidad para iniciar tu configuración. El proceso toma 48h y en la primera semana ya verás resultados.\n\n¿Empezamos mañana? 📅\n\n[Si responde SÍ → enviar enlace de pago]\n[Si responde DUDA → escalar a humano]',visibilidad:'todos',categoria:'CRM',createdAt:'2026-04-28'},
+];
+
+/* ── Visibility logic ── */
+function canSeeResource(resource,rol){
+  if(rol==='admin') return true;
+  if(resource.visibilidad==='todos') return true;
+  if(resource.visibilidad==='usuarios') return true; // todos los roles logueados
+  if(resource.visibilidad==='moderadores') return rol==='moderador'||rol==='admin';
+  return false;
+}
+
+/* ── Types & Categories ── */
+const TIPO_CONFIG={
+  prompt:      {label:'Prompt',       color:'#c4b0ff',bg:'rgba(155,114,240,0.12)',icon:'✦'},
+  json:        {label:'JSON',         color:T.gold,   bg:'rgba(201,168,76,0.10)',  icon:'{}'},
+  video:       {label:'Video',        color:T.blue,   bg:'rgba(96,165,250,0.10)',  icon:'▶'},
+  procedimiento:{label:'Procedimiento',color:T.green, bg:'rgba(74,222,128,0.10)',  icon:'≡'},
+};
+const CATEGORIAS=['CRM','herramientas','flujos','estándares','otro'];
+const VISIBILIDADES=[
+  {value:'usuarios',    label:'Usuarios',     desc:'Visible para todos'},
+  {value:'moderadores', label:'Moderadores',  desc:'Solo moderadores y admins'},
+  {value:'todos',       label:'Todos',        desc:'Público general'},
+];
+
+/* ══════════════════════════════════════════
+   SHARED ATOMS
+══════════════════════════════════════════ */
+function Logo({size=22}){
+  return(<div style={{fontFamily:"'Playfair Display',serif",fontSize:size,fontWeight:700,letterSpacing:'0.12em',lineHeight:1,userSelect:'none'}}><span style={{color:'#8090a8'}}>I</span><span style={{color:T.text}}>Arcan</span><span style={{color:'#8090a8'}}>IA</span></div>);
+}
+
+function RolBadge({rol,small=false}){
+  const r=ROL_CONFIG[rol]||ROL_CONFIG.usuario;
+  return(<span style={{display:'inline-flex',alignItems:'center',gap:5,background:r.bg,border:`1px solid ${r.border}`,borderRadius:100,padding:small?'2px 8px':'3px 10px',fontSize:small?10:11,fontWeight:700,color:r.color,letterSpacing:.3}}><span style={{width:5,height:5,borderRadius:'50%',background:r.color,display:'inline-block'}}/>  {r.label}</span>);
+}
+
+function TipoBadge({tipo}){
+  const t=TIPO_CONFIG[tipo]||TIPO_CONFIG.prompt;
+  return(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:t.bg,border:`1px solid ${t.color}28`,borderRadius:6,padding:'2px 8px',fontSize:10,fontWeight:700,color:t.color}}>{t.icon} {t.label}</span>);
+}
+
+function VisiBadge({v}){
+  const cfg={usuarios:{c:T.blue,label:'Usuarios'},moderadores:{c:T.purple,label:'Moderadores'},todos:{c:T.green,label:'Todos'}};
+  const c=cfg[v]||cfg.usuarios;
+  return(<span style={{fontSize:10,fontWeight:600,color:c.c,background:`${c.c}12`,border:`1px solid ${c.c}28`,borderRadius:5,padding:'2px 7px'}}>{c.label}</span>);
+}
+
+function Btn({children,onClick,variant='primary',size='md',disabled=false,full=false,style={}}){
+  const [hov,setHov]=useState(false);
+  const base={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:'Inter,sans-serif',fontWeight:600,cursor:disabled?'not-allowed':'pointer',border:'none',transition:'all 0.2s',opacity:disabled?.5:1,...style};
+  const sizes={sm:{padding:'6px 14px',fontSize:12,borderRadius:8},md:{padding:'10px 20px',fontSize:13,borderRadius:10},lg:{padding:'14px 32px',fontSize:15,borderRadius:10}};
+  const variants={
+    primary:{background:hov&&!disabled?'rgba(155,114,240,0.35)':'rgba(155,114,240,0.22)',border:`1px solid ${T.borderH}`,color:T.purpleL,boxShadow:hov&&!disabled?'0 0 20px rgba(155,114,240,0.2)':'none'},
+    cta:{background:'linear-gradient(135deg,#7c3aed,#9b72f0)',color:'#fff',boxShadow:hov&&!disabled?'0 8px 30px rgba(124,58,237,0.45)':'0 0 24px rgba(124,58,237,0.28)',transform:hov&&!disabled?'translateY(-1px)':'none'},
+    ghost:{background:'transparent',border:`1px solid ${hov?T.borderH:T.border}`,color:hov?T.text:T.muted},
+    danger:{background:hov?'rgba(248,113,113,0.18)':'rgba(248,113,113,0.10)',border:'1px solid rgba(248,113,113,0.3)',color:T.red},
+    gold:{background:'linear-gradient(135deg,#b8860b,#c9a84c)',color:'#fff',boxShadow:'0 4px 20px rgba(201,168,76,0.2)',transform:hov?'translateY(-1px)':'none'},
+  };
+  return(<button onClick={disabled?undefined:onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{...base,...sizes[size],...variants[variant],width:full?'100%':undefined}}>{children}</button>);
+}
+
+function Input({label,value,onChange,type='text',placeholder='',error='',rows=0}){
+  const [f,setF]=useState(false);
+  const base={width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${error?T.red:f?T.borderH:T.border}`,borderRadius:10,padding:'11px 14px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',transition:'border-color 0.2s'};
+  return(
+    <div style={{marginBottom:14}}>
+      {label&&<label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:5,letterSpacing:.5}}>{label}</label>}
+      {rows>0
+        ?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} onFocus={()=>setF(true)} onBlur={()=>setF(false)} style={{...base,lineHeight:1.7,resize:'vertical'}}/>
+        :<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} onFocus={()=>setF(true)} onBlur={()=>setF(false)} style={base}/>
+      }
+      {error&&<div style={{fontSize:11,color:T.red,marginTop:4}}>{error}</div>}
+    </div>
+  );
+}
+
+function SelectField({label,value,onChange,options}){
+  const [f,setF]=useState(false);
+  return(
+    <div style={{marginBottom:14}}>
+      {label&&<label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:5,letterSpacing:.5}}>{label}</label>}
+      <select value={value} onChange={e=>onChange(e.target.value)} onFocus={()=>setF(true)} onBlur={()=>setF(false)} style={{width:'100%',background:T.s1,border:`1px solid ${f?T.borderH:T.border}`,borderRadius:10,padding:'11px 14px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',cursor:'pointer',appearance:'none',backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a788f' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 12px center'}}>
+        {options.map(o=><option key={o.value||o} value={o.value||o} style={{background:T.s1}}>{o.label||o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function SectionLabel({children}){
+  return(<div style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:8}}><span style={{width:20,height:1,background:T.gold,display:'inline-block'}}/>{children}</div>);
+}
+
+function Card({children,style={},hover=true}){
+  const [h,setH]=useState(false);
+  return(
+    <div onMouseEnter={()=>hover&&setH(true)} onMouseLeave={()=>hover&&setH(false)}
+      style={{background:h?T.s2:T.s1,border:`1px solid ${h?T.borderH:T.border}`,borderRadius:16,position:'relative',overflow:'hidden',transition:'all 0.22s',transform:h&&hover?'translateY(-3px)':'none',...style}}>
+      {h&&hover&&<div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.5),transparent)'}}/>}
+      {children}
+    </div>
+  );
+}
+
+function Modal({onClose,children,width=520}){
+  useEffect(()=>{const h=e=>{if(e.key==='Escape')onClose();};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[]);
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',animation:'modalBg 0.2s ease',backdropFilter:'blur(5px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.s1,border:`1px solid ${T.border}`,borderRadius:20,padding:'28px 26px',width,maxWidth:'95vw',boxShadow:'0 40px 80px rgba(0,0,0,0.75)',animation:'slideUp 0.28s ease',maxHeight:'92vh',overflowY:'auto'}}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ModalHeader({title,sub,onClose}){
+  return(
+    <div style={{marginBottom:20}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
+        <div>{sub&&<SectionLabel>{sub}</SectionLabel>}<h3 style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.text}}>{title}</h3></div>
+        <button onClick={onClose} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,0.04)',border:`1px solid ${T.border}`,color:T.muted,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginLeft:14}}>✕</button>
+      </div>
+      <div style={{height:1,background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.3),transparent)'}}/>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   TOPNAV
+══════════════════════════════════════════ */
+function TopNav({user,route,navigate,onLogout}){
+  const navLinks=[
+    {path:'/dashboard',label:'Dashboard'},
+    {path:'/resources',label:'Recursos'},
+    ...(user?.rol==='admin'?[{path:'/admin/resources',label:'Admin'}]:[]),
+  ];
+  return(
+    <nav style={{position:'sticky',top:0,zIndex:100,borderBottom:`1px solid ${T.border}`,background:'rgba(6,6,9,0.9)',backdropFilter:'blur(12px)'}}>
+      <div style={{maxWidth:1200,margin:'0 auto',padding:'0 24px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:28}}>
+          <button onClick={()=>navigate('/dashboard')} style={{background:'none',border:'none',cursor:'pointer'}}><Logo size={18}/></button>
+          <div style={{display:'flex',gap:4}}>
+            {navLinks.map(l=>{
+              const active=route===l.path;
+              return(<button key={l.path} onClick={()=>navigate(l.path)} style={{background:active?'rgba(155,114,240,0.14)':'transparent',border:active?`1px solid ${T.border}`:'1px solid transparent',borderRadius:8,padding:'5px 14px',color:active?T.purpleL:T.muted,fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.15s'}}
+                onMouseEnter={e=>{if(!active){e.currentTarget.style.color=T.text;}}}
+                onMouseLeave={e=>{if(!active){e.currentTarget.style.color=T.muted;}}}>{l.label}{l.path==='/admin/resources'&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,background:'rgba(201,168,76,0.15)',border:'1px solid rgba(201,168,76,0.25)',color:T.gold,borderRadius:4,padding:'1px 5px'}}>ADMIN</span>}</button>);
+            })}
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <RolBadge rol={user?.rol} small/>
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 10px',background:T.s2,border:`1px solid ${T.border}`,borderRadius:100}}>
+            <div style={{width:24,height:24,borderRadius:'50%',background:'rgba(155,114,240,0.2)',border:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:T.purple}}>{user?.avatar}</div>
+            <span style={{fontSize:12,fontWeight:600,color:T.text}}>{user?.nombre}</span>
+          </div>
+          <Btn onClick={onLogout} variant="ghost" size="sm">Salir</Btn>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+/* ══════════════════════════════════════════
+   PAGE: LANDING
+══════════════════════════════════════════ */
+function PageLanding({navigate}){
+  return(
+    <div className="page" style={{minHeight:'100vh',overflowX:'hidden'}}>
+      {/* Nav */}
+      <nav style={{position:'fixed',top:0,left:0,right:0,zIndex:100,borderBottom:`1px solid ${T.border}`,background:'rgba(6,6,9,0.85)',backdropFilter:'blur(12px)'}}>
+        <div style={{maxWidth:1200,margin:'0 auto',padding:'0 24px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <Logo size={20}/>
+          <div style={{display:'flex',gap:10,alignItems:'center'}}>
+            <span style={{fontSize:12,color:T.dim}}>¿Ya tienes acceso?</span>
+            <Btn onClick={()=>navigate('/login')} variant="primary" size="sm">Iniciar sesión →</Btn>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'100px 24px 60px',textAlign:'center',position:'relative'}}>
+        {/* Orbs */}
+        <div style={{position:'absolute',top:'15%',left:'8%',width:400,height:400,borderRadius:'50%',background:'radial-gradient(circle,rgba(124,58,237,0.18),transparent 70%)',filter:'blur(60px)',animation:'float1 12s ease-in-out infinite',pointerEvents:'none'}}/>
+        <div style={{position:'absolute',bottom:'20%',right:'10%',width:350,height:350,borderRadius:'50%',background:'radial-gradient(circle,rgba(201,168,76,0.12),transparent 70%)',filter:'blur(50px)',animation:'float2 15s ease-in-out infinite',pointerEvents:'none'}}/>
+
+        <div style={{maxWidth:780,animation:'fadeIn 0.7s ease'}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(155,114,240,0.08)',border:`1px solid ${T.border}`,borderRadius:100,padding:'5px 16px',fontSize:11,fontWeight:600,color:T.purple,letterSpacing:1,textTransform:'uppercase',marginBottom:28}}>
+            <span style={{width:6,height:6,borderRadius:'50%',background:T.purple,animation:'pulse 2s infinite'}}/>
+            Plataforma interna de IArcanIA
+          </div>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(36px,6vw,68px)',fontWeight:700,lineHeight:1.08,letterSpacing:'-1px',marginBottom:24,color:T.text}}>
+            Todo lo que necesitas<br/>para <span style={{background:'linear-gradient(135deg,#c4b0ff,#c9a84c)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>operar con IA.</span>
+          </h1>
+          <p style={{fontSize:'clamp(15px,2vw,18px)',color:T.muted,lineHeight:1.75,maxWidth:580,marginTop:16,marginLeft:'auto',marginRight:'auto',marginBottom:40}}>
+            Biblioteca de recursos, prompts, flujos y procedimientos. Acceso según tu rol, siempre actualizado.
+          </p>
+          <div style={{display:'flex',gap:14,justifyContent:'center',flexWrap:'wrap'}}>
+            <Btn onClick={()=>navigate('/login')} variant="cta" size="lg">Acceder a la plataforma →</Btn>
+            <Btn onClick={()=>document.getElementById('roles-section').scrollIntoView({behavior:'smooth'})} variant="ghost" size="lg">Ver roles</Btn>
+          </div>
+        </div>
+
+        {/* Scroll hint */}
+        <div style={{position:'absolute',bottom:32,left:'50%',transform:'translateX(-50%)',display:'flex',flexDirection:'column',alignItems:'center',gap:6,opacity:.4}}>
+          <span style={{fontSize:10,color:T.muted,letterSpacing:1,textTransform:'uppercase'}}>Scroll</span>
+          <div style={{width:1,height:32,background:T.border}}/>
+        </div>
+      </div>
+
+      {/* Roles section */}
+      <div id="roles-section" style={{maxWidth:1100,margin:'0 auto',padding:'80px 24px'}}>
+        <div style={{textAlign:'center',marginBottom:52}}>
+          <SectionLabel>Roles y accesos</SectionLabel>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(26px,4vw,38px)',fontWeight:700,color:T.text,marginTop:8}}>Cada rol, su contenido</h2>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:20}}>
+          {[
+            {rol:'usuario',icon:'◎',title:'Usuario',perms:['Prompts públicos','Procedimientos estándar','Videos tutoriales','Recursos básicos'],color:T.blue,grad:'linear-gradient(135deg,#0369a1,#60a5fa)'},
+            {rol:'moderador',icon:'◉',title:'Moderador',perms:['Todo lo de Usuario','Flujos y JSONs internos','Recursos de equipo','Guías avanzadas'],color:T.purple,grad:'linear-gradient(135deg,#5a2de0,#9b72f0)'},
+            {rol:'admin',icon:'✦',title:'Administrador',perms:['Acceso completo','Crear y editar recursos','Gestionar visibilidad','Métricas y reportes'],color:T.gold,grad:'linear-gradient(135deg,#92600a,#c9a84c)'},
+          ].map(r=>(
+            <Card key={r.rol} style={{padding:'28px 26px'}}>
+              <div style={{width:50,height:50,borderRadius:12,background:`${r.color}15`,border:`1px solid ${r.color}30`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,color:r.color,marginBottom:18}}>{r.icon}</div>
+              <h3 style={{fontSize:18,fontWeight:700,color:T.text,marginBottom:6}}>{r.title}</h3>
+              <div style={{height:2,background:r.grad,borderRadius:2,marginBottom:16,width:40}}/>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8}}>
+                {r.perms.map((p,i)=><li key={i} style={{fontSize:13,color:i===0&&r.rol!=='usuario'?T.dim:T.muted,display:'flex',alignItems:'center',gap:8}}><span style={{color:r.color,fontSize:10}}>✓</span>{p}</li>)}
+              </ul>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA band */}
+      <div style={{margin:'0 24px 100px',borderRadius:20,background:T.s1,border:`1px solid ${T.border}`,padding:'52px',textAlign:'center',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',inset:0,background:'radial-gradient(ellipse at 50% 0%,rgba(124,58,237,0.12),transparent 70%)',pointerEvents:'none'}}/>
+        <SectionLabel>Acceso</SectionLabel>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(24px,3vw,34px)',fontWeight:700,color:T.text,margin:'12px 0 20px'}}>¿Listo para empezar?</h2>
+        <p style={{fontSize:14,color:T.muted,marginBottom:30}}>Usa tus credenciales de IArcanIA para acceder a la plataforma.</p>
+        <Btn onClick={()=>navigate('/login')} variant="cta" size="lg">Iniciar sesión →</Btn>
+        <div style={{marginTop:24,fontSize:12,color:T.dim}}>
+          Demo: <code style={{color:T.purple,background:'rgba(155,114,240,0.1)',padding:'2px 6px',borderRadius:4}}>admin@iarcania.co</code> / <code style={{color:T.purple,background:'rgba(155,114,240,0.1)',padding:'2px 6px',borderRadius:4}}>admin123</code>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   PAGE: LOGIN
+══════════════════════════════════════════ */
+function PageLogin({onLogin,navigate}){
+  const [email,setEmail]=useState('');
+  const [pass,setPass]=useState('');
+  const [err,setErr]=useState('');
+  const [loading,setLoading]=useState(false);
+
+  function handleSubmit(e){
+    e.preventDefault(); setErr('');
+    if(!email||!pass){setErr('Completa todos los campos.');return;}
+    setLoading(true);
+    setTimeout(()=>{
+      const u=USERS.find(u=>u.email===email&&u.password===pass);
+      if(!u){setErr('Credenciales incorrectas.');setLoading(false);return;}
+      onLogin(u);
+    },900);
+  }
+
+  const demoLogins=[
+    {label:'Admin',email:'admin@iarcania.co',pass:'admin123',color:T.gold},
+    {label:'Moderador',email:'mod@iarcania.co',pass:'mod123',color:T.purple},
+    {label:'Usuario',email:'user@iarcania.co',pass:'user123',color:T.blue},
+  ];
+
+  return(
+    <div className="page" style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+      <div style={{width:'100%',maxWidth:400,animation:'fadeIn 0.4s ease'}}>
+        <div style={{textAlign:'center',marginBottom:36}}>
+          <button onClick={()=>navigate('/')} style={{background:'none',border:'none',cursor:'pointer',marginBottom:16}}><Logo size={26}/></button>
+          <div style={{fontSize:11,color:T.dim,letterSpacing:1.5,textTransform:'uppercase',marginTop:8}}>Acceso a la plataforma</div>
+        </div>
+
+        <Card style={{padding:'32px 28px'}} hover={false}>
+          <div style={{height:1,background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.4),transparent)',marginBottom:24}}/>
+          <form onSubmit={handleSubmit}>
+            <Input label="Correo electrónico" value={email} onChange={setEmail} type="email" placeholder="tu@iarcania.co"/>
+            <Input label="Contraseña" value={pass} onChange={setPass} type="password" placeholder="••••••••"/>
+            {err&&<div style={{fontSize:12,color:T.red,padding:'8px 12px',background:'rgba(248,113,113,0.08)',border:'1px solid rgba(248,113,113,0.2)',borderRadius:8,marginBottom:14}}>{err}</div>}
+            <Btn onClick={handleSubmit} variant="cta" size="md" full>
+              {loading?<><span style={{width:14,height:14,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.7s linear infinite',display:'inline-block'}}/>Verificando...</>:'Ingresar →'}
+            </Btn>
+          </form>
+          <div style={{height:1,background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.15),transparent)',margin:'22px 0 18px'}}/>
+          <div style={{fontSize:11,color:T.dim,marginBottom:12,textAlign:'center',letterSpacing:.5}}>ACCESO RÁPIDO (DEMO)</div>
+          <div style={{display:'flex',gap:8}}>
+            {demoLogins.map(d=>(
+              <button key={d.label} onClick={()=>{setEmail(d.email);setPass(d.pass);}}
+                style={{flex:1,padding:'7px 6px',borderRadius:8,background:'rgba(255,255,255,0.03)',border:`1px solid ${d.color}28`,color:d.color,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.18s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background=`${d.color}12`;e.currentTarget.style.borderColor=`${d.color}55`;}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.03)';e.currentTarget.style.borderColor=`${d.color}28`;}}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </Card>
+        <div style={{textAlign:'center',marginTop:20,fontSize:11,color:T.dim}}>
+          <button onClick={()=>navigate('/')} style={{background:'none',border:'none',color:T.dim,cursor:'pointer',fontFamily:'Inter,sans-serif',fontSize:11}}>← Volver a la landing</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   PAGE: DASHBOARD
+══════════════════════════════════════════ */
+function PageDashboard({user,resources,navigate}){
+  const hour=new Date().getHours();
+  const greeting=hour<12?'Buenos días':hour<19?'Buenas tardes':'Buenas noches';
+  const myResources=resources.filter(r=>canSeeResource(r,user.rol));
+  const byTipo=SEED_RESOURCES.reduce((a,r)=>{a[r.tipo]=(a[r.tipo]||0)+1;return a;},{});
+  const recent=myResources.slice(0,3);
+
+  return(
+    <div className="page" style={{maxWidth:1100,margin:'0 auto',padding:'40px 24px',animation:'fadeIn 0.4s ease'}}>
+      {/* Welcome */}
+      <div style={{marginBottom:44}}>
+        <div style={{fontSize:12,color:T.dim,letterSpacing:1,textTransform:'uppercase',marginBottom:8}}>{greeting}</div>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(26px,4vw,40px)',fontWeight:700,color:T.text,marginBottom:10}}>
+          Hola, <span style={{background:'linear-gradient(135deg,#c4b0ff,#c9a84c)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{user.nombre.split(' ')[0]}.</span>
+        </h1>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <RolBadge rol={user.rol}/>
+          <span style={{fontSize:12,color:T.dim}}>Tienes acceso a {myResources.length} recursos.</span>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:14,marginBottom:36}}>
+        {[
+          {label:'Recursos disponibles',value:myResources.length,color:T.purple,icon:'◎'},
+          {label:'Prompts',value:myResources.filter(r=>r.tipo==='prompt').length,color:T.purpleL,icon:'✦'},
+          {label:'Procedimientos',value:myResources.filter(r=>r.tipo==='procedimiento').length,color:T.green,icon:'≡'},
+          ...(user.rol==='admin'?[{label:'Total recursos',value:resources.length,color:T.gold,icon:'⊞'}]:[]),
+        ].map((s,i)=>(
+          <Card key={i} style={{padding:'18px 20px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+              <div>
+                <div style={{fontSize:11,color:T.dim,marginBottom:8,letterSpacing:.5}}>{s.label}</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:s.color,lineHeight:1}}>{s.value}</div>
+              </div>
+              <span style={{fontSize:22,color:s.color,opacity:.4}}>{s.icon}</span>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24}}>
+        {/* Recent resources */}
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+            <SectionLabel>Recientes</SectionLabel>
+            <button onClick={()=>navigate('/resources')} style={{fontSize:12,color:T.purple,background:'none',border:'none',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Ver todos →</button>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {recent.map(r=>(
+              <Card key={r.id} style={{padding:'14px 16px'}}>
+                <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                  <div style={{width:36,height:36,borderRadius:9,background:(TIPO_CONFIG[r.tipo]||TIPO_CONFIG.prompt).bg,border:`1px solid ${(TIPO_CONFIG[r.tipo]||TIPO_CONFIG.prompt).color}28`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,color:(TIPO_CONFIG[r.tipo]||TIPO_CONFIG.prompt).color,flexShrink:0}}>{(TIPO_CONFIG[r.tipo]||TIPO_CONFIG.prompt).icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,color:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:4}}>{r.titulo}</div>
+                    <div style={{display:'flex',gap:6}}><TipoBadge tipo={r.tipo}/><VisiBadge v={r.visibilidad}/></div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Role info + quick actions */}
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Card style={{padding:'22px 20px'}}>
+            <SectionLabel>Tu acceso</SectionLabel>
+            <div style={{marginTop:8}}>
+              {[
+                {label:'Prompts',count:myResources.filter(r=>r.tipo==='prompt').length,color:T.purpleL},
+                {label:'JSONs',count:myResources.filter(r=>r.tipo==='json').length,color:T.gold},
+                {label:'Videos',count:myResources.filter(r=>r.tipo==='video').length,color:T.blue},
+                {label:'Procedimientos',count:myResources.filter(r=>r.tipo==='procedimiento').length,color:T.green},
+              ].map((item,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:i<3?`1px solid ${T.border}`:'none'}}>
+                  <div style={{width:6,height:6,borderRadius:'50%',background:item.color,flexShrink:0}}/>
+                  <span style={{fontSize:13,color:T.muted,flex:1}}>{item.label}</span>
+                  <span style={{fontSize:14,fontWeight:700,color:item.color}}>{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Btn onClick={()=>navigate('/resources')} variant="primary" full>Ir a biblioteca de recursos →</Btn>
+          {user.rol==='admin'&&<Btn onClick={()=>navigate('/admin/resources')} variant="gold" full>Panel de administración →</Btn>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   RESOURCE PREVIEW MODAL
+══════════════════════════════════════════ */
+function ResourcePreview({resource,onClose,user}){
+  const [copied,setCopied]=useState(false);
+  const t=TIPO_CONFIG[resource.tipo]||TIPO_CONFIG.prompt;
+  const isCode=resource.tipo==='json'||resource.tipo==='prompt';
+
+  function handleCopy(){
+    navigator.clipboard.writeText(resource.contenido).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});
+  }
+  function handleExport(){
+    const blob=new Blob([resource.contenido],{type:'text/plain'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`${resource.titulo.toLowerCase().replace(/\s+/g,'-')}.txt`; a.click();
+  }
+
+  return(
+    <Modal onClose={onClose} width={640}>
+      <ModalHeader title={resource.titulo} sub="Vista previa" onClose={onClose}/>
+      <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+        <TipoBadge tipo={resource.tipo}/><VisiBadge v={resource.visibilidad}/><span style={{fontSize:10,color:T.muted,background:T.s2,border:`1px solid ${T.border}`,borderRadius:5,padding:'2px 7px'}}>{resource.categoria}</span>
+      </div>
+      <p style={{fontSize:13,color:T.muted,lineHeight:1.7,marginBottom:18}}>{resource.descripcion}</p>
+
+      {/* Content */}
+      {resource.tipo==='video'
+        ? <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'18px',textAlign:'center'}}>
+            <div style={{fontSize:32,marginBottom:10}}>▶</div>
+            <a href={resource.contenido} target="_blank" rel="noreferrer" style={{color:T.blue,fontSize:13,wordBreak:'break-all'}}>{resource.contenido}</a>
+          </div>
+        : <div style={{position:'relative'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <span style={{fontSize:11,color:T.dim,letterSpacing:.5}}>{resource.tipo==='json'?'JSON':'Texto del recurso'}</span>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={handleCopy} style={{display:'flex',alignItems:'center',gap:5,background:copied?'rgba(74,222,128,0.1)':'rgba(255,255,255,0.04)',border:`1px solid ${copied?'rgba(74,222,128,0.3)':T.border}`,borderRadius:7,padding:'5px 10px',color:copied?T.green:T.muted,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s'}}>
+                  {copied?'✓ Copiado':'⎘ Copiar'}
+                </button>
+                <button onClick={handleExport} style={{display:'flex',alignItems:'center',gap:5,background:'rgba(255,255,255,0.04)',border:`1px solid ${T.border}`,borderRadius:7,padding:'5px 10px',color:T.muted,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                  ↓ .txt
+                </button>
+              </div>
+            </div>
+            <pre style={{background:T.s3,border:`1px solid ${T.border}`,borderRadius:12,padding:'16px',fontSize:12,color:T.text,lineHeight:1.75,overflowX:'auto',maxHeight:320,overflowY:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word',fontFamily:'ui-monospace,SFMono-Regular,monospace'}}>{resource.contenido}</pre>
+          </div>
+      }
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:16}}>
+        <span style={{fontSize:11,color:T.dim}}>Creado: {resource.createdAt}</span>
+        <Btn onClick={onClose} variant="ghost" size="sm">Cerrar</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+/* ══════════════════════════════════════════
+   PAGE: RESOURCES
+══════════════════════════════════════════ */
+function PageResources({user,resources,navigate}){
+  const [search,setSearch]=useState('');
+  const [filterTipo,setFilterTipo]=useState('all');
+  const [filterCat,setFilterCat]=useState('all');
+  const [preview,setPreview]=useState(null);
+
+  const visible=resources.filter(r=>canSeeResource(r,user.rol));
+  const filtered=visible.filter(r=>{
+    const q=search.toLowerCase();
+    const matchQ=!q||r.titulo.toLowerCase().includes(q)||r.descripcion.toLowerCase().includes(q)||r.categoria.toLowerCase().includes(q);
+    const matchT=filterTipo==='all'||r.tipo===filterTipo;
+    const matchC=filterCat==='all'||r.categoria===filterCat;
+    return matchQ&&matchT&&matchC;
+  });
+
+  const cats=['all',...new Set(visible.map(r=>r.categoria))];
+
+  return(
+    <div className="page" style={{maxWidth:1100,margin:'0 auto',padding:'40px 24px',animation:'fadeIn 0.4s ease'}}>
+      {preview&&<ResourcePreview resource={preview} onClose={()=>setPreview(null)} user={user}/>}
+
+      <div style={{marginBottom:32}}>
+        <SectionLabel>Biblioteca</SectionLabel>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(24px,4vw,36px)',fontWeight:700,color:T.text,margin:'8px 0 6px'}}>Recursos</h1>
+        <p style={{fontSize:13,color:T.muted}}>{filtered.length} {filtered.length===1?'recurso':'recursos'} disponibles para tu rol</p>
+      </div>
+
+      {/* Filters */}
+      <div style={{display:'flex',gap:12,marginBottom:24,flexWrap:'wrap',alignItems:'center'}}>
+        <div style={{position:'relative',flex:'1 1 240px'}}>
+          <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:T.dim,fontSize:14,pointerEvents:'none'}}>⌕</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar recursos..." style={{width:'100%',background:T.s1,border:`1px solid ${T.border}`,borderRadius:10,padding:'10px 14px 10px 36px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none'}}
+            onFocus={e=>{e.target.style.borderColor=T.borderH;}} onBlur={e=>{e.target.style.borderColor=T.border;}}/>
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {['all','prompt','json','video','procedimiento'].map(t=>(
+            <button key={t} onClick={()=>setFilterTipo(t)} style={{padding:'6px 12px',borderRadius:8,background:filterTipo===t?'rgba(155,114,240,0.18)':'transparent',border:`1px solid ${filterTipo===t?T.borderH:T.border}`,color:filterTipo===t?T.purpleL:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.15s'}}>
+              {t==='all'?'Todos':(TIPO_CONFIG[t]?.label||t)}
+            </button>
+          ))}
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {cats.map(c=>(
+            <button key={c} onClick={()=>setFilterCat(c)} style={{padding:'5px 10px',borderRadius:7,background:filterCat===c?'rgba(201,168,76,0.12)':'transparent',border:`1px solid ${filterCat===c?T.borderG:T.border}`,color:filterCat===c?T.gold:T.dim,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.15s'}}>
+              {c==='all'?'Todas':c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      {filtered.length===0
+        ?<div style={{textAlign:'center',padding:'80px 0',color:T.dim}}><div style={{fontSize:36,marginBottom:12}}>◎</div><div style={{fontSize:14}}>Sin resultados</div></div>
+        :<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:16}}>
+          {filtered.map(r=><ResourceCard key={r.id} resource={r} onPreview={()=>setPreview(r)} user={user}/>)}
+        </div>
+      }
+    </div>
+  );
+}
+
+function ResourceCard({resource:r,onPreview,user}){
+  const [h,setH]=useState(false);
+  const t=TIPO_CONFIG[r.tipo]||TIPO_CONFIG.prompt;
+  return(
+    <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+      style={{background:h?T.s2:T.s1,border:`1px solid ${h?T.borderH:T.border}`,borderRadius:16,padding:'20px',transition:'all 0.2s',transform:h?'translateY(-3px)':'none',cursor:'pointer',position:'relative',overflow:'hidden'}}
+      onClick={onPreview}>
+      <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${t.color}60,transparent)`,opacity:h?1:0,transition:'opacity 0.2s'}}/>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+        <div style={{width:40,height:40,borderRadius:10,background:t.bg,border:`1px solid ${t.color}28`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,color:t.color}}>{t.icon}</div>
+        <VisiBadge v={r.visibilidad}/>
+      </div>
+      <h3 style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:8,lineHeight:1.4,textWrap:'pretty'}}>{r.titulo}</h3>
+      <p style={{fontSize:12,color:T.muted,lineHeight:1.65,marginBottom:14,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{r.descripcion}</p>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{display:'flex',gap:6}}><TipoBadge tipo={r.tipo}/><span style={{fontSize:10,color:T.dim,background:T.s3,border:`1px solid ${T.border}`,borderRadius:5,padding:'2px 7px'}}>{r.categoria}</span></div>
+        <span style={{fontSize:11,color:h?T.purple:T.dim,transition:'color 0.2s'}}>Ver →</span>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   RESOURCE FORM MODAL (admin)
+══════════════════════════════════════════ */
+function ResourceFormModal({resource,onSave,onClose}){
+  const [form,setForm]=useState(resource||{titulo:'',descripcion:'',tipo:'prompt',contenido:'',visibilidad:'usuarios',categoria:'herramientas'});
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const isEdit=!!resource;
+
+  function handleSave(){
+    if(!form.titulo.trim()||!form.contenido.trim())return;
+    onSave({...form,id:resource?.id||Date.now(),createdAt:resource?.createdAt||new Date().toISOString().slice(0,10)});
+  }
+
+  return(
+    <Modal onClose={onClose} width={560}>
+      <ModalHeader title={isEdit?'Editar recurso':'Nuevo recurso'} sub={isEdit?'Editar':'Crear'} onClose={onClose}/>
+      <Input label="Título *" value={form.titulo} onChange={v=>set('titulo',v)} placeholder="Nombre del recurso"/>
+      <Input label="Descripción" value={form.descripcion} onChange={v=>set('descripcion',v)} placeholder="Breve descripción del recurso" rows={2}/>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <SelectField label="Tipo *" value={form.tipo} onChange={v=>set('tipo',v)} options={Object.entries(TIPO_CONFIG).map(([v,t])=>({value:v,label:`${t.icon} ${t.label}`}))}/>
+        <SelectField label="Categoría" value={form.categoria} onChange={v=>set('categoria',v)} options={CATEGORIAS}/>
+      </div>
+      <SelectField label="Visibilidad" value={form.visibilidad} onChange={v=>set('visibilidad',v)} options={VISIBILIDADES.map(v=>({value:v.value,label:`${v.label} — ${v.desc}`}))}/>
+      <Input label={form.tipo==='video'?'URL del video *':'Contenido *'} value={form.contenido} onChange={v=>set('contenido',v)} placeholder={form.tipo==='video'?'https://...':form.tipo==='json'?'{"key": "value"}':'Escribe el contenido aquí...'} rows={form.tipo==='video'?1:6}/>
+      <div style={{display:'flex',gap:10,marginTop:4}}>
+        <Btn onClick={onClose} variant="ghost" full>Cancelar</Btn>
+        <Btn onClick={handleSave} variant={form.titulo.trim()&&form.contenido.trim()?'cta':'ghost'} full disabled={!form.titulo.trim()||!form.contenido.trim()}>
+          {isEdit?'Guardar cambios':'Crear recurso →'}
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+
+/* ══════════════════════════════════════════
+   PAGE: ADMIN RESOURCES
+══════════════════════════════════════════ */
+function PageAdminResources({resources,setResources,navigate}){
+  const [search,setSearch]=useState('');
+  const [filterT,setFilterT]=useState('all');
+  const [filterV,setFilterV]=useState('all');
+  const [preview,setPreview]=useState(null);
+  const [editRes,setEditRes]=useState(null);
+  const [showNew,setShowNew]=useState(false);
+  const [delConfirm,setDelConfirm]=useState(null);
+
+  const filtered=resources.filter(r=>{
+    const q=search.toLowerCase();
+    const mQ=!q||r.titulo.toLowerCase().includes(q)||r.categoria.toLowerCase().includes(q);
+    const mT=filterT==='all'||r.tipo===filterT;
+    const mV=filterV==='all'||r.visibilidad===filterV;
+    return mQ&&mT&&mV;
+  });
+
+  function handleSave(form){
+    if(editRes){setResources(prev=>prev.map(r=>r.id===form.id?form:r));setEditRes(null);}
+    else{setResources(prev=>[form,...prev]);setShowNew(false);}
+  }
+  function handleDelete(id){setResources(prev=>prev.filter(r=>r.id!==id));setDelConfirm(null);}
+  function toggleVisi(id){
+    setResources(prev=>prev.map(r=>{
+      if(r.id!==id)return r;
+      const cycle={usuarios:'moderadores',moderadores:'todos',todos:'usuarios'};
+      return{...r,visibilidad:cycle[r.visibilidad]||'usuarios'};
+    }));
+  }
+
+  const stats={
+    total:resources.length,
+    byTipo:Object.fromEntries(Object.keys(TIPO_CONFIG).map(k=>[k,resources.filter(r=>r.tipo===k).length])),
+    byVisi:{usuarios:resources.filter(r=>r.visibilidad==='usuarios').length,moderadores:resources.filter(r=>r.visibilidad==='moderadores').length,todos:resources.filter(r=>r.visibilidad==='todos').length},
+  };
+
+  return(
+    <div className="page" style={{maxWidth:1200,margin:'0 auto',padding:'36px 24px',animation:'fadeIn 0.4s ease'}}>
+      {(showNew||editRes)&&<ResourceFormModal resource={editRes} onSave={handleSave} onClose={()=>{setShowNew(false);setEditRes(null);}}/>}
+      {preview&&<ResourcePreview resource={preview} onClose={()=>setPreview(null)} user={{rol:'admin'}}/>}
+      {delConfirm&&(
+        <Modal onClose={()=>setDelConfirm(null)} width={400}>
+          <ModalHeader title="¿Eliminar recurso?" sub="Confirmar" onClose={()=>setDelConfirm(null)}/>
+          <p style={{fontSize:13,color:T.muted,marginBottom:6}}><strong style={{color:T.text}}>{delConfirm.titulo}</strong></p>
+          <p style={{fontSize:13,color:T.muted,marginBottom:20}}>Esta acción no se puede deshacer.</p>
+          <div style={{display:'flex',gap:10}}><Btn onClick={()=>setDelConfirm(null)} variant="ghost" full>Cancelar</Btn><Btn onClick={()=>handleDelete(delConfirm.id)} variant="danger" full>Eliminar</Btn></div>
+        </Modal>
+      )}
+
+      {/* Header */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:28}}>
+        <div>
+          <SectionLabel>Panel de administración</SectionLabel>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(22px,3vw,32px)',fontWeight:700,color:T.text,margin:'8px 0 4px'}}>Gestión de recursos</h1>
+          <p style={{fontSize:13,color:T.muted}}>{resources.length} recursos en total</p>
+        </div>
+        <Btn onClick={()=>setShowNew(true)} variant="cta">+ Nuevo recurso</Btn>
+      </div>
+
+      {/* Stats */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,marginBottom:28}}>
+        {[
+          {label:'Total',value:stats.total,color:T.gold,icon:'⊞'},
+          ...Object.entries(TIPO_CONFIG).map(([k,t])=>({label:t.label,value:stats.byTipo[k]||0,color:t.color,icon:t.icon})),
+        ].map((s,i)=>(
+          <div key={i} style={{background:T.s1,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px',display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:18,color:s.color,opacity:.6}}>{s.icon}</span>
+            <div><div style={{fontSize:22,fontWeight:700,color:s.color,fontFamily:"'Playfair Display',serif",lineHeight:1}}>{s.value}</div><div style={{fontSize:10,color:T.dim,marginTop:2}}>{s.label}</div></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{display:'flex',gap:10,marginBottom:20,flexWrap:'wrap',alignItems:'center'}}>
+        <div style={{position:'relative',flex:'1 1 200px'}}>
+          <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:T.dim,fontSize:14,pointerEvents:'none'}}>⌕</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..." style={{width:'100%',background:T.s1,border:`1px solid ${T.border}`,borderRadius:10,padding:'9px 14px 9px 36px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none'}}
+            onFocus={e=>e.target.style.borderColor=T.borderH} onBlur={e=>e.target.style.borderColor=T.border}/>
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {['all','prompt','json','video','procedimiento'].map(t=>(
+            <button key={t} onClick={()=>setFilterT(t)} style={{padding:'6px 11px',borderRadius:8,background:filterT===t?'rgba(155,114,240,0.16)':'transparent',border:`1px solid ${filterT===t?T.borderH:T.border}`,color:filterT===t?T.purpleL:T.muted,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.15s'}}>
+              {t==='all'?'Todos tipos':(TIPO_CONFIG[t]?.label||t)}
+            </button>
+          ))}
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {['all','usuarios','moderadores','todos'].map(v=>(
+            <button key={v} onClick={()=>setFilterV(v)} style={{padding:'6px 11px',borderRadius:8,background:filterV===v?'rgba(201,168,76,0.10)':'transparent',border:`1px solid ${filterV===v?T.borderG:T.border}`,color:filterV===v?T.gold:T.muted,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.15s'}}>
+              {v==='all'?'Toda vis.':v.charAt(0).toUpperCase()+v.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{background:T.s1,border:`1px solid ${T.border}`,borderRadius:16,overflow:'hidden'}}>
+        {/* Table header */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 100px 90px 100px 130px',gap:0,padding:'12px 18px',borderBottom:`1px solid ${T.border}`,background:T.s2}}>
+          {['Recurso','Tipo','Categoría','Visibilidad','Acciones'].map((h,i)=>(
+            <div key={i} style={{fontSize:10,fontWeight:700,color:T.dim,letterSpacing:1,textTransform:'uppercase',textAlign:i>0?'center':'left'}}>{h}</div>
+          ))}
+        </div>
+        {filtered.length===0&&(
+          <div style={{textAlign:'center',padding:'50px',color:T.dim}}><div style={{fontSize:28,marginBottom:10}}>◎</div>Sin resultados</div>
+        )}
+        {filtered.map((r,i)=>(
+          <AdminResourceRow key={r.id} resource={r} onPreview={()=>setPreview(r)} onEdit={()=>setEditRes(r)} onDelete={()=>setDelConfirm(r)} onToggleVisi={()=>toggleVisi(r.id)} isLast={i===filtered.length-1}/>
+        ))}
+      </div>
+      <div style={{marginTop:14,fontSize:12,color:T.dim}}>Mostrando {filtered.length} de {resources.length} recursos</div>
+    </div>
+  );
+}
+
+function AdminResourceRow({resource:r,onPreview,onEdit,onDelete,onToggleVisi,isLast}){
+  const [h,setH]=useState(false);
+  const t=TIPO_CONFIG[r.tipo]||TIPO_CONFIG.prompt;
+  return(
+    <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+      style={{display:'grid',gridTemplateColumns:'1fr 100px 90px 100px 130px',gap:0,padding:'13px 18px',borderBottom:isLast?'none':`1px solid ${T.border}`,background:h?T.s2:'transparent',transition:'background 0.15s',alignItems:'center'}}>
+      <div style={{minWidth:0,paddingRight:16}}>
+        <div style={{fontSize:13,fontWeight:600,color:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.titulo}</div>
+        <div style={{fontSize:11,color:T.dim,marginTop:2}}>{r.createdAt}</div>
+      </div>
+      <div style={{textAlign:'center'}}><TipoBadge tipo={r.tipo}/></div>
+      <div style={{textAlign:'center'}}><span style={{fontSize:11,color:T.muted,background:T.s3,border:`1px solid ${T.border}`,borderRadius:5,padding:'2px 7px'}}>{r.categoria}</span></div>
+      <div style={{textAlign:'center',cursor:'pointer'}} onClick={onToggleVisi} title="Clic para cambiar visibilidad"><VisiBadge v={r.visibilidad}/></div>
+      <div style={{display:'flex',gap:6,justifyContent:'center'}}>
+        <button onClick={onPreview} title="Vista previa" style={{width:30,height:30,borderRadius:7,background:'rgba(155,114,240,0.08)',border:`1px solid ${T.border}`,color:T.purple,cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(155,114,240,0.18)';}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(155,114,240,0.08)';}}>◎</button>
+        <button onClick={onEdit} title="Editar" style={{width:30,height:30,borderRadius:7,background:'rgba(201,168,76,0.08)',border:`1px solid ${T.borderG}`,color:T.gold,cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(201,168,76,0.18)';}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(201,168,76,0.08)';}}>✎</button>
+        <button onClick={onDelete} title="Eliminar" style={{width:30,height:30,borderRadius:7,background:'rgba(248,113,113,0.06)',border:'1px solid rgba(248,113,113,0.2)',color:T.red,cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,0.16)';}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(248,113,113,0.06)';}}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   APP ROOT — Router
+══════════════════════════════════════════ */
+function App(){
+  const [route,setRoute]=useState('/');
+  const [user,setUser]=useState(null);
+  const [resources,setResources]=useState(SEED_RESOURCES);
+
+  function navigate(path){
+    if((path==='/dashboard'||path==='/resources'||path==='/admin/resources')&&!user){setRoute('/login');return;}
+    if(path==='/admin/resources'&&user?.rol!=='admin'){setRoute('/resources');return;}
+    setRoute(path);
+    window.scrollTo(0,0);
+  }
+
+  function handleLogin(u){setUser(u);setRoute('/dashboard');}
+  function handleLogout(){setUser(null);setRoute('/');}
+
+  const showNav=user&&route!=='/login'&&route!=='/';
+
+  return(
+    <div style={{minHeight:'100vh'}}>
+      {showNav&&<TopNav user={user} route={route} navigate={navigate} onLogout={handleLogout}/>}
+      {route==='/'          &&<PageLanding navigate={navigate}/>}
+      {route==='/login'     &&<PageLogin onLogin={handleLogin} navigate={navigate}/>}
+      {route==='/dashboard' &&user&&<PageDashboard user={user} resources={resources} navigate={navigate}/>}
+      {route==='/resources' &&user&&<PageResources user={user} resources={resources} navigate={navigate}/>}
+      {route==='/admin/resources'&&user?.rol==='admin'&&<PageAdminResources resources={resources} setResources={setResources} navigate={navigate}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

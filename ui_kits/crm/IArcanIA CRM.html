@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IArcanIA CRM — AI Agency Platform</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { font-family: 'Inter', sans-serif; background: #080808; color: #F5F5F5; overflow: hidden; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #FAC51C44; }
+
+    /* Drag over highlight */
+    .kanban-col.drag-over { background: rgba(250,197,28,0.06) !important; border-color: rgba(250,197,28,0.25) !important; }
+
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .screen { animation: fadeIn 0.22s ease; }
+    @keyframes pulse-gold { 0%,100%{opacity:1} 50%{opacity:0.45} }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ═══════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════ */
+const T = {
+  bg:        '#080808',
+  s1:        '#111111',
+  s2:        '#1A1A1A',
+  s3:        '#222222',
+  border:    'rgba(255,255,255,0.07)',
+  borderHov: 'rgba(250,197,28,0.22)',
+  gold:      '#FAC51C',
+  goldDim:   'rgba(250,197,28,0.12)',
+  goldBorder:'rgba(250,197,28,0.20)',
+  purple:    '#8B6FE8',
+  purpleDim: 'rgba(139,111,232,0.12)',
+  text:      '#F5F5F5',
+  muted:     '#888888',
+  dim:       '#444444',
+};
+
+/* ═══════════════════════════════════════
+   MOCK DATA
+═══════════════════════════════════════ */
+const CONTACTS = [
+  { id:1, name:'Valentina Torres', company:'FinTech Latam', email:'v.torres@fintechlatam.co', stage:'customer', value:18500, lastContact:'Hace 2 días', avatar:'VT', tags:['Enterprise','Activo'] },
+  { id:2, name:'Carlos Mendoza', company:'Agro Inteligente', email:'cmendoza@agroint.co', stage:'prospect', value:9200, lastContact:'Hoy', avatar:'CM', tags:['Mid-market'] },
+  { id:3, name:'Sofía Ramírez', company:'Retail360', email:'sofia.r@retail360.com', stage:'lead', value:4500, lastContact:'Hace 5 días', avatar:'SR', tags:['Lead frío'] },
+  { id:4, name:'Andrés Gómez', company:'LogisTech', email:'agomez@logistech.co', stage:'customer', value:31000, lastContact:'Ayer', avatar:'AG', tags:['Enterprise','VIP'] },
+  { id:5, name:'María Ospina', company:'EduVirtual', email:'m.ospina@eduvirtual.co', stage:'prospect', value:7800, lastContact:'Hace 3 días', avatar:'MO', tags:['Mid-market'] },
+  { id:6, name:'Julián Herrera', company:'MediConnect', email:'j.herrera@mediconn.co', stage:'lead', value:2100, lastContact:'Hace 1 semana', avatar:'JH', tags:['Lead nuevo'] },
+  { id:7, name:'Camila Vargas', company:'PropTech CO', email:'cvargas@proptech.co', stage:'customer', value:24000, lastContact:'Hoy', avatar:'CV', tags:['Enterprise'] },
+  { id:8, name:'Diego Restrepo', company:'TurismAI', email:'drestrepo@turism.ai', stage:'lead', value:3300, lastContact:'Hace 4 días', avatar:'DR', tags:['Lead tibio'] },
+];
+
+const INITIAL_KANBAN = {
+  'Nuevo Lead':    [{ id:'k1', name:'TurismAI', contact:'Diego Restrepo', value:3300, days:2, p:15 },
+                    { id:'k2', name:'EduVirtual', contact:'María Ospina', value:7800, days:5, p:20 }],
+  'Contactado':    [{ id:'k3', name:'MediConnect', contact:'Julián Herrera', value:2100, days:8, p:30 },
+                    { id:'k4', name:'Agro Inteligente', contact:'Carlos Mendoza', value:9200, days:3, p:35 }],
+  'Calificado':    [{ id:'k5', name:'Retail360', contact:'Sofía Ramírez', value:4500, days:12, p:50 }],
+  'Propuesta':     [{ id:'k6', name:'LogisTech', contact:'Andrés Gómez', value:31000, days:6, p:65 },
+                    { id:'k7', name:'FinTech Latam', contact:'Valentina Torres', value:18500, days:9, p:70 }],
+  'Negociación':   [{ id:'k8', name:'PropTech CO', contact:'Camila Vargas', value:24000, days:14, p:80 }],
+  'Cerrado':       [{ id:'k9', name:'StartupX', contact:'Ricardo Luna', value:11000, days:20, p:100 }],
+};
+
+const ACTIVITIES = [
+  { type:'call',    label:'Llamada completada', detail:'30 min · Demo del agente WhatsApp', time:'Hoy, 10:30', user:'Miguel' },
+  { type:'email',   label:'Email enviado',       detail:'Propuesta comercial adjunta',      time:'Ayer, 16:00', user:'Miguel' },
+  { type:'note',    label:'Nota interna',        detail:'Cliente interesado en integración con su CRM actual. Seguimiento viernes.', time:'Hace 3 días', user:'Ana' },
+  { type:'deal',    label:'Deal actualizado',    detail:'Etapa movida a Propuesta',          time:'Hace 4 días', user:'Sistema' },
+  { type:'meet',    label:'Reunión agendada',    detail:'Diagnóstico inicial — Calendly',    time:'Hace 1 semana', user:'Miguel' },
+];
+
+/* ═══════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════ */
+function Avatar({ initials, size=32, color='#7b5ce0' }) {
+  return (
+    <div style={{ width:size, height:size, minWidth:size, borderRadius:'50%', background:`linear-gradient(135deg,${color}88,${color}44)`, border:`1px solid ${color}55`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:size*0.33, fontWeight:700, color:T.text }}>
+      {initials}
+    </div>
+  );
+}
+
+function Badge({ label, variant='default' }) {
+  const styles = {
+    customer: { bg:'rgba(250,197,28,0.12)', border:'rgba(250,197,28,0.25)', color:'#FAC51C' },
+    prospect: { bg:'rgba(139,111,232,0.12)', border:'rgba(139,111,232,0.25)', color:'#B09AF8' },
+    lead:     { bg:'rgba(255,255,255,0.06)', border:'rgba(255,255,255,0.12)', color:'#888' },
+    default:  { bg:'rgba(255,255,255,0.06)', border:'rgba(255,255,255,0.10)', color:'#888' },
+  };
+  const s = styles[variant] || styles.default;
+  return (
+    <span style={{ fontSize:11, fontWeight:600, padding:'3px 8px', borderRadius:100, background:s.bg, border:`1px solid ${s.border}`, color:s.color, whiteSpace:'nowrap' }}>
+      {label}
+    </span>
+  );
+}
+
+function KPI({ label, value, sub, trend, gold }) {
+  return (
+    <div style={{ background:T.s1, border:`1px solid ${gold ? T.goldBorder : T.border}`, borderRadius:12, padding:'20px 22px', flex:1, minWidth:0 }}>
+      <div style={{ fontSize:12, color:T.muted, fontWeight:500, marginBottom:10, letterSpacing:0.3 }}>{label}</div>
+      <div style={{ fontSize:26, fontWeight:700, color: gold ? T.gold : T.text, lineHeight:1, marginBottom:6 }}>{value}</div>
+      {sub && <div style={{ fontSize:12, color: trend==='up' ? '#4ade80' : trend==='down' ? '#f87171' : T.muted }}>{sub}</div>}
+    </div>
+  );
+}
+
+function Btn({ children, primary, small, onClick, style:s={} }) {
+  const [h,setH] = React.useState(false);
+  const base = primary
+    ? { background: h ? '#ffd84d' : T.gold, color:'#080808', border:'none' }
+    : { background: h ? 'rgba(255,255,255,0.06)' : 'transparent', color:T.muted, border:`1px solid ${T.border}` };
+  return (
+    <button onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} onClick={onClick}
+      style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:'Inter,sans-serif', fontSize: small?12:13, fontWeight:600, padding: small?'6px 12px':'9px 16px', borderRadius:8, cursor:'pointer', transition:'all 0.15s', ...base, ...s }}>
+      {children}
+    </button>
+  );
+}
+
+function Input({ label, placeholder, value, onChange, type='text', full }) {
+  const [f,setF] = React.useState(false);
+  return (
+    <div style={{ marginBottom:16, width: full?'100%':'auto' }}>
+      {label && <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.muted, marginBottom:6 }}>{label}</label>}
+      <input type={type} value={value} onChange={onChange} placeholder={placeholder}
+        onFocus={()=>setF(true)} onBlur={()=>setF(false)}
+        style={{ width:'100%', background:'rgba(255,255,255,0.04)', border:`1px solid ${f?'rgba(250,197,28,0.35)':T.border}`, borderRadius:8, padding:'10px 14px', fontFamily:'Inter,sans-serif', fontSize:13, color:T.text, outline:'none', transition:'border-color 0.2s' }}/>
+    </div>
+  );
+}
+
+function Select({ label, options, value, onChange }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      {label && <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.muted, marginBottom:6 }}>{label}</label>}
+      <select value={value} onChange={onChange}
+        style={{ width:'100%', background:T.s2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', fontFamily:'Inter,sans-serif', fontSize:13, color:T.text, outline:'none', appearance:'none' }}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 1 — DASHBOARD
+═══════════════════════════════════════ */
+function Dashboard({ setScreen, setSelectedContact }) {
+  const upcoming = [
+    { type:'📞', label:'Llamada con Carlos Mendoza', time:'Hoy 15:00', tag:'Demo' },
+    { type:'📧', label:'Follow-up PropTech CO',       time:'Mañana 09:00', tag:'Email' },
+    { type:'📅', label:'Reunión diagnóstico — TurismAI', time:'Vie 11:00', tag:'Meet' },
+    { type:'📋', label:'Enviar propuesta LogisTech',  time:'Vie 17:00', tag:'Task' },
+  ];
+  return (
+    <div className="screen" style={{ padding:'28px 32px', height:'100%', overflowY:'auto' }}>
+      <div style={{ marginBottom:24 }}>
+        <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Dashboard</div>
+        <div style={{ fontSize:13, color:T.muted }}>Buenos días, Miguel — aquí está el resumen de hoy.</div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display:'flex', gap:14, marginBottom:24 }}>
+        <KPI label="Revenue Total" value="$148.4K" sub="↑ 12.3% vs mes pasado" trend="up" gold/>
+        <KPI label="Deals Activos" value="9" sub="3 en negociación" />
+        <KPI label="Tasa de Cierre" value="34%" sub="↑ 4% este mes" trend="up"/>
+        <KPI label="Pipeline Total" value="$101.4K" sub="Valor proyectado"/>
+      </div>
+
+      {/* Middle row */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24 }}>
+        {/* Pipeline by stage */}
+        <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px 22px' }}>
+          <div style={{ fontSize:13, fontWeight:700, marginBottom:16 }}>Pipeline por etapa</div>
+          {Object.entries({ 'Propuesta':49500, 'Negociación':24000, 'Calificado':4500, 'Contactado':11300, 'Nuevo Lead':11100 }).map(([stage,val])=>{
+            const max = 49500;
+            return (
+              <div key={stage} style={{ marginBottom:12 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5 }}>
+                  <span style={{ color:T.muted }}>{stage}</span>
+                  <span style={{ fontWeight:600 }}>${(val/1000).toFixed(1)}K</span>
+                </div>
+                <div style={{ height:4, background:'rgba(255,255,255,0.05)', borderRadius:2, overflow:'hidden' }}>
+                  <div style={{ width:`${(val/max)*100}%`, height:'100%', borderRadius:2, background:`linear-gradient(90deg,#4a2fa0,${T.gold})` }}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Upcoming activities */}
+        <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px 22px' }}>
+          <div style={{ fontSize:13, fontWeight:700, marginBottom:16 }}>Próximas actividades</div>
+          {upcoming.map((a,i)=>(
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom: i<upcoming.length-1 ? `1px solid ${T.border}` : 'none' }}>
+              <span style={{ fontSize:18, width:28, textAlign:'center' }}>{a.type}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.label}</div>
+                <div style={{ fontSize:11, color:T.muted, marginTop:2 }}>{a.time}</div>
+              </div>
+              <Badge label={a.tag}/>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent contacts */}
+      <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px 22px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div style={{ fontSize:13, fontWeight:700 }}>Contactos recientes</div>
+          <Btn small onClick={()=>setScreen('contacts')}>Ver todos →</Btn>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+          {CONTACTS.slice(0,4).map((c,i)=>(
+            <div key={c.id} onClick={()=>{ setSelectedContact(c); setScreen('contact-detail'); }}
+              style={{ display:'flex', alignItems:'center', gap:14, padding:'11px 0', borderBottom: i<3?`1px solid ${T.border}`:'none', cursor:'pointer', transition:'opacity 0.15s' }}
+              onMouseEnter={e=>e.currentTarget.style.opacity='0.75'}
+              onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+              <Avatar initials={c.avatar} size={34} color="#7b5ce0"/>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600 }}>{c.name}</div>
+                <div style={{ fontSize:12, color:T.muted }}>{c.company}</div>
+              </div>
+              <Badge label={c.stage} variant={c.stage}/>
+              <div style={{ fontSize:13, fontWeight:600, color:T.gold, minWidth:60, textAlign:'right' }}>${(c.value/1000).toFixed(1)}K</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 2 — CONTACTS
+═══════════════════════════════════════ */
+function Contacts({ setScreen, setSelectedContact }) {
+  const [search, setSearch] = React.useState('');
+  const [filter, setFilter] = React.useState('all');
+  const [sortCol, setSortCol] = React.useState('name');
+  const [sortDir, setSortDir] = React.useState('asc');
+
+  const filtered = CONTACTS
+    .filter(c => filter==='all' || c.stage===filter)
+    .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.company.toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b) => {
+      const dir = sortDir==='asc' ? 1 : -1;
+      if (sortCol==='name') return dir * a.name.localeCompare(b.name);
+      if (sortCol==='value') return dir * (a.value - b.value);
+      if (sortCol==='company') return dir * a.company.localeCompare(b.company);
+      return 0;
+    });
+
+  const thStyle = { fontSize:11, fontWeight:600, color:T.dim, textTransform:'uppercase', letterSpacing:0.8, padding:'0 16px 12px', cursor:'pointer', userSelect:'none', whiteSpace:'nowrap' };
+
+  function SortArrow({ col }) {
+    if (sortCol !== col) return <span style={{ color:T.dim, marginLeft:4 }}>⇅</span>;
+    return <span style={{ color:T.gold, marginLeft:4 }}>{sortDir==='asc'?'↑':'↓'}</span>;
+  }
+
+  function handleSort(col) {
+    if (sortCol===col) setSortDir(d=>d==='asc'?'desc':'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  }
+
+  return (
+    <div className="screen" style={{ padding:'28px 32px', height:'100%', overflowY:'auto' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+        <div>
+          <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Contactos</div>
+          <div style={{ fontSize:13, color:T.muted }}>{filtered.length} contactos encontrados</div>
+        </div>
+        <Btn primary onClick={()=>setScreen('new-deal')}>+ Nuevo deal</Btn>
+      </div>
+
+      {/* Search + filters */}
+      <div style={{ display:'flex', gap:10, marginBottom:20, alignItems:'center' }}>
+        <div style={{ position:'relative', flex:1, maxWidth:320 }}>
+          <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:T.dim, fontSize:14 }}>⌕</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por nombre o empresa..."
+            style={{ width:'100%', background:T.s1, border:`1px solid ${T.border}`, borderRadius:8, padding:'9px 14px 9px 34px', fontFamily:'Inter,sans-serif', fontSize:13, color:T.text, outline:'none' }}/>
+        </div>
+        {['all','lead','prospect','customer'].map(f=>(
+          <button key={f} onClick={()=>setFilter(f)}
+            style={{ fontSize:12, fontWeight:600, padding:'8px 14px', borderRadius:100, border:'none', cursor:'pointer', fontFamily:'Inter,sans-serif', transition:'all 0.15s',
+              background: filter===f ? T.gold : 'rgba(255,255,255,0.05)',
+              color: filter===f ? '#080808' : T.muted }}>
+            {f==='all' ? 'Todos' : f.charAt(0).toUpperCase()+f.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, overflow:'hidden' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom:`1px solid ${T.border}` }}>
+              <th style={{...thStyle, paddingLeft:20}} onClick={()=>handleSort('name')}>Contacto <SortArrow col="name"/></th>
+              <th style={thStyle} onClick={()=>handleSort('company')}>Empresa <SortArrow col="company"/></th>
+              <th style={thStyle}>Estado</th>
+              <th style={thStyle} onClick={()=>handleSort('value')}>Valor <SortArrow col="value"/></th>
+              <th style={thStyle}>Último contacto</th>
+              <th style={thStyle}>Tags</th>
+              <th style={thStyle}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c,i)=>(
+              <tr key={c.id} style={{ borderBottom: i<filtered.length-1 ? `1px solid ${T.border}` : 'none', cursor:'pointer', transition:'background 0.15s' }}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.025)'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                onClick={()=>{ setSelectedContact(c); setScreen('contact-detail'); }}>
+                <td style={{ padding:'13px 16px 13px 20px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <Avatar initials={c.avatar} size={30} color="#6b50c8"/>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{c.name}</div>
+                      <div style={{ fontSize:11, color:T.muted }}>{c.email}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding:'13px 16px', fontSize:13, color:T.muted }}>{c.company}</td>
+                <td style={{ padding:'13px 16px' }}><Badge label={c.stage} variant={c.stage}/></td>
+                <td style={{ padding:'13px 16px', fontSize:13, fontWeight:700, color:T.gold }}>${c.value.toLocaleString()}</td>
+                <td style={{ padding:'13px 16px', fontSize:12, color:T.muted }}>{c.lastContact}</td>
+                <td style={{ padding:'13px 16px' }}>
+                  <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                    {c.tags.map(t=><Badge key={t} label={t}/>)}
+                  </div>
+                </td>
+                <td style={{ padding:'13px 16px 13px 4px', textAlign:'right' }}>
+                  <Btn small>Ver →</Btn>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 3 — KANBAN PIPELINE
+═══════════════════════════════════════ */
+function Pipeline() {
+  const [cols, setCols] = React.useState(INITIAL_KANBAN);
+  const [dragging, setDragging] = React.useState(null); // { cardId, fromCol }
+  const [dragOver, setDragOver] = React.useState(null);
+
+  const STAGE_COLORS = {
+    'Nuevo Lead':'#555', 'Contactado':'#8B6FE8', 'Calificado':'#FAC51C',
+    'Propuesta':'#e8a83a', 'Negociación':'#e87c3a', 'Cerrado':'#4ade80'
+  };
+
+  function onDragStart(cardId, fromCol) { setDragging({ cardId, fromCol }); }
+  function onDragOver(e, colName) { e.preventDefault(); setDragOver(colName); }
+  function onDrop(toCol) {
+    if (!dragging || dragging.fromCol === toCol) { setDragging(null); setDragOver(null); return; }
+    setCols(prev => {
+      const next = { ...prev };
+      const card = next[dragging.fromCol].find(c=>c.id===dragging.cardId);
+      next[dragging.fromCol] = next[dragging.fromCol].filter(c=>c.id!==dragging.cardId);
+      next[toCol] = [...next[toCol], card];
+      return next;
+    });
+    setDragging(null); setDragOver(null);
+  }
+
+  const totalPipeline = Object.values(cols).flat().reduce((s,c)=>s+c.value,0);
+
+  return (
+    <div className="screen" style={{ padding:'28px 32px', height:'100%', display:'flex', flexDirection:'column' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexShrink:0 }}>
+        <div>
+          <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Pipeline</div>
+          <div style={{ fontSize:13, color:T.muted }}>Pipeline total: <span style={{ color:T.gold, fontWeight:700 }}>${totalPipeline.toLocaleString()}</span></div>
+        </div>
+        <Btn primary>+ Nuevo deal</Btn>
+      </div>
+
+      <div style={{ display:'flex', gap:12, flex:1, overflowX:'auto', overflowY:'hidden', paddingBottom:8 }}>
+        {Object.entries(cols).map(([colName, cards])=>{
+          const colTotal = cards.reduce((s,c)=>s+c.value,0);
+          const isDragOver = dragOver === colName;
+          return (
+            <div key={colName}
+              className={`kanban-col${isDragOver?' drag-over':''}`}
+              onDragOver={e=>onDragOver(e,colName)}
+              onDrop={()=>onDrop(colName)}
+              onDragLeave={()=>setDragOver(null)}
+              style={{ minWidth:200, width:200, flexShrink:0, background:T.s1, border:`1px solid ${isDragOver ? 'rgba(250,197,28,0.28)' : T.border}`, borderRadius:12, display:'flex', flexDirection:'column', transition:'all 0.15s', background: isDragOver ? 'rgba(250,197,28,0.04)' : T.s1 }}>
+              {/* Col header */}
+              <div style={{ padding:'14px 14px 10px', borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                    <div style={{ width:8, height:8, borderRadius:'50%', background:STAGE_COLORS[colName]||T.muted }}/>
+                    <span style={{ fontSize:12, fontWeight:700 }}>{colName}</span>
+                  </div>
+                  <span style={{ fontSize:11, background:'rgba(255,255,255,0.07)', borderRadius:100, padding:'2px 7px', color:T.muted }}>{cards.length}</span>
+                </div>
+                <div style={{ fontSize:11, color:T.muted }}>${(colTotal/1000).toFixed(1)}K</div>
+              </div>
+              {/* Cards */}
+              <div style={{ flex:1, overflowY:'auto', padding:'10px 10px' }}>
+                {cards.map(card=>(
+                  <div key={card.id} draggable
+                    onDragStart={()=>onDragStart(card.id, colName)}
+                    style={{ background:T.s2, border:`1px solid ${T.border}`, borderRadius:10, padding:'12px 13px', marginBottom:8, cursor:'grab', transition:'all 0.15s', userSelect:'none' }}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor=T.goldBorder; e.currentTarget.style.transform='translateY(-1px)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border; e.currentTarget.style.transform='none';}}>
+                    <div style={{ fontSize:13, fontWeight:700, marginBottom:5, color:T.text }}>{card.name}</div>
+                    <div style={{ fontSize:11, color:T.muted, marginBottom:10 }}>{card.contact}</div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:T.gold }}>${(card.value/1000).toFixed(1)}K</span>
+                      <span style={{ fontSize:10, color:T.dim }}>{card.days}d</span>
+                    </div>
+                    {/* Probability bar */}
+                    <div style={{ marginTop:8, height:3, background:'rgba(255,255,255,0.05)', borderRadius:2 }}>
+                      <div style={{ width:`${card.p}%`, height:'100%', borderRadius:2, background:`linear-gradient(90deg,#6b3fa0,${T.gold})` }}/>
+                    </div>
+                    <div style={{ fontSize:10, color:T.dim, marginTop:3, textAlign:'right' }}>{card.p}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 4 — CONTACT DETAIL
+═══════════════════════════════════════ */
+function ContactDetail({ contact, setScreen }) {
+  const c = contact || CONTACTS[3];
+  const iconMap = { call:'📞', email:'📧', note:'📝', deal:'🔄', meet:'📅' };
+  return (
+    <div className="screen" style={{ padding:'28px 32px', height:'100%', overflowY:'auto' }}>
+      <Btn onClick={()=>setScreen('contacts')} style={{ marginBottom:20 }}>← Volver</Btn>
+
+      {/* Header */}
+      <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'24px 28px', marginBottom:20 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:20, marginBottom:20 }}>
+          <Avatar initials={c.avatar} size={56} color="#7b5ce0"/>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>{c.name}</div>
+            <div style={{ fontSize:14, color:T.muted }}>{c.company}</div>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <Btn primary>+ Actividad</Btn>
+            <Btn>Editar</Btn>
+          </div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
+          {[
+            { label:'Email', value:c.email },
+            { label:'Estado', value:<Badge label={c.stage} variant={c.stage}/> },
+            { label:'Valor deal', value:<span style={{ color:T.gold, fontWeight:700 }}>${c.value.toLocaleString()}</span> },
+            { label:'Último contacto', value:c.lastContact },
+          ].map(({label,value})=>(
+            <div key={label} style={{ background:T.s2, borderRadius:8, padding:'12px 14px' }}>
+              <div style={{ fontSize:11, color:T.muted, fontWeight:500, marginBottom:6 }}>{label}</div>
+              <div style={{ fontSize:13, fontWeight:500 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:16 }}>
+        {/* Timeline */}
+        <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'22px 24px' }}>
+          <div style={{ fontSize:14, fontWeight:700, marginBottom:18 }}>Historial de actividades</div>
+          <div style={{ position:'relative' }}>
+            {/* vertical line */}
+            <div style={{ position:'absolute', left:15, top:8, bottom:8, width:1, background:`linear-gradient(180deg,${T.gold},${T.purpleDim})`, opacity:0.3 }}/>
+            {ACTIVITIES.map((a,i)=>(
+              <div key={i} style={{ display:'flex', gap:16, marginBottom:18, position:'relative' }}>
+                <div style={{ width:30, height:30, minWidth:30, borderRadius:'50%', background:T.s2, border:`1px solid ${T.border}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, zIndex:1 }}>
+                  {iconMap[a.type]}
+                </div>
+                <div style={{ flex:1, background:T.s2, borderRadius:10, padding:'12px 14px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                    <span style={{ fontSize:13, fontWeight:600 }}>{a.label}</span>
+                    <span style={{ fontSize:11, color:T.dim }}>{a.time}</span>
+                  </div>
+                  <div style={{ fontSize:13, color:T.muted, lineHeight:1.6 }}>{a.detail}</div>
+                  <div style={{ fontSize:11, color:T.dim, marginTop:6 }}>por {a.user}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Deal info */}
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ background:T.s1, border:`1px solid ${T.goldBorder}`, borderRadius:12, padding:'20px' }}>
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:14 }}>Deal activo</div>
+            <div style={{ fontSize:24, fontWeight:700, color:T.gold, marginBottom:4 }}>${c.value.toLocaleString()}</div>
+            <div style={{ fontSize:12, color:T.muted, marginBottom:16 }}>Etapa actual: <strong style={{ color:T.text }}>Propuesta</strong></div>
+            <div style={{ height:4, background:'rgba(255,255,255,0.06)', borderRadius:2, marginBottom:8 }}>
+              <div style={{ width:'65%', height:'100%', borderRadius:2, background:`linear-gradient(90deg,#6b3fa0,${T.gold})` }}/>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:T.dim }}>
+              <span>Probabilidad</span><span>65%</span>
+            </div>
+          </div>
+          <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px' }}>
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:14 }}>Tags</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {c.tags.map(t=><Badge key={t} label={t}/>)}
+            </div>
+          </div>
+          <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px' }}>
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:14 }}>Próxima acción</div>
+            <div style={{ fontSize:13, color:T.muted, lineHeight:1.6 }}>Enviar propuesta comercial actualizada con módulo de inventario incluido.</div>
+            <div style={{ fontSize:12, color:T.gold, marginTop:10, fontWeight:600 }}>Fecha límite: Viernes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 5 — NEW DEAL FORM
+═══════════════════════════════════════ */
+function NewDeal({ setScreen }) {
+  const [form, setForm] = React.useState({ name:'', company:'', email:'', value:'', stage:'lead', service:'', notes:'' });
+  const [saved, setSaved] = React.useState(false);
+
+  function upd(key){ return e => setForm(f=>({...f,[key]:e.target.value})); }
+
+  if (saved) return (
+    <div className="screen" style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', flexDirection:'column', gap:16 }}>
+      <div style={{ fontSize:48 }}>✓</div>
+      <div style={{ fontSize:20, fontWeight:700, color:T.gold }}>Deal creado exitosamente</div>
+      <div style={{ fontSize:14, color:T.muted }}>El contacto fue agregado al pipeline.</div>
+      <Btn primary onClick={()=>setScreen('pipeline')}>Ver en Pipeline →</Btn>
+    </div>
+  );
+
+  return (
+    <div className="screen" style={{ padding:'28px 32px', height:'100%', overflowY:'auto' }}>
+      <Btn onClick={()=>setScreen('dashboard')} style={{ marginBottom:20 }}>← Volver</Btn>
+      <div style={{ maxWidth:640 }}>
+        <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Nuevo deal</div>
+        <div style={{ fontSize:13, color:T.muted, marginBottom:24 }}>Agrega un nuevo contacto al pipeline de ventas.</div>
+
+        <div style={{ background:T.s1, border:`1px solid ${T.border}`, borderRadius:12, padding:'28px' }}>
+          <div style={{ fontSize:13, fontWeight:700, color:T.gold, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ width:5, height:5, borderRadius:'50%', background:T.gold, display:'inline-block' }}/>
+            Información de contacto
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
+            <Input label="Nombre completo *" placeholder="Ej. Carlos Mendoza" value={form.name} onChange={upd('name')}/>
+            <Input label="Empresa *" placeholder="Ej. AgriTech Colombia" value={form.company} onChange={upd('company')}/>
+            <Input label="Correo electrónico" placeholder="carlos@empresa.co" value={form.email} onChange={upd('email')} type="email"/>
+            <Input label="WhatsApp" placeholder="+57 300 000 0000" value={form.phone} onChange={upd('phone')}/>
+          </div>
+
+          <div style={{ height:1, background:T.border, margin:'8px 0 20px' }}/>
+          <div style={{ fontSize:13, fontWeight:700, color:T.gold, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ width:5, height:5, borderRadius:'50%', background:T.gold, display:'inline-block' }}/>
+            Información del deal
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
+            <Input label="Valor estimado (USD)" placeholder="Ej. 12000" value={form.value} onChange={upd('value')} type="number"/>
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.muted, marginBottom:6 }}>Etapa inicial</label>
+              <select value={form.stage} onChange={upd('stage')}
+                style={{ width:'100%', background:T.s2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', fontFamily:'Inter,sans-serif', fontSize:13, color:T.text, outline:'none', appearance:'none' }}>
+                {['lead','prospect','calificado','propuesta','negociación'].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.muted, marginBottom:6 }}>Servicio de interés</label>
+              <select value={form.service} onChange={upd('service')}
+                style={{ width:'100%', background:T.s2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', fontFamily:'Inter,sans-serif', fontSize:13, color:T.text, outline:'none', appearance:'none' }}>
+                <option value="">Seleccionar...</option>
+                <option>Agente WhatsApp</option>
+                <option>Automatización de procesos</option>
+                <option>Seguimiento de ventas</option>
+                <option>Gestión de inventario</option>
+                <option>Agente web</option>
+                <option>Flujo a medida</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.muted, marginBottom:6 }}>Notas iniciales</label>
+            <textarea value={form.notes} onChange={upd('notes')} placeholder="Contexto del lead, cómo llegó, necesidades específicas..."
+              rows={3} style={{ width:'100%', background:'rgba(255,255,255,0.03)', border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', fontFamily:'Inter,sans-serif', fontSize:13, color:T.text, outline:'none', resize:'vertical' }}/>
+          </div>
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+            <Btn onClick={()=>setScreen('dashboard')}>Cancelar</Btn>
+            <Btn primary onClick={()=>setSaved(true)}>Crear deal →</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SIDEBAR + APP SHELL
+═══════════════════════════════════════ */
+const NAV_ITEMS = [
+  { id:'dashboard', icon:'▦', label:'Dashboard' },
+  { id:'contacts',  icon:'◎', label:'Contactos' },
+  { id:'pipeline',  icon:'⊞', label:'Pipeline' },
+  { id:'new-deal',  icon:'+', label:'Nuevo deal' },
+];
+
+function App() {
+  const [screen, setScreen] = React.useState('dashboard');
+  const [selectedContact, setSelectedContact] = React.useState(null);
+
+  const mainNav = ['dashboard','contacts','pipeline'];
+
+  return (
+    <div style={{ display:'flex', height:'100vh', background:T.bg, overflow:'hidden' }}>
+      {/* Sidebar */}
+      <aside style={{ width:220, minWidth:220, background:T.s1, borderRight:`1px solid ${T.border}`, display:'flex', flexDirection:'column', zIndex:10 }}>
+        {/* Logo */}
+        <div style={{ padding:'20px 18px 16px', borderBottom:`1px solid ${T.border}` }}>
+          <div style={{ fontSize:16, fontWeight:700, letterSpacing:'0.08em', fontFamily:'Georgia,serif' }}>
+            <span style={{ color:'#94A3B8' }}>I</span><span style={{ color:T.text }}>Arcan</span><span style={{ color:'#94A3B8' }}>IA</span>
+          </div>
+          <div style={{ fontSize:11, color:T.dim, marginTop:2, letterSpacing:'0.3px' }}>CRM · AI Agency Platform</div>
+        </div>
+
+        {/* Nav */}
+        <nav style={{ flex:1, padding:'12px 10px' }}>
+          {NAV_ITEMS.map(item=>{
+            const active = screen===item.id || (item.id==='contacts' && screen==='contact-detail');
+            return (
+              <div key={item.id} onClick={()=>setScreen(item.id)}
+                style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 10px', borderRadius:8, marginBottom:3, cursor:'pointer', transition:'all 0.15s',
+                  background: active ? T.goldDim : 'transparent',
+                  color: active ? T.gold : T.muted,
+                  border: active ? `1px solid ${T.goldBorder}` : '1px solid transparent',
+                  fontWeight: active ? 600 : 400, fontSize:13 }}>
+                <span style={{ fontSize:16, width:20, textAlign:'center', lineHeight:1 }}>{item.icon}</span>
+                {item.label}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* User */}
+        <div style={{ padding:'14px 14px', borderTop:`1px solid ${T.border}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <Avatar initials="MA" size={32} color="#7b5ce0"/>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600 }}>Miguel Ángel</div>
+              <div style={{ fontSize:11, color:T.dim }}>Admin · iarcania.co</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+        {/* Top bar */}
+        <div style={{ height:52, borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 28px', flexShrink:0 }}>
+          <div style={{ fontSize:12, color:T.dim }}>
+            {new Date().toLocaleDateString('es-CO', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ width:7, height:7, borderRadius:'50%', background:'#4ade80', animation:'pulse-gold 2s ease-in-out infinite' }}/>
+            <span style={{ fontSize:12, color:T.muted }}>9 deals activos</span>
+            <div style={{ width:1, height:16, background:T.border }}/>
+            <span style={{ fontSize:12, color:T.gold, fontWeight:600 }}>Pipeline: $101.4K</span>
+          </div>
+        </div>
+
+        {/* Screen content */}
+        <div style={{ flex:1, overflow:'hidden' }}>
+          {screen==='dashboard'      && <Dashboard setScreen={setScreen} setSelectedContact={setSelectedContact}/>}
+          {screen==='contacts'       && <Contacts setScreen={setScreen} setSelectedContact={setSelectedContact}/>}
+          {screen==='pipeline'       && <Pipeline/>}
+          {screen==='contact-detail' && <ContactDetail contact={selectedContact} setScreen={setScreen}/>}
+          {screen==='new-deal'       && <NewDeal setScreen={setScreen}/>}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

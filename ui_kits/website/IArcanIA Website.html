@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IArcanIA — Website UI Kit</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    :root {
+      --bg:        #07070e;
+      --bg-alt:    #0b0b14;
+      --bg-card:   #10101a;
+      --fg:        #e8e6f0;
+      --fg-muted:  #7a788f;
+      --fg-dim:    #3e3c52;
+      --accent:    #9b72f0;          /* single purple accent, desaturated */
+      --accent-dim: rgba(155,114,240,0.12);
+      --accent-border: rgba(155,114,240,0.18);
+      --accent-glow: rgba(155,114,240,0.30);
+      --gold:      #c9a84c;          /* muted gold, used sparingly */
+      --gold-dim:  rgba(201,168,76,0.10);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 22px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise grain ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.5;
+    }
+
+    /* ── Rain canvas ── */
+    #rain-canvas {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0.45;
+    }
+
+    /* ── Logo watermark ── */
+    #logo-bg {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none; z-index: 2;
+      opacity: 0.030;
+      width: min(70vw, 70vh);
+      height: min(70vw, 70vh);
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+    /* ── Section label ── */
+    .section-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 600; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--gold);
+    }
+    .section-label::before {
+      content: ''; display: block; width: 20px; height: 1px; background: var(--gold);
+    }
+
+    /* ── Gradient text (restrained — only used once per section) ── */
+    .accent-text {
+      color: var(--accent);
+    }
+
+    /* ── Services grid ── */
+    .services-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+    @media (max-width: 1024px) { .services-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 640px)  { .services-grid { grid-template-columns: 1fr; } }
+
+    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+    @media (max-width: 900px) { .why-grid { grid-template-columns: 1fr; } }
+
+    .nav-desktop { display: flex !important; }
+    .nav-hamburger { display: none !important; }
+    @media (max-width: 768px) {
+      .nav-desktop { display: none !important; }
+      .nav-hamburger { display: flex !important; }
+    }
+
+    /* ── WhatsApp FAB ── */
+    .whatsapp-fab {
+      position: fixed; bottom: 28px; right: 28px;
+      width: 52px; height: 52px; background: #1a8f4f;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(26,143,79,0.35); z-index: 90;
+      text-decoration: none; transition: transform 0.2s;
+    }
+    .whatsapp-fab:hover { transform: scale(1.08); }
+
+    @keyframes float1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,28px)} }
+    @keyframes float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-14px,-20px)} }
+    @keyframes pulse-dim { 0%,100%{opacity:0.8;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+    /* ── Scattered eye watermarks ── */
+    .eye-scatter {
+      position: fixed; pointer-events: none; z-index: 2;
+      animation: eyeDrift 18s ease-in-out infinite;
+    }
+    @keyframes eyeDrift {
+      0%,100% { transform: translate(0,0) rotate(0deg); }
+      33%      { transform: translate(8px,-12px) rotate(3deg); }
+      66%      { transform: translate(-6px,8px) rotate(-2deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Rain canvas -->
+  <canvas id="rain-canvas"></canvas>
+
+  <!-- Logo watermark -->
+  <!-- Large central watermark canvas -->
+  <canvas id="logo-bg" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:2;width:min(70vw,70vh);height:min(70vw,70vh);"></canvas>
+
+  <!-- Scattered eye canvases -->
+  <canvas class="eye-scatter" data-color="155,114,240" style="top:7vh;left:3vw;width:110px;height:110px;opacity:0.10;animation-duration:20s;"></canvas>
+  <canvas class="eye-scatter" data-color="200,190,240" style="top:18vh;right:5vw;width:190px;height:190px;opacity:0.055;animation-delay:-5s;animation-duration:24s;"></canvas>
+  <canvas class="eye-scatter" data-color="155,114,240" style="top:42vh;left:-20px;width:260px;height:260px;opacity:0.038;animation-delay:-9s;animation-duration:28s;"></canvas>
+  <canvas class="eye-scatter" data-color="123,92,224" style="top:52vh;right:8vw;width:76px;height:76px;opacity:0.13;animation-delay:-3s;animation-duration:14s;"></canvas>
+  <canvas class="eye-scatter" data-color="180,160,255" style="bottom:22vh;left:7vw;width:150px;height:150px;opacity:0.055;animation-delay:-12s;animation-duration:22s;"></canvas>
+  <canvas class="eye-scatter" data-color="155,114,240" style="bottom:8vh;right:4vw;width:94px;height:94px;opacity:0.090;animation-delay:-7s;animation-duration:17s;"></canvas>
+  <canvas class="eye-scatter" data-color="123,92,224" style="top:28vh;left:46vw;width:56px;height:56px;opacity:0.14;animation-delay:-15s;animation-duration:11s;"></canvas>
+  <canvas class="eye-scatter" data-color="155,114,240" style="bottom:40vh;left:22vw;width:130px;height:130px;opacity:0.042;animation-delay:-6s;animation-duration:25s;"></canvas>
+  <canvas class="eye-scatter" data-color="123,92,224" style="top:68vh;right:28vw;width:68px;height:68px;opacity:0.10;animation-delay:-10s;animation-duration:13s;"></canvas>
+
+  <div id="root" style="position:relative; z-index:3;"></div>
+
+  <script>
+    /* ─────────────────────────────────────────
+       Eye Rain drawing utility
+       Draws eye shape as base, clips rain inside
+    ───────────────────────────────────────── */
+    function createEyeRain(canvas, rainRGB, size) {
+      const S = size || 300;
+      canvas.width  = S;
+      canvas.height = S;
+      const ctx = canvas.getContext('2d');
+      const cx = S / 2, cy = S / 2;
+      const rx = S * 0.38, ry = S * 0.38;
+      // iris and sclera sizes
+      const irisR  = S * 0.17;
+      const scleraR = S * 0.085;
+      const pupilR  = S * 0.035;
+
+      // Build drops relative to canvas size
+      const count = Math.max(30, Math.floor(S / 6));
+      const drops = Array.from({ length: count }, () => ({
+        x: Math.random() * S,
+        y: Math.random() * S,
+        speed: (S / 300) * (0.8 + Math.random() * 1.6),
+        len:   (S / 300) * (10 + Math.random() * 20),
+        opacity: 0.70 + Math.random() * 0.30,
+      }));
+
+      function drawEyePath(c) {
+        c.beginPath();
+        c.moveTo(cx, cy - ry);
+        c.quadraticCurveTo(cx + rx, cy, cx, cy + ry);
+        c.quadraticCurveTo(cx - rx, cy, cx, cy - ry);
+        c.closePath();
+      }
+
+      function frame() {
+        ctx.clearRect(0, 0, S, S);
+
+        // 1. Fill eye shape as dark base
+        ctx.save();
+        drawEyePath(ctx);
+        ctx.fillStyle = '#08060f';
+        ctx.fill();
+
+        // 2. Draw iris ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, irisR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rainRGB},0.25)`;
+        ctx.lineWidth = S * 0.007;
+        ctx.stroke();
+
+        // 3. Clip rain to eye shape
+        ctx.globalCompositeOperation = 'source-atop';
+        drawEyePath(ctx);
+        ctx.clip();
+
+        drops.forEach(d => {
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y);
+          ctx.lineTo(d.x - 0.7, d.y + d.len);
+          ctx.strokeStyle = `rgba(${rainRGB},${d.opacity})`;
+          ctx.lineWidth = S * 0.003;
+          ctx.stroke();
+          d.y += d.speed;
+          if (d.y > S) { d.y = -d.len; d.x = Math.random() * S; }
+        });
+        ctx.restore();
+
+        // 4. Draw iris radial lines on top
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(angle) * irisR * 0.72, cy + Math.sin(angle) * irisR * 0.72);
+          ctx.lineTo(cx + Math.cos(angle) * irisR, cy + Math.sin(angle) * irisR);
+          ctx.strokeStyle = `rgba(${rainRGB},0.20)`;
+          ctx.lineWidth = S * 0.005;
+          ctx.stroke();
+        }
+
+        // 5. Sclera (white of eye) — tinted with rain color
+        ctx.beginPath();
+        ctx.arc(cx, cy, scleraR, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${rainRGB},0.80)`;
+        ctx.fill();
+
+        // 6. Pupil
+        ctx.beginPath();
+        ctx.arc(cx, cy, pupilR, 0, Math.PI * 2);
+        ctx.fillStyle = '#07070e';
+        ctx.fill();
+
+        // 7. Mandorla outline
+        drawEyePath(ctx);
+        ctx.strokeStyle = `rgba(${rainRGB},0.30)`;
+        ctx.lineWidth = S * 0.006;
+        ctx.stroke();
+
+        requestAnimationFrame(frame);
+      }
+      frame();
+    }
+
+    // ── Rain animation ──
+    const canvas = document.getElementById('rain-canvas');
+    const ctx = canvas.getContext('2d');
+    let drops = [];
+
+    function initRain() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      drops = [];
+      const count = Math.floor(canvas.width / 9);
+      for (let i = 0; i < count; i++) {
+        drops.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          speed: 1.8 + Math.random() * 2.8,
+          len: 22 + Math.random() * 38,
+          opacity: 0.45 + Math.random() * 0.55,
+          width: 0.7 + Math.random() * 1.0,
+        });
+      }
+    }
+
+    function drawRain() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drops.forEach(d => {
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d.x - 1, d.y + d.len);
+        ctx.strokeStyle = `rgba(178,140,255,${d.opacity})`;
+        ctx.lineWidth = d.width;
+        ctx.stroke();
+        d.y += d.speed;
+        if (d.y > canvas.height) {
+          d.y = -d.len;
+          d.x = Math.random() * canvas.width;
+        }
+      });
+      requestAnimationFrame(drawRain);
+    }
+
+    window.addEventListener('resize', initRain);
+    initRain();
+    drawRain();
+
+    // ── Init all eye rain canvases ──
+    window.addEventListener('load', () => {
+      // Central large watermark — purple rain
+      const logoBg = document.getElementById('logo-bg');
+      const bgSize = Math.min(window.innerWidth * 0.70, window.innerHeight * 0.70);
+      createEyeRain(logoBg, '155,114,240', Math.round(bgSize));
+
+      // Scattered canvases — read data-color attribute
+      document.querySelectorAll('canvas.eye-scatter').forEach(c => {
+        const rgb = c.dataset.color || '155,114,240';
+        const px  = Math.round(parseFloat(c.style.width) || 100);
+        createEyeRain(c, rgb, px);
+      });
+    });
+
+    // Expose createEyeRain so React components can use it
+    window.createEyeRain = createEyeRain;
+  </script>
+
+  <script type="text/babel">
+
+    /* ────────────────────────────────────────────
+       NAVBAR
+    ──────────────────────────────────────────── */
+    function Navbar() {
+      const [scrolled, setScrolled] = React.useState(false);
+      const [mobileOpen, setMobileOpen] = React.useState(false);
+      React.useEffect(() => {
+        const h = () => setScrolled(window.scrollY > 40);
+        window.addEventListener('scroll', h);
+        return () => window.removeEventListener('scroll', h);
+      }, []);
+      return (
+        <nav style={{ position:'fixed', top:0, left:0, right:0, zIndex:100, padding: scrolled ? '13px 0' : '20px 0', background: scrolled ? 'rgba(7,7,14,0.92)' : 'transparent', backdropFilter: scrolled ? 'blur(18px)' : 'none', borderBottom: scrolled ? '1px solid rgba(155,114,240,0.12)' : 'none', transition:'all 0.3s' }}>
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            {/* Logo */}
+            <a href="#" style={{ display:'flex', alignItems:'center', gap:10, textDecoration:'none' }}>
+              <svg width="26" height="26" viewBox="0 0 72 72">
+                <path d="M36 14 Q58 36 36 58 Q14 36 36 14 Z" fill="none" stroke="#e8e6f0" strokeWidth="1.5"/>
+                <circle cx="36" cy="36" r="14" fill="none" stroke="#94A3B8" strokeWidth="0.75"/>
+                <g stroke="#CBD5E1" strokeWidth="1" opacity="0.6">
+                  <line x1="36" y1="24" x2="36" y2="20"/><line x1="36" y1="48" x2="36" y2="52"/>
+                  <line x1="24" y1="36" x2="20" y2="36"/><line x1="48" y1="36" x2="52" y2="36"/>
+                  <line x1="27.9" y1="27.9" x2="25.1" y2="25.1"/><line x1="44.1" y1="44.1" x2="46.9" y2="46.9"/>
+                  <line x1="44.1" y1="27.9" x2="46.9" y2="25.1"/><line x1="27.9" y1="44.1" x2="25.1" y2="46.9"/>
+                </g>
+                <circle cx="36" cy="36" r="6" fill="#e8e6f0"/>
+                <circle cx="36" cy="36" r="2.5" fill="#07070e"/>
+                <g stroke="#475569" strokeWidth="1" strokeLinecap="round">
+                  <line x1="36" y1="14" x2="36" y2="10"/><line x1="36" y1="58" x2="36" y2="62"/>
+                  <line x1="14" y1="36" x2="10" y2="36"/><line x1="58" y1="36" x2="62" y2="36"/>
+                </g>
+              </svg>
+              <span style={{ fontFamily:'Georgia,serif', fontSize:17, fontWeight:700, letterSpacing:'0.14em' }}>
+                <span style={{ color:'#94A3B8' }}>I</span>
+                <span style={{ color:'#e8e6f0' }}>Arcan</span>
+                <span style={{ color:'#94A3B8' }}>IA</span>
+              </span>
+            </a>
+            {/* Desktop nav */}
+            <ul className="nav-desktop" style={{ display:'flex', alignItems:'center', gap:36, listStyle:'none', margin:0, padding:0 }}>
+              {['Servicios','Proceso','Por qué nosotros'].map(l => (
+                <li key={l}>
+                  <a href="#" style={{ fontSize:14, fontWeight:500, color:'#7a788f', textDecoration:'none', transition:'color 0.2s' }}
+                     onMouseEnter={e=>e.target.style.color='#e8e6f0'}
+                     onMouseLeave={e=>e.target.style.color='#7a788f'}>{l}</a>
+                </li>
+              ))}
+              <li>
+                <a href="#contacto" style={{ background:'rgba(155,114,240,0.15)', color:'#b89ef8', border:'1px solid rgba(155,114,240,0.25)', padding:'9px 20px', borderRadius:8, fontWeight:600, fontSize:13, textDecoration:'none', transition:'all 0.2s' }}
+                   onMouseEnter={e=>{e.currentTarget.style.background='rgba(155,114,240,0.25)'; e.currentTarget.style.color='#d4c6ff'}}
+                   onMouseLeave={e=>{e.currentTarget.style.background='rgba(155,114,240,0.15)'; e.currentTarget.style.color='#b89ef8'}}>
+                  Hablemos
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       HERO
+    ──────────────────────────────────────────── */
+    function Hero() {
+      const c1Ref = React.useRef(null);
+      const c2Ref = React.useRef(null);
+      const eyeRef = React.useRef(null);
+      React.useEffect(() => {
+        if (eyeRef.current && window.createEyeRain) {
+          createEyeRain(eyeRef.current, '155,114,240', 600);
+        }
+      }, []);
+      React.useEffect(() => {
+        function animCounter(el, target, suffix, dur) {
+          let s = null;
+          const step = ts => {
+            if (!s) s = ts;
+            const p = Math.min((ts-s)/dur, 1);
+            const e = 1 - Math.pow(1-p, 3);
+            el.textContent = Math.floor(e*target)+suffix;
+            if (p<1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        }
+        const t = setTimeout(() => {
+          if (c1Ref.current) animCounter(c1Ref.current, 20, 'h', 1600);
+          if (c2Ref.current) animCounter(c2Ref.current, 80, '%', 1800);
+        }, 400);
+        return () => clearTimeout(t);
+      }, []);
+
+      return (
+        <section id="hero" style={{ minHeight:'100vh', paddingTop:100, display:'flex', alignItems:'center', position:'relative', overflow:'hidden' }}>
+          {/* Purple eye rain — hero section */}
+          <canvas ref={eyeRef} style={{ position:'absolute', right:'-5%', top:'50%', transform:'translateY(-50%)', width:'52%', maxWidth:560, aspectRatio:'1/1', opacity:0.10, pointerEvents:'none', zIndex:0 }}></canvas>
+          {/* Single subtle accent blob */}
+          <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%', pointerEvents:'none', background:'radial-gradient(circle, rgba(155,114,240,0.12) 0%, transparent 70%)', filter:'blur(100px)', top:-100, left:-150, animation:'float1 10s ease-in-out infinite' }}/>
+
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px', position:'relative', zIndex:1, width:'100%' }}>
+            <div style={{ maxWidth:720 }}>
+              {/* Badge */}
+              <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.18)', borderRadius:100, padding:'5px 14px', fontSize:12, fontWeight:500, color:'#c9a84c', marginBottom:28 }}>
+                <span style={{ width:5, height:5, background:'#c9a84c', borderRadius:'50%', display:'inline-block', animation:'pulse-dim 2s ease-in-out infinite' }}/>
+                Automatización con IA para negocios colombianos
+              </div>
+
+              <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(38px,5.5vw,68px)', lineHeight:1.1, fontWeight:700, marginBottom:22, letterSpacing:'-0.5px', color:'#e8e6f0' }}>
+                Tu negocio trabaja<br/>
+                <span style={{ color:'#9b72f0' }}>sin parar.</span><br/>
+                Tú decides cuándo.
+              </h1>
+
+              <p style={{ fontSize:'clamp(15px,1.8vw,18px)', color:'#7a788f', maxWidth:560, lineHeight:1.75, marginBottom:40 }}>
+                Automatizamos los procesos repetitivos de tu negocio con agentes de IA —
+                atención al cliente, seguimiento de ventas, gestión de inventario —
+                por WhatsApp o web,{' '}
+                <strong style={{ color:'#b0aec8', fontWeight:500 }}>sin que tengas que cambiar cómo trabajas.</strong>
+              </p>
+
+              <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:14 }}>
+                <BtnPrimary href="#contacto">
+                  Quiero automatizar mi negocio
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </BtnPrimary>
+                <BtnGhost href="#servicios">Ver servicios</BtnGhost>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:36, marginTop:52, paddingTop:36, borderTop:'1px solid rgba(155,114,240,0.12)' }}>
+                {[
+                  { ref:c1Ref, val:'0h',  label:'ahorradas por semana en promedio' },
+                  { ref:c2Ref, val:'0%',  label:'reducción de tareas manuales' },
+                  { ref:null,  val:'24/7',label:'tu negocio disponible siempre' },
+                ].map(({ref,val,label}) => (
+                  <div key={label}>
+                    <div style={{ fontFamily:"'Playfair Display',serif", fontSize:34, fontWeight:700, lineHeight:1, color:'#9b72f0' }}>
+                      {ref ? <span ref={ref}>{val}</span> : val}
+                    </div>
+                    <div style={{ fontSize:12, color:'#7a788f', marginTop:4, maxWidth:120 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function BtnPrimary({href, children}) {
+      const [h, setH] = React.useState(false);
+      return (
+        <a href={href} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+           style={{ display:'inline-flex', alignItems:'center', gap:8, background: h ? 'rgba(155,114,240,0.22)' : 'rgba(155,114,240,0.14)', color:'#c4b0ff', fontSize:14, fontWeight:600, padding:'14px 28px', borderRadius:8, textDecoration:'none', border:'1px solid rgba(155,114,240,0.30)', transition:'all 0.2s' }}>
+          {children}
+        </a>
+      );
+    }
+
+    function BtnGhost({href, children}) {
+      const [h, setH] = React.useState(false);
+      return (
+        <a href={href} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+           style={{ display:'inline-flex', alignItems:'center', gap:8, background:'transparent', color: h ? '#b0aec8' : '#7a788f', fontSize:14, fontWeight:500, padding:'14px 24px', borderRadius:8, textDecoration:'none', border:`1px solid ${h ? 'rgba(155,114,240,0.20)' : 'rgba(155,114,240,0.10)'}`, transition:'all 0.2s' }}>
+          {children}
+        </a>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       SERVICES
+    ──────────────────────────────────────────── */
+    const SERVICES = [
+      { icon:'🤖', title:'Agentes de WhatsApp', desc:'Un asistente inteligente que responde preguntas, toma pedidos y agenda citas desde WhatsApp, sin horarios.', tags:['Atención 24/7','Pedidos'], tagsB:['WhatsApp'] },
+      { icon:'⚡', title:'Automatización de Procesos', desc:'Conectamos tus herramientas — hojas de cálculo, correo, CRM — y eliminamos el trabajo manual repetitivo.', tags:['Flujos de trabajo','Integraciones'], tagsB:['Sin código'] },
+      { icon:'📈', title:'Seguimiento de Ventas', desc:'Tu equipo nunca pierde un lead. El agente hace seguimiento automático y registra toda la información.', tags:['Leads','CRM'], tagsB:['Recordatorios'] },
+      { icon:'📚', title:'Gestión de Inventario', desc:'Controla existencias, recibe alertas de stock bajo y genera reportes automáticos sin salir de WhatsApp.', tags:['Stock','Alertas'], tagsB:['Reportes'] },
+      { icon:'🌐', title:'Agentes Web', desc:'Un asistente de IA en tu sitio web que atiende visitantes, captura contactos y responde preguntas en tiempo real.', tags:['Chat en vivo','Captura leads'], tagsB:['Web'] },
+      { icon:'🔭', title:'Flujos a Medida', desc:'¿Un proceso muy específico? Diseñamos flujos de automatización personalizados adaptados a tu operación.', tags:['Personalizado','IA'], tagsB:['A tu medida'] },
+    ];
+
+    function ServiceCard({icon,title,desc,tags,tagsB}) {
+      const [h, setH] = React.useState(false);
+      return (
+        <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+             style={{ background:'#10101a', border:`1px solid ${h ? 'rgba(155,114,240,0.28)' : 'rgba(155,114,240,0.12)'}`, borderRadius:14, padding:'30px 26px', position:'relative', overflow:'hidden', transition:'all 0.3s', transform: h ? 'translateY(-3px)' : 'none' }}>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.4),transparent)', opacity: h ? 1 : 0, transition:'opacity 0.3s' }}/>
+          <div style={{ width:48, height:48, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:20, fontSize:22, background:'rgba(155,114,240,0.08)', border:'1px solid rgba(155,114,240,0.15)' }}>{icon}</div>
+          <h3 style={{ fontSize:17, fontWeight:700, marginBottom:10, color:'#e8e6f0' }}>{title}</h3>
+          <p style={{ fontSize:14, color:'#7a788f', lineHeight:1.7, marginBottom:18 }}>{desc}</p>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+            {tags.map(t=><span key={t} style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:100, background:'rgba(155,114,240,0.10)', border:'1px solid rgba(155,114,240,0.18)', color:'#a88ef0' }}>{t}</span>)}
+            {tagsB.map(t=><span key={t} style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:100, background:'rgba(201,168,76,0.07)', border:'1px solid rgba(201,168,76,0.15)', color:'#c9a84c' }}>{t}</span>)}
+          </div>
+        </div>
+      );
+    }
+
+    function Services() {
+      return (
+        <section id="servicios" style={{ padding:'96px 0', background:'#0b0b14', position:'relative' }}>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.25),transparent)' }}/>
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px' }}>
+            <div style={{ textAlign:'center', maxWidth:580, margin:'0 auto 64px' }}>
+              <div className="section-label" style={{ marginBottom:14 }}>Servicios</div>
+              <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(26px,3.5vw,42px)', fontWeight:700, marginBottom:14, color:'#e8e6f0' }}>
+                Todo lo que necesitas para <span style={{ color:'#9b72f0' }}>automatizar</span>
+              </h2>
+              <p style={{ color:'#7a788f', fontSize:16, lineHeight:1.7 }}>Soluciones para negocios pequeños y medianos que quieren crecer sin contratar más personal.</p>
+            </div>
+            <div className="services-grid">
+              {SERVICES.map(s=><ServiceCard key={s.title} {...s}/>)}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       HOW IT WORKS
+    ──────────────────────────────────────────── */
+    const STEPS = [
+      { n:'01', title:'Diagnóstico gratuito', desc:'Analizamos tu negocio para identificar dónde la IA genera más impacto.' },
+      { n:'02', title:'Diseño del flujo', desc:'Creamos la automatización adaptada a cómo opera tu negocio hoy.' },
+      { n:'03', title:'Implementación', desc:'Desplegamos los agentes sin interrumpir tu operación.' },
+      { n:'04', title:'Soporte continuo', desc:'Te acompañamos y mejoramos los flujos para que siempre funcionen mejor.' },
+    ];
+
+    function HowItWorks() {
+      const eyeRef = React.useRef(null);
+      React.useEffect(() => {
+        if (eyeRef.current && window.createEyeRain) {
+          createEyeRain(eyeRef.current, '155,114,240', 480);
+        }
+      }, []);
+      return (
+        <section style={{ padding:'96px 0', background:'#07070e', position:'relative', overflow:'hidden' }}>
+          {/* Eye rain canvas watermark */}
+          <canvas ref={eyeRef} style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'58%', maxWidth:520, height:'auto', opacity:0.055, pointerEvents:'none', zIndex:0 }}></canvas>
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px' }}>
+            <div style={{ textAlign:'center', maxWidth:560, margin:'0 auto 64px', position:'relative', zIndex:1 }}>
+              <div className="section-label" style={{ marginBottom:14 }}>Proceso</div>
+              <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(26px,3.5vw,42px)', fontWeight:700, marginBottom:14, color:'#e8e6f0' }}>
+                En marcha en <span style={{ color:'#9b72f0' }}>días, no meses</span>
+              </h2>
+              <p style={{ color:'#7a788f', fontSize:16, lineHeight:1.7 }}>Un proceso simple y guiado para que tu automatización esté funcionando lo antes posible.</p>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:24, position:'relative', zIndex:1 }}>
+              <div style={{ position:'absolute', top:34, left:'14%', right:'14%', height:1, background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.15),rgba(155,114,240,0.15),transparent)' }}/>
+              {STEPS.map(s=>(
+                <div key={s.n} style={{ textAlign:'center', padding:'28px 20px' }}>
+                  <div style={{ width:68, height:68, borderRadius:'50%', background:'#10101a', border:'1px solid rgba(201,168,76,0.18)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:'#c9a84c', position:'relative', zIndex:1 }}>{s.n}</div>
+                  <h3 style={{ fontSize:15, fontWeight:700, marginBottom:8, color:'#e8e6f0' }}>{s.title}</h3>
+                  <p style={{ fontSize:13, color:'#7a788f', lineHeight:1.6 }}>{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       WHY US
+    ──────────────────────────────────────────── */
+    const METRICS = [
+      { label:'Tiempo de respuesta al cliente', val:'-92%', pct:92 },
+      { label:'Tareas manuales eliminadas',      val:'-78%', pct:78 },
+      { label:'Leads perdidos sin seguimiento',  val:'-85%', pct:85 },
+      { label:'Satisfacción del cliente',        val:'+65%', pct:65 },
+    ];
+    const WHY = [
+      { icon:'🇨🇴', title:'Hecho para Colombia', desc:'Entendemos el contexto local: horarios, herramientas y la forma en que operan los negocios colombianos.' },
+      { icon:'🔓', title:'Sin cambios drásticos', desc:'No tienes que abandonar las herramientas que ya usas. Integramos la automatización en tu flujo actual.' },
+      { icon:'📊', title:'Resultados medibles', desc:'Cada implementación incluye métricas claras para que veas cuánto tiempo y dinero estás ahorrando.' },
+      { icon:'🤝', title:'Acompañamiento real', desc:'No desaparecemos después de la entrega. Somos tu equipo técnico para ajustar y mejorar continuamente.' },
+    ];
+
+    function WhyUs() {
+      return (
+        <section style={{ padding:'96px 0', background:'#0b0b14', position:'relative' }}>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,rgba(201,168,76,0.15),transparent)' }}/>
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px' }}>
+            <div className="why-grid">
+              <div style={{ background:'#10101a', border:'1px solid rgba(155,114,240,0.12)', borderRadius:22, padding:36, position:'relative', overflow:'hidden' }}>
+                <div style={{ position:'absolute', top:-60, right:-60, width:160, height:160, background:'radial-gradient(circle,rgba(155,114,240,0.12),transparent)', borderRadius:'50%' }}/>
+                <div className="section-label" style={{ marginBottom:18 }}>Resultados reales</div>
+                {METRICS.map(m=>(
+                  <div key={m.label} style={{ padding:'14px 0', borderBottom:'1px solid rgba(155,114,240,0.08)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#7a788f', marginBottom:6 }}>
+                      <span>{m.label}</span>
+                      <strong style={{ color:'#c9a84c' }}>{m.val}</strong>
+                    </div>
+                    <div style={{ height:5, background:'rgba(255,255,255,0.04)', borderRadius:3, overflow:'hidden' }}>
+                      <div style={{ width:`${m.pct}%`, height:'100%', borderRadius:3, background:'linear-gradient(90deg,#7b5ce0,#c9a84c)' }}/>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+                <div>
+                  <div className="section-label" style={{ marginBottom:12 }}>Por qué elegirnos</div>
+                  <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(26px,3.5vw,42px)', fontWeight:700, color:'#e8e6f0' }}>
+                    IA que trabaja <span style={{ color:'#9b72f0' }}>a tu ritmo</span>
+                  </h2>
+                </div>
+                {WHY.map(p=>(
+                  <div key={p.title} style={{ display:'flex', gap:16 }}>
+                    <div style={{ width:42, height:42, minWidth:42, borderRadius:8, background:'rgba(155,114,240,0.08)', border:'1px solid rgba(155,114,240,0.14)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>{p.icon}</div>
+                    <div>
+                      <h4 style={{ fontSize:15, fontWeight:700, marginBottom:4, color:'#e8e6f0' }}>{p.title}</h4>
+                      <p style={{ fontSize:13, color:'#7a788f', lineHeight:1.6 }}>{p.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       FUNDADORES
+    ──────────────────────────────────────────── */
+    const FOPTS = [
+      { icon:'🎁', title:'Gratis', desc:'Setup completo + 3 meses de mantenimiento sin costo.', detail:'Solo para los primeros 10 negocios fundadores.', border:'rgba(155,114,240,0.22)' },
+      { icon:'🤝', title:'Referidos', desc:'Setup completo + 3 meses gratis.', detail:'A cambio de traernos 2 clientes más.', border:'rgba(201,168,76,0.22)' },
+      { icon:'🎥', title:'Testimonio', desc:'Setup completo + 3 meses gratis.', detail:'A cambio de grabar un video contando tu experiencia.', border:'rgba(155,114,240,0.14)' },
+    ];
+
+    function Fundadores() {
+      const [modal, setModal] = React.useState(false);
+      const eyeRef = React.useRef(null);
+      React.useEffect(() => {
+        if (eyeRef.current && window.createEyeRain) {
+          createEyeRain(eyeRef.current, '201,168,76', 600);
+        }
+      }, []);
+      return (
+        <section style={{ padding:'96px 0', background:'#07070e', position:'relative', overflow:'hidden' }}>
+          {/* Golden eye rain canvas */}
+          <canvas ref={eyeRef} style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'65%', maxWidth:560, aspectRatio:'1/1', opacity:0.13, pointerEvents:'none', zIndex:0 }}></canvas>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,rgba(201,168,76,0.18),transparent)' }}/>
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px' }}>
+            <div style={{ textAlign:'center', maxWidth:600, margin:'0 auto 20px', position:'relative', zIndex:1 }}>
+              <div className="section-label" style={{ marginBottom:14 }}>Oferta limitada</div>
+              <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(26px,3.5vw,42px)', fontWeight:700, marginBottom:14, color:'#e8e6f0' }}>
+                Oferta Fundadores —{' '}
+                <span style={{ color:'#c9a84c' }}>Solo 10 cupos</span>
+              </h2>
+              <p style={{ color:'#7a788f', fontSize:16, lineHeight:1.7 }}>Estamos construyendo nuestros primeros casos de éxito en Colombia. Si tu negocio entra ahora, tienes 3 opciones:</p>
+            </div>
+            {/* Slot counter */}
+            <div style={{ display:'flex', justifyContent:'center', margin:'20px 0 44px', position:'relative', zIndex:1 }}>
+              <div style={{ display:'inline-flex', alignItems:'center', gap:10, background:'#10101a', border:'1px solid rgba(201,168,76,0.22)', borderRadius:100, padding:'10px 22px' }}>
+                <div style={{ display:'flex', gap:4 }}>
+                  {Array.from({length:10}).map((_,i)=><span key={i} style={{ width:10, height:10, borderRadius:'50%', background: i<10 ? '#c9a84c' : 'rgba(155,114,240,0.18)' }}/>)}
+                </div>
+                <span style={{ fontSize:13, fontWeight:600, color:'#c9a84c' }}>Quedan 10/10 cupos</span>
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20, marginBottom:44, position:'relative', zIndex:1 }}>
+              {FOPTS.map(o=>(
+                <div key={o.title} style={{ background:'#10101a', border:`1px solid ${o.border}`, borderRadius:18, padding:28, display:'flex', flexDirection:'column', gap:14 }}>
+                  <div style={{ width:44, height:44, borderRadius:10, background:'rgba(155,114,240,0.10)', border:'1px solid rgba(155,114,240,0.18)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>{o.icon}</div>
+                  <div>
+                    <h3 style={{ fontSize:18, fontWeight:700, marginBottom:4, color:'#e8e6f0' }}>{o.title}</h3>
+                    <p style={{ fontSize:14, color:'#b0aec8', lineHeight:1.6 }}>{o.desc}</p>
+                    <p style={{ fontSize:12, color:'#7a788f', marginTop:4 }}>{o.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign:'center', position:'relative', zIndex:1 }}>
+              <button onClick={()=>setModal(true)} style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(201,168,76,0.12)', color:'#c9a84c', border:'1px solid rgba(201,168,76,0.28)', fontWeight:600, padding:'14px 36px', borderRadius:10, fontSize:15, cursor:'pointer', fontFamily:"'Inter',sans-serif", transition:'all 0.2s' }}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(201,168,76,0.18)'}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(201,168,76,0.12)'}}>
+                Quiero mi cupo →
+              </button>
+              <p style={{ fontSize:11, color:'#3e3c52', marginTop:10 }}>Llamada de 20 minutos · Sin costo · Sin compromiso</p>
+            </div>
+          </div>
+          {modal && (
+            <div onClick={()=>setModal(false)} style={{ position:'fixed', inset:0, zIndex:50, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.75)', backdropFilter:'blur(6px)', padding:16 }}>
+              <div onClick={e=>e.stopPropagation()} style={{ background:'#10101a', border:'1px solid rgba(155,114,240,0.15)', borderRadius:18, overflow:'hidden', width:'100%', maxWidth:600 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px', borderBottom:'1px solid rgba(155,114,240,0.12)', background:'#0d0d18' }}>
+                  <span style={{ fontSize:14, fontWeight:600, color:'#e8e6f0' }}>Agendar llamada con Miguel</span>
+                  <button onClick={()=>setModal(false)} style={{ background:'none', border:'none', color:'#7a788f', fontSize:20, cursor:'pointer' }}>✕</button>
+                </div>
+                <div style={{ padding:36, textAlign:'center' }}>
+                  <p style={{ color:'#7a788f', fontSize:14 }}>Calendly → <strong style={{color:'#b0aec8'}}>calendly.com/miguelangel4793039/30min</strong></p>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       CONTACT
+    ──────────────────────────────────────────── */
+    /* ────────────────────────────────────────────
+       CONTACT — 3-step interactive wizard
+    ──────────────────────────────────────────── */
+    const SERVICES_OPTS = [
+      { id:'whatsapp', icon:'💬', label:'Agente de WhatsApp', desc:'Atención 24/7 sin horarios' },
+      { id:'ventas',   icon:'📈', label:'Seguimiento de ventas', desc:'Nunca pierdas un lead' },
+      { id:'inventario', icon:'📦', label:'Gestión de inventario', desc:'Alertas y reportes automáticos' },
+      { id:'procesos', icon:'⚡', label:'Automatizar procesos', desc:'Elimina el trabajo repetitivo' },
+      { id:'web',      icon:'🌐', label:'Agente web', desc:'Captura leads desde tu sitio' },
+      { id:'otro',     icon:'🔭', label:'Otro / No estoy seguro', desc:'Te ayudamos a identificarlo' },
+    ];
+
+    function Contact() {
+      const [step, setStep] = React.useState(1);
+      const [service, setService] = React.useState(null);
+      const [employees, setEmployees] = React.useState(null);
+      const [name, setName] = React.useState('');
+      const [phone, setPhone] = React.useState('');
+      const [done, setDone] = React.useState(false);
+
+      const EMPS = ['1–5','6–15','16–50','50+'];
+
+      function StepDot({ n }) {
+        const active = step === n, passed = step > n;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <div style={{ width:26, height:26, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, transition:'all 0.3s',
+              background: passed ? '#9b72f0' : active ? 'rgba(155,114,240,0.18)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${active||passed ? 'rgba(155,114,240,0.5)' : 'rgba(255,255,255,0.08)'}`,
+              color: passed ? '#fff' : active ? '#9b72f0' : '#3e3c52' }}>
+              {passed ? '✓' : n}
+            </div>
+            {n < 3 && <div style={{ width:32, height:1, background: step>n ? 'rgba(155,114,240,0.5)' : 'rgba(255,255,255,0.06)', transition:'background 0.4s' }}/>}
+          </div>
+        );
+      }
+
+      if (done) return (
+        <section id="contacto" style={{ padding:'96px 0', background:'#0b0b14', position:'relative' }}>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.22),transparent)' }}/>
+          <div style={{ maxWidth:560, margin:'0 auto', padding:'0 24px', textAlign:'center' }}>
+            <div style={{ fontSize:56, marginBottom:20, animation:'float1 3s ease-in-out infinite' }}>👁</div>
+            <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:32, fontWeight:700, marginBottom:12, color:'#9b72f0' }}>¡Listo, {name.split(' ')[0]}!</h2>
+            <p style={{ color:'#7a788f', fontSize:16, lineHeight:1.75, marginBottom:28 }}>Recibimos tu solicitud. En menos de 24 horas Miguel te escribe por WhatsApp para coordinar el diagnóstico gratuito.</p>
+            <div style={{ background:'#10101a', border:'1px solid rgba(155,114,240,0.15)', borderRadius:16, padding:'20px 24px', marginBottom:24, textAlign:'left' }}>
+              <div style={{ fontSize:12, color:'#3e3c52', marginBottom:12, letterSpacing:1, textTransform:'uppercase', fontWeight:600 }}>Resumen de tu solicitud</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <div style={{ display:'flex', gap:10, fontSize:14 }}><span style={{ color:'#5a5870', width:80 }}>Servicio</span><span style={{ color:'#c0bcd8', fontWeight:500 }}>{SERVICES_OPTS.find(s=>s.id===service)?.label || service}</span></div>
+                <div style={{ display:'flex', gap:10, fontSize:14 }}><span style={{ color:'#5a5870', width:80 }}>Empleados</span><span style={{ color:'#c0bcd8', fontWeight:500 }}>{employees}</span></div>
+                <div style={{ display:'flex', gap:10, fontSize:14 }}><span style={{ color:'#5a5870', width:80 }}>Contacto</span><span style={{ color:'#c0bcd8', fontWeight:500 }}>{name} · {phone}</span></div>
+              </div>
+            </div>
+            <p style={{ fontSize:12, color:'#3e3c52' }}>Sin costo · Sin compromiso · Llamada de 20 minutos</p>
+          </div>
+        </section>
+      );
+
+      return (
+        <section id="contacto" style={{ padding:'96px 0', background:'#0b0b14', position:'relative' }}>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.22),transparent)' }}/>
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px' }}>
+            <div className="why-grid">
+
+              {/* Left: info */}
+              <div>
+                <div className="section-label" style={{ marginBottom:14 }}>Contacto</div>
+                <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(26px,3.5vw,40px)', fontWeight:700, marginBottom:14, color:'#e8e6f0' }}>
+                  Hablemos sobre <span style={{ color:'#9b72f0' }}>tu negocio</span>
+                </h2>
+                <p style={{ color:'#7a788f', fontSize:15, lineHeight:1.75, marginBottom:28 }}>Diagnóstico gratuito en 3 preguntas. En menos de 24h te decimos exactamente qué podemos automatizar.</p>
+                {[['📱','WhatsApp: +57 323 668 8646'],['📧','hola@iarcania.co'],['📍','Colombia — atención nacional']].map(([ico,txt])=>(
+                  <div key={txt} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12, fontSize:14, color:'#7a788f' }}>
+                    <div style={{ width:34, height:34, borderRadius:8, background:'rgba(155,114,240,0.08)', border:'1px solid rgba(155,114,240,0.14)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15 }}>{ico}</div>
+                    {txt}
+                  </div>
+                ))}
+                <div style={{ marginTop:32, padding:'16px 20px', background:'rgba(155,114,240,0.06)', border:'1px solid rgba(155,114,240,0.12)', borderRadius:12 }}>
+                  <div style={{ fontSize:12, color:'#5a5870', marginBottom:8, fontWeight:600, letterSpacing:0.5 }}>¿Por qué 3 preguntas?</div>
+                  <div style={{ fontSize:13, color:'#7a788f', lineHeight:1.7 }}>Para no hacerte perder el tiempo con formularios largos. Con esto ya sabemos cómo ayudarte.</div>
+                </div>
+              </div>
+
+              {/* Right: wizard */}
+              <div style={{ background:'#0d0d18', border:'1px solid rgba(155,114,240,0.14)', borderRadius:22, padding:'32px 30px' }}>
+                {/* Progress */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', marginBottom:28, gap:0 }}>
+                  {[1,2,3].map(n => <StepDot key={n} n={n}/>)}
+                </div>
+
+                {/* STEP 1 — Service selection */}
+                {step===1 && (
+                  <div key="s1" style={{ animation:'fadeUp 0.25s ease' }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#e8e6f0', marginBottom:6 }}>¿Qué quieres automatizar?</div>
+                    <div style={{ fontSize:13, color:'#7a788f', marginBottom:20 }}>Elige el que más se acerque a tu necesidad.</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                      {SERVICES_OPTS.map(s => (
+                        <div key={s.id} onClick={()=>{ setService(s.id); setTimeout(()=>setStep(2),200); }}
+                          style={{ padding:'14px 14px', borderRadius:12, cursor:'pointer', transition:'all 0.2s',
+                            background: service===s.id ? 'rgba(155,114,240,0.14)' : 'rgba(255,255,255,0.03)',
+                            border: `1px solid ${service===s.id ? 'rgba(155,114,240,0.40)' : 'rgba(255,255,255,0.07)'}`,
+                            transform: service===s.id ? 'scale(1.02)' : 'scale(1)' }}
+                          onMouseEnter={e=>{ if(service!==s.id){ e.currentTarget.style.background='rgba(155,114,240,0.07)'; e.currentTarget.style.borderColor='rgba(155,114,240,0.22)'; }}}
+                          onMouseLeave={e=>{ if(service!==s.id){ e.currentTarget.style.background='rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; }}}>
+                          <div style={{ fontSize:20, marginBottom:6 }}>{s.icon}</div>
+                          <div style={{ fontSize:13, fontWeight:600, color:'#d8d6e8', marginBottom:3 }}>{s.label}</div>
+                          <div style={{ fontSize:11, color:'#5a5870' }}>{s.desc}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 2 — Company size */}
+                {step===2 && (
+                  <div key="s2" style={{ animation:'fadeUp 0.25s ease' }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#e8e6f0', marginBottom:6 }}>¿Cuántas personas trabajan en tu negocio?</div>
+                    <div style={{ fontSize:13, color:'#7a788f', marginBottom:24 }}>Esto nos ayuda a dimensionar la solución correcta.</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:24 }}>
+                      {EMPS.map(e => (
+                        <div key={e} onClick={()=>setEmployees(e)}
+                          style={{ padding:'18px 14px', borderRadius:12, cursor:'pointer', textAlign:'center', transition:'all 0.2s',
+                            background: employees===e ? 'rgba(155,114,240,0.14)' : 'rgba(255,255,255,0.03)',
+                            border: `1px solid ${employees===e ? 'rgba(155,114,240,0.40)' : 'rgba(255,255,255,0.07)'}` }}
+                          onMouseEnter={ev=>{ if(employees!==e){ ev.currentTarget.style.background='rgba(155,114,240,0.07)'; ev.currentTarget.style.borderColor='rgba(155,114,240,0.22)'; }}}
+                          onMouseLeave={ev=>{ if(employees!==e){ ev.currentTarget.style.background='rgba(255,255,255,0.03)'; ev.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; }}}>
+                          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color: employees===e ? '#9b72f0' : '#c8c6d8', marginBottom:4 }}>{e}</div>
+                          <div style={{ fontSize:11, color:'#5a5870' }}>personas</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button onClick={()=>setStep(1)} style={{ flex:1, background:'rgba(255,255,255,0.04)', color:'#7a788f', border:'1px solid rgba(255,255,255,0.07)', borderRadius:8, padding:'12px', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>← Atrás</button>
+                      <button onClick={()=>employees && setStep(3)} style={{ flex:2, background: employees ? 'rgba(155,114,240,0.18)' : 'rgba(155,114,240,0.06)', color: employees ? '#c4b0ff' : '#3e3c52', border:`1px solid ${employees ? 'rgba(155,114,240,0.35)' : 'rgba(255,255,255,0.05)'}`, borderRadius:8, padding:'12px', fontSize:13, fontWeight:700, cursor: employees ? 'pointer' : 'default', fontFamily:'Inter,sans-serif', transition:'all 0.2s' }}>
+                        Continuar →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3 — Contact info */}
+                {step===3 && (
+                  <div key="s3" style={{ animation:'fadeUp 0.25s ease' }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#e8e6f0', marginBottom:6 }}>¿Cómo te contactamos?</div>
+                    <div style={{ fontSize:13, color:'#7a788f', marginBottom:20 }}>Te escribimos por WhatsApp en menos de 24 horas.</div>
+                    <div style={{ marginBottom:14 }}>
+                      <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#7a788f', marginBottom:7 }}>Nombre *</label>
+                      <input value={name} onChange={e=>setName(e.target.value)} placeholder="¿Cómo te llamas?"
+                        style={{ width:'100%', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(155,114,240,0.14)', borderRadius:8, padding:'12px 14px', fontFamily:'Inter,sans-serif', fontSize:13, color:'#e8e6f0', outline:'none' }}/>
+                    </div>
+                    <div style={{ marginBottom:24 }}>
+                      <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#7a788f', marginBottom:7 }}>WhatsApp *</label>
+                      <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+57 300 000 0000"
+                        style={{ width:'100%', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(155,114,240,0.14)', borderRadius:8, padding:'12px 14px', fontFamily:'Inter,sans-serif', fontSize:13, color:'#e8e6f0', outline:'none' }}/>
+                    </div>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button onClick={()=>setStep(2)} style={{ flex:1, background:'rgba(255,255,255,0.04)', color:'#7a788f', border:'1px solid rgba(255,255,255,0.07)', borderRadius:8, padding:'12px', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>← Atrás</button>
+                      <button onClick={()=>{ if(name&&phone) setDone(true); }}
+                        style={{ flex:2, background: name&&phone ? 'rgba(155,114,240,0.20)' : 'rgba(155,114,240,0.06)', color: name&&phone ? '#d4c6ff' : '#3e3c52', border:`1px solid ${name&&phone ? 'rgba(155,114,240,0.40)' : 'rgba(255,255,255,0.05)'}`, borderRadius:8, padding:'12px', fontSize:13, fontWeight:700, cursor: name&&phone ? 'pointer' : 'default', fontFamily:'Inter,sans-serif', transition:'all 0.2s' }}>
+                        Quiero mi diagnóstico gratuito →
+                      </button>
+                    </div>
+                    <div style={{ textAlign:'center', fontSize:11, color:'#3e3c52', marginTop:12 }}>Sin costo · Sin compromiso · 20 minutos</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <style>{`
+            @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+          `}</style>
+        </section>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       FOOTER
+    ──────────────────────────────────────────── */
+    function Footer() {
+      return (
+        <footer style={{ background:'#07070e', borderTop:'1px solid rgba(155,114,240,0.10)', padding:'36px 0' }}>
+          <div style={{ maxWidth:1160, margin:'0 auto', padding:'0 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
+            <div>
+              <div style={{ fontFamily:'Georgia,serif', fontSize:16, fontWeight:700, letterSpacing:'0.14em', marginBottom:6 }}>
+                <span style={{color:'#94A3B8'}}>I</span><span style={{color:'#e8e6f0'}}>Arcan</span><span style={{color:'#94A3B8'}}>IA</span>
+              </div>
+              <p style={{ fontSize:13, color:'#3e3c52' }}>© 2026 IArcanIA. Automatización con IA para Colombia.</p>
+            </div>
+            <div style={{ display:'flex', gap:22 }}>
+              {['Servicios','Nosotros','Contacto'].map(l=>(
+                <a key={l} href="#" style={{ fontSize:13, color:'#3e3c52', textDecoration:'none', transition:'color 0.2s' }}
+                   onMouseEnter={e=>e.target.style.color='#c9a84c'}
+                   onMouseLeave={e=>e.target.style.color='#3e3c52'}>{l}</a>
+              ))}
+            </div>
+          </div>
+        </footer>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       APP
+    ──────────────────────────────────────────── */
+    function App() {
+      return (
+        <main>
+          <Navbar/>
+          <Hero/>
+          <Services/>
+          <HowItWorks/>
+          <WhyUs/>
+          <Fundadores/>
+          <Contact/>
+          <Footer/>
+          <a href="https://wa.me/573236688646" target="_blank" rel="noopener" className="whatsapp-fab" title="Escríbenos por WhatsApp">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="#fff">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.532 5.845L.054 23.893a.5.5 0 0 0 .609.61l6.102-1.467A11.937 11.937 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.883a9.879 9.879 0 0 1-5.031-1.377l-.36-.214-3.733.897.933-3.658-.235-.375A9.9 9.9 0 0 1 2.117 12C2.117 6.53 6.53 2.117 12 2.117S21.883 6.53 21.883 12 17.47 21.883 12 21.883z"/>
+            </svg>
+          </a>
+        </main>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>

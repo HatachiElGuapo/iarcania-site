@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IArcanIA — Acceso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { font-family: 'Inter', sans-serif; background: #060609; color: #F0EEF8; overflow: hidden; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(155,114,240,0.3); border-radius: 2px; }
+
+    /* Rain */
+    #rain { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+    /* Eye watermark */
+    #eye-mark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 1; }
+
+    @keyframes fadeIn  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeOut { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-12px)} }
+    @keyframes pulse   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
+    @keyframes cardIn  { from{opacity:0;transform:translateY(20px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes eyeBlink { 0%,90%,100%{scaleY(1)} 95%{transform:scaleY(0.08)} }
+    @keyframes drift { 0%,100%{transform:translate(-50%,-50%) rotate(0deg)} 50%{transform:translate(-50%,-50%) rotate(1.5deg) scale(1.015)} }
+
+    #eye-mark { animation: drift 14s ease-in-out infinite; }
+
+    .screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; }
+    .screen.entering { animation: fadeIn 0.4s ease forwards; }
+    .screen.exiting  { animation: fadeOut 0.3s ease forwards; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+<canvas id="rain"></canvas>
+
+<canvas id="eye-mark" width="600" height="600" style="width:min(68vw,68vh);height:min(68vw,68vh);opacity:0.042;"></canvas>
+
+<div id="root"></div>
+
+<script>
+/* ── Rain ── */
+(function(){
+  const c = document.getElementById('rain');
+  const ctx = c.getContext('2d');
+  let drops = [];
+  function init(){
+    c.width = innerWidth; c.height = innerHeight;
+    const n = Math.floor(innerWidth/9);
+    drops = Array.from({length:n},()=>({
+      x: Math.random()*innerWidth,
+      y: Math.random()*innerHeight,
+      speed: 1.6+Math.random()*2.6,
+      len: 20+Math.random()*36,
+      op: 0.35+Math.random()*0.50,
+      w: 0.6+Math.random()*0.9,
+    }));
+  }
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    drops.forEach(d=>{
+      ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-0.8,d.y+d.len);
+      ctx.strokeStyle=`rgba(172,138,255,${d.op})`; ctx.lineWidth=d.w; ctx.stroke();
+      d.y+=d.speed; if(d.y>c.height){d.y=-d.len;d.x=Math.random()*c.width;}
+    });
+    requestAnimationFrame(draw);
+  }
+  addEventListener('resize',init); init(); draw();
+})();
+
+/* ── Eye watermark (animated canvas, blinking) ── */
+(function(){
+  const c = document.getElementById('eye-mark');
+  const ctx = c.getContext('2d');
+  const S = 600, cx=300, cy=300;
+  const drops = Array.from({length:120},()=>({
+    x: Math.random()*S, y: Math.random()*S,
+    speed: 0.9+Math.random()*1.4,
+    len: 14+Math.random()*22, op: 0.6+Math.random()*0.4,
+  }));
+  let blinkT = 0;
+
+  function eyePath(c2, scaleY=1){
+    const rx=220, ry=220;
+    c2.beginPath();
+    c2.moveTo(cx, cy-ry*scaleY);
+    c2.quadraticCurveTo(cx+rx, cy, cx, cy+ry*scaleY);
+    c2.quadraticCurveTo(cx-rx, cy, cx, cy-ry*scaleY);
+    c2.closePath();
+  }
+
+  function frame(t){
+    blinkT = t;
+    // blink every ~5s
+    const phase = (t/1000) % 5;
+    const blinkScale = phase>4.6 ? Math.max(0.04, 1-((phase-4.6)/0.15)) : phase>4.75 ? Math.min(1,(phase-4.75)/0.15) : 1;
+
+    ctx.clearRect(0,0,S,S);
+
+    // base eye fill
+    ctx.save();
+    eyePath(ctx, blinkScale);
+    ctx.fillStyle='#08060f';
+    ctx.fill();
+
+    // iris ring
+    ctx.beginPath(); ctx.arc(cx,cy,90,0,Math.PI*2);
+    ctx.strokeStyle='rgba(155,114,240,0.22)'; ctx.lineWidth=4; ctx.stroke();
+
+    // rain clipped to eye
+    ctx.globalCompositeOperation='source-atop';
+    eyePath(ctx, blinkScale); ctx.clip();
+    drops.forEach(d=>{
+      ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-0.7,d.y+d.len);
+      ctx.strokeStyle=`rgba(175,145,255,${d.op})`; ctx.lineWidth=1; ctx.stroke();
+      d.y+=d.speed; if(d.y>S){d.y=-d.len;d.x=Math.random()*S;}
+    });
+    ctx.restore();
+
+    // radial iris lines
+    ctx.globalCompositeOperation='source-over';
+    for(let i=0;i<8;i++){
+      const a=(i/8)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(cx+Math.cos(a)*65,cy+Math.sin(a)*65*blinkScale);
+      ctx.lineTo(cx+Math.cos(a)*90,cy+Math.sin(a)*90*blinkScale);
+      ctx.strokeStyle='rgba(155,114,240,0.18)'; ctx.lineWidth=3; ctx.stroke();
+    }
+
+    // sclera + pupil
+    ctx.beginPath(); ctx.arc(cx,cy,38,0,Math.PI*2);
+    ctx.fillStyle='rgba(200,180,255,0.75)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,15,0,Math.PI*2);
+    ctx.fillStyle='#060609'; ctx.fill();
+
+    // eyelashes
+    ctx.save();
+    eyePath(ctx, blinkScale);
+    ctx.strokeStyle='rgba(155,114,240,0.32)'; ctx.lineWidth=5; ctx.stroke();
+    ctx.restore();
+
+    // eylid closing effect
+    if(blinkScale < 1){
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0,0,S,S);
+      eyePath(ctx, 1); ctx.clip();
+      ctx.fillStyle=`rgba(8,6,15,${1-blinkScale})`;
+      ctx.fillRect(0,0,S,S);
+      ctx.restore();
+    }
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script type="text/babel">
+
+/* ═══════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════ */
+const C = {
+  bg:      '#060609',
+  s1:      '#0e0d16',
+  s2:      '#151422',
+  border:  'rgba(155,114,240,0.14)',
+  borderH: 'rgba(155,114,240,0.38)',
+  purple:  '#9b72f0',
+  purpleL: '#c4b0ff',
+  gold:    '#c9a84c',
+  text:    '#F0EEF8',
+  muted:   '#7a788f',
+  dim:     '#3a3850',
+};
+
+/* ═══════════════════════════════════════
+   LOGO
+═══════════════════════════════════════ */
+function Logo({ size=22 }) {
+  return (
+    <div style={{ fontFamily:"'Playfair Display',serif", fontSize:size, fontWeight:700, letterSpacing:'0.12em', lineHeight:1 }}>
+      <span style={{ color:'#8090a8' }}>I</span>
+      <span style={{ color:C.text }}>Arcan</span>
+      <span style={{ color:'#8090a8' }}>IA</span>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   LOGIN SCREEN
+═══════════════════════════════════════ */
+function Login({ onLogin }) {
+  const [email, setEmail] = React.useState('');
+  const [pass,  setPass]  = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [fEmail, setFEmail] = React.useState(false);
+  const [fPass,  setFPass]  = React.useState(false);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!email || !pass) { setError('Completa todos los campos.'); return; }
+    setError(''); setLoading(true);
+    setTimeout(() => { setLoading(false); onLogin(email); }, 1400);
+  }
+
+  return (
+    <div className="screen entering" style={{ flexDirection:'column', gap:0 }}>
+      <div style={{ width:'100%', maxWidth:400, padding:'0 24px', animation:'cardIn 0.5s ease' }}>
+
+        {/* Logo + subtitle */}
+        <div style={{ textAlign:'center', marginBottom:36 }}>
+          <Logo size={28}/>
+          <div style={{ fontSize:12, color:C.dim, marginTop:8, letterSpacing:1.5, textTransform:'uppercase', fontWeight:500 }}>Panel de administración</div>
+        </div>
+
+        {/* Card */}
+        <div style={{ background:C.s1, border:`1px solid ${C.border}`, borderRadius:20, padding:'32px 30px', boxShadow:'0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(155,114,240,0.06) inset' }}>
+
+          {/* Top accent line */}
+          <div style={{ position:'relative', marginBottom:28 }}>
+            <div style={{ height:1, background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.45),transparent)', marginBottom:20 }}/>
+            <div style={{ fontSize:18, fontWeight:700, color:C.text, textAlign:'center' }}>Bienvenido</div>
+            <div style={{ fontSize:13, color:C.muted, textAlign:'center', marginTop:6 }}>Ingresa tus credenciales para continuar</div>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            {/* Email */}
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:12, fontWeight:600, color:C.muted, marginBottom:7 }}>Correo electrónico</label>
+              <div style={{ position:'relative' }}>
+                <span style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', color:C.dim, fontSize:15, pointerEvents:'none' }}>✉</span>
+                <input type="email" value={email} onChange={e=>{setEmail(e.target.value);setError('');}}
+                  onFocus={()=>setFEmail(true)} onBlur={()=>setFEmail(false)}
+                  placeholder="admin@iarcania.co" autoComplete="email"
+                  style={{ width:'100%', background:'rgba(255,255,255,0.03)', border:`1px solid ${fEmail ? C.borderH : C.border}`, borderRadius:10, padding:'11px 14px 11px 38px', fontFamily:'Inter,sans-serif', fontSize:13, color:C.text, outline:'none', transition:'border-color 0.2s' }}/>
+              </div>
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom:error?10:20 }}>
+              <label style={{ display:'block', fontSize:12, fontWeight:600, color:C.muted, marginBottom:7 }}>Contraseña</label>
+              <div style={{ position:'relative' }}>
+                <span style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', color:C.dim, fontSize:15, pointerEvents:'none' }}>🔒</span>
+                <input type="password" value={pass} onChange={e=>{setPass(e.target.value);setError('');}}
+                  onFocus={()=>setFPass(true)} onBlur={()=>setFPass(false)}
+                  placeholder="••••••••" autoComplete="current-password"
+                  style={{ width:'100%', background:'rgba(255,255,255,0.03)', border:`1px solid ${fPass ? C.borderH : C.border}`, borderRadius:10, padding:'11px 14px 11px 38px', fontFamily:'Inter,sans-serif', fontSize:13, color:C.text, outline:'none', transition:'border-color 0.2s' }}/>
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && <div style={{ fontSize:12, color:'#f87171', marginBottom:12, padding:'8px 12px', background:'rgba(248,113,113,0.08)', border:'1px solid rgba(248,113,113,0.18)', borderRadius:8 }}>{error}</div>}
+
+            {/* Submit */}
+            <button type="submit" disabled={loading}
+              style={{ width:'100%', background: loading ? 'rgba(155,114,240,0.18)' : 'rgba(155,114,240,0.22)', color: loading ? C.muted : C.purpleL, border:`1px solid ${loading ? C.border : C.borderH}`, borderRadius:10, padding:'13px', fontSize:14, fontWeight:700, cursor: loading ? 'default' : 'pointer', fontFamily:'Inter,sans-serif', transition:'all 0.2s', letterSpacing:0.3 }}>
+              {loading
+                ? <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                    <span style={{ width:14, height:14, border:'2px solid rgba(155,114,240,0.3)', borderTopColor:C.purple, borderRadius:'50%', display:'inline-block', animation:'spin 0.7s linear infinite' }}/>
+                    Verificando...
+                  </span>
+                : 'Ingresar →'}
+            </button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div style={{ textAlign:'center', marginTop:20, fontSize:11, color:C.dim }}>
+          IArcanIA · Plataforma de administración · 2026
+        </div>
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   ADMIN HUB
+═══════════════════════════════════════ */
+const MODULES = [
+  {
+    id: 'crm',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="12" r="5" stroke="currentColor" strokeWidth="1.5"/>
+        <circle cx="8"  cy="26" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+        <circle cx="28" cy="26" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M12 22c1.5-2 10.5-2 12 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M4.5 32c1-2 5-2.5 7-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M31.5 32c-1-2-5-2.5-7-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+    title: 'CRM',
+    subtitle: 'Gestión de relaciones',
+    desc: 'Pipeline de ventas, contactos, deals activos y seguimiento de clientes.',
+    stat: '9 deals activos',
+    color: C.purple,
+    href: '../crm/IArcanIA CRM.html',
+  },
+  {
+    id: 'empleados',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect x="4" y="8" width="28" height="20" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+        <circle cx="13" cy="18" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M7 28c0-3.3 2.7-6 6-6h0c3.3 0 6 2.7 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="22" y1="14" x2="30" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="22" y1="18" x2="30" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="22" y1="22" x2="27" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+    title: 'Empleados',
+    subtitle: 'Gestión de equipo',
+    desc: 'Roles, permisos, actividad del equipo y asignación de tareas por agente.',
+    stat: '3 agentes activos',
+    color: '#b09af0',
+    href: '#',
+  },
+  {
+    id: 'contactos',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect x="4" y="4" width="28" height="28" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+        <line x1="4" y1="12" x2="32" y2="12" stroke="currentColor" strokeWidth="1.5"/>
+        <line x1="4" y1="20" x2="32" y2="20" stroke="currentColor" strokeWidth="1.5"/>
+        <line x1="14" y1="12" x2="14" y2="32" stroke="currentColor" strokeWidth="1.5"/>
+      </svg>
+    ),
+    title: 'Base de contactos',
+    subtitle: 'Contactos recientes',
+    desc: 'Directorio completo de leads, prospectos y clientes con historial de actividad.',
+    stat: '8 contactos recientes',
+    color: C.gold,
+    href: '#',
+  },
+];
+
+function AdminHub({ user, onLogout }) {
+  const [hov, setHov] = React.useState(null);
+  const name = user.split('@')[0];
+  const capName = name.charAt(0).toUpperCase() + name.slice(1);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+
+  return (
+    <div className="screen entering" style={{ flexDirection:'column', padding:'24px' }}>
+      {/* Top bar */}
+      <div style={{ width:'100%', maxWidth:960, display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:48 }}>
+        <Logo size={18}/>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{capName}</div>
+            <div style={{ fontSize:11, color:C.dim }}>Administrador</div>
+          </div>
+          <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(155,114,240,0.15)', border:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:14, color:C.purple }}>
+            {capName.charAt(0).toUpperCase()}
+          </div>
+          <button onClick={onLogout}
+            style={{ background:'transparent', border:`1px solid ${C.border}`, color:C.dim, fontSize:12, fontWeight:500, padding:'6px 12px', borderRadius:8, cursor:'pointer', fontFamily:'Inter,sans-serif', transition:'all 0.2s' }}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=C.borderH;e.currentTarget.style.color=C.muted;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.dim;}}>
+            Salir
+          </button>
+        </div>
+      </div>
+
+      {/* Greeting */}
+      <div style={{ textAlign:'center', marginBottom:52 }}>
+        <div style={{ fontSize:13, color:C.dim, letterSpacing:1, textTransform:'uppercase', marginBottom:10, fontWeight:500 }}>{greeting}, {capName}</div>
+        <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:'clamp(28px,4vw,42px)', fontWeight:700, color:C.text, lineHeight:1.15, marginBottom:10 }}>
+          ¿Qué quieres <span style={{ color:C.purple }}>gestionar hoy?</span>
+        </h1>
+        <div style={{ fontSize:14, color:C.muted }}>Selecciona un módulo para continuar.</div>
+      </div>
+
+      {/* Module cards */}
+      <div style={{ display:'flex', gap:20, width:'100%', maxWidth:960, justifyContent:'center', flexWrap:'wrap' }}>
+        {MODULES.map((m, i) => {
+          const isHov = hov === m.id;
+          return (
+            <a key={m.id} href={m.href}
+              onMouseEnter={()=>setHov(m.id)}
+              onMouseLeave={()=>setHov(null)}
+              style={{ flex:'1 1 260px', maxWidth:300, textDecoration:'none',
+                animation: `cardIn 0.4s ease ${i*0.08}s both` }}>
+              <div style={{ background: isHov ? C.s2 : C.s1, border:`1px solid ${isHov ? m.color+'44' : C.border}`, borderRadius:20, padding:'30px 28px', height:'100%', position:'relative', overflow:'hidden', transition:'all 0.25s', transform: isHov ? 'translateY(-5px)' : 'none', boxShadow: isHov ? `0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px ${m.color}22` : 'none', cursor:'pointer' }}>
+                {/* Top accent line */}
+                <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${m.color},transparent)`, opacity: isHov ? 1 : 0, transition:'opacity 0.25s' }}/>
+                {/* Glow orb */}
+                <div style={{ position:'absolute', top:-40, right:-40, width:120, height:120, borderRadius:'50%', background:`radial-gradient(circle,${m.color}22,transparent)`, filter:'blur(24px)', opacity: isHov ? 1 : 0, transition:'opacity 0.3s', pointerEvents:'none' }}/>
+
+                {/* Icon */}
+                <div style={{ width:60, height:60, borderRadius:14, background:`rgba(${m.id==='crm'?'155,114,240':m.id==='empleados'?'155,114,240':'201,168,76'},0.10)`, border:`1px solid ${m.color}28`, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:22, color: isHov ? m.color : C.muted, transition:'color 0.25s' }}>
+                  {m.icon}
+                </div>
+
+                {/* Text */}
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:1.5, textTransform:'uppercase', color: isHov ? m.color : C.dim, marginBottom:8, transition:'color 0.25s' }}>{m.subtitle}</div>
+                <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:C.text, marginBottom:12, transition:'color 0.25s' }}>{m.title}</h3>
+                <p style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:20 }}>{m.desc}</p>
+
+                {/* Stat chip */}
+                <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:`${m.color}10`, border:`1px solid ${m.color}22`, borderRadius:100, padding:'5px 12px', fontSize:11, fontWeight:600, color: isHov ? m.color : C.dim, transition:'all 0.25s' }}>
+                  <span style={{ width:5, height:5, borderRadius:'50%', background: isHov ? m.color : C.dim, display:'inline-block', animation: isHov ? 'pulse 1.5s ease-in-out infinite' : 'none', transition:'background 0.25s' }}/>
+                  {m.stat}
+                </div>
+
+                {/* Arrow */}
+                <div style={{ position:'absolute', bottom:22, right:22, fontSize:18, color: isHov ? m.color : C.dim, transition:'all 0.25s', transform: isHov ? 'translate(2px,0)' : 'none' }}>→</div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop:40, fontSize:11, color:C.dim }}>
+        {new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   APP
+═══════════════════════════════════════ */
+function App() {
+  const [screen, setScreen] = React.useState('login');
+  const [user,   setUser]   = React.useState(null);
+  const [exiting, setExiting] = React.useState(false);
+
+  function handleLogin(email) {
+    setExiting(true);
+    setTimeout(() => { setUser(email); setScreen('hub'); setExiting(false); }, 320);
+  }
+  function handleLogout() {
+    setExiting(true);
+    setTimeout(() => { setUser(null); setScreen('login'); setExiting(false); }, 320);
+  }
+
+  return (
+    <div style={{ position:'relative', width:'100vw', height:'100vh', overflow:'hidden' }}>
+      <div className={exiting ? 'exiting' : ''}>
+        {screen==='login' && <Login onLogin={handleLogin}/>}
+        {screen==='hub'   && <AdminHub user={user} onLogout={handleLogout}/>}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

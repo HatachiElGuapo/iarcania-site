@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Calculadora ROI — IArcanIA</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="site/shared.css"/>
+<style>
+  .page-hero { padding: 130px 0 30px; text-align: center; position: relative; }
+  .page-hero h1 { font-size: clamp(34px, 5vw, 50px); margin: 18px auto 16px; max-width: 700px; }
+  .page-hero p { max-width: 580px; margin: 0 auto; font-size: 16px; color: var(--text-secondary); }
+
+  .calc-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 30px; padding: 40px 0 80px; align-items: flex-start; }
+  .calc-inputs, .calc-results { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; }
+  .calc-results { position: sticky; top: 90px; }
+  .calc-section-title { font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  .calc-h2 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 24px; }
+
+  .field { margin-bottom: 26px; }
+  .field-label { display: block; font-size: 13px; color: var(--text-primary); margin-bottom: 10px; font-weight: 400; }
+  .field-label small { display: block; color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+
+  .select { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--text-primary); outline: none; appearance: none; cursor: pointer; transition: border-color 0.2s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a86b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+  .select:focus { border-color: var(--border-hover); }
+  .select option { background: var(--bg-card); color: var(--text-primary); }
+
+  .input-num { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--text-primary); outline: none; transition: border-color 0.2s; }
+  .input-num:focus { border-color: var(--border-hover); }
+
+  .slider-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .slider-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .slider-value { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--purple); font-weight: 700; min-width: 60px; text-align: right; }
+  .slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: rgba(155,114,240,0.2); border-radius: 4px; outline: none; }
+  .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--purple); border: 2px solid var(--bg-primary); cursor: pointer; box-shadow: 0 0 12px rgba(155,114,240,0.4); transition: transform 0.15s; }
+  .slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  .slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--purple); border: 2px solid var(--bg-primary); cursor: pointer; box-shadow: 0 0 12px rgba(155,114,240,0.4); }
+  .slider-bounds { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); }
+
+  /* Toggle */
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; }
+  .toggle { width: 44px; height: 24px; background: rgba(155,114,240,0.15); border-radius: 100px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; padding: 0; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: var(--text-secondary); border-radius: 50%; transition: all 0.2s; }
+  .toggle.on { background: var(--purple); }
+  .toggle.on::after { left: 23px; background: #fff; }
+
+  /* Results */
+  .result-card { padding: 22px 20px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); margin-bottom: 14px; }
+  .result-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; letter-spacing: 0.3px; }
+  .result-value { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+  .result-value small { font-size: 14px; color: var(--text-dim); font-family: 'Outfit', sans-serif; font-weight: 400; margin-left: 6px; }
+
+  .result-hero { padding: 28px; border-radius: 14px; background: radial-gradient(ellipse at top right, rgba(201,168,76,0.15), rgba(155,114,240,0.06)); border: 1px solid var(--border-gold); margin-bottom: 20px; position: relative; overflow: hidden; }
+  .result-hero::before { content: ''; position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: radial-gradient(circle, rgba(201,168,76,0.18), transparent 70%); border-radius: 50%; pointer-events: none; }
+  .result-hero .result-label { color: var(--gold); letter-spacing: 1.5px; text-transform: uppercase; font-size: 11px; font-weight: 500; }
+  .result-hero .result-value { font-size: 42px; color: var(--gold); margin-top: 4px; transition: opacity 0.2s; }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .result-grid .result-card { margin-bottom: 0; }
+
+  .perdidas-box { padding: 16px 18px; border-radius: 10px; background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.2); margin-bottom: 18px; display: flex; gap: 12px; align-items: center; }
+  .perdidas-box.hidden { display: none; }
+  .perdidas-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(248,113,113,0.10); display: flex; align-items: center; justify-content: center; color: #f87171; flex-shrink: 0; font-size: 16px; }
+  .perdidas-text { font-size: 13px; color: var(--text-primary); }
+  .perdidas-text strong { color: #f87171; }
+
+  .calc-cta-block { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+
+  .pulse { animation: pulse-result 0.4s ease; }
+  @keyframes pulse-result { 0% { transform: scale(1); } 50% { transform: scale(1.04); } 100% { transform: scale(1); } }
+
+  .calc-disclaimer { font-size: 12px; color: var(--text-dim); margin-top: 18px; line-height: 1.6; text-align: center; }
+
+  @media (max-width: 900px) {
+    .calc-grid { grid-template-columns: 1fr; gap: 20px; }
+    .calc-results { position: relative; top: 0; }
+  }
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<nav class="navbar">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo"><span>I</span><span class="accent">Arcan</span><span>IA</span></a>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link">Inicio</a>
+      <a href="servicios.html" class="nav-link">Servicios</a>
+      <a href="calculadora.html" class="nav-link active">Calculadora</a>
+      <a href="contacto.html" class="nav-link">Contacto</a>
+      <a href="IArcanIA Platform.html" class="nav-link platform">Platform →</a>
+      <a href="contacto.html" class="btn btn-primary btn-sm nav-cta">Diagnóstico gratis</a>
+    </div>
+    <button class="nav-toggle" aria-label="Menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <span class="eyebrow">Calculadora de ROI</span>
+    <h1>¿<em class="gradient-text" style="font-style: italic; font-weight: 400;">Cuánto te cuesta</em> seguir haciéndolo a mano?</h1>
+    <p>Estimación basada en datos reales de implementaciones para PYMEs colombianas. Toma 1 minuto.</p>
+  </div>
+</section>
+
+<div class="container">
+  <div class="calc-grid">
+
+    <!-- INPUTS -->
+    <div class="calc-inputs reveal">
+      <div class="calc-section-title">Tu situación actual</div>
+      <h2 class="calc-h2">Cuéntanos del proceso</h2>
+
+      <div class="field">
+        <label class="field-label">¿Qué proceso quieres automatizar?</label>
+        <select class="select" id="proceso">
+          <option value="whatsapp">Atención al cliente WhatsApp</option>
+          <option value="reportes">Generación de reportes</option>
+          <option value="seguimiento">Seguimiento de ventas</option>
+          <option value="facturacion">Facturación</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Empleados involucrados <small>en este proceso</small></label>
+        <div class="slider-wrap">
+          <div class="slider-row">
+            <input type="range" min="1" max="20" value="3" class="slider" id="empleados"/>
+            <span class="slider-value" id="empleados-val">3</span>
+          </div>
+          <div class="slider-bounds"><span>1</span><span>20</span></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Horas semanales en este proceso <small>(suma de todo el equipo)</small></label>
+        <div class="slider-wrap">
+          <div class="slider-row">
+            <input type="range" min="1" max="40" value="15" class="slider" id="horas"/>
+            <span class="slider-value" id="horas-val">15h</span>
+          </div>
+          <div class="slider-bounds"><span>1h</span><span>40h</span></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Salario promedio mensual por empleado <small>en COP</small></label>
+        <input type="number" class="input-num" id="salario" value="2500000" step="100000" min="1000000"/>
+      </div>
+
+      <div class="field" id="campo-mensajes">
+        <label class="field-label">Mensajes / consultas por día <small>aproximado</small></label>
+        <div class="slider-wrap">
+          <div class="slider-row">
+            <input type="range" min="1" max="500" value="50" class="slider" id="mensajes"/>
+            <span class="slider-value" id="mensajes-val">50</span>
+          </div>
+          <div class="slider-bounds"><span>1</span><span>500</span></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">¿Atienden fuera de horario laboral?</label>
+        <div class="toggle-row">
+          <span style="font-size: 14px; color: var(--text-secondary);">Sí, perdemos consultas por la noche y fines de semana</span>
+          <button class="toggle" id="fueraHorario" type="button" aria-label="Toggle"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="calc-results reveal">
+      <div class="calc-section-title">Tu estimación en vivo</div>
+      <h2 class="calc-h2">Cuánto puedes ahorrar</h2>
+
+      <div class="result-hero">
+        <div class="result-label">Ahorro mensual estimado</div>
+        <div class="result-value" id="ahorro-mes">$0 COP</div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-card">
+          <div class="result-label">Costo actual / mes</div>
+          <div class="result-value" id="costo-mes" style="font-size: 22px;">$0</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Ahorro anual</div>
+          <div class="result-value" id="ahorro-año" style="font-size: 22px; color: var(--gold);">$0</div>
+        </div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-card">
+          <div class="result-label">Tiempo recuperable</div>
+          <div class="result-value" id="tiempo-rec" style="font-size: 22px;">0h<small>/mes</small></div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">ROI en</div>
+          <div class="result-value" id="roi" style="font-size: 22px;">— <small>meses</small></div>
+        </div>
+      </div>
+
+      <div class="perdidas-box hidden" id="perdidas-box">
+        <div class="perdidas-icon">!</div>
+        <div class="perdidas-text">Estás perdiendo <strong id="perdidas-num">0</strong> consultas/mes fuera de horario.</div>
+      </div>
+
+      <div class="calc-cta-block">
+        <a href="#" id="cta-wa" target="_blank" rel="noopener" class="btn btn-primary btn-lg" style="width: 100%;">Quiero este ahorro para mi empresa →</a>
+        <button id="cta-pdf" class="btn btn-ghost" style="width: 100%;">↓ Descargar resumen</button>
+      </div>
+
+      <p class="calc-disclaimer">Estimación basada en proyectos reales para PYMEs colombianas. La cifra exacta depende del diagnóstico. Costo de implementación referencial: $3.500.000 COP.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="nav-logo"><span>I</span><span class="accent">Arcan</span><span>IA</span></a>
+        <p class="footer-tagline">Automatización con IA para PYMEs colombianas. Procesos que corren solos, equipos que escalan sin contratar más gente.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Sitio</h4>
+        <ul>
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="servicios.html">Servicios</a></li>
+          <li><a href="calculadora.html">Calculadora ROI</a></li>
+          <li><a href="contacto.html">Diagnóstico gratis</a></li>
+          <li><a href="IArcanIA Platform.html">Platform →</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contacto</h4>
+        <ul>
+          <li><a href="https://wa.me/573006709840">WhatsApp +57 300 670 9840</a></li>
+          <li><a href="mailto:hola@iarcania.co">hola@iarcania.co</a></li>
+          <li style="color: var(--text-dim); font-size: 13px;">Bogotá, Colombia</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 IArcanIA · Todos los derechos reservados</span>
+      <div class="footer-socials">
+        <a href="https://wa.me/573006709840" aria-label="WhatsApp" target="_blank"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg></a>
+        <a href="#" aria-label="LinkedIn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.063 2.063 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+        <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg></a>
+        <a href="mailto:hola@iarcania.co" aria-label="Email"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="m22 6-10 7L2 6"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="site/shared.js"></script>
+<script>
+(function(){
+  // Automatable percentage by process type
+  const PCT = { whatsapp: 0.75, reportes: 0.85, seguimiento: 0.60, facturacion: 0.70, otro: 0.65 };
+  const COSTO_IMPL = 3500000;
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    proceso: $('proceso'),
+    empleados: $('empleados'),    empVal: $('empleados-val'),
+    horas: $('horas'),            horasVal: $('horas-val'),
+    salario: $('salario'),
+    mensajes: $('mensajes'),      msgVal: $('mensajes-val'),
+    fueraHorario: $('fueraHorario'),
+    campoMensajes: $('campo-mensajes'),
+    ahorroMes: $('ahorro-mes'),
+    costoMes: $('costo-mes'),
+    ahorroAnio: $('ahorro-año'),
+    tiempoRec: $('tiempo-rec'),
+    roi: $('roi'),
+    perdidasBox: $('perdidas-box'),
+    perdidasNum: $('perdidas-num'),
+    ctaWa: $('cta-wa'),
+    ctaPdf: $('cta-pdf'),
+  };
+
+  function fmtCOP(n) { return '$' + Math.round(n).toLocaleString('es-CO') + ' COP'; }
+  function fmtCOPshort(n) { 
+    if (n >= 1000000) return '$' + (n/1000000).toFixed(1).replace(/\.0$/,'') + 'M'; 
+    if (n >= 1000) return '$' + Math.round(n/1000) + 'k';
+    return '$' + Math.round(n);
+  }
+
+  function calc() {
+    const proceso = els.proceso.value;
+    const procesoLabel = els.proceso.options[els.proceso.selectedIndex].text;
+    const empleados = +els.empleados.value;
+    const horas = +els.horas.value;
+    const salario = +els.salario.value || 2500000;
+    const mensajes = +els.mensajes.value;
+    const fueraHorario = els.fueraHorario.classList.contains('on');
+    const pct = PCT[proceso] || 0.65;
+
+    // Costo hora = salario / 160 horas laborales
+    const costoHora = salario / 160;
+    // Costo proceso/mes = horas/semana * 4 semanas * costo/hora
+    // (las horas son del equipo total, no hay que multiplicar por empleados — el slider de horas ya es sumado)
+    const costoMes = horas * 4 * costoHora;
+    const ahorroMes = costoMes * pct;
+    const ahorroAnio = ahorroMes * 12;
+    const tiempoRec = horas * 4 * pct;
+    const roiMeses = ahorroMes > 0 ? (COSTO_IMPL / ahorroMes) : 0;
+    // Consultas perdidas: 30% adicionales fuera de horario, mensual = 30 días
+    const perdidas = mensajes * 30 * 0.3;
+
+    // Update DOM
+    els.empVal.textContent = empleados;
+    els.horasVal.textContent = horas + 'h';
+    els.msgVal.textContent = mensajes;
+
+    function setAndPulse(el, value) {
+      if (el.textContent !== value) {
+        el.textContent = value;
+        el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+      }
+    }
+    setAndPulse(els.ahorroMes, fmtCOP(ahorroMes));
+    setAndPulse(els.costoMes, fmtCOPshort(costoMes));
+    setAndPulse(els.ahorroAnio, fmtCOPshort(ahorroAnio));
+    els.tiempoRec.innerHTML = Math.round(tiempoRec) + 'h<small>/mes</small>';
+    els.roi.innerHTML = roiMeses > 0 ? roiMeses.toFixed(1) + ' <small>meses</small>' : '— <small>meses</small>';
+
+    // Show/hide consultas perdidas
+    els.campoMensajes.style.display = (proceso === 'whatsapp' || proceso === 'seguimiento') ? '' : 'none';
+    if (fueraHorario && (proceso === 'whatsapp' || proceso === 'seguimiento')) {
+      els.perdidasBox.classList.remove('hidden');
+      els.perdidasNum.textContent = Math.round(perdidas).toLocaleString('es-CO');
+    } else {
+      els.perdidasBox.classList.add('hidden');
+    }
+
+    // Build WhatsApp message
+    const msg = `Hola Miguel, vengo de la calculadora del sitio.
+
+Proceso: ${procesoLabel}
+Empleados: ${empleados}
+Horas/semana: ${horas}h
+Costo actual: ${fmtCOP(costoMes)}/mes
+Ahorro estimado: ${fmtCOP(ahorroMes)}/mes (${Math.round(pct*100)}% automatizable)
+ROI estimado: ${roiMeses.toFixed(1)} meses
+
+Quiero agendar el diagnóstico gratis.`;
+    els.ctaWa.href = `https://wa.me/573006709840?text=${encodeURIComponent(msg)}`;
+
+    // Store last calc for PDF
+    window.__calc = { proceso: procesoLabel, empleados, horas, salario, costoMes, ahorroMes, ahorroAnio, tiempoRec, roiMeses, perdidas, fueraHorario };
+  }
+
+  // Toggle handler
+  els.fueraHorario.addEventListener('click', () => {
+    els.fueraHorario.classList.toggle('on');
+    calc();
+  });
+
+  // All inputs
+  ['proceso','empleados','horas','salario','mensajes'].forEach(id => {
+    $(id).addEventListener('input', calc);
+    $(id).addEventListener('change', calc);
+  });
+
+  // PDF download (simple text-based)
+  els.ctaPdf.addEventListener('click', () => {
+    const c = window.__calc; if (!c) return;
+    const content = `IArcanIA — Estimación de ROI
+========================================
+
+Proceso analizado: ${c.proceso}
+Empleados involucrados: ${c.empleados}
+Horas semanales: ${c.horas}h
+Salario promedio: ${fmtCOP(c.salario)}
+
+RESULTADOS:
+- Costo actual del proceso: ${fmtCOP(c.costoMes)}/mes
+- Ahorro mensual estimado: ${fmtCOP(c.ahorroMes)}/mes
+- Ahorro anual estimado: ${fmtCOP(c.ahorroAnio)}/año
+- Tiempo recuperable: ${Math.round(c.tiempoRec)}h/mes
+- ROI estimado: ${c.roiMeses.toFixed(1)} meses
+
+${c.fueraHorario ? `Consultas perdidas fuera de horario: ${Math.round(c.perdidas)}/mes\n` : ''}
+========================================
+Próximo paso: agendar diagnóstico gratuito.
+WhatsApp: +57 300 670 9840
+Email: hola@iarcania.co
+
+Generado el ${new Date().toLocaleDateString('es-CO')}.
+`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'iarcania-estimacion-roi.txt';
+    a.click();
+  });
+
+  // Initial calc
+  calc();
+})();
+</script>
+</body>
+</html>

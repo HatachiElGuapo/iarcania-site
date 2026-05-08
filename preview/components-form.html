@@ -1,0 +1,59 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #090910; font-family: 'Inter', sans-serif; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .panel { background: #13131f; border: 1px solid rgba(168,85,247,0.12); border-radius: 10px; padding: 16px 18px; }
+  .label { font-size: 10px; color: #5a5870; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #9896b0; margin-bottom: 8px; }
+  input, textarea, select {
+    width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px; padding: 14px 16px; font-family: 'Inter', sans-serif; font-size: 14px;
+    color: #f1f0f7; outline: none;
+  }
+  input::placeholder, textarea::placeholder { color: #5a5870; }
+  .focused { border-color: #a855f7 !important; background: rgba(168,85,247,0.05) !important; }
+  .error { border-color: #f87171 !important; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { margin-bottom: 14px; }
+  .btn { width: 100%; background: linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:15px; font-weight:700; padding:16px; border-radius:8px; border:none; cursor:pointer; box-shadow:0 0 24px rgba(124,58,237,0.3); font-family:'Inter',sans-serif; }
+</style></head><body>
+
+<div class="panel">
+  <div class="label">Form Inputs</div>
+  <div class="row">
+    <div class="form-group">
+      <label>Nombre *</label>
+      <input type="text" placeholder="Tu nombre"/>
+    </div>
+    <div class="form-group">
+      <label>Empresa</label>
+      <input type="text" placeholder="Tu empresa" class="focused"/>
+    </div>
+  </div>
+  <div class="row">
+    <div class="form-group">
+      <label>Correo electrónico *</label>
+      <input type="email" placeholder="tu@correo.com" class="error"/>
+    </div>
+    <div class="form-group">
+      <label>WhatsApp</label>
+      <input type="tel" placeholder="+57 300 000 0000"/>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>¿Qué quieres automatizar?</label>
+    <select style="appearance:none; background:#13131f; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:14px 16px; font-family:'Inter',sans-serif; font-size:14px; color:#9896b0; width:100%; outline:none;">
+      <option>Selecciona un servicio...</option>
+      <option>Agente de WhatsApp</option>
+      <option>Seguimiento de ventas</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Cuéntanos sobre tu negocio *</label>
+    <textarea rows="3" placeholder="¿Qué procesos te quitan más tiempo?..." style="resize:none;"></textarea>
+  </div>
+  <button class="btn">Solicitar diagnóstico gratuito →</button>
+</div>
+
+</body></html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IArcanIA — Foto de Perfil D3</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #06060a; font-family: 'Inter', sans-serif; color: #f0eef8; min-height: 100vh; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 48px; }
+    h1 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; text-align: center; }
+    .sub { font-size: 13px; color: #7a788f; text-align: center; margin-top: 6px; }
+    .row { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+    .card { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .variant-label { font-size: 13px; font-weight: 700; color: #c4b0ff; }
+    .variant-desc { font-size: 12px; color: #3e3c58; text-align: center; max-width: 220px; line-height: 1.6; }
+    canvas { border-radius: 50%; display: block; box-shadow: 0 0 60px rgba(0,0,0,0.8); }
+    .dl-btn {
+      background: rgba(155,114,240,0.14); border: 1px solid rgba(155,114,240,0.30);
+      color: #c4b0ff; font-size: 13px; font-weight: 700; padding: 10px 24px;
+      border-radius: 100px; cursor: pointer; font-family: 'Inter', sans-serif;
+      transition: all 0.2s; letter-spacing: 0.3px;
+    }
+    .dl-btn:hover { background: rgba(155,114,240,0.24); color: #ddd0ff; }
+    .note { font-size: 11px; color: #2e2c40; }
+  </style>
+</head>
+<body>
+
+  <div>
+    <h1>Foto de Perfil — Estilo D · Noir Editorial</h1>
+    <p class="sub">4 variantes · 800×800px · Haz clic en el botón para descargar</p>
+  </div>
+
+  <div class="row" id="grid"></div>
+  <p class="note">800×800px · PNG · Optimizado para Instagram, LinkedIn y TikTok</p>
+
+<script>
+document.fonts.ready.then(renderAll);
+
+function renderAll() {
+  const S = 800;
+
+  function noiseLayer(ctx, alpha) {
+    const nc = document.createElement('canvas'); nc.width = nc.height = 256;
+    const nctx = nc.getContext('2d'); const id = nctx.createImageData(256,256);
+    for (let i=0;i<id.data.length;i+=4) { id.data[i]=id.data[i+1]=id.data[i+2]=Math.random()*255; id.data[i+3]=alpha; }
+    nctx.putImageData(id,0,0);
+    const p = ctx.createPattern(nc,'repeat');
+    ctx.save(); ctx.globalAlpha=0.4; ctx.fillStyle=p; ctx.fillRect(0,0,S,S); ctx.restore();
+  }
+
+  function drawEye(ctx, cx, cy, rx, ry, opts) {
+    const { sc, fc, ic, skc, pc, lw, rays } = opts;
+    // Mandorla
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy-ry);
+    ctx.quadraticCurveTo(cx+rx, cy, cx, cy+ry);
+    ctx.quadraticCurveTo(cx-rx, cy, cx, cy-ry);
+    ctx.closePath();
+    ctx.fillStyle = fc; ctx.fill();
+    ctx.strokeStyle = sc; ctx.lineWidth = lw; ctx.stroke();
+    ctx.restore();
+    const iR=ry*0.55, sR=ry*0.22, pR=ry*0.09;
+    ctx.beginPath(); ctx.arc(cx,cy,iR,0,Math.PI*2);
+    ctx.strokeStyle=ic; ctx.lineWidth=lw*0.7; ctx.stroke();
+    for (let i=0;i<rays;i++) {
+      const a=(i/rays)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(cx+Math.cos(a)*iR*0.68, cy+Math.sin(a)*iR*0.68);
+      ctx.lineTo(cx+Math.cos(a)*iR, cy+Math.sin(a)*iR);
+      ctx.strokeStyle=ic; ctx.lineWidth=lw*0.6; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(cx,cy,sR,0,Math.PI*2); ctx.fillStyle=skc; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx,cy,pR,0,Math.PI*2); ctx.fillStyle=pc; ctx.fill();
+    // Outline
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy-ry);
+    ctx.quadraticCurveTo(cx+rx, cy, cx, cy+ry);
+    ctx.quadraticCurveTo(cx-rx, cy, cx, cy-ry);
+    ctx.closePath();
+    ctx.strokeStyle = sc; ctx.lineWidth = lw; ctx.stroke();
+    ctx.restore();
+  }
+
+  // D3-1 — Puro grano fílmico, ojo máximo, sin texto
+  function drawD3a(canvas) {
+    canvas.width = canvas.height = S;
+    const ctx = canvas.getContext('2d'), cx=S/2, cy=S/2;
+    ctx.fillStyle = '#050408'; ctx.fillRect(0,0,S,S);
+    noiseLayer(ctx, 12); noiseLayer(ctx, 8);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2,0,Math.PI*2); ctx.clip();
+    const vig=ctx.createRadialGradient(cx,cy,S*0.08,cx,cy,S*0.52);
+    vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(0,0,0,0.82)');
+    ctx.fillStyle=vig; ctx.fillRect(0,0,S,S);
+    ctx.restore();
+    drawEye(ctx,cx,cy,245,148,{sc:'rgba(245,242,255,0.36)',fc:'rgba(2,1,6,0.98)',ic:'rgba(210,200,240,0.26)',skc:'rgba(252,250,255,0.70)',pc:'#010104',lw:3.5,rays:12});
+    // Film scan lines
+    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,S/2,0,Math.PI*2); ctx.clip();
+    for(let y=0;y<S;y+=3){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(S,y);ctx.strokeStyle='rgba(0,0,0,0.10)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.restore();
+    // Ghost watermark text
+    ctx.save();
+    ctx.font="400 16px 'Playfair Display',serif"; ctx.textAlign='center'; ctx.fillStyle='rgba(245,242,255,0.14)';
+    ctx.fillText('I  A  R  C  A  N  I  A', cx, cy+178);
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2-4,0,Math.PI*2);
+    ctx.strokeStyle='rgba(245,242,255,0.04)'; ctx.lineWidth=8; ctx.stroke();
+  }
+
+  // D3-2 — Grano + sutil glow morado + wordmark legible
+  function drawD3b(canvas) {
+    canvas.width = canvas.height = S;
+    const ctx = canvas.getContext('2d'), cx=S/2, cy=S/2;
+    const bg=ctx.createRadialGradient(cx,cy,0,cx,cy,S*0.5);
+    bg.addColorStop(0,'#100c1a'); bg.addColorStop(0.4,'#07060c'); bg.addColorStop(1,'#040308');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,S,S);
+    noiseLayer(ctx,10); noiseLayer(ctx,7);
+    const gc=ctx.createRadialGradient(cx,cy,0,cx,cy,260);
+    gc.addColorStop(0,'rgba(100,65,200,0.24)'); gc.addColorStop(1,'transparent');
+    ctx.fillStyle=gc; ctx.fillRect(0,0,S,S);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2,0,Math.PI*2); ctx.clip();
+    const vig=ctx.createRadialGradient(cx,cy,S*0.12,cx,cy,S*0.52);
+    vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(0,0,0,0.72)');
+    ctx.fillStyle=vig; ctx.fillRect(0,0,S,S);
+    for(let y=0;y<S;y+=3){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(S,y);ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.restore();
+    drawEye(ctx,cx,cy-28,230,140,{sc:'rgba(225,215,255,0.50)',fc:'rgba(3,2,10,0.97)',ic:'rgba(155,114,240,0.40)',skc:'rgba(235,228,255,0.76)',pc:'#020110',lw:3,rays:10});
+    // Wordmark
+    ctx.save();
+    ctx.font="700 38px 'Playfair Display',serif"; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const iW=ctx.measureText('I').width, aW=ctx.measureText('Arcan').width, iaW=ctx.measureText('IA').width;
+    let x=cx-(iW+aW+iaW)/2; ctx.textAlign='left';
+    ctx.fillStyle='rgba(148,128,185,0.70)'; ctx.fillText('I',x,cy+148); x+=iW;
+    ctx.fillStyle='rgba(238,236,252,0.82)'; ctx.fillText('Arcan',x,cy+148); x+=aW;
+    ctx.fillStyle='rgba(148,128,185,0.70)'; ctx.fillText('IA',x,cy+148);
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2-4,0,Math.PI*2);
+    ctx.strokeStyle='rgba(155,114,240,0.07)'; ctx.lineWidth=10; ctx.stroke();
+  }
+
+  // D3-3 — Grano + lluvia noir (blanca, muy tenue) + ojo grande
+  function drawD3c(canvas) {
+    canvas.width = canvas.height = S;
+    const ctx = canvas.getContext('2d'), cx=S/2, cy=S/2;
+    ctx.fillStyle='#040307'; ctx.fillRect(0,0,S,S);
+    noiseLayer(ctx,12); noiseLayer(ctx,9);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2,0,Math.PI*2); ctx.clip();
+    // White rain — very subtle, looks like analog film grain streaks
+    for(let i=0;i<200;i++){
+      const x=Math.random()*S, y=Math.random()*S;
+      const len=10+Math.random()*28, op=0.05+Math.random()*0.14;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-0.6,y+len);
+      ctx.strokeStyle=`rgba(255,255,255,${op})`; ctx.lineWidth=0.7; ctx.stroke();
+    }
+    const vig=ctx.createRadialGradient(cx,cy,S*0.1,cx,cy,S*0.52);
+    vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(0,0,0,0.78)');
+    ctx.fillStyle=vig; ctx.fillRect(0,0,S,S);
+    for(let y=0;y<S;y+=3){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(S,y);ctx.strokeStyle='rgba(0,0,0,0.09)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.restore();
+    drawEye(ctx,cx,cy-18,238,144,{sc:'rgba(255,255,255,0.40)',fc:'rgba(2,1,5,0.98)',ic:'rgba(220,215,235,0.30)',skc:'rgba(255,254,255,0.72)',pc:'#010103',lw:3.5,rays:8});
+    // Ghost text — barely visible
+    ctx.save();
+    ctx.font="400 14px 'Playfair Display',serif"; ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,0.11)';
+    ctx.fillText('I  A  R  C  A  N  I  A', cx, cy+178);
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2-4,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=8; ctx.stroke();
+  }
+
+  // D3-4 — Ojo con eyelashes largas, grano extremo, más oscuro
+  function drawD3d(canvas) {
+    canvas.width = canvas.height = S;
+    const ctx = canvas.getContext('2d'), cx=S/2, cy=S/2;
+    ctx.fillStyle='#030206'; ctx.fillRect(0,0,S,S);
+    noiseLayer(ctx,14); noiseLayer(ctx,10); noiseLayer(ctx,7);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2,0,Math.PI*2); ctx.clip();
+    const vig=ctx.createRadialGradient(cx,cy,S*0.06,cx,cy,S*0.52);
+    vig.addColorStop(0,'rgba(10,6,20,0.10)'); vig.addColorStop(0.5,'rgba(0,0,0,0.40)'); vig.addColorStop(1,'rgba(0,0,0,0.90)');
+    ctx.fillStyle=vig; ctx.fillRect(0,0,S,S);
+    for(let y=0;y<S;y+=3){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(S,y);ctx.strokeStyle='rgba(0,0,0,0.12)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.restore();
+    // Huge eye
+    drawEye(ctx,cx,cy,252,153,{sc:'rgba(245,242,255,0.28)',fc:'rgba(1,0,4,0.99)',ic:'rgba(200,195,225,0.22)',skc:'rgba(252,250,255,0.62)',pc:'#000003',lw:4,rays:16});
+    // Extra eyelash tips at vertices
+    [[cx,cy-153],[cx,cy+153],[cx-252,cy],[cx+252,cy]].forEach(([ex,ey])=>{
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(ex+(ex<cx?-24:ex>cx?24:0),ey+(ey<cy?-24:ey>cy?24:0));
+      ctx.strokeStyle='rgba(245,242,255,0.18)'; ctx.lineWidth=2; ctx.stroke();
+      ctx.restore();
+    });
+    // IArcanIA very small at bottom, barely there
+    ctx.save();
+    ctx.font="400 13px 'Playfair Display',serif"; ctx.textAlign='center'; ctx.fillStyle='rgba(245,242,255,0.10)';
+    ctx.fillText('I  A  R  C  A  N  I  A', cx, cy+182);
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx,cy,S/2-4,0,Math.PI*2);
+    ctx.strokeStyle='rgba(245,242,255,0.03)'; ctx.lineWidth=8; ctx.stroke();
+  }
+
+  const ITEMS = [
+    { fn:drawD3a, label:'D3 · Original', desc:'Grano fílmico puro\nOjo máximo · Sin texto' },
+    { fn:drawD3b, label:'D3 · Glow morado', desc:'Resplandor morado sutil\nWordmark legible' },
+    { fn:drawD3c, label:'D3 · Lluvia blanca', desc:'Lluvia analógica blanca\nTextura de película' },
+    { fn:drawD3d, label:'D3 · Extremo', desc:'Grano máximo\nOjo enorme · Oscuridad total' },
+  ];
+
+  const grid = document.getElementById('grid');
+  ITEMS.forEach(item => {
+    const card = document.createElement('div'); card.className='card';
+    const canvas = document.createElement('canvas');
+    canvas.style.width='220px'; canvas.style.height='220px';
+    item.fn(canvas);
+
+    const lbl=document.createElement('div'); lbl.className='variant-label'; lbl.textContent=item.label;
+    const desc=document.createElement('div'); desc.className='variant-desc';
+    desc.style.whiteSpace='pre-line'; desc.textContent=item.desc;
+
+    const btn=document.createElement('button'); btn.className='dl-btn';
+    btn.textContent='↓ Descargar PNG 800×800';
+    btn.addEventListener('click',()=>{
+      canvas.toBlob(blob=>{
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url; a.download=`IArcanIA-${item.label.replace(/[^a-zA-Z0-9]/g,'-')}.png`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      },'image/png');
+    });
+
+    card.append(canvas,lbl,desc,btn);
+    grid.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>

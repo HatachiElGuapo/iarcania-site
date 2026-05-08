@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IArcanIA — Brand Templates</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #06060a; font-family: 'Inter', sans-serif; color: #f0eef8; min-height: 100vh; }
+
+    .top-bar { padding: 24px 32px; border-bottom: 1px solid rgba(155,114,240,0.10); display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; letter-spacing: 0.1em; }
+    .logo span:first-child, .logo span:last-child { color: #8090a8; }
+
+    .main { padding: 36px 32px; max-width: 1200px; margin: 0 auto; }
+    h1 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .sub { font-size: 13px; color: #7a788f; margin-bottom: 40px; }
+
+    .section { margin-bottom: 52px; }
+    .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .section-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #9b72f0; }
+    .section-line { flex: 1; height: 1px; background: rgba(155,114,240,0.12); }
+    .section-size { font-size: 11px; color: #3e3c58; font-family: monospace; }
+
+    .templates-row { display: flex; gap: 20px; flex-wrap: wrap; }
+    .tpl-card { display: flex; flex-direction: column; gap: 12px; }
+    .tpl-preview { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid rgba(155,114,240,0.12); cursor: pointer; transition: border-color 0.2s, transform 0.2s; }
+    .tpl-preview:hover { border-color: rgba(155,114,240,0.35); transform: translateY(-3px); }
+    .tpl-preview canvas { display: block; }
+    .tpl-title { font-size: 12px; font-weight: 700; color: #c4b0ff; }
+    .tpl-desc { font-size: 11px; color: #3e3c58; line-height: 1.5; }
+
+    .dl-btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(155,114,240,0.12); border: 1px solid rgba(155,114,240,0.25); color: #b8a8e8; font-size: 11px; font-weight: 700; padding: 7px 14px; border-radius: 100px; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; white-space: nowrap; }
+    .dl-btn:hover { background: rgba(155,114,240,0.22); color: #d0c4f8; }
+
+    /* Edit panel */
+    .edit-panel { background: rgba(155,114,240,0.05); border: 1px solid rgba(155,114,240,0.12); border-radius: 12px; padding: 16px 18px; margin-top: 4px; }
+    .edit-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #5a5870; margin-bottom: 8px; }
+    .edit-input { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(155,114,240,0.14); border-radius: 7px; padding: 8px 12px; font-family: 'Inter', sans-serif; font-size: 12px; color: #e8e6f0; outline: none; transition: border-color 0.2s; resize: none; }
+    .edit-input:focus { border-color: rgba(155,114,240,0.38); }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo"><span>I</span>Arcan<span>IA</span></div>
+  <div style="font-size:12px;color:#3e3c58;">Brand Templates · 2026</div>
+</div>
+
+<div class="main">
+  <h1>Brand Templates</h1>
+  <p class="sub">YouTube · Instagram · Presentaciones · Haz clic en cualquier template para descargarlo</p>
+  <div id="root"></div>
+</div>
+
+<script>
+document.fonts.ready.then(build);
+
+function build() {
+
+/* ══════════════════════════════════════════
+   SHARED DRAWING PRIMITIVES
+══════════════════════════════════════════ */
+function setupBase(canvas, W, H) {
+  canvas.width = W; canvas.height = H;
+  return canvas.getContext('2d');
+}
+
+function fillBg(ctx, W, H, variant='deep') {
+  if (variant === 'deep') {
+    const bg = ctx.createRadialGradient(W*0.3, H*0.2, 0, W*0.5, H*0.5, Math.max(W,H)*0.8);
+    bg.addColorStop(0, '#16102a'); bg.addColorStop(0.5, '#0c0a18'); bg.addColorStop(1, '#060409');
+    ctx.fillStyle = bg;
+  } else if (variant === 'noir') {
+    ctx.fillStyle = '#06050a';
+  } else if (variant === 'slate') {
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#0e0c1c'); bg.addColorStop(1, '#060409');
+    ctx.fillStyle = bg;
+  }
+  ctx.fillRect(0, 0, W, H);
+}
+
+function addNoise(ctx, W, H, alpha=6) {
+  const nc = document.createElement('canvas'); nc.width = nc.height = 256;
+  const nctx = nc.getContext('2d'); const id = nctx.createImageData(256,256);
+  for (let i=0;i<id.data.length;i+=4){id.data[i]=id.data[i+1]=id.data[i+2]=Math.random()*255;id.data[i+3]=alpha;}
+  nctx.putImageData(id,0,0);
+  ctx.save(); ctx.globalAlpha=0.35; ctx.fillStyle=ctx.createPattern(nc,'repeat'); ctx.fillRect(0,0,W,H); ctx.restore();
+}
+
+function addRain(ctx, W, H, rgb='172,145,255', count, minLen, maxLen, minOp, maxOp) {
+  ctx.save();
+  for (let i=0;i<count;i++){
+    const x=Math.random()*W, y=Math.random()*H;
+    const len=minLen+Math.random()*(maxLen-minLen);
+    const op=minOp+Math.random()*(maxOp-minOp);
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-0.8,y+len);
+    ctx.strokeStyle=`rgba(${rgb},${op})`; ctx.lineWidth=0.9; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function addEyeWatermark(ctx, cx, cy, rx, ry, color, opacity=0.06) {
+  ctx.save(); ctx.globalAlpha=opacity;
+  // Mandorla
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-ry); ctx.quadraticCurveTo(cx+rx, cy, cx, cy+ry); ctx.quadraticCurveTo(cx-rx, cy, cx, cy-ry);
+  ctx.closePath(); ctx.strokeStyle=color; ctx.lineWidth=3; ctx.stroke();
+  // Iris
+  ctx.beginPath(); ctx.arc(cx,cy,ry*0.52,0,Math.PI*2); ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.stroke();
+  // Radial lines
+  for(let i=0;i<8;i++){
+    const a=(i/8)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(a)*ry*0.35, cy+Math.sin(a)*ry*0.35);
+    ctx.lineTo(cx+Math.cos(a)*ry*0.52, cy+Math.sin(a)*ry*0.52);
+    ctx.strokeStyle=color; ctx.lineWidth=1.2; ctx.stroke();
+  }
+  // Sclera
+  ctx.beginPath(); ctx.arc(cx,cy,ry*0.2,0,Math.PI*2); ctx.fillStyle=color; ctx.globalAlpha=opacity*0.7; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,ry*0.08,0,Math.PI*2); ctx.fillStyle='#04040a'; ctx.globalAlpha=1; ctx.fill();
+  ctx.restore();
+}
+
+function addGlow(ctx, cx, cy, r, color, opacity) {
+  const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+  g.addColorStop(0, color.replace(')',`,${opacity})`).replace('rgb','rgba')); g.addColorStop(1,'transparent');
+  ctx.fillStyle=g; ctx.fillRect(0,0,99999,99999);
+}
+
+function drawWordmark(ctx, cx, y, sz, ci='rgba(128,145,175,0.75)', cm='rgba(240,238,248,0.90)') {
+  ctx.save();
+  ctx.font=`700 ${sz}px 'Playfair Display',serif`;
+  ctx.textBaseline='middle'; ctx.textAlign='left';
+  const iW=ctx.measureText('I').width, aW=ctx.measureText('Arcan').width, iaW=ctx.measureText('IA').width;
+  let x=cx-(iW+aW+iaW)/2;
+  ctx.fillStyle=ci; ctx.fillText('I',x,y); x+=iW;
+  ctx.fillStyle=cm; ctx.fillText('Arcan',x,y); x+=aW;
+  ctx.fillStyle=ci; ctx.fillText('IA',x,y);
+  ctx.restore();
+}
+
+function sectionLabel(ctx, x, y, text) {
+  ctx.save();
+  ctx.font="700 22px 'Inter',sans-serif";
+  ctx.fillStyle='#c9a84c'; ctx.textBaseline='middle';
+  // Gold line before
+  ctx.fillRect(x, y-1, 36, 2);
+  ctx.fillStyle='#c9a84c'; ctx.fillText(text, x+48, y);
+  ctx.restore();
+}
+
+function wrapText(ctx, text, x, y, maxW, lineH) {
+  const words = text.split(' ');
+  let line = '', lines = [];
+  words.forEach(w => {
+    const test = line + w + ' ';
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line.trim()); line = w + ' '; }
+    else line = test;
+  });
+  if (line.trim()) lines.push(line.trim());
+  lines.forEach((l,i) => ctx.fillText(l, x, y + i*lineH));
+  return lines.length;
+}
+
+/* ══════════════════════════════════════════
+   TEMPLATE BUILDERS
+══════════════════════════════════════════ */
+
+// YT-1 — YouTube thumbnail: dark, bold title, eye right side
+function buildYT1(canvas, title) {
+  const W=1280, H=720, ctx=setupBase(canvas,W,H);
+  fillBg(ctx,W,H,'deep');
+  addNoise(ctx,W,H,7);
+  // Purple glow left
+  const g1=ctx.createRadialGradient(200,H/2,0,200,H/2,480);
+  g1.addColorStop(0,'rgba(100,60,200,0.30)'); g1.addColorStop(1,'transparent');
+  ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  // Rain
+  addRain(ctx,W,H,'172,145,255',300,16,36,0.18,0.45);
+  // Eye watermark right
+  addEyeWatermark(ctx, W*0.78, H*0.5, 260, 160, '#b8a0f0', 0.09);
+  // Left content area
+  sectionLabel(ctx,80,100,'IArcanIA');
+  // Title
+  ctx.save();
+  ctx.font="900 82px 'Inter',sans-serif";
+  ctx.fillStyle='#f0eef8';
+  ctx.textBaseline='top';
+  const lines = wrapText(ctx, title, 80, 155, W*0.58, 96);
+  ctx.restore();
+  // Bottom gold accent line
+  ctx.fillStyle='#c9a84c'; ctx.fillRect(80, H-70, 120, 3);
+  ctx.font="500 26px 'Inter',sans-serif"; ctx.fillStyle='rgba(200,180,100,0.70)'; ctx.textBaseline='middle';
+  ctx.fillText('iarcania.co', 80, H-40);
+  // Wordmark bottom right
+  drawWordmark(ctx, W-160, H-42, 28);
+  return canvas;
+}
+
+// YT-2 — YouTube thumbnail: split layout, text left, large eye right
+function buildYT2(canvas, title) {
+  const W=1280, H=720, ctx=setupBase(canvas,W,H);
+  ctx.fillStyle='#050408'; ctx.fillRect(0,0,W,H);
+  addNoise(ctx,W,H,9);
+  // Vertical split line
+  ctx.fillStyle='rgba(155,114,240,0.15)'; ctx.fillRect(W*0.52,40,1,H-80);
+  // Right side glow
+  const g1=ctx.createRadialGradient(W*0.76,H*0.5,0,W*0.76,H*0.5,320);
+  g1.addColorStop(0,'rgba(90,50,180,0.28)'); g1.addColorStop(1,'transparent');
+  ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  addRain(ctx,W*0.55,H,'172,145,255',160,14,30,0.14,0.38);
+  // Large eye right half
+  addEyeWatermark(ctx, W*0.76, H*0.48, 220, 135, '#c4b0ff', 0.20);
+  // Left: content
+  ctx.save();
+  ctx.font="700 18px 'Inter',sans-serif"; ctx.fillStyle='#9b72f0'; ctx.textBaseline='middle';
+  ctx.fillText('AUTOMATIZACIÓN CON IA', 64, 88);
+  ctx.restore();
+  ctx.save();
+  ctx.font="800 68px 'Inter',sans-serif"; ctx.fillStyle='#f0eef8'; ctx.textBaseline='top';
+  wrapText(ctx, title, 64, 120, W*0.46, 80);
+  ctx.restore();
+  ctx.fillStyle='rgba(201,168,76,0.6)'; ctx.fillRect(64, H-80, 80, 2);
+  ctx.font="500 24px 'Inter',sans-serif"; ctx.fillStyle='rgba(200,180,100,0.55)'; ctx.textBaseline='middle';
+  ctx.fillText('iarcania.co', 64, H-44);
+  return canvas;
+}
+
+// IG-1 — Instagram post: centered, title large, eye behind
+function buildIG1(canvas, title) {
+  const W=1080, H=1080, ctx=setupBase(canvas,W,H);
+  fillBg(ctx,W,H,'deep');
+  addNoise(ctx,W,H,8);
+  // Central glow
+  const g1=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,520);
+  g1.addColorStop(0,'rgba(100,60,200,0.32)'); g1.addColorStop(0.6,'rgba(60,30,130,0.12)'); g1.addColorStop(1,'transparent');
+  ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  addRain(ctx,W,H,'172,145,255',240,18,40,0.20,0.48);
+  addEyeWatermark(ctx, W/2, H*0.44, 360, 220, '#b8a0f0', 0.10);
+  // Top label
+  sectionLabel(ctx, 80, 90, 'IArcanIA');
+  // Central title
+  ctx.save();
+  ctx.font="800 80px 'Inter',sans-serif"; ctx.fillStyle='#f0eef8'; ctx.textBaseline='middle'; ctx.textAlign='center';
+  // Manual wrap at center
+  const words=title.split(' '); let lines=[]; let line='';
+  words.forEach(w=>{
+    const t=line+w+' ';
+    ctx.font="800 80px 'Inter',sans-serif";
+    if(ctx.measureText(t).width>W-160&&line){lines.push(line.trim());line=w+' ';}else line=t;
+  });
+  if(line.trim())lines.push(line.trim());
+  const totalH=lines.length*96;
+  lines.forEach((l,i)=>ctx.fillText(l, W/2, H/2-totalH/2+i*96+48));
+  ctx.restore();
+  // Bottom bar
+  ctx.fillStyle='rgba(155,114,240,0.12)'; ctx.fillRect(0, H-110, W, 110);
+  ctx.fillStyle='rgba(155,114,240,0.20)'; ctx.fillRect(0, H-110, W, 1);
+  drawWordmark(ctx, W/2, H-55, 30);
+  return canvas;
+}
+
+// IG-2 — Instagram post: dark grain, editorial, big quote-style
+function buildIG2(canvas, title) {
+  const W=1080, H=1080, ctx=setupBase(canvas,W,H);
+  ctx.fillStyle='#050408'; ctx.fillRect(0,0,W,H);
+  addNoise(ctx,W,H,12); addNoise(ctx,W,H,8);
+  const vig=ctx.createRadialGradient(W/2,H/2,W*0.1,W/2,H/2,W*0.7);
+  vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(0,0,0,0.72)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+  addRain(ctx,W,H,'255,255,255',120,10,24,0.04,0.12);
+  addEyeWatermark(ctx, W/2, H*0.42, 340, 210, '#e8e6f8', 0.07);
+  // Thin horizontal rule top & bottom
+  ctx.fillStyle='rgba(155,114,240,0.22)'; ctx.fillRect(60,60,W-120,1);
+  ctx.fillStyle='rgba(155,114,240,0.22)'; ctx.fillRect(60,H-60,W-120,1);
+  // Corner marks
+  [[60,60],[W-60,60],[60,H-60],[W-60,H-60]].forEach(([x,y],i)=>{
+    ctx.save(); ctx.translate(x,y);
+    ctx.rotate(i*(Math.PI/2));
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(20,0); ctx.moveTo(0,0); ctx.lineTo(0,20);
+    ctx.strokeStyle='rgba(155,114,240,0.35)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.restore();
+  });
+  // Title — large, centered
+  ctx.save();
+  ctx.font="700 72px 'Playfair Display',serif"; ctx.fillStyle='rgba(240,238,248,0.88)';
+  ctx.textBaseline='middle'; ctx.textAlign='center';
+  const words2=title.split(' '); let lines2=[],line2='';
+  words2.forEach(w=>{
+    const t=line2+w+' ';
+    ctx.font="700 72px 'Playfair Display',serif";
+    if(ctx.measureText(t).width>W-200&&line2){lines2.push(line2.trim());line2=w+' ';}else line2=t;
+  });
+  if(line2.trim())lines2.push(line2.trim());
+  const tH=lines2.length*90;
+  lines2.forEach((l,i)=>ctx.fillText(l,W/2,H/2-tH/2+i*90+45));
+  ctx.restore();
+  // Bottom: wordmark
+  drawWordmark(ctx,W/2,H-80,28,'rgba(128,130,160,0.65)','rgba(235,232,250,0.75)');
+  return canvas;
+}
+
+// SLIDE-1 — Presentation slide: content slide with title + body
+function buildSlide1(canvas, title) {
+  const W=1920, H=1080, ctx=setupBase(canvas,W,H);
+  fillBg(ctx,W,H,'slate');
+  addNoise(ctx,W,H,6);
+  // Left purple glow
+  const g1=ctx.createRadialGradient(0,H/2,0,0,H/2,640);
+  g1.addColorStop(0,'rgba(90,50,180,0.28)'); g1.addColorStop(1,'transparent');
+  ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  addRain(ctx,W,H,'172,145,255',460,16,38,0.14,0.38);
+  addEyeWatermark(ctx, W*0.82, H*0.5, 340, 210, '#b8a0f0', 0.06);
+  // Left accent bar
+  ctx.fillStyle='rgba(155,114,240,0.35)'; ctx.fillRect(0,0,5,H);
+  // Top: wordmark + line
+  drawWordmark(ctx,120,54,26,'rgba(128,148,178,0.70)','rgba(235,232,250,0.80)');
+  ctx.fillStyle='rgba(155,114,240,0.15)'; ctx.fillRect(220,54,W-260,1);
+  // Section label
+  sectionLabel(ctx, 100, 200, 'Automatización con IA');
+  // Main title
+  ctx.save();
+  ctx.font="800 96px 'Inter',sans-serif"; ctx.fillStyle='#f0eef8'; ctx.textBaseline='top';
+  wrapText(ctx, title, 100, 250, W*0.62, 112);
+  ctx.restore();
+  // Divider
+  ctx.fillStyle='rgba(155,114,240,0.25)'; ctx.fillRect(100, 560, 480, 2);
+  // Body bullets
+  const bullets = ['Diagnóstico gratuito — identifica tus procesos clave','Implementación en días, no meses','Resultados medibles desde la primera semana'];
+  bullets.forEach((b,i)=>{
+    ctx.fillStyle='#c9a84c'; ctx.beginPath(); ctx.arc(110,620+i*70,6,0,Math.PI*2); ctx.fill();
+    ctx.font="400 32px 'Inter',sans-serif"; ctx.fillStyle='rgba(180,175,210,0.80)'; ctx.textBaseline='middle';
+    ctx.fillText(b, 136, 620+i*70);
+  });
+  // Bottom bar
+  ctx.fillStyle='rgba(155,114,240,0.08)'; ctx.fillRect(0,H-70,W,70);
+  ctx.fillStyle='rgba(155,114,240,0.18)'; ctx.fillRect(0,H-70,W,1);
+  ctx.font="500 22px 'Inter',sans-serif"; ctx.fillStyle='rgba(155,114,240,0.55)'; ctx.textBaseline='middle';
+  ctx.fillText('iarcania.co', 100, H-34);
+  ctx.textAlign='right'; ctx.fillStyle='rgba(155,114,240,0.35)';
+  ctx.fillText('Automatización con IA para Colombia · 2026', W-100, H-34);
+  return canvas;
+}
+
+// SLIDE-2 — Cover/title slide
+function buildSlide2(canvas, title) {
+  const W=1920, H=1080, ctx=setupBase(canvas,W,H);
+  ctx.fillStyle='#060409'; ctx.fillRect(0,0,W,H);
+  addNoise(ctx,W,H,9); addNoise(ctx,W,H,6);
+  // Large central glow
+  const g1=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,700);
+  g1.addColorStop(0,'rgba(100,55,200,0.30)'); g1.addColorStop(0.5,'rgba(60,30,130,0.14)'); g1.addColorStop(1,'transparent');
+  ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  addRain(ctx,W,H,'172,145,255',560,18,44,0.18,0.46);
+  // Large centered eye
+  addEyeWatermark(ctx, W/2, H/2, 500, 300, '#c4b0ff', 0.10);
+  // Corner marks
+  [[80,80],[W-80,80],[80,H-80],[W-80,H-80]].forEach(([x,y],i)=>{
+    ctx.save(); ctx.translate(x,y); ctx.rotate(i*(Math.PI/2));
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(32,0); ctx.moveTo(0,0); ctx.lineTo(0,32);
+    ctx.strokeStyle='rgba(155,114,240,0.28)'; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.restore();
+  });
+  // Thin border
+  ctx.strokeStyle='rgba(155,114,240,0.10)'; ctx.lineWidth=2; ctx.strokeRect(40,40,W-80,H-80);
+  // Top wordmark
+  drawWordmark(ctx, W/2, 90, 32);
+  ctx.fillStyle='rgba(155,114,240,0.20)'; ctx.fillRect(W/2-200, 110, 400, 1);
+  // Main centered title
+  ctx.save();
+  ctx.font="800 88px 'Inter',sans-serif"; ctx.fillStyle='#f0eef8';
+  ctx.textBaseline='middle'; ctx.textAlign='center';
+  const wds=title.split(' '); let ls=[],ln='';
+  wds.forEach(w=>{
+    const t=ln+w+' '; ctx.font="800 88px 'Inter',sans-serif";
+    if(ctx.measureText(t).width>W-400&&ln){ls.push(ln.trim());ln=w+' ';}else ln=t;
+  });
+  if(ln.trim())ls.push(ln.trim());
+  const tH2=ls.length*104;
+  ls.forEach((l,i)=>ctx.fillText(l,W/2,H/2-tH2/2+i*104+52));
+  ctx.restore();
+  // Gold rule below title
+  ctx.fillStyle='rgba(201,168,76,0.40)'; ctx.fillRect(W/2-120, H/2+tH2/2+20, 240, 2);
+  // Bottom: date & site
+  ctx.font="500 24px 'Inter',sans-serif"; ctx.fillStyle='rgba(155,114,240,0.45)'; ctx.textBaseline='middle'; ctx.textAlign='center';
+  ctx.fillText('iarcania.co · 2026', W/2, H-70);
+  return canvas;
+}
+
+/* ══════════════════════════════════════════
+   RENDER TO DOM
+══════════════════════════════════════════ */
+const defaultTitle = 'Por qué si no usas Claude Design y Code vas a quedarte atrás';
+
+const SECTIONS = [
+  {
+    id:'yt', label:'YouTube Thumbnail', size:'1280×720', color:'#9b72f0',
+    items:[
+      { fn:buildYT1, id:'yt1', label:'YT-1 · Dark Bold', desc:'Título grande, glow morado, lluvia, ojo derecho' },
+      { fn:buildYT2, id:'yt2', label:'YT-2 · Split', desc:'División vertical, ojo grande derecha, texto izquierda' },
+    ]
+  },
+  {
+    id:'ig', label:'Instagram Post', size:'1080×1080', color:'#c4b0ff',
+    items:[
+      { fn:buildIG1, id:'ig1', label:'IG-1 · Centrado', desc:'Título centrado, lluvia morada, ojo de fondo' },
+      { fn:buildIG2, id:'ig2', label:'IG-2 · Noir Editorial', desc:'Grain fílmico, Playfair serif, minimal' },
+    ]
+  },
+  {
+    id:'slide', label:'Slide de Presentación', size:'1920×1080', color:'#b8a8e8',
+    items:[
+      { fn:buildSlide1, id:'s1', label:'Slide · Contenido', desc:'Título + bullets, barra lateral, wordmark' },
+      { fn:buildSlide2, id:'s2', label:'Slide · Portada', desc:'Cover slide centrado, ojo grande, lluvia densa' },
+    ]
+  }
+];
+
+const DIMS = { yt:[1280,720], ig:[1080,1080], slide:[1920,1080] };
+const PREVIEW_W = { yt:440, ig:280, slide:520 };
+
+const root = document.getElementById('root');
+
+SECTIONS.forEach(sec => {
+  const section = document.createElement('div'); section.className='section';
+
+  const header = document.createElement('div'); header.className='section-header';
+  const lbl = document.createElement('span'); lbl.className='section-label'; lbl.style.color=sec.color; lbl.textContent=sec.label;
+  const sz = document.createElement('span'); sz.className='section-size'; sz.textContent=sec.size;
+  const line = document.createElement('div'); line.className='section-line';
+  header.append(lbl, line, sz);
+
+  const row = document.createElement('div'); row.className='templates-row';
+
+  const [W,H] = DIMS[sec.id];
+  const PW = PREVIEW_W[sec.id];
+  const PH = Math.round(PW * H/W);
+
+  sec.items.forEach(item => {
+    const card = document.createElement('div'); card.className='tpl-card';
+
+    // Preview canvas (displayed small)
+    const previewWrap = document.createElement('div'); previewWrap.className='tpl-preview';
+    previewWrap.style.width = PW+'px'; previewWrap.style.height = PH+'px';
+    const displayCanvas = document.createElement('canvas');
+    displayCanvas.style.width=PW+'px'; displayCanvas.style.height=PH+'px';
+
+    // Full-res canvas (hidden, for download)
+    const fullCanvas = document.createElement('canvas');
+
+    // State
+    let currentTitle = defaultTitle;
+
+    function redraw() {
+      item.fn(displayCanvas, currentTitle);
+      item.fn(fullCanvas, currentTitle);
+    }
+    redraw();
+
+    previewWrap.appendChild(displayCanvas);
+
+    const tl = document.createElement('div'); tl.className='tpl-title'; tl.textContent=item.label;
+    const td = document.createElement('div'); tl.className='tpl-title'; tl.textContent=item.label;
+    const desc = document.createElement('div'); desc.className='tpl-desc'; desc.textContent=item.desc;
+
+    // Edit panel
+    const panel = document.createElement('div'); panel.className='edit-panel';
+    panel.style.width = PW+'px';
+    const elbl = document.createElement('div'); elbl.className='edit-label'; elbl.textContent='Texto del título';
+    const input = document.createElement('textarea'); input.className='edit-input'; input.rows=2;
+    input.value = currentTitle;
+    let debounce;
+    input.addEventListener('input', ()=>{
+      clearTimeout(debounce);
+      debounce = setTimeout(()=>{ currentTitle=input.value; redraw(); }, 320);
+    });
+
+    // Download button
+    const dlBtn = document.createElement('button'); dlBtn.className='dl-btn';
+    dlBtn.innerHTML='↓ Descargar '+sec.size;
+    dlBtn.addEventListener('click', ()=>{
+      fullCanvas.toBlob(blob=>{
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url; a.download=`IArcanIA-${item.id}.png`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      },'image/png');
+    });
+
+    panel.append(elbl, input);
+    card.append(previewWrap, tl, desc, panel, dlBtn);
+    row.appendChild(card);
+  });
+
+  section.append(header, row);
+  root.appendChild(section);
+});
+
+} // end build()
+</script>
+</body>
+</html>

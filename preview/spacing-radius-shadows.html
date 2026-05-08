@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #040408; font-family: 'Inter', sans-serif; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .panel { background: #08080f; border: 1px solid rgba(60,30,140,0.16); border-radius: 10px; padding: 14px 16px; }
+  .label { font-size: 9px; color: #2e2c40; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+</style></head><body>
+
+<div class="panel">
+  <div class="label">Border Radius System</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+      <div style="width:72px; height:40px; background:rgba(80,40,200,0.10); border:1px solid rgba(80,40,200,0.20); border-radius:8px;"></div>
+      <div style="font-size:9px; color:#3e3c52; text-align:center;">radius-sm<br/>8px · botones</div>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+      <div style="width:72px; height:40px; background:rgba(80,40,200,0.10); border:1px solid rgba(80,40,200,0.20); border-radius:14px;"></div>
+      <div style="font-size:9px; color:#3e3c52; text-align:center;">radius-md<br/>14px · cards</div>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+      <div style="width:72px; height:40px; background:rgba(80,40,200,0.10); border:1px solid rgba(80,40,200,0.20); border-radius:22px;"></div>
+      <div style="font-size:9px; color:#3e3c52; text-align:center;">radius-lg<br/>22px · modales</div>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+      <div style="width:72px; height:40px; background:rgba(80,40,200,0.10); border:1px solid rgba(80,40,200,0.20); border-radius:100px;"></div>
+      <div style="font-size:9px; color:#3e3c52; text-align:center;">pill · 100px<br/>tags, badges</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="label">Shadow / Glow System — purple only, no neon</div>
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div style="width:56px; height:32px; background:linear-gradient(135deg,#3d1f8f,#6a40d0); border-radius:8px; box-shadow:0 0 16px rgba(70,35,180,0.22);"></div>
+      <div>
+        <div style="font-size:11px; color:#8070c0; font-family:monospace;">0 0 16px rgba(70,35,180, 0.22)</div>
+        <div style="font-size:9px; color:#2e2c40; margin-top:2px;">btn-primary · reposo</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div style="width:56px; height:32px; background:linear-gradient(135deg,#3d1f8f,#6a40d0); border-radius:8px; box-shadow:0 6px 28px rgba(70,35,180,0.34);"></div>
+      <div>
+        <div style="font-size:11px; color:#8070c0; font-family:monospace;">0 6px 28px rgba(70,35,180, 0.34)</div>
+        <div style="font-size:9px; color:#2e2c40; margin-top:2px;">btn-primary · hover (elevado)</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div style="width:56px; height:32px; background:#0a0914; border-radius:12px; box-shadow:0 0 0 1px rgba(80,40,200,0.28);"></div>
+      <div>
+        <div style="font-size:11px; color:#8070c0; font-family:monospace;">0 0 0 1px rgba(80,40,200, 0.28)</div>
+        <div style="font-size:9px; color:#2e2c40; margin-top:2px;">card border · hover</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div style="width:56px; height:32px; background:#0a0914; border-radius:12px; box-shadow:0 0 0 1px rgba(80,40,200,0.14), 0 14px 40px rgba(50,20,140,0.18);"></div>
+      <div>
+        <div style="font-size:11px; color:#8070c0; font-family:monospace;">0 14px 40px rgba(50,20,140, 0.18)</div>
+        <div style="font-size:9px; color:#2e2c40; margin-top:2px;">card hover · elevación suave</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="label">Metric Bars — purple gradient only</div>
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#4a4860; margin-bottom:5px;">
+        <span>Tiempo de respuesta al cliente</span>
+        <strong style="color:#7b5ce0;">−92%</strong>
+      </div>
+      <div style="height:4px; background:rgba(255,255,255,0.04); border-radius:2px; overflow:hidden;">
+        <div style="width:92%; height:100%; border-radius:2px; background:linear-gradient(90deg,#3d1f8f,#7b5ce0);"></div>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#4a4860; margin-bottom:5px;">
+        <span>Tareas manuales eliminadas</span>
+        <strong style="color:#7b5ce0;">−78%</strong>
+      </div>
+      <div style="height:4px; background:rgba(255,255,255,0.04); border-radius:2px; overflow:hidden;">
+        <div style="width:78%; height:100%; border-radius:2px; background:linear-gradient(90deg,#3d1f8f,#7b5ce0);"></div>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#4a4860; margin-bottom:5px;">
+        <span>Leads perdidos por falta de seguimiento</span>
+        <strong style="color:#7b5ce0;">−85%</strong>
+      </div>
+      <div style="height:4px; background:rgba(255,255,255,0.04); border-radius:2px; overflow:hidden;">
+        <div style="width:85%; height:100%; border-radius:2px; background:linear-gradient(90deg,#3d1f8f,#7b5ce0);"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body></html>
