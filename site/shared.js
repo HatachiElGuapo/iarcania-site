@@ -83,8 +83,10 @@
     setVis('.nav-link-admin', 'inline-flex');
     setVis('.nav-admin-sep', 'inline-flex');
     setVis('.nav-logout', 'inline-flex');
+    setVis('.nav-login-admin', 'none');
   } else {
     setVis('.nav-link-admin, .nav-admin-sep, .nav-logout', 'none');
+    /* nav-login-admin visible by default — no change needed */
   }
 })();
 
