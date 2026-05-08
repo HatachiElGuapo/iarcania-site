@@ -24,6 +24,7 @@
     @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
     @keyframes spin { to{transform:rotate(360deg)} }
     #rain { position:fixed; inset:0; pointer-events:none; z-index:0; }
+    input[type=range] { accent-color: #9b72f0; }
   </style>
 </head>
 <body>
@@ -31,8 +32,8 @@
 
 <!-- Admin floating bar -->
 <div style="position:fixed;top:60px;right:16px;z-index:9999;display:flex;gap:8px;align-items:center;">
-  <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(6,6,9,0.88);border:1px solid rgba(155,114,240,0.22);border-radius:8px;color:#8a86b0;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;text-decoration:none;backdrop-filter:blur(10px);transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#f0eeff';this.style.borderColor='rgba(155,114,240,0.45)'" onmouseout="this.style.color='#8a86b0';this.style.borderColor='rgba(155,114,240,0.22)'">← Inicio</a>
-  <button onclick="localStorage.removeItem('isAdmin');window.location.href='index.html'" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(6,6,9,0.88);border:1px solid rgba(248,113,113,0.22);border-radius:8px;color:rgba(248,113,113,0.65);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;backdrop-filter:blur(10px);transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#f87171';this.style.borderColor='rgba(248,113,113,0.5)'" onmouseout="this.style.color='rgba(248,113,113,0.65)';this.style.borderColor='rgba(248,113,113,0.22)'">✕ Cerrar sesión</button>
+  <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(6,6,9,0.88);border:1px solid rgba(155,114,240,0.22);border-radius:8px;color:#8a86b0;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;text-decoration:none;backdrop-filter:blur(10px);" onmouseover="this.style.color='#f0eeff'" onmouseout="this.style.color='#8a86b0'">← Inicio</a>
+  <button onclick="localStorage.removeItem('isAdmin');window.location.href='index.html'" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(6,6,9,0.88);border:1px solid rgba(248,113,113,0.22);border-radius:8px;color:rgba(248,113,113,0.65);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;backdrop-filter:blur(10px);" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(248,113,113,0.65)'">✕ Cerrar sesión</button>
 </div>
 
 <div id="root"></div>
@@ -62,7 +63,18 @@
 </script>
 
 <script type="text/babel">
-const { useState, useCallback, useRef, useEffect } = React;
+const { useState, useCallback, useRef, useEffect, useMemo } = React;
+
+/* ─── useMobile ─── */
+function useMobile(){
+  const [mob,setMob]=useState(()=>window.innerWidth<768);
+  useEffect(()=>{
+    const fn=()=>setMob(window.innerWidth<768);
+    window.addEventListener('resize',fn,{passive:true});
+    return()=>window.removeEventListener('resize',fn);
+  },[]);
+  return mob;
+}
 
 /* ─── Tokens ─── */
 const T = {
@@ -77,40 +89,16 @@ const T = {
 /* ─── Channel definitions ─── */
 const CHANNELS = {
   iarcania: {
-    id: 'iarcania',
-    name: 'IArcanIA',
-    color: '#9b72f0',
-    colorLight: '#c4b0ff',
-    colorBg: 'rgba(155,114,240,0.10)',
-    colorBorder: 'rgba(155,114,240,0.30)',
-    gradient: 'linear-gradient(135deg,#7c3aed,#9b72f0)',
-    label: 'Agencia de IA',
-    dot: '#9b72f0',
-    logo: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <ellipse cx="12" cy="12" rx="6" ry="9" stroke="currentColor" strokeWidth="1.5"/>
-        <ellipse cx="12" cy="12" rx="10" ry="5" stroke="currentColor" strokeWidth="1.5"/>
-        <circle cx="12" cy="12" r="2" fill="#c9a84c"/>
-      </svg>
-    ),
+    id: 'iarcania', name: 'IArcanIA', color: '#9b72f0', colorLight: '#c4b0ff',
+    colorBg: 'rgba(155,114,240,0.10)', colorBorder: 'rgba(155,114,240,0.30)',
+    gradient: 'linear-gradient(135deg,#7c3aed,#9b72f0)', label: 'Agencia de IA', dot: '#9b72f0',
+    logo: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="12" rx="6" ry="9" stroke="currentColor" strokeWidth="1.5"/><ellipse cx="12" cy="12" rx="10" ry="5" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" fill="#c9a84c"/></svg>),
   },
   voidstoic: {
-    id: 'voidstoic',
-    name: 'VoidStoic',
-    color: '#38bdf8',
-    colorLight: '#7dd3fc',
-    colorBg: 'rgba(56,189,248,0.08)',
-    colorBorder: 'rgba(56,189,248,0.28)',
-    gradient: 'linear-gradient(135deg,#0369a1,#38bdf8)',
-    label: 'Filosofía & Estoicismo',
-    dot: '#38bdf8',
-    logo: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
-        <path d="M12 3v18M3 12h18" stroke="currentColor" strokeWidth="1" strokeOpacity="0.4"/>
-        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/>
-      </svg>
-    ),
+    id: 'voidstoic', name: 'VoidStoic', color: '#38bdf8', colorLight: '#7dd3fc',
+    colorBg: 'rgba(56,189,248,0.08)', colorBorder: 'rgba(56,189,248,0.28)',
+    gradient: 'linear-gradient(135deg,#0369a1,#38bdf8)', label: 'Filosofía & Estoicismo', dot: '#38bdf8',
+    logo: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/><path d="M12 3v18M3 12h18" stroke="currentColor" strokeWidth="1" strokeOpacity="0.4"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/></svg>),
   },
 };
 
@@ -125,6 +113,8 @@ const STATUS = {
 const FORMATS = ['Video largo','Short','Reel','Carrusel','Live','Podcast'];
 const FORMAT_ICONS = { 'Video largo':'▶','Short':'⚡','Reel':'◎','Carrusel':'⊞','Live':'●','Podcast':'◉' };
 const PROD_STEPS = ['Guión','Grabación','Edición','Thumbnail','Programar','Publicar'];
+const PLATFORMS = ['YouTube','TikTok','Instagram'];
+const PLAT_COLORS = {YouTube:'#ff4444',TikTok:'#ee1d52',Instagram:'#bc1888'};
 
 /* ─── Platform icons ─── */
 function IconYT({size=18,active=false}){return(<svg width={size} height={size} viewBox="0 0 24 24" fill={active?'#ff0000':'currentColor'}><path d="M21.8 8s-.2-1.4-.8-2c-.8-.8-1.7-.8-2.1-.9C16.5 5 12 5 12 5s-4.5 0-6.9.1c-.4.1-1.3.1-2.1.9-.6.6-.8 2-.8 2S2 9.6 2 11.2v1.5c0 1.6.2 3.2.2 3.2s.2 1.4.8 2c.8.8 1.8.8 2.3.8C6.8 19 12 19 12 19s4.5 0 6.9-.2c.4-.1 1.3-.1 2.1-.9.6-.6.8-2 .8-2s.2-1.6.2-3.2v-1.5C22 9.6 21.8 8 21.8 8z"/><polygon points="10,8.5 15,12 10,15.5" fill="white" opacity="0.9"/></svg>);}
@@ -137,12 +127,12 @@ function PlatformIcon({p,active=false,size=18}){
   return null;
 }
 
-/* ─── Reusable UI atoms ─── */
+/* ─── UI atoms ─── */
 function Logo({size=20}){return(<div style={{fontFamily:"'Playfair Display',serif",fontSize:size,fontWeight:700,letterSpacing:'0.12em',lineHeight:1,userSelect:'none'}}><span style={{color:'#8090a8'}}>I</span><span style={{color:T.text}}>Arcan</span><span style={{color:'#8090a8'}}>IA</span></div>);}
 
 function Field({label,value,onChange,type='text',placeholder='',small=false,rows}){
   const [f,setF]=useState(false);
-  const base={width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${f?T.borderH:T.border}`,borderRadius:10,padding:small?'8px 12px':'10px 14px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',transition:'border-color 0.2s'};
+  const base={width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${f?T.borderH:T.border}`,borderRadius:10,padding:small?'8px 12px':'10px 14px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',transition:'border-color 0.2s',minHeight:44};
   return(
     <div style={{marginBottom:small?8:14}}>
       {label&&<label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:5,letterSpacing:0.5}}>{label}</label>}
@@ -159,7 +149,7 @@ function Sel({label,value,onChange,options}){
   return(
     <div style={{marginBottom:14}}>
       {label&&<label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:5,letterSpacing:0.5}}>{label}</label>}
-      <select value={value} onChange={e=>onChange(e.target.value)} onFocus={()=>setF(true)} onBlur={()=>setF(false)} style={{width:'100%',background:'#0e0d16',border:`1px solid ${f?T.borderH:T.border}`,borderRadius:10,padding:'10px 14px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',transition:'border-color 0.2s',cursor:'pointer',appearance:'none',backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a788f' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 12px center'}}>
+      <select value={value} onChange={e=>onChange(e.target.value)} onFocus={()=>setF(true)} onBlur={()=>setF(false)} style={{width:'100%',minHeight:44,background:'#0e0d16',border:`1px solid ${f?T.borderH:T.border}`,borderRadius:10,padding:'10px 14px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',transition:'border-color 0.2s',cursor:'pointer',appearance:'none',backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a788f' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 12px center'}}>
         {options.map(o=><option key={o.value??o} value={o.value??o}>{o.label??o}</option>)}
       </select>
     </div>
@@ -170,9 +160,7 @@ function StatusBadge({status,small=false}){
   const s=STATUS[status]||STATUS.idea;
   return(<span style={{display:'inline-flex',alignItems:'center',gap:5,background:s.bg,border:`1px solid ${s.color}30`,borderRadius:100,padding:small?'2px 8px':'4px 10px',fontSize:small?10:11,fontWeight:600,color:s.color}}><span style={{width:5,height:5,borderRadius:'50%',background:s.dot,display:'inline-block',animation:'pulse 2s ease-in-out infinite'}}/>{s.label}</span>);
 }
-
 function FormatBadge({format}){return(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(155,114,240,0.08)',border:'1px solid rgba(155,114,240,0.18)',borderRadius:6,padding:'2px 8px',fontSize:10,fontWeight:600,color:T.purpleL}}>{FORMAT_ICONS[format]||'▶'} {format}</span>);}
-
 function ChannelBadge({channelId,small=false}){
   const ch=CHANNELS[channelId]||CHANNELS.iarcania;
   return(<span style={{display:'inline-flex',alignItems:'center',gap:5,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:100,padding:small?'2px 8px':'3px 10px',fontSize:10,fontWeight:700,color:ch.color,letterSpacing:0.3}}>{ch.logo} {ch.name}</span>);
@@ -181,14 +169,13 @@ function ChannelBadge({channelId,small=false}){
 /* ─── Modal backdrop ─── */
 function Modal({onClose,children,width=460}){
   return(
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.78)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',animation:'modalBack 0.2s ease',backdropFilter:'blur(4px)'}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:T.s1,border:`1px solid ${T.border}`,borderRadius:20,padding:'28px 26px',width,boxShadow:'0 40px 80px rgba(0,0,0,0.7)',animation:'slideUp 0.28s ease',maxHeight:'92vh',overflowY:'auto'}}>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.78)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',animation:'modalBack 0.2s ease',backdropFilter:'blur(4px)',padding:'16px'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.s1,border:`1px solid ${T.border}`,borderRadius:20,padding:'28px 26px',width:'100%',maxWidth:width,boxShadow:'0 40px 80px rgba(0,0,0,0.7)',animation:'slideUp 0.28s ease',maxHeight:'92vh',overflowY:'auto'}}>
         {children}
       </div>
     </div>
   );
 }
-
 function ModalHeader({title,subtitle,onClose}){
   return(
     <div>
@@ -197,7 +184,7 @@ function ModalHeader({title,subtitle,onClose}){
           {subtitle&&<div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:4,display:'flex',alignItems:'center',gap:6}}><span style={{width:14,height:1,background:T.gold,display:'inline-block'}}/>{subtitle}</div>}
           <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:700,color:T.text}}>{title}</h3>
         </div>
-        <button onClick={onClose} style={{width:30,height:30,borderRadius:8,background:'rgba(255,255,255,0.04)',border:`1px solid ${T.border}`,color:T.muted,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginLeft:12}}>✕</button>
+        <button onClick={onClose} style={{width:36,height:36,borderRadius:8,background:'rgba(255,255,255,0.04)',border:`1px solid ${T.border}`,color:T.muted,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginLeft:12}}>✕</button>
       </div>
       <div style={{height:1,background:'linear-gradient(90deg,transparent,rgba(155,114,240,0.3),transparent)',marginBottom:20}}/>
     </div>
@@ -205,10 +192,10 @@ function ModalHeader({title,subtitle,onClose}){
 }
 
 /* ═══════════════════════════════════════════════
-   MODAL — Nuevo contenido (2 pasos)
+   MODAL — Nuevo contenido
 ═══════════════════════════════════════════════ */
 function NewContentModal({onSave,onClose}){
-  const [step,setStep]=useState(1); // 1=elegir canal, 2=rellenar datos
+  const [step,setStep]=useState(1);
   const [form,setForm]=useState({canal:'',titulo:'',formato:'Video largo',fechaGrab:'',horaGrab:'',horaPub:'',estado:'idea'});
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
 
@@ -217,7 +204,6 @@ function NewContentModal({onSave,onClose}){
     onSave({...form,id:Date.now(),steps:PROD_STEPS.reduce((a,s)=>({...a,[s]:false}),{}),guion:[]});
   }
 
-  /* Step 1 — elegir canal */
   if(step===1){
     return(
       <Modal onClose={onClose} width={440}>
@@ -225,12 +211,10 @@ function NewContentModal({onSave,onClose}){
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           {Object.values(CHANNELS).map(ch=>(
             <button key={ch.id} onClick={()=>{set('canal',ch.id);setStep(2);}}
-              style={{display:'flex',alignItems:'center',gap:16,padding:'18px 20px',borderRadius:14,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s',textAlign:'left'}}
+              style={{display:'flex',alignItems:'center',gap:16,padding:'18px 20px',borderRadius:14,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s',textAlign:'left',minHeight:72}}
               onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 12px 30px ${ch.color}20`;}}
               onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='none';}}>
-              <div style={{width:46,height:46,borderRadius:12,background:`${ch.color}18`,border:`1px solid ${ch.colorBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:ch.color,flexShrink:0}}>
-                {ch.logo}
-              </div>
+              <div style={{width:46,height:46,borderRadius:12,background:`${ch.color}18`,border:`1px solid ${ch.colorBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:ch.color,flexShrink:0}}>{ch.logo}</div>
               <div>
                 <div style={{fontSize:15,fontWeight:700,color:T.text,marginBottom:3}}>{ch.name}</div>
                 <div style={{fontSize:12,color:T.muted}}>{ch.label}</div>
@@ -243,19 +227,16 @@ function NewContentModal({onSave,onClose}){
     );
   }
 
-  /* Step 2 — datos del contenido */
   const ch=CHANNELS[form.canal];
   return(
     <Modal onClose={onClose} width={460}>
       <ModalHeader title="Agregar contenido" subtitle={ch.name} onClose={onClose}/>
-      {/* Canal elegido badge */}
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:18}}>
-        <button onClick={()=>setStep(1)} style={{background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:8,padding:'5px 12px',color:ch.color,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontFamily:'Inter,sans-serif'}}>
+        <button onClick={()=>setStep(1)} style={{background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:8,padding:'5px 12px',color:ch.color,fontSize:11,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,fontFamily:'Inter,sans-serif',minHeight:36}}>
           ← {ch.name}
         </button>
         <span style={{fontSize:11,color:T.dim}}>Cambiar canal</span>
       </div>
-
       <Field label="Título del contenido" value={form.titulo} onChange={v=>set('titulo',v)} placeholder="Ej: Cómo usar IA en 2026"/>
       <Sel label="Formato" value={form.formato} onChange={v=>set('formato',v)} options={FORMATS.map(f=>({value:f,label:`${FORMAT_ICONS[f]} ${f}`}))}/>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -267,8 +248,8 @@ function NewContentModal({onSave,onClose}){
         <Sel label="Estado inicial" value={form.estado} onChange={v=>set('estado',v)} options={Object.entries(STATUS).map(([v,s])=>({value:v,label:s.label}))}/>
       </div>
       <div style={{display:'flex',gap:10,marginTop:8}}>
-        <button onClick={onClose} style={{flex:1,padding:'11px',borderRadius:10,background:'transparent',border:`1px solid ${T.border}`,color:T.muted,fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Cancelar</button>
-        <button onClick={handleSave} style={{flex:2,padding:'11px',borderRadius:10,background:form.titulo.trim()?ch.colorBg:'rgba(255,255,255,0.04)',border:`1px solid ${form.titulo.trim()?ch.colorBorder:T.border}`,color:form.titulo.trim()?ch.color:T.dim,fontSize:13,fontWeight:700,cursor:form.titulo.trim()?'pointer':'not-allowed',fontFamily:'Inter,sans-serif',transition:'all 0.2s'}}>
+        <button onClick={onClose} style={{flex:1,padding:'13px',borderRadius:10,background:'transparent',border:`1px solid ${T.border}`,color:T.muted,fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:48}}>Cancelar</button>
+        <button onClick={handleSave} style={{flex:2,padding:'13px',borderRadius:10,background:form.titulo.trim()?ch.colorBg:'rgba(255,255,255,0.04)',border:`1px solid ${form.titulo.trim()?ch.colorBorder:T.border}`,color:form.titulo.trim()?ch.color:T.dim,fontSize:13,fontWeight:700,cursor:form.titulo.trim()?'pointer':'not-allowed',fontFamily:'Inter,sans-serif',transition:'all 0.2s',minHeight:48}}>
           Guardar pieza →
         </button>
       </div>
@@ -276,9 +257,12 @@ function NewContentModal({onSave,onClose}){
   );
 }
 
-/* ═══════════════════════════════════════════════
-   EDITOR DE GUIÓN
-═══════════════════════════════════════════════ */
+/* ─── fmtSec ─── */
+function fmtSec(s){
+  const m=Math.floor(s/60), sec=s%60;
+  return m>0 ? `${m}m ${sec>0?sec+'s':''}`.trim() : `${sec}s`;
+}
+
 const DEFAULT_SECTIONS = [
   {id:1,nombre:'Intro / Hook',duracion:30,texto:''},
   {id:2,nombre:'Desarrollo principal',duracion:180,texto:''},
@@ -286,22 +270,121 @@ const DEFAULT_SECTIONS = [
   {id:4,nombre:'CTA & Cierre',duracion:30,texto:''},
 ];
 
-function fmtSec(s){
-  const m=Math.floor(s/60), sec=s%60;
-  return m>0 ? `${m}m ${sec>0?sec+'s':''}`.trim() : `${sec}s`;
+/* ═══════════════════════════════════════════════
+   TELEPROMPTER MODAL
+═══════════════════════════════════════════════ */
+function TeleprompterModal({secs, onClose}){
+  const [speed,setSpeed]=useState(40);
+  const [running,setRunning]=useState(false);
+  const containerRef=useRef(null);
+  const frameRef=useRef(null);
+  const posRef=useRef(0);
+
+  const fullText=secs.filter(s=>s.texto&&s.texto.trim()).map(s=>`[${s.nombre}]\n\n${s.texto}`).join('\n\n──────────────────────────\n\n');
+
+  useEffect(()=>{
+    if(!running){cancelAnimationFrame(frameRef.current);return;}
+    let last=null;
+    function step(ts){
+      if(last===null)last=ts;
+      const dt=(ts-last)/1000;
+      last=ts;
+      posRef.current+=speed*dt;
+      if(containerRef.current){
+        containerRef.current.scrollTop=posRef.current;
+        if(containerRef.current.scrollTop>=containerRef.current.scrollHeight-containerRef.current.clientHeight-2){
+          setRunning(false);return;
+        }
+      }
+      frameRef.current=requestAnimationFrame(step);
+    }
+    frameRef.current=requestAnimationFrame(step);
+    return()=>cancelAnimationFrame(frameRef.current);
+  },[running,speed]);
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,display:'flex',flexDirection:'column'}}>
+      <div style={{height:60,display:'flex',alignItems:'center',gap:12,padding:'0 16px',borderBottom:'1px solid rgba(255,255,255,0.08)',flexShrink:0,flexWrap:'wrap'}}>
+        <button onClick={()=>setRunning(r=>!r)} style={{minWidth:100,minHeight:44,padding:'0 16px',borderRadius:10,background:running?'rgba(248,113,113,0.15)':'rgba(74,222,128,0.15)',border:`1px solid ${running?'rgba(248,113,113,0.4)':'rgba(74,222,128,0.4)'}`,color:running?'#f87171':'#4ade80',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+          {running?'⏸ Pausar':'▶ Iniciar'}
+        </button>
+        <div style={{display:'flex',alignItems:'center',gap:8,flex:1,maxWidth:260}}>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.35)',whiteSpace:'nowrap'}}>Vel.</span>
+          <input type="range" min="5" max="120" step="5" value={speed} onChange={e=>setSpeed(Number(e.target.value))} style={{flex:1}}/>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.35)',minWidth:24}}>{speed}</span>
+        </div>
+        <button onClick={()=>{posRef.current=0;if(containerRef.current)containerRef.current.scrollTop=0;setRunning(false);}}
+          style={{minHeight:44,padding:'0 14px',borderRadius:8,background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.4)',fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>↺</button>
+        <button onClick={onClose} style={{minWidth:44,minHeight:44,marginLeft:'auto',borderRadius:8,background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',fontSize:16,cursor:'pointer'}}>✕</button>
+      </div>
+      <div ref={containerRef} style={{flex:1,overflowY:'auto',padding:'60px 20px 200px'}}
+        onScroll={e=>{if(!running)posRef.current=e.currentTarget.scrollTop;}}>
+        <div style={{maxWidth:680,margin:'0 auto',fontSize:clamp(22,3.5,32),lineHeight:1.95,color:'#f0eeff',fontFamily:'Inter,sans-serif',whiteSpace:'pre-wrap',letterSpacing:0.2}}>
+          {fullText||<span style={{color:'rgba(255,255,255,0.3)'}}>No hay texto de guión aún.</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+function clamp(min,vw,max){return`clamp(${min}px,${vw}vw,${max}px)`;}
+
+/* ═══════════════════════════════════════════════
+   ITEM DETAIL MODAL (bottom sheet)
+═══════════════════════════════════════════════ */
+function ItemDetailModal({item, onClose, onOpenGuion}){
+  const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
+  const guionSecs=item.guion||[];
+  const totalSec=guionSecs.reduce((a,gs)=>a+(parseInt(gs.duracion)||0),0);
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:200,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'modalBack 0.2s ease',backdropFilter:'blur(6px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.s1,border:`1px solid ${ch.colorBorder}`,borderRadius:'20px 20px 0 0',padding:'20px',width:'100%',maxWidth:540,maxHeight:'82vh',overflowY:'auto',boxShadow:'0 -24px 60px rgba(0,0,0,0.7)',animation:'slideUp 0.25s ease'}}>
+        <div style={{width:36,height:4,borderRadius:2,background:T.border,margin:'0 auto 18px'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+          <ChannelBadge channelId={item.canal}/>
+          <FormatBadge format={item.formato}/>
+          <StatusBadge status={item.estado}/>
+        </div>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:700,color:T.text,marginBottom:14,lineHeight:1.3}}>{item.titulo}</h3>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+          {item.fechaGrab&&<div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
+            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Grabación</div>
+            <div style={{fontSize:13,color:T.text,fontWeight:600}}>{item.fechaGrab}{item.horaGrab&&<span style={{color:T.muted}}> · {item.horaGrab}</span>}</div>
+          </div>}
+          {item.horaPub&&<div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
+            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Publicación</div>
+            <div style={{fontSize:13,color:T.text,fontWeight:600}}>{item.horaPub}</div>
+          </div>}
+          {totalSec>0&&<div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
+            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Duración guión</div>
+            <div style={{fontSize:13,color:ch.color,fontWeight:700}}>{fmtSec(totalSec)}</div>
+          </div>}
+          <div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
+            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Producción</div>
+            <div style={{fontSize:13,fontWeight:700,color:T.text}}>{Object.values(item.steps).filter(Boolean).length}/{PROD_STEPS.length} pasos</div>
+          </div>
+        </div>
+        <button onClick={()=>{onOpenGuion(item);onClose();}}
+          style={{width:'100%',minHeight:52,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:12,color:ch.color,fontSize:15,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+          ✎ Editar guión
+        </button>
+      </div>
+    </div>
+  );
 }
 
-function ScriptEditor({item,onBack,onSave}){
+/* ═══════════════════════════════════════════════
+   SCRIPT EDITOR — mobile accordion + teleprompter
+═══════════════════════════════════════════════ */
+function ScriptEditor({item,onBack,onSave,isMobile}){
   const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
   const [secs,setSecs]=useState(item.guion&&item.guion.length>0 ? item.guion : DEFAULT_SECTIONS.map(s=>({...s})));
   const [activeIdx,setActiveIdx]=useState(0);
   const [editingName,setEditingName]=useState(null);
+  const [showTP,setShowTP]=useState(false);
 
   const totalSec=secs.reduce((a,s)=>a+(parseInt(s.duracion)||0),0);
 
-  function updateSec(idx,key,val){
-    setSecs(prev=>prev.map((s,i)=>i===idx?{...s,[key]:val}:s));
-  }
+  function updateSec(idx,key,val){setSecs(prev=>prev.map((s,i)=>i===idx?{...s,[key]:val}:s));}
   function addSection(){
     const ns={id:Date.now(),nombre:'Nueva sección',duracion:60,texto:''};
     setSecs(prev=>[...prev,ns]);
@@ -320,151 +403,218 @@ function ScriptEditor({item,onBack,onSave}){
     setActiveIdx(i=>i===idx?i+dir:i===idx+dir?i-dir:i);
   }
 
-  const active=secs[activeIdx]||secs[0];
+  const active=secs[activeIdx>=0?activeIdx:0]||secs[0];
+  const px=isMobile?12:28;
 
   return(
     <div style={{display:'flex',flexDirection:'column',height:'100%',animation:'fadeIn 0.3s ease'}}>
+      {showTP&&<TeleprompterModal secs={secs} onClose={()=>setShowTP(false)}/>}
+
       {/* Top bar */}
-      <div style={{height:52,borderBottom:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 24px',background:'rgba(6,6,9,0.8)',backdropFilter:'blur(8px)',flexShrink:0}}>
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,background:'transparent',border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 12px',color:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s'}}
+      <div style={{height:52,borderBottom:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',padding:`0 ${px}px`,background:'rgba(6,6,9,0.8)',backdropFilter:'blur(8px)',flexShrink:0,gap:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0,flex:1}}>
+          <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:5,background:'transparent',border:`1px solid ${T.border}`,borderRadius:8,padding:'0 10px',color:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',flexShrink:0,minHeight:36,whiteSpace:'nowrap'}}
             onMouseEnter={e=>{e.currentTarget.style.color=T.text;e.currentTarget.style.borderColor=T.borderH;}}
             onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.borderColor=T.border;}}>
             ← Volver
           </button>
-          <ChannelBadge channelId={item.canal}/>
-          <span style={{color:T.dim,fontSize:13}}>·</span>
-          <span style={{fontSize:13,fontWeight:600,color:T.text,maxWidth:280,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.titulo}</span>
+          {!isMobile&&<><ChannelBadge channelId={item.canal}/>
+            <span style={{color:T.dim,fontSize:13}}>·</span>
+            <span style={{fontSize:12,fontWeight:600,color:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.titulo}</span></>}
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <div style={{fontSize:12,color:T.muted}}>
-            Duración total: <span style={{color:ch.color,fontWeight:700}}>{fmtSec(totalSec)}</span>
-          </div>
-          <button onClick={()=>onSave(secs)} style={{background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:8,padding:'7px 16px',color:ch.color,fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s'}}
-            onMouseEnter={e=>{e.currentTarget.style.opacity='0.8';}}
-            onMouseLeave={e=>{e.currentTarget.style.opacity='1';}}>
-            Guardar guión
+        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+          {!isMobile&&<div style={{fontSize:12,color:T.muted}}>Total: <span style={{color:ch.color,fontWeight:700}}>{fmtSec(totalSec)}</span></div>}
+          <button onClick={()=>setShowTP(true)}
+            style={{minHeight:36,padding:'0 12px',borderRadius:8,background:'rgba(201,168,76,0.10)',border:'1px solid rgba(201,168,76,0.3)',color:T.gold,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',whiteSpace:'nowrap'}}>
+            🎬{!isMobile&&' Teleprompter'}
+          </button>
+          <button onClick={()=>onSave(secs)}
+            style={{minHeight:36,padding:'0 14px',borderRadius:8,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,color:ch.color,fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}
+            onMouseEnter={e=>{e.currentTarget.style.opacity='0.8';}} onMouseLeave={e=>{e.currentTarget.style.opacity='1';}}>
+            Guardar
           </button>
         </div>
       </div>
 
-      {/* Body: sidebar secciones + editor */}
-      <div style={{flex:1,display:'flex',overflow:'hidden'}}>
-
-        {/* Secciones sidebar */}
-        <div style={{width:240,borderRight:`1px solid ${T.border}`,overflowY:'auto',padding:'16px 12px',display:'flex',flexDirection:'column',gap:6,flexShrink:0}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:T.dim,marginBottom:8,paddingLeft:4}}>Secciones</div>
-          {secs.map((s,i)=>{
-            const isActive=i===activeIdx;
-            const filled=s.texto.trim().length>0;
-            return(
-              <div key={s.id}
-                onClick={()=>setActiveIdx(i)}
-                style={{padding:'10px 12px',borderRadius:10,background:isActive?ch.colorBg:'transparent',border:`1px solid ${isActive?ch.colorBorder:T.border}`,cursor:'pointer',transition:'all 0.18s',position:'relative',group:'true'}}
-                onMouseEnter={e=>{if(!isActive){e.currentTarget.style.background='rgba(255,255,255,0.03)';e.currentTarget.style.borderColor=T.borderH;}}}
-                onMouseLeave={e=>{if(!isActive){e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor=T.border;}}}>
-                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
-                  <span style={{width:18,height:18,borderRadius:5,background:isActive?`${ch.color}20`:'rgba(255,255,255,0.04)',border:`1px solid ${isActive?ch.colorBorder:T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:isActive?ch.color:T.dim,fontWeight:700,flexShrink:0}}>{i+1}</span>
-                  <span style={{fontSize:12,fontWeight:600,color:isActive?ch.colorLight:T.muted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{s.nombre}</span>
-                  {filled&&<span style={{width:5,height:5,borderRadius:'50%',background:T.green,flexShrink:0}}/>}
+      {isMobile ? (
+        /* ── Mobile: accordion ── */
+        <div style={{flex:1,overflowY:'auto',padding:'12px'}}>
+          <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:8}}>
+            {secs.map((s,i)=>{
+              const isOpen=i===activeIdx;
+              const filled=s.texto&&s.texto.trim().length>0;
+              return(
+                <div key={s.id} style={{background:isOpen?ch.colorBg:T.s1,border:`1px solid ${isOpen?ch.colorBorder:T.border}`,borderRadius:12,overflow:'hidden',transition:'all 0.2s'}}>
+                  <button onClick={()=>setActiveIdx(isOpen?-1:i)}
+                    style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'14px',background:'transparent',border:'none',cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:56,textAlign:'left'}}>
+                    <div style={{width:24,height:24,borderRadius:6,background:isOpen?`${ch.color}25`:'rgba(255,255,255,0.04)',border:`1px solid ${isOpen?ch.colorBorder:T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:isOpen?ch.color:T.dim,flexShrink:0}}>{i+1}</div>
+                    <div style={{flex:1,minWidth:0,textAlign:'left'}}>
+                      <div style={{fontSize:14,fontWeight:700,color:isOpen?ch.colorLight:T.text}}>{s.nombre}</div>
+                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>
+                        {fmtSec(parseInt(s.duracion)||0)}
+                        {filled&&<span style={{color:T.green,marginLeft:8}}>✓ Con texto</span>}
+                      </div>
+                    </div>
+                    <span style={{color:T.dim,fontSize:14,transform:isOpen?'rotate(180deg)':'none',transition:'transform 0.2s',flexShrink:0}}>▾</span>
+                  </button>
+                  {isOpen&&(
+                    <div style={{borderTop:`1px solid ${ch.colorBorder}`,padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 80px',gap:10,alignItems:'end'}}>
+                        <div>
+                          <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:5,letterSpacing:0.5}}>Nombre</label>
+                          <input value={s.nombre} onChange={e=>updateSec(i,'nombre',e.target.value)}
+                            style={{width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${T.border}`,borderRadius:8,padding:'10px 12px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',minHeight:44}}/>
+                        </div>
+                        <div>
+                          <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:5,letterSpacing:0.5}}>Seg.</label>
+                          <input type="number" min="0" value={s.duracion} onChange={e=>updateSec(i,'duracion',e.target.value)}
+                            style={{width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${T.border}`,borderRadius:8,padding:'10px 8px',fontFamily:'Inter,sans-serif',fontSize:14,fontWeight:700,color:ch.color,outline:'none',textAlign:'center',minHeight:44}}/>
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:5,letterSpacing:0.5}}>Guión</label>
+                        <textarea value={s.texto} onChange={e=>updateSec(i,'texto',e.target.value)}
+                          placeholder={`Texto del guión para "${s.nombre}"...`}
+                          rows={5}
+                          style={{width:'100%',background:T.s2,border:`1px solid ${T.border}`,borderRadius:10,padding:'12px',fontFamily:'Inter,sans-serif',fontSize:14,color:T.text,outline:'none',lineHeight:1.7,resize:'vertical'}}
+                          onFocus={e=>{e.target.style.borderColor=T.borderH;}} onBlur={e=>{e.target.style.borderColor=T.border;}}/>
+                        <div style={{fontSize:11,color:T.dim,marginTop:4,textAlign:'right'}}>{s.texto.trim()?s.texto.trim().split(/\s+/).length:0} palabras</div>
+                      </div>
+                      <div style={{display:'flex',gap:8}}>
+                        <button onClick={()=>moveSection(i,-1)} disabled={i===0} style={{flex:1,minHeight:44,borderRadius:8,background:'transparent',border:`1px solid ${T.border}`,color:i===0?T.dim:T.muted,cursor:i===0?'default':'pointer',fontSize:13,fontFamily:'Inter,sans-serif'}}>↑ Subir</button>
+                        <button onClick={()=>moveSection(i,1)} disabled={i===secs.length-1} style={{flex:1,minHeight:44,borderRadius:8,background:'transparent',border:`1px solid ${T.border}`,color:i===secs.length-1?T.dim:T.muted,cursor:i===secs.length-1?'default':'pointer',fontSize:13,fontFamily:'Inter,sans-serif'}}>↓ Bajar</button>
+                        <button onClick={()=>deleteSection(i)} style={{minHeight:44,padding:'0 14px',borderRadius:8,background:'rgba(248,113,113,0.06)',border:'1px solid rgba(248,113,113,0.2)',color:'rgba(248,113,113,0.7)',cursor:'pointer',fontSize:13,fontFamily:'Inter,sans-serif'}}>✕</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div style={{fontSize:10,color:T.dim,paddingLeft:24}}>{fmtSec(parseInt(s.duracion)||0)}</div>
-              </div>
-            );
-          })}
-          <button onClick={addSection} style={{marginTop:4,padding:'9px',borderRadius:10,background:'transparent',border:`1px dashed ${T.border}`,color:T.dim,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.18s'}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderH;e.currentTarget.style.color=T.muted;}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}>
+              );
+            })}
+          </div>
+          <button onClick={addSection} style={{width:'100%',padding:'14px',borderRadius:10,background:'transparent',border:`1px dashed ${T.border}`,color:T.dim,fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:48,marginBottom:12}}>
             + Sección
           </button>
+          <div style={{padding:'12px 14px',background:T.s2,borderRadius:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:12,color:T.muted}}>{secs.length} secciones</span>
+            <span style={{fontSize:13,fontWeight:700,color:ch.color}}>Total: {fmtSec(totalSec)}</span>
+          </div>
         </div>
-
-        {/* Editor principal */}
-        {active && (
-          <div style={{flex:1,overflowY:'auto',padding:'24px 28px',display:'flex',flexDirection:'column',gap:20}}>
-            {/* Section header */}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:T.dim,marginBottom:6}}>Sección {activeIdx+1} de {secs.length}</div>
-                {editingName===activeIdx
-                  ? <input autoFocus value={active.nombre} onChange={e=>updateSec(activeIdx,'nombre',e.target.value)} onBlur={()=>setEditingName(null)} onKeyDown={e=>{if(e.key==='Enter')setEditingName(null);}}
-                      style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.text,background:'transparent',border:'none',borderBottom:`1px solid ${ch.color}`,outline:'none',width:'100%',paddingBottom:2}}/>
-                  : <h2 onClick={()=>setEditingName(activeIdx)} style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.text,cursor:'text',display:'flex',alignItems:'center',gap:10}} title="Clic para editar nombre">
-                      {active.nombre} <span style={{fontSize:12,color:T.dim,fontFamily:'Inter,sans-serif',fontWeight:400}}>✎</span>
-                    </h2>
-                }
-              </div>
-              <div style={{display:'flex',gap:6,flexShrink:0}}>
-                <button onClick={()=>moveSection(activeIdx,-1)} disabled={activeIdx===0} style={{width:28,height:28,borderRadius:7,background:'transparent',border:`1px solid ${T.border}`,color:activeIdx===0?T.dim:T.muted,cursor:activeIdx===0?'default':'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center'}}>↑</button>
-                <button onClick={()=>moveSection(activeIdx,1)} disabled={activeIdx===secs.length-1} style={{width:28,height:28,borderRadius:7,background:'transparent',border:`1px solid ${T.border}`,color:activeIdx===secs.length-1?T.dim:T.muted,cursor:activeIdx===secs.length-1?'default':'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center'}}>↓</button>
-                <button onClick={()=>deleteSection(activeIdx)} style={{width:28,height:28,borderRadius:7,background:'transparent',border:'1px solid rgba(248,113,113,0.2)',color:'rgba(248,113,113,0.5)',cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}}
-                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,0.08)';e.currentTarget.style.color=T.red;}}
-                  onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(248,113,113,0.5)';}}>✕</button>
-              </div>
-            </div>
-
-            {/* Duration + word count row */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
-              <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px'}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:T.dim,marginBottom:8}}>Duración estimada</div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <input type="number" min="0" max="3600" value={active.duracion} onChange={e=>updateSec(activeIdx,'duracion',e.target.value)}
-                    style={{width:70,background:'rgba(255,255,255,0.04)',border:`1px solid ${T.border}`,borderRadius:8,padding:'6px 10px',fontFamily:'Inter,sans-serif',fontSize:15,fontWeight:700,color:ch.color,outline:'none',textAlign:'center'}}/>
-                  <span style={{fontSize:12,color:T.muted}}>seg · <span style={{color:T.dim}}>{fmtSec(parseInt(active.duracion)||0)}</span></span>
+      ) : (
+        /* ── Desktop: 2-column ── */
+        <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+          <div style={{width:240,borderRight:`1px solid ${T.border}`,overflowY:'auto',padding:'16px 12px',display:'flex',flexDirection:'column',gap:6,flexShrink:0}}>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:T.dim,marginBottom:8,paddingLeft:4}}>Secciones</div>
+            {secs.map((s,i)=>{
+              const isActive=i===activeIdx;
+              const filled=s.texto.trim().length>0;
+              return(
+                <div key={s.id} onClick={()=>setActiveIdx(i)}
+                  style={{padding:'10px 12px',borderRadius:10,background:isActive?ch.colorBg:'transparent',border:`1px solid ${isActive?ch.colorBorder:T.border}`,cursor:'pointer',transition:'all 0.18s'}}
+                  onMouseEnter={e=>{if(!isActive){e.currentTarget.style.background='rgba(255,255,255,0.03)';e.currentTarget.style.borderColor=T.borderH;}}}
+                  onMouseLeave={e=>{if(!isActive){e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor=T.border;}}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                    <span style={{width:18,height:18,borderRadius:5,background:isActive?`${ch.color}20`:'rgba(255,255,255,0.04)',border:`1px solid ${isActive?ch.colorBorder:T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:isActive?ch.color:T.dim,fontWeight:700,flexShrink:0}}>{i+1}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:isActive?ch.colorLight:T.muted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{s.nombre}</span>
+                    {filled&&<span style={{width:5,height:5,borderRadius:'50%',background:T.green,flexShrink:0}}/>}
+                  </div>
+                  <div style={{fontSize:10,color:T.dim,paddingLeft:24}}>{fmtSec(parseInt(s.duracion)||0)}</div>
+                </div>
+              );
+            })}
+            <button onClick={addSection} style={{marginTop:4,padding:'9px',borderRadius:10,background:'transparent',border:`1px dashed ${T.border}`,color:T.dim,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.18s'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderH;e.currentTarget.style.color=T.muted;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}>
+              + Sección
+            </button>
+          </div>
+          {active&&(
+            <div style={{flex:1,overflowY:'auto',padding:'24px 28px',display:'flex',flexDirection:'column',gap:20}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:T.dim,marginBottom:6}}>Sección {activeIdx+1} de {secs.length}</div>
+                  {editingName===activeIdx
+                    ? <input autoFocus value={active.nombre} onChange={e=>updateSec(activeIdx,'nombre',e.target.value)} onBlur={()=>setEditingName(null)} onKeyDown={e=>{if(e.key==='Enter')setEditingName(null);}}
+                        style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.text,background:'transparent',border:'none',borderBottom:`1px solid ${ch.color}`,outline:'none',width:'100%',paddingBottom:2}}/>
+                    : <h2 onClick={()=>setEditingName(activeIdx)} style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.text,cursor:'text',display:'flex',alignItems:'center',gap:10}}>
+                        {active.nombre} <span style={{fontSize:12,color:T.dim,fontFamily:'Inter,sans-serif',fontWeight:400}}>✎</span>
+                      </h2>
+                  }
+                </div>
+                <div style={{display:'flex',gap:6,flexShrink:0}}>
+                  <button onClick={()=>moveSection(activeIdx,-1)} disabled={activeIdx===0} style={{width:28,height:28,borderRadius:7,background:'transparent',border:`1px solid ${T.border}`,color:activeIdx===0?T.dim:T.muted,cursor:activeIdx===0?'default':'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center'}}>↑</button>
+                  <button onClick={()=>moveSection(activeIdx,1)} disabled={activeIdx===secs.length-1} style={{width:28,height:28,borderRadius:7,background:'transparent',border:`1px solid ${T.border}`,color:activeIdx===secs.length-1?T.dim:T.muted,cursor:activeIdx===secs.length-1?'default':'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center'}}>↓</button>
+                  <button onClick={()=>deleteSection(activeIdx)} style={{width:28,height:28,borderRadius:7,background:'transparent',border:'1px solid rgba(248,113,113,0.2)',color:'rgba(248,113,113,0.5)',cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,0.08)';e.currentTarget.style.color=T.red;}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(248,113,113,0.5)';}}>✕</button>
                 </div>
               </div>
-              <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px'}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:T.dim,marginBottom:8}}>Palabras</div>
-                <div style={{fontSize:22,fontWeight:700,color:T.text,lineHeight:1}}>{active.texto.trim()?active.texto.trim().split(/\s+/).length:0}</div>
-                <div style={{fontSize:11,color:T.dim,marginTop:2}}>≈ {Math.ceil((active.texto.trim().split(/\s+/).length||0)/130)} min lectura</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:T.dim,marginBottom:8}}>Duración estimada</div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <input type="number" min="0" max="3600" value={active.duracion} onChange={e=>updateSec(activeIdx,'duracion',e.target.value)}
+                      style={{width:70,background:'rgba(255,255,255,0.04)',border:`1px solid ${T.border}`,borderRadius:8,padding:'6px 10px',fontFamily:'Inter,sans-serif',fontSize:15,fontWeight:700,color:ch.color,outline:'none',textAlign:'center'}}/>
+                    <span style={{fontSize:12,color:T.muted}}>seg · <span style={{color:T.dim}}>{fmtSec(parseInt(active.duracion)||0)}</span></span>
+                  </div>
+                </div>
+                <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:T.dim,marginBottom:8}}>Palabras</div>
+                  <div style={{fontSize:22,fontWeight:700,color:T.text,lineHeight:1}}>{active.texto.trim()?active.texto.trim().split(/\s+/).length:0}</div>
+                  <div style={{fontSize:11,color:T.dim,marginTop:2}}>≈ {Math.ceil((active.texto.trim().split(/\s+/).length||0)/130)} min lectura</div>
+                </div>
+                <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:T.dim,marginBottom:8}}>Total guión</div>
+                  <div style={{fontSize:22,fontWeight:700,color:ch.color,lineHeight:1}}>{fmtSec(totalSec)}</div>
+                  <div style={{fontSize:11,color:T.dim,marginTop:2}}>{secs.length} sección{secs.length!==1?'es':''}</div>
+                </div>
               </div>
-              <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px'}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:T.dim,marginBottom:8}}>Total guión</div>
-                <div style={{fontSize:22,fontWeight:700,color:ch.color,lineHeight:1}}>{fmtSec(totalSec)}</div>
-                <div style={{fontSize:11,color:T.dim,marginTop:2}}>{secs.length} sección{secs.length!==1?'es':''}</div>
+              <div>
+                <div style={{fontSize:11,fontWeight:600,color:T.muted,marginBottom:8,letterSpacing:0.5}}>Guión · {active.nombre}</div>
+                <textarea value={active.texto} onChange={e=>updateSec(activeIdx,'texto',e.target.value)}
+                  placeholder={`Escribe el guión para "${active.nombre}"...\n\nTips:\n— Usa corchetes [B-ROLL] para tomas de apoyo\n— Usa [PAUSA] para tiempos\n— Usa [TEXTO EN PANTALLA: ...] para textos en video`}
+                  style={{width:'100%',minHeight:280,background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'16px 18px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',lineHeight:1.8,resize:'vertical',transition:'border-color 0.2s'}}
+                  onFocus={e=>{e.target.style.borderColor=T.borderH;}} onBlur={e=>{e.target.style.borderColor=T.border;}}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{fontSize:11,color:T.dim,flexShrink:0}}>Progreso del guión</div>
+                <div style={{flex:1,height:3,background:'rgba(255,255,255,0.06)',borderRadius:2,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${Math.min(100,(active.texto.trim().split(/\s+/).length||0)/2)}%`,background:ch.gradient,borderRadius:2,transition:'width 0.3s'}}/>
+                </div>
+                <div style={{fontSize:11,color:T.dim,flexShrink:0}}>{Math.min(100,Math.round((active.texto.trim().split(/\s+/).length||0)/2))}%</div>
               </div>
             </div>
-
-            {/* Texto del guión */}
-            <div>
-              <div style={{fontSize:11,fontWeight:600,color:T.muted,marginBottom:8,letterSpacing:0.5}}>Guión · {active.nombre}</div>
-              <textarea
-                value={active.texto}
-                onChange={e=>updateSec(activeIdx,'texto',e.target.value)}
-                placeholder={`Escribe el guión para "${active.nombre}"...\n\nTips:\n— Usa corchetes [B-ROLL] para indicar tomas de apoyo\n— Usa [PAUSA] para indicar tiempos\n— Usa [TEXTO EN PANTALLA: ...] para textos que aparecen en el video`}
-                style={{width:'100%',minHeight:280,background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'16px 18px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',lineHeight:1.8,resize:'vertical',transition:'border-color 0.2s'}}
-                onFocus={e=>{e.target.style.borderColor=T.borderH;}}
-                onBlur={e=>{e.target.style.borderColor=T.border;}}
-              />
-            </div>
-
-            {/* Progress bar of this section */}
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{fontSize:11,color:T.dim,flexShrink:0}}>Progreso del guión</div>
-              <div style={{flex:1,height:3,background:'rgba(255,255,255,0.06)',borderRadius:2,overflow:'hidden'}}>
-                <div style={{height:'100%',width:`${Math.min(100,(active.texto.trim().split(/\s+/).length||0)/2)}%`,background:ch.gradient,borderRadius:2,transition:'width 0.3s'}}/>
-              </div>
-              <div style={{fontSize:11,color:T.dim,flexShrink:0}}>{Math.min(100,Math.round((active.texto.trim().split(/\s+/).length||0)/2))}%</div>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════
-   SIDEBAR
+   SIDEBAR — desktop column / mobile bottom bar
 ═══════════════════════════════════════════════ */
-function Sidebar({active,onNav,activeChannel,setActiveChannel}){
+function Sidebar({active,onNav,isMobile}){
   const navItems=[
     {id:'canal',icon:'◉',label:'Canal'},
     {id:'contenido',icon:'▤',label:'Contenido'},
     {id:'produccion',icon:'◎',label:'Producción'},
     {id:'semanal',icon:'⊟',label:'Semana'},
   ];
+  if(isMobile){
+    return(
+      <div style={{position:'fixed',bottom:0,left:0,right:0,height:56,background:T.s1,borderTop:`1px solid ${T.border}`,display:'flex',alignItems:'stretch',zIndex:20,backdropFilter:'blur(10px)'}}>
+        {navItems.map(n=>(
+          <button key={n.id} onClick={()=>onNav(n.id)}
+            style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,background:'transparent',border:'none',cursor:'pointer',color:active===n.id?T.purpleL:T.dim,transition:'color 0.18s',fontFamily:'Inter,sans-serif',minHeight:56,borderTop:active===n.id?`2px solid ${T.purple}`:'2px solid transparent'}}>
+            <span style={{fontSize:17,fontFamily:'monospace'}}>{n.icon}</span>
+            <span style={{fontSize:9,fontWeight:600,letterSpacing:0.3}}>{n.label}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
   return(
-    <div style={{width:60,background:T.s1,borderRight:`1px solid ${T.border}`,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:16,paddingBottom:16,gap:4,flexShrink:0,zIndex:10,position:'relative'}}>
+    <div style={{width:60,background:T.s1,borderRight:`1px solid ${T.border}`,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:16,paddingBottom:16,gap:4,flexShrink:0,zIndex:10}}>
       <div style={{marginBottom:16}}>
         <div style={{width:32,height:32,borderRadius:8,background:'rgba(155,114,240,0.15)',border:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'center',color:T.purple}}>
           {CHANNELS.iarcania.logo}
@@ -485,52 +635,58 @@ function Sidebar({active,onNav,activeChannel,setActiveChannel}){
 }
 
 /* ═══════════════════════════════════════════════
-   SECTION 1 — Canal y Plataforma
+   SECTION 1 — Canal (simplified, 2 cards side by side)
 ═══════════════════════════════════════════════ */
-function SectionCanal({canalConfig,setCanalConfig}){
-  const platforms=['YouTube','TikTok','Instagram'];
-  const platColors={YouTube:'#ff4444',TikTok:'#ee1d52',Instagram:'#bc1888'};
-
+function SectionCanal({canalConfig,setCanalConfig,isMobile}){
+  function togglePlat(chId,p){
+    setCanalConfig(prev=>{
+      const cfg=prev[chId]||{nombre:'',platforms:[]};
+      const plats=cfg.platforms||[];
+      const next=plats.includes(p)?plats.filter(x=>x!==p):[...plats,p];
+      return{...prev,[chId]:{...cfg,platforms:next}};
+    });
+  }
+  const px=isMobile?12:28;
   return(
-    <div style={{padding:'28px',animation:'fadeIn 0.35s ease',overflowY:'auto',flex:1}}>
+    <div style={{padding:`28px ${px}px`,animation:'fadeIn 0.35s ease',overflowY:'auto',flex:1}}>
       <div style={{marginBottom:22}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:6,display:'flex',alignItems:'center',gap:8}}><span style={{width:18,height:1,background:T.gold,display:'inline-block'}}/>Canales</div>
         <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.text}}>Configuración de canales</h2>
       </div>
-      <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16}}>
         {Object.values(CHANNELS).map(ch=>{
-          const cfg=canalConfig[ch.id]||{platform:'YouTube',nombre:ch.name};
+          const cfg=canalConfig[ch.id]||{nombre:ch.name,platforms:['YouTube']};
+          const plats=cfg.platforms||[];
           return(
-            <div key={ch.id} style={{background:T.s2,border:`1px solid ${ch.colorBorder}`,borderRadius:16,padding:'22px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
-                <div style={{width:36,height:36,borderRadius:10,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:ch.color}}>{ch.logo}</div>
-                <div>
-                  <div style={{fontSize:14,fontWeight:700,color:T.text}}>{ch.name}</div>
-                  <div style={{fontSize:11,color:T.muted}}>{ch.label}</div>
-                </div>
-                <div style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:5,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',borderRadius:100,padding:'3px 10px',fontSize:10,fontWeight:600,color:T.green}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:T.green,animation:'pulse 2s infinite'}}/>Activo
-                </div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                <div>
-                  <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:6,letterSpacing:0.5}}>Nombre del canal</label>
-                  <input value={cfg.nombre} onChange={e=>setCanalConfig(prev=>({...prev,[ch.id]:{...cfg,nombre:e.target.value}}))} style={{width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${T.border}`,borderRadius:10,padding:'9px 12px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none'}}/>
-                </div>
-                <div>
-                  <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:6,letterSpacing:0.5}}>Plataforma principal</label>
-                  <div style={{display:'flex',gap:8}}>
-                    {platforms.map(p=>{
-                      const sel=cfg.platform===p;
-                      return(
-                        <button key={p} onClick={()=>setCanalConfig(prev=>({...prev,[ch.id]:{...cfg,platform:p}}))}
-                          style={{flex:1,padding:'8px 4px',borderRadius:9,background:sel?`${platColors[p]}15`:'rgba(255,255,255,0.02)',border:`1px solid ${sel?platColors[p]+'55':T.border}`,color:sel?platColors[p]:T.dim,cursor:'pointer',transition:'all 0.2s',display:'flex',flexDirection:'column',alignItems:'center',gap:5,fontFamily:'Inter,sans-serif'}}>
-                          <PlatformIcon p={p} active={sel} size={18}/>
-                          <span style={{fontSize:9,fontWeight:600}}>{p}</span>
-                        </button>
-                      );
-                    })}
+            <div key={ch.id} style={{background:T.s2,border:`1px solid ${ch.colorBorder}`,borderRadius:16,overflow:'hidden'}}>
+              <div style={{height:3,background:ch.gradient}}/>
+              <div style={{padding:'20px 18px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
+                  <div style={{width:40,height:40,borderRadius:10,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:ch.color,flexShrink:0}}>{ch.logo}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:ch.color,marginBottom:1}}>{ch.name}</div>
+                    <div style={{fontSize:12,color:T.muted}}>{ch.label}</div>
                   </div>
+                  <div style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',borderRadius:100,padding:'3px 8px',fontSize:9,fontWeight:700,color:T.green}}>
+                    <span style={{width:4,height:4,borderRadius:'50%',background:T.green,animation:'pulse 2s infinite'}}/>Activo
+                  </div>
+                </div>
+                <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:6,letterSpacing:0.5}}>Nombre del canal</label>
+                <input value={cfg.nombre} onChange={e=>setCanalConfig(prev=>({...prev,[ch.id]:{...cfg,nombre:e.target.value}}))}
+                  style={{width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${T.border}`,borderRadius:10,padding:'10px 12px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',minHeight:44,marginBottom:18}}/>
+                <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:8,letterSpacing:0.5}}>Plataformas activas</label>
+                <div style={{display:'flex',gap:8}}>
+                  {PLATFORMS.map(p=>{
+                    const sel=plats.includes(p);
+                    return(
+                      <button key={p} onClick={()=>togglePlat(ch.id,p)}
+                        style={{flex:1,minHeight:60,padding:'8px 4px',borderRadius:10,background:sel?`${PLAT_COLORS[p]}18`:'rgba(255,255,255,0.02)',border:`1px solid ${sel?PLAT_COLORS[p]+'55':T.border}`,color:sel?PLAT_COLORS[p]:T.dim,cursor:'pointer',transition:'all 0.2s',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,fontFamily:'Inter,sans-serif',position:'relative'}}>
+                        {sel&&<div style={{position:'absolute',top:6,right:6,width:6,height:6,borderRadius:'50%',background:PLAT_COLORS[p]}}/>}
+                        <PlatformIcon p={p} active={sel} size={18}/>
+                        <span style={{fontSize:9,fontWeight:600}}>{p}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -544,17 +700,18 @@ function SectionCanal({canalConfig,setCanalConfig}){
 /* ═══════════════════════════════════════════════
    CONTENT CARD
 ═══════════════════════════════════════════════ */
-function ContentCard({item,onStatusChange,onDelete,onOpenGuion}){
+function ContentCard({item,onStatusChange,onDelete,onOpenGuion,isMobile}){
   const [hov,setHov]=useState(false);
   const [menuOpen,setMenuOpen]=useState(false);
   const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
   const doneSteps=Object.values(item.steps).filter(Boolean).length;
   const pct=Math.round((doneSteps/PROD_STEPS.length)*100);
   const guionFilled=item.guion&&item.guion.some(s=>s.texto&&s.texto.trim().length>0);
+  const px=isMobile?12:18;
 
   return(
     <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>{setHov(false);setMenuOpen(false);}}
-      style={{background:hov?T.s2:T.s1,border:`1px solid ${hov?ch.colorBorder:T.border}`,borderRadius:14,padding:'16px 18px',transition:'all 0.2s',position:'relative',transform:hov?'translateY(-1px)':'none'}}>
+      style={{background:hov?T.s2:T.s1,border:`1px solid ${hov?ch.colorBorder:T.border}`,borderRadius:14,padding:`16px ${px}px`,transition:'all 0.2s',position:'relative'}}>
       <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${ch.color},transparent)`,borderRadius:'14px 14px 0 0',opacity:hov?1:0,transition:'opacity 0.2s'}}/>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12}}>
         <div style={{flex:1,minWidth:0}}>
@@ -564,7 +721,7 @@ function ContentCard({item,onStatusChange,onDelete,onOpenGuion}){
             <StatusBadge status={item.estado} small/>
             {guionFilled&&<span style={{fontSize:10,fontWeight:600,color:T.green,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',borderRadius:100,padding:'1px 7px'}}>✓ Guión</span>}
           </div>
-          <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:6,textWrap:'pretty'}}>{item.titulo}</div>
+          <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:6,lineHeight:1.4}}>{item.titulo}</div>
           <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
             {item.fechaGrab&&<span style={{fontSize:11,color:T.muted,display:'flex',alignItems:'center',gap:4}}><span style={{color:T.dim}}>●</span>{item.fechaGrab}{item.horaGrab&&` · ${item.horaGrab}`}</span>}
             {item.horaPub&&<span style={{fontSize:11,color:T.muted,display:'flex',alignItems:'center',gap:4}}><span style={{color:T.gold,fontSize:9}}>▲</span>Pub: {item.horaPub}</span>}
@@ -572,23 +729,22 @@ function ContentCard({item,onStatusChange,onDelete,onOpenGuion}){
         </div>
         <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8,flexShrink:0}}>
           <div style={{display:'flex',gap:6}}>
-            <button onClick={()=>onOpenGuion(item)} style={{background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:8,padding:'5px 10px',color:ch.color,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'opacity 0.2s',whiteSpace:'nowrap'}}
-              onMouseEnter={e=>{e.currentTarget.style.opacity='0.7';}} onMouseLeave={e=>{e.currentTarget.style.opacity='1';}}>
+            <button onClick={()=>onOpenGuion(item)} style={{background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:8,padding:'0 10px',color:ch.color,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:36,whiteSpace:'nowrap'}}>
               ✎ Guión
             </button>
             <div style={{position:'relative'}}>
-              <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:'transparent',border:`1px solid ${T.border}`,borderRadius:8,color:T.dim,fontSize:11,padding:'5px 8px',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>···</button>
+              <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:'transparent',border:`1px solid ${T.border}`,borderRadius:8,color:T.dim,fontSize:11,padding:'0 8px',cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:36}}>···</button>
               {menuOpen&&(
                 <div style={{position:'absolute',right:0,top:'calc(100% + 4px)',background:T.s3,border:`1px solid ${T.border}`,borderRadius:10,padding:'4px',zIndex:100,minWidth:140,boxShadow:'0 16px 40px rgba(0,0,0,0.6)'}}>
                   {Object.entries(STATUS).map(([v,s])=>(
                     <button key={v} onClick={()=>{onStatusChange(item.id,v);setMenuOpen(false);}}
-                      style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'7px 10px',background:'transparent',border:'none',color:item.estado===v?s.color:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:7,fontFamily:'Inter,sans-serif',transition:'background 0.15s'}}
+                      style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 10px',background:'transparent',border:'none',color:item.estado===v?s.color:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:7,fontFamily:'Inter,sans-serif',minHeight:36}}
                       onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
                       <span style={{width:6,height:6,borderRadius:'50%',background:s.dot}}/>{s.label}
                     </button>
                   ))}
                   <div style={{height:1,background:T.border,margin:'4px 0'}}/>
-                  <button onClick={()=>onDelete(item.id)} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'7px 10px',background:'transparent',border:'none',color:'rgba(248,113,113,0.7)',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:7,fontFamily:'Inter,sans-serif'}}
+                  <button onClick={()=>onDelete(item.id)} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 10px',background:'transparent',border:'none',color:'rgba(248,113,113,0.7)',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:7,fontFamily:'Inter,sans-serif',minHeight:36}}
                     onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,0.06)';}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>✕ Eliminar</button>
                 </div>
               )}
@@ -609,10 +765,11 @@ function ContentCard({item,onStatusChange,onDelete,onOpenGuion}){
 /* ═══════════════════════════════════════════════
    SECTION 2 — Plan de Contenido
 ═══════════════════════════════════════════════ */
-function SectionContenido({items,setItems,onOpenGuion,activeChannel}){
+function SectionContenido({items,setItems,onOpenGuion,isMobile}){
   const [showModal,setShowModal]=useState(false);
   const [filter,setFilter]=useState('all');
   const [chanFilter,setChanFilter]=useState('all');
+  const px=isMobile?12:28;
 
   const filtered=items.filter(i=>{
     const chanOk=chanFilter==='all'||i.canal===chanFilter;
@@ -630,46 +787,42 @@ function SectionContenido({items,setItems,onOpenGuion,activeChannel}){
   return(
     <div style={{display:'flex',flexDirection:'column',height:'100%',animation:'fadeIn 0.35s ease'}}>
       {showModal&&<NewContentModal onSave={handleSave} onClose={()=>setShowModal(false)}/>}
-      {/* Header */}
-      <div style={{padding:'22px 28px 14px',borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14}}>
+      <div style={{padding:`22px ${px}px 14px`,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14,gap:10}}>
           <div>
             <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:5,display:'flex',alignItems:'center',gap:8}}><span style={{width:18,height:1,background:T.gold,display:'inline-block'}}/>Plan de Contenido</div>
-            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:21,fontWeight:700,color:T.text}}>{filtered.length} {filtered.length===1?'pieza':'piezas'} planificadas</h2>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?18:21,fontWeight:700,color:T.text}}>{filtered.length} {filtered.length===1?'pieza':'piezas'}</h2>
           </div>
-          <button onClick={()=>setShowModal(true)} style={{display:'flex',alignItems:'center',gap:8,background:'rgba(155,114,240,0.16)',border:`1px solid ${T.borderH}`,borderRadius:10,padding:'9px 16px',color:T.purpleL,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s'}}
+          <button onClick={()=>setShowModal(true)} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(155,114,240,0.16)',border:`1px solid ${T.borderH}`,borderRadius:10,padding:'0 14px',color:T.purpleL,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:44,flexShrink:0}}
             onMouseEnter={e=>{e.currentTarget.style.background='rgba(155,114,240,0.28)';}}
             onMouseLeave={e=>{e.currentTarget.style.background='rgba(155,114,240,0.16)';}}>
-            <span style={{fontSize:16}}>+</span> Agregar contenido
+            <span style={{fontSize:16}}>+</span>{!isMobile&&' Agregar'}
           </button>
         </div>
-        {/* Channel filter */}
-        <div style={{display:'flex',gap:6,marginBottom:10}}>
-          {[['all','Todos los canales'],...Object.values(CHANNELS).map(ch=>[ch.id,ch.name])].map(([v,l])=>{
+        <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+          {[['all','Todos'],...Object.values(CHANNELS).map(ch=>[ch.id,ch.name])].map(([v,l])=>{
             const ch=CHANNELS[v];
             return(
-              <button key={v} onClick={()=>setChanFilter(v)} style={{padding:'4px 12px',borderRadius:100,fontSize:11,fontWeight:600,background:chanFilter===v?(ch?ch.colorBg:'rgba(155,114,240,0.16)'):'transparent',border:`1px solid ${chanFilter===v?(ch?ch.colorBorder:T.borderH):T.border}`,color:chanFilter===v?(ch?ch.color:T.purpleL):T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:5}}>
+              <button key={v} onClick={()=>setChanFilter(v)} style={{padding:'4px 12px',minHeight:36,borderRadius:100,fontSize:11,fontWeight:600,background:chanFilter===v?(ch?ch.colorBg:'rgba(155,114,240,0.16)'):'transparent',border:`1px solid ${chanFilter===v?(ch?ch.colorBorder:T.borderH):T.border}`,color:chanFilter===v?(ch?ch.color:T.purpleL):T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:5}}>
                 {ch&&<span style={{color:chanFilter===v?ch.color:T.dim}}>{ch.logo}</span>}{l}
               </button>
             );
           })}
         </div>
-        {/* Status filter */}
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {[['all','Todos'],...Object.entries(STATUS).map(([v,s])=>[v,s.label])].map(([v,l])=>(
-            <button key={v} onClick={()=>setFilter(v)} style={{padding:'4px 11px',borderRadius:100,fontSize:11,fontWeight:600,background:filter===v?'rgba(155,114,240,0.16)':'transparent',border:`1px solid ${filter===v?T.borderH:T.border}`,color:filter===v?T.purpleL:T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif'}}>{l}</button>
+            <button key={v} onClick={()=>setFilter(v)} style={{padding:'4px 11px',minHeight:36,borderRadius:100,fontSize:11,fontWeight:600,background:filter===v?'rgba(155,114,240,0.16)':'transparent',border:`1px solid ${filter===v?T.borderH:T.border}`,color:filter===v?T.purpleL:T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif'}}>{l}</button>
           ))}
         </div>
       </div>
-      {/* List */}
-      <div style={{flex:1,overflowY:'auto',padding:'14px 28px',display:'flex',flexDirection:'column',gap:8}}>
+      <div style={{flex:1,overflowY:'auto',padding:`14px ${px}px`,display:'flex',flexDirection:'column',gap:8}}>
         {filtered.length===0&&(
           <div style={{textAlign:'center',padding:'60px 0',color:T.dim}}>
             <div style={{fontSize:32,marginBottom:12}}>◎</div>
             <div style={{fontSize:14,fontWeight:500}}>Sin contenido {filter!=='all'?'en este estado':chanFilter!=='all'?`para ${CHANNELS[chanFilter]?.name}`:'planificado'}</div>
           </div>
         )}
-        {filtered.map(item=><ContentCard key={item.id} item={item} onStatusChange={updateStatus} onDelete={deleteItem} onOpenGuion={onOpenGuion}/>)}
+        {filtered.map(item=><ContentCard key={item.id} item={item} onStatusChange={updateStatus} onDelete={deleteItem} onOpenGuion={onOpenGuion} isMobile={isMobile}/>)}
       </div>
     </div>
   );
@@ -678,9 +831,10 @@ function SectionContenido({items,setItems,onOpenGuion,activeChannel}){
 /* ═══════════════════════════════════════════════
    SECTION 3 — Producción
 ═══════════════════════════════════════════════ */
-function SectionProduccion({items,setItems}){
+function SectionProduccion({items,setItems,isMobile}){
   const [expanded,setExpanded]=useState({});
   const [chanFilter,setChanFilter]=useState('all');
+  const px=isMobile?12:28;
 
   const filtered=chanFilter==='all'?items:items.filter(i=>i.canal===chanFilter);
 
@@ -699,17 +853,17 @@ function SectionProduccion({items,setItems}){
 
   return(
     <div style={{display:'flex',flexDirection:'column',height:'100%',animation:'fadeIn 0.35s ease'}}>
-      <div style={{padding:'22px 28px 14px',borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+      <div style={{padding:`22px ${px}px 14px`,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:5,display:'flex',alignItems:'center',gap:8}}><span style={{width:18,height:1,background:T.gold,display:'inline-block'}}/>Paso a paso</div>
-        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:21,fontWeight:700,color:T.text,marginBottom:14}}>Producción</h2>
-        <div style={{display:'flex',gap:6}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?18:21,fontWeight:700,color:T.text,marginBottom:14}}>Producción</h2>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {[['all','Todos'],...Object.values(CHANNELS).map(ch=>[ch.id,ch.name])].map(([v,l])=>{
             const ch=CHANNELS[v];
-            return(<button key={v} onClick={()=>setChanFilter(v)} style={{padding:'4px 12px',borderRadius:100,fontSize:11,fontWeight:600,background:chanFilter===v?(ch?ch.colorBg:'rgba(155,114,240,0.16)'):'transparent',border:`1px solid ${chanFilter===v?(ch?ch.colorBorder:T.borderH):T.border}`,color:chanFilter===v?(ch?ch.color:T.purpleL):T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:5}}>{ch&&<span>{ch.logo}</span>}{l}</button>);
+            return(<button key={v} onClick={()=>setChanFilter(v)} style={{padding:'4px 12px',minHeight:36,borderRadius:100,fontSize:11,fontWeight:600,background:chanFilter===v?(ch?ch.colorBg:'rgba(155,114,240,0.16)'):'transparent',border:`1px solid ${chanFilter===v?(ch?ch.colorBorder:T.borderH):T.border}`,color:chanFilter===v?(ch?ch.color:T.purpleL):T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:5}}>{ch&&<span>{ch.logo}</span>}{l}</button>);
           })}
         </div>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'14px 28px',display:'flex',flexDirection:'column',gap:8}}>
+      <div style={{flex:1,overflowY:'auto',padding:`14px ${px}px`,display:'flex',flexDirection:'column',gap:8}}>
         {filtered.length===0&&(<div style={{textAlign:'center',padding:'60px 0',color:T.dim}}><div style={{fontSize:32,marginBottom:12}}>◎</div><div style={{fontSize:14}}>Sin contenido para mostrar</div></div>)}
         {filtered.map(item=>{
           const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
@@ -718,31 +872,31 @@ function SectionProduccion({items,setItems}){
           const isOpen=!!expanded[item.id];
           return(
             <div key={item.id} style={{background:T.s1,border:`1px solid ${isOpen?ch.colorBorder:T.border}`,borderRadius:14,overflow:'hidden',transition:'border-color 0.2s'}}>
-              <button onClick={()=>setExpanded(e=>({...e,[item.id]:!e[item.id]}))} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'14px 18px',background:'transparent',border:'none',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+              <button onClick={()=>setExpanded(e=>({...e,[item.id]:!e[item.id]}))} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:'transparent',border:'none',cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:56}}>
                 <div style={{flex:1,textAlign:'left'}}>
                   <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4,flexWrap:'wrap'}}>
                     <ChannelBadge channelId={item.canal} small/>
                     <FormatBadge format={item.formato}/>
                     <StatusBadge status={item.estado} small/>
                   </div>
-                  <div style={{fontSize:13,fontWeight:700,color:T.text}}>{item.titulo}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:T.text,lineHeight:1.4}}>{item.titulo}</div>
                 </div>
                 <div style={{flexShrink:0,textAlign:'right'}}>
                   <div style={{fontSize:11,fontWeight:700,color:pct===100?T.green:ch.color,marginBottom:4}}>{pct}%</div>
-                  <div style={{width:90,height:4,background:'rgba(255,255,255,0.06)',borderRadius:2,overflow:'hidden'}}>
+                  <div style={{width:80,height:4,background:'rgba(255,255,255,0.06)',borderRadius:2,overflow:'hidden'}}>
                     <div style={{height:'100%',width:`${pct}%`,background:pct===100?'linear-gradient(90deg,#22c55e,#4ade80)':ch.gradient,borderRadius:2,transition:'width 0.4s ease'}}/>
                   </div>
                 </div>
                 <span style={{color:T.dim,fontSize:12,marginLeft:4,transition:'transform 0.2s',transform:isOpen?'rotate(180deg)':'none',display:'block'}}>▾</span>
               </button>
               {isOpen&&(
-                <div style={{borderTop:`1px solid ${T.border}`,padding:'14px 18px 16px'}}>
+                <div style={{borderTop:`1px solid ${T.border}`,padding:'14px 16px 16px'}}>
                   <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
-                    {PROD_STEPS.map((step,idx)=>{
+                    {PROD_STEPS.map((step)=>{
                       const done=item.steps[step];
                       return(
                         <button key={step} onClick={()=>toggleStep(item.id,step)}
-                          style={{display:'flex',alignItems:'center',gap:7,padding:'8px 14px',borderRadius:8,background:done?'rgba(74,222,128,0.1)':'rgba(255,255,255,0.03)',border:`1px solid ${done?'rgba(74,222,128,0.3)':T.border}`,color:done?T.green:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s'}}>
+                          style={{display:'flex',alignItems:'center',gap:7,padding:'0 12px',minHeight:44,borderRadius:8,background:done?'rgba(74,222,128,0.1)':'rgba(255,255,255,0.03)',border:`1px solid ${done?'rgba(74,222,128,0.3)':T.border}`,color:done?T.green:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s'}}>
                           <span style={{width:16,height:16,borderRadius:4,background:done?T.green:'transparent',border:`1.5px solid ${done?T.green:T.dim}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'#000',flexShrink:0,transition:'all 0.2s'}}>{done?'✓':''}</span>
                           {step}
                         </button>
@@ -774,77 +928,146 @@ function SectionProduccion({items,setItems}){
 }
 
 /* ═══════════════════════════════════════════════
-   SECTION 4 — Vista Semanal
+   SECTION 4 — Vista Semanal (rewrite)
 ═══════════════════════════════════════════════ */
-function SectionSemanal({items}){
+function SectionSemanal({items,onOpenGuion}){
   const today=new Date();
   const startOfWeek=new Date(today); startOfWeek.setDate(today.getDate()-today.getDay()+1);
   const days=Array.from({length:7},(_,i)=>{const d=new Date(startOfWeek);d.setDate(startOfWeek.getDate()+i);return d;});
   const DAY_NAMES=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   const MONTH_NAMES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const [chanFilter,setChanFilter]=useState('all');
+  const [expandedDays,setExpandedDays]=useState({});
+  const [detailItem,setDetailItem]=useState(null);
+  const isMobile=useMobile();
 
   const filtered=chanFilter==='all'?items:items.filter(i=>i.canal===chanFilter);
   const getItemsForDay=day=>{const iso=day.toISOString().slice(0,10);return filtered.filter(i=>i.fechaGrab===iso);};
   const isToday=d=>d.toDateString()===today.toDateString();
+  const px=isMobile?12:28;
 
   return(
     <div style={{display:'flex',flexDirection:'column',height:'100%',animation:'fadeIn 0.35s ease'}}>
-      <div style={{padding:'22px 28px 14px',borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14}}>
+      {detailItem&&<ItemDetailModal item={detailItem} onClose={()=>setDetailItem(null)} onOpenGuion={onOpenGuion}/>}
+
+      <div style={{padding:`22px ${px}px 14px`,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14,flexWrap:'wrap',gap:8}}>
           <div>
             <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:5,display:'flex',alignItems:'center',gap:8}}><span style={{width:18,height:1,background:T.gold,display:'inline-block'}}/>Vista Semanal</div>
-            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:21,fontWeight:700,color:T.text}}>Semana del {startOfWeek.getDate()} {MONTH_NAMES[startOfWeek.getMonth()]}</h2>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?18:21,fontWeight:700,color:T.text}}>Semana del {startOfWeek.getDate()} {MONTH_NAMES[startOfWeek.getMonth()]}</h2>
           </div>
-          <div style={{fontSize:11,color:T.muted,background:T.s2,border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 12px'}}>{today.toLocaleDateString('es-CO',{weekday:'long',month:'long',day:'numeric'})}</div>
+          {!isMobile&&<div style={{fontSize:11,color:T.muted,background:T.s2,border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 12px'}}>{today.toLocaleDateString('es-CO',{weekday:'long',month:'long',day:'numeric'})}</div>}
         </div>
-        <div style={{display:'flex',gap:6}}>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {[['all','Todos'],...Object.values(CHANNELS).map(ch=>[ch.id,ch.name])].map(([v,l])=>{
             const ch=CHANNELS[v];
-            return(<button key={v} onClick={()=>setChanFilter(v)} style={{padding:'4px 12px',borderRadius:100,fontSize:11,fontWeight:600,background:chanFilter===v?(ch?ch.colorBg:'rgba(155,114,240,0.16)'):'transparent',border:`1px solid ${chanFilter===v?(ch?ch.colorBorder:T.borderH):T.border}`,color:chanFilter===v?(ch?ch.color:T.purpleL):T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:5}}>{ch&&<span>{ch.logo}</span>}{l}</button>);
+            return(<button key={v} onClick={()=>setChanFilter(v)} style={{padding:'4px 12px',minHeight:36,borderRadius:100,fontSize:11,fontWeight:600,background:chanFilter===v?(ch?ch.colorBg:'rgba(155,114,240,0.16)'):'transparent',border:`1px solid ${chanFilter===v?(ch?ch.colorBorder:T.borderH):T.border}`,color:chanFilter===v?(ch?ch.color:T.purpleL):T.muted,cursor:'pointer',transition:'all 0.15s',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:5}}>{ch&&<span>{ch.logo}</span>}{l}</button>);
           })}
         </div>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'16px 28px'}}>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8}}>
-          {days.map((day,i)=>{
-            const dayItems=getItemsForDay(day);
-            const tod=isToday(day);
-            return(
-              <div key={i} style={{background:tod?'rgba(155,114,240,0.07)':T.s1,border:`1px solid ${tod?T.borderH:T.border}`,borderRadius:14,overflow:'hidden',minHeight:120,position:'relative'}}>
-                <div style={{padding:'9px 9px 7px',borderBottom:`1px solid ${tod?'rgba(155,114,240,0.2)':T.border}`,background:tod?'rgba(155,114,240,0.10)':'transparent'}}>
-                  <div style={{fontSize:10,fontWeight:700,color:tod?T.purpleL:T.dim,letterSpacing:0.5}}>{DAY_NAMES[i]}</div>
-                  <div style={{fontSize:17,fontWeight:700,lineHeight:1.1,marginTop:2,color:tod?T.purpleL:T.text,fontFamily:tod?"'Playfair Display',serif":'inherit'}}>{day.getDate()}</div>
-                  {tod&&<div style={{position:'absolute',top:8,right:8,width:6,height:6,borderRadius:'50%',background:T.purple,animation:'pulse 2s infinite'}}/>}
-                </div>
-                <div style={{padding:'7px 6px',display:'flex',flexDirection:'column',gap:4}}>
-                  {dayItems.length===0&&<div style={{fontSize:9,color:T.dim,textAlign:'center',padding:'10px 0',opacity:0.4}}>—</div>}
-                  {dayItems.map(item=>{
-                    const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
-                    const s=STATUS[item.estado]||STATUS.idea;
-                    return(
-                      <div key={item.id} style={{background:`${ch.color}10`,border:`1px solid ${ch.colorBorder}`,borderRadius:6,padding:'5px 6px'}}>
-                        <div style={{fontSize:9,fontWeight:700,color:ch.colorLight,marginBottom:2}}>{ch.name}</div>
-                        <div style={{fontSize:10,fontWeight:600,color:T.text,lineHeight:1.3,textWrap:'pretty'}}>{item.titulo}</div>
-                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:3}}>
-                          <span style={{fontSize:9,color:s.color,fontWeight:600}}>{FORMAT_ICONS[item.formato]}</span>
-                          {item.horaGrab&&<span style={{fontSize:9,color:T.dim}}>{item.horaGrab}</span>}
-                        </div>
+
+      <div style={{flex:1,overflowY:'auto',padding:`16px ${px}px`}}>
+        {isMobile ? (
+          /* ── Mobile: vertical expandable list ── */
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {days.map((day,i)=>{
+              const dayItems=getItemsForDay(day);
+              const tod=isToday(day);
+              const isOpen=!!expandedDays[i];
+              const hasItems=dayItems.length>0;
+              return(
+                <div key={i} style={{background:tod?'rgba(155,114,240,0.07)':T.s1,border:`1px solid ${tod?T.borderH:hasItems?T.border:'rgba(255,255,255,0.04)'}`,borderRadius:12,overflow:'hidden',opacity:(!hasItems&&!tod)?0.45:1,transition:'all 0.2s'}}>
+                  <button
+                    onClick={()=>hasItems&&setExpandedDays(e=>({...e,[i]:!e[i]}))}
+                    style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',background:'transparent',border:'none',cursor:hasItems?'pointer':'default',fontFamily:'Inter,sans-serif',minHeight:60,textAlign:'left'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:14}}>
+                      <div style={{textAlign:'center',minWidth:40}}>
+                        <div style={{fontSize:10,fontWeight:700,color:tod?T.purpleL:T.dim,letterSpacing:0.5,textTransform:'uppercase'}}>{DAY_NAMES[i]}</div>
+                        <div style={{fontSize:22,fontWeight:700,color:tod?T.purpleL:T.text,lineHeight:1.1,fontFamily:tod?"'Playfair Display',serif":'Inter,sans-serif'}}>{day.getDate()}</div>
                       </div>
-                    );
-                  })}
+                      {hasItems?(
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:700,color:T.text,lineHeight:1.4}}>{dayItems[0].titulo}</div>
+                          {dayItems.length>1&&<div style={{fontSize:11,color:T.muted,marginTop:2}}>+{dayItems.length-1} pieza{dayItems.length>2?'s':''} más</div>}
+                        </div>
+                      ):(
+                        <div style={{fontSize:12,color:T.dim}}>Sin contenido</div>
+                      )}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,marginLeft:8}}>
+                      {hasItems&&<span style={{background:CHANNELS[dayItems[0].canal]?.colorBg,border:`1px solid ${CHANNELS[dayItems[0].canal]?.colorBorder}`,borderRadius:100,padding:'2px 8px',fontSize:10,fontWeight:700,color:CHANNELS[dayItems[0].canal]?.color}}>{dayItems.length}</span>}
+                      {tod&&<span style={{width:7,height:7,borderRadius:'50%',background:T.purple,animation:'pulse 2s infinite',display:'inline-block',flexShrink:0}}/>}
+                      {hasItems&&<span style={{color:T.dim,fontSize:14,transition:'transform 0.2s',transform:isOpen?'rotate(180deg)':'none',display:'block',flexShrink:0}}>▾</span>}
+                    </div>
+                  </button>
+                  {isOpen&&hasItems&&(
+                    <div style={{borderTop:`1px solid ${T.border}`,padding:'8px 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                      {dayItems.map(item=>{
+                        const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
+                        return(
+                          <button key={item.id} onClick={()=>setDetailItem(item)}
+                            style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',background:T.s2,border:`1px solid ${ch.colorBorder}`,borderRadius:10,cursor:'pointer',fontFamily:'Inter,sans-serif',textAlign:'left',minHeight:56,width:'100%'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                              <ChannelBadge channelId={item.canal} small/>
+                              <FormatBadge format={item.formato}/>
+                              <StatusBadge status={item.estado} small/>
+                            </div>
+                            <div style={{fontSize:14,fontWeight:700,color:T.text,lineHeight:1.4}}>{item.titulo}</div>
+                            {item.horaGrab&&<div style={{fontSize:11,color:T.muted}}>⏱ Grabación: {item.horaGrab}</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{display:'flex',gap:16,marginTop:14,flexWrap:'wrap'}}>
-          {Object.entries(STATUS).map(([k,s])=>(
-            <div key={k} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:T.muted}}>
-              <span style={{width:8,height:8,borderRadius:2,background:s.dot,display:'inline-block'}}/>{s.label}
+              );
+            })}
+          </div>
+        ) : (
+          /* ── Desktop: 7-column grid ── */
+          <>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(7,minmax(120px,1fr))',gap:8}}>
+              {days.map((day,i)=>{
+                const dayItems=getItemsForDay(day);
+                const tod=isToday(day);
+                return(
+                  <div key={i} style={{background:tod?'rgba(155,114,240,0.07)':T.s1,border:`1px solid ${tod?T.borderH:T.border}`,borderRadius:14,overflow:'hidden',minHeight:120,position:'relative'}}>
+                    <div style={{padding:'9px 9px 7px',borderBottom:`1px solid ${tod?'rgba(155,114,240,0.2)':T.border}`,background:tod?'rgba(155,114,240,0.10)':'transparent'}}>
+                      <div style={{fontSize:10,fontWeight:700,color:tod?T.purpleL:T.dim,letterSpacing:0.5}}>{DAY_NAMES[i]}</div>
+                      <div style={{fontSize:17,fontWeight:700,lineHeight:1.1,marginTop:2,color:tod?T.purpleL:T.text,fontFamily:tod?"'Playfair Display',serif":'inherit'}}>{day.getDate()}</div>
+                      {tod&&<div style={{position:'absolute',top:8,right:8,width:6,height:6,borderRadius:'50%',background:T.purple,animation:'pulse 2s infinite'}}/>}
+                    </div>
+                    <div style={{padding:'7px 6px',display:'flex',flexDirection:'column',gap:4}}>
+                      {dayItems.length===0&&<div style={{fontSize:9,color:T.dim,textAlign:'center',padding:'10px 0',opacity:0.4}}>—</div>}
+                      {dayItems.map(item=>{
+                        const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
+                        const s=STATUS[item.estado]||STATUS.idea;
+                        return(
+                          <button key={item.id} onClick={()=>setDetailItem(item)}
+                            style={{display:'block',width:'100%',background:`${ch.color}10`,border:`1px solid ${ch.colorBorder}`,borderRadius:6,padding:'6px',cursor:'pointer',fontFamily:'Inter,sans-serif',textAlign:'left',minHeight:44}}>
+                            <div style={{fontSize:9,fontWeight:700,color:ch.colorLight,marginBottom:2}}>{ch.name}</div>
+                            <div style={{fontSize:10,fontWeight:600,color:T.text,lineHeight:1.4}}>{item.titulo}</div>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:3}}>
+                              <span style={{fontSize:9,color:s.color,fontWeight:600}}>{FORMAT_ICONS[item.formato]}</span>
+                              {item.horaGrab&&<span style={{fontSize:9,color:T.dim}}>{item.horaGrab}</span>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+            <div style={{display:'flex',gap:16,marginTop:14,flexWrap:'wrap'}}>
+              {Object.entries(STATUS).map(([k,s])=>(
+                <div key={k} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:T.muted}}>
+                  <span style={{width:8,height:8,borderRadius:2,background:s.dot,display:'inline-block'}}/>{s.label}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -870,11 +1093,12 @@ function App(){
   const [tweaks, setTweak]=useTweaks(TWEAK_DEFAULTS);
   const [nav,setNav]=useState('contenido');
   const [items,setItems]=useState(SAMPLE_ITEMS);
-  const [guionItem,setGuionItem]=useState(null); // item being edited in script editor
+  const [guionItem,setGuionItem]=useState(null);
   const [canalConfig,setCanalConfig]=useState({
-    iarcania:{nombre:'IArcanIA',platform:'YouTube'},
-    voidstoic:{nombre:'VoidStoic',platform:'YouTube'},
+    iarcania:{nombre:'IArcanIA',platforms:['YouTube']},
+    voidstoic:{nombre:'VoidStoic',platforms:['YouTube']},
   });
+  const isMobile=useMobile();
 
   useEffect(()=>{
     const el=document.getElementById('rain');
@@ -889,13 +1113,12 @@ function App(){
 
   const sectionTitle={canal:'Canal',contenido:'Contenido',produccion:'Producción',semanal:'Semana'};
 
-  // If editing guion, show full-screen editor
   if(guionItem){
     return(
       <div style={{width:'100vw',height:'100vh',display:'flex',overflow:'hidden',position:'relative',zIndex:1}}>
-        <Sidebar active={nav} onNav={n=>{setGuionItem(null);setNav(n);}} activeChannel={'all'} setActiveChannel={()=>{}}/>
+        {!isMobile&&<Sidebar active={nav} onNav={n=>{setGuionItem(null);setNav(n);}} isMobile={false}/>}
         <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-          <ScriptEditor item={guionItem} onBack={()=>setGuionItem(null)} onSave={saveGuion}/>
+          <ScriptEditor item={guionItem} onBack={()=>setGuionItem(null)} onSave={saveGuion} isMobile={isMobile}/>
         </div>
       </div>
     );
@@ -903,51 +1126,53 @@ function App(){
 
   return(
     <div style={{width:'100vw',height:'100vh',display:'flex',overflow:'hidden',position:'relative',zIndex:1}}>
-      <Sidebar active={nav} onNav={setNav}/>
-      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      {!isMobile&&<Sidebar active={nav} onNav={setNav} isMobile={false}/>}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',paddingBottom:isMobile?56:0}}>
         {/* Topbar */}
-        <div style={{height:52,borderBottom:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 24px',background:'rgba(6,6,9,0.85)',backdropFilter:'blur(8px)',flexShrink:0,zIndex:10}}>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <Logo size={17}/>
-            <span style={{color:T.dim,fontSize:14}}>/</span>
-            <span style={{fontSize:12,color:T.muted,fontWeight:500}}>Planificador</span>
-            <span style={{color:T.dim,fontSize:14}}>/</span>
-            <span style={{fontSize:12,color:T.purpleL,fontWeight:600}}>{sectionTitle[nav]}</span>
+        <div style={{height:52,borderBottom:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',padding:`0 ${isMobile?12:24}px`,background:'rgba(6,6,9,0.85)',backdropFilter:'blur(8px)',flexShrink:0,zIndex:10}}>
+          <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,minWidth:0}}>
+            {isMobile
+              ? <span style={{fontSize:14,fontWeight:700,color:T.purpleL}}>{sectionTitle[nav]}</span>
+              : <><Logo size={17}/><span style={{color:T.dim,fontSize:14}}>/</span><span style={{fontSize:12,color:T.muted,fontWeight:500}}>Planificador</span><span style={{color:T.dim,fontSize:14}}>/</span><span style={{fontSize:12,color:T.purpleL,fontWeight:600}}>{sectionTitle[nav]}</span></>
+            }
           </div>
-          {/* Channel pills */}
-          <div style={{display:'flex',gap:6}}>
-            {Object.values(CHANNELS).map(ch=>(
-              <div key={ch.id} style={{display:'flex',alignItems:'center',gap:6,padding:'4px 10px',background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:100,fontSize:10,fontWeight:700,color:ch.color,cursor:'pointer'}} onClick={()=>setNav('canal')}>
-                {ch.logo} {canalConfig[ch.id]?.nombre||ch.name}
-                <span style={{width:5,height:5,borderRadius:'50%',background:ch.dot,animation:'pulse 2s infinite'}}/>
-              </div>
-            ))}
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:11,color:T.dim}}>{new Date().toLocaleDateString('es-CO',{weekday:'short',month:'short',day:'numeric'})}</span>
+          {!isMobile&&(
+            <div style={{display:'flex',gap:6}}>
+              {Object.values(CHANNELS).map(ch=>(
+                <div key={ch.id} style={{display:'flex',alignItems:'center',gap:6,padding:'4px 10px',background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:100,fontSize:10,fontWeight:700,color:ch.color,cursor:'pointer'}} onClick={()=>setNav('canal')}>
+                  {ch.logo} {canalConfig[ch.id]?.nombre||ch.name}
+                  <span style={{width:5,height:5,borderRadius:'50%',background:ch.dot,animation:'pulse 2s infinite'}}/>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            {!isMobile&&<span style={{fontSize:11,color:T.dim}}>{new Date().toLocaleDateString('es-CO',{weekday:'short',month:'short',day:'numeric'})}</span>}
             <div style={{width:28,height:28,borderRadius:'50%',background:'rgba(155,114,240,0.15)',border:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:T.purple}}>A</div>
           </div>
         </div>
         {/* Section */}
         <div style={{flex:1,overflowY:nav==='canal'?'auto':'hidden',display:'flex',flexDirection:'column'}}>
-          {nav==='canal'      && <SectionCanal canalConfig={canalConfig} setCanalConfig={setCanalConfig}/>}
-          {nav==='contenido'  && <SectionContenido items={items} setItems={setItems} onOpenGuion={openGuion}/>}
-          {nav==='produccion' && <SectionProduccion items={items} setItems={setItems}/>}
-          {nav==='semanal'    && <SectionSemanal items={items}/>}
+          {nav==='canal'      && <SectionCanal canalConfig={canalConfig} setCanalConfig={setCanalConfig} isMobile={isMobile}/>}
+          {nav==='contenido'  && <SectionContenido items={items} setItems={setItems} onOpenGuion={openGuion} isMobile={isMobile}/>}
+          {nav==='produccion' && <SectionProduccion items={items} setItems={setItems} isMobile={isMobile}/>}
+          {nav==='semanal'    && <SectionSemanal items={items} onOpenGuion={openGuion}/>}
         </div>
       </div>
-
-      <TweaksPanel>
-        <TweakSection title="Apariencia">
-          <TweakToggle label="Lluvia de fondo" value={tweaks.showRainBg} onChange={v=>setTweak('showRainBg',v)}/>
-          <TweakToggle label="Tarjetas compactas" value={tweaks.compactCards} onChange={v=>setTweak('compactCards',v)}/>
-        </TweakSection>
-        <TweakSection title="Navegación rápida">
-          <TweakButton label="→ Canales" onClick={()=>setNav('canal')}/>
-          <TweakButton label="→ Vista semanal" onClick={()=>setNav('semanal')}/>
-          <TweakButton label="→ Producción" onClick={()=>setNav('produccion')}/>
-        </TweakSection>
-      </TweaksPanel>
+      {isMobile&&<Sidebar active={nav} onNav={setNav} isMobile={true}/>}
+      {!isMobile&&(
+        <TweaksPanel>
+          <TweakSection title="Apariencia">
+            <TweakToggle label="Lluvia de fondo" value={tweaks.showRainBg} onChange={v=>setTweak('showRainBg',v)}/>
+            <TweakToggle label="Tarjetas compactas" value={tweaks.compactCards} onChange={v=>setTweak('compactCards',v)}/>
+          </TweakSection>
+          <TweakSection title="Navegación rápida">
+            <TweakButton label="→ Canales" onClick={()=>setNav('canal')}/>
+            <TweakButton label="→ Vista semanal" onClick={()=>setNav('semanal')}/>
+            <TweakButton label="→ Producción" onClick={()=>setNav('produccion')}/>
+          </TweakSection>
+        </TweaksPanel>
+      )}
     </div>
   );
 }
