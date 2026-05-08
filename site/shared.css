@@ -87,12 +87,14 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; font-weight: 700; line-
 .nav-link.platform { color: var(--gold); }
 .nav-cta { margin-left: 8px; white-space: nowrap; }
 
-/* Admin nav section */
-.nav-admin-sep { width: 1px; height: 16px; background: var(--border); margin: 0 8px; flex-shrink: 0; align-self: center; }
-.nav-link-admin { color: var(--purple) !important; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
+/* Admin nav section — hidden by default, shown via JS when isAdmin=true */
+.nav-admin-sep { display: none; width: 1px; height: 16px; background: var(--border); margin: 0 8px; flex-shrink: 0; align-self: center; }
+.nav-link-admin { display: none; color: var(--purple) !important; align-items: center; gap: 5px; font-size: 13px; }
 .nav-link-admin:hover { color: #ad8af5 !important; }
 .nav-link-admin svg { width: 11px; height: 11px; opacity: 0.75; flex-shrink: 0; }
 .nav-admin-badge { font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 2px 5px; border-radius: 4px; background: rgba(155,114,240,0.10); border: 1px solid rgba(155,114,240,0.22); color: var(--purple); line-height: 1.3; }
+.nav-logout { display: none; align-items: center; gap: 5px; background: transparent; border: 1px solid rgba(248,113,113,0.2); border-radius: 8px; color: rgba(248,113,113,0.6); font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 500; padding: 5px 12px; cursor: pointer; transition: all 0.2s; white-space: nowrap; margin-left: 4px; }
+.nav-logout:hover { border-color: rgba(248,113,113,0.5); color: #f87171; }
 .nav-toggle { display: none; background: none; border: none; color: var(--text-primary); cursor: pointer; padding: 8px; }
 .nav-toggle svg { width: 24px; height: 24px; }
 

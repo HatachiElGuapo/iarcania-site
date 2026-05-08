@@ -73,8 +73,24 @@
   document.querySelectorAll('.reveal').forEach(e => obs.observe(e));
 })();
 
-/* Helper: WhatsApp link builder */
+/* Admin auth — show/hide navbar elements based on localStorage */
+(function initAuth() {
+  const isAdmin = localStorage.getItem('isAdmin') === 'true';
+  function setVis(sel, displayVal) {
+    document.querySelectorAll(sel).forEach(el => { el.style.display = displayVal; });
+  }
+  if (isAdmin) {
+    setVis('.nav-link-admin', 'inline-flex');
+    setVis('.nav-admin-sep', 'inline-flex');
+    setVis('.nav-logout', 'inline-flex');
+  } else {
+    setVis('.nav-link-admin, .nav-admin-sep, .nav-logout', 'none');
+  }
+})();
+
+/* Helper: WhatsApp link builder + logout */
 window.IArc = {
   wa: (text) => `https://wa.me/573006709840${text ? `?text=${encodeURIComponent(text)}` : ''}`,
   fmtCOP: (n) => '$' + Math.round(n).toLocaleString('es-CO') + ' COP',
+  logout: () => { localStorage.removeItem('isAdmin'); window.location.href = 'index.html'; },
 };

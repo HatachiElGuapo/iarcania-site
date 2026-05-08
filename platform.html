@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>IArcanIA — Plataforma</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
+  <script>if(localStorage.getItem('isAdmin')!=='true'){location.replace('login-admin.html');}</script>
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
@@ -28,6 +29,13 @@
 </head>
 <body>
 <canvas id="rain"></canvas>
+
+<!-- Admin floating bar -->
+<div style="position:fixed;top:60px;right:16px;z-index:9999;display:flex;gap:8px;align-items:center;">
+  <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(6,6,9,0.88);border:1px solid rgba(155,114,240,0.22);border-radius:8px;color:#8a86b0;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;text-decoration:none;backdrop-filter:blur(10px);transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#f0eeff';this.style.borderColor='rgba(155,114,240,0.45)'" onmouseout="this.style.color='#8a86b0';this.style.borderColor='rgba(155,114,240,0.22)'">← Inicio</a>
+  <button onclick="localStorage.removeItem('isAdmin');window.location.href='index.html'" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(6,6,9,0.88);border:1px solid rgba(248,113,113,0.22);border-radius:8px;color:rgba(248,113,113,0.65);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;backdrop-filter:blur(10px);transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#f87171';this.style.borderColor='rgba(248,113,113,0.5)'" onmouseout="this.style.color='rgba(248,113,113,0.65)';this.style.borderColor='rgba(248,113,113,0.22)'">✕ Cerrar sesión</button>
+</div>
+
 <div id="root"></div>
 
 <script>

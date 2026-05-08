@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Acceso Admin — IArcanIA</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: #060609;
+  color: #f0eeff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+}
+.orb-1 { width: 520px; height: 520px; top: -8%; left: -14%; background: radial-gradient(circle, rgba(124,58,237,0.4), transparent 68%); opacity: 0.5; }
+.orb-2 { width: 400px; height: 400px; bottom: -8%; right: -10%; background: radial-gradient(circle, rgba(201,168,76,0.22), transparent 68%); opacity: 0.5; }
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+}
+
+.logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  margin-bottom: 32px;
+  text-decoration: none;
+  display: block;
+}
+.logo .dim { color: #8a86b0; }
+.logo .accent {
+  background: linear-gradient(135deg, #9b72f0, #c9a84c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.card {
+  background: #111120;
+  border: 1px solid rgba(155,114,240,0.15);
+  border-radius: 16px;
+  padding: 36px 32px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #c9a84c;
+  margin-bottom: 10px;
+}
+.eyebrow::before { content: ''; display: inline-block; width: 18px; height: 1px; background: #c9a84c; }
+
+.card h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f0eeff;
+  margin-bottom: 28px;
+}
+
+.field { margin-bottom: 16px; }
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8a86b0;
+  margin-bottom: 8px;
+}
+.field input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(155,114,240,0.18);
+  border-radius: 10px;
+  padding: 13px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  color: #f0eeff;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field input:focus {
+  border-color: rgba(155,114,240,0.5);
+  box-shadow: 0 0 0 3px rgba(155,114,240,0.08);
+}
+.field input::placeholder { color: #4a4860; }
+
+.btn-submit {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px;
+  background: #9b72f0;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.btn-submit:hover {
+  background: #ad8af5;
+  box-shadow: 0 0 28px rgba(155,114,240,0.4);
+  transform: translateY(-1px);
+}
+.btn-submit:active { transform: translateY(0); }
+
+.error {
+  display: none;
+  margin-top: 14px;
+  padding: 11px 14px;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.25);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #f87171;
+  text-align: center;
+}
+
+.back-link {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: #4a4860;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.back-link:hover { color: #8a86b0; }
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="wrap">
+  <a href="index.html" class="logo">
+    <span class="dim">I</span><span class="accent">Arcan</span><span class="dim">IA</span>
+  </a>
+
+  <div class="card">
+    <div class="eyebrow">Área restringida</div>
+    <h1>Acceso Admin</h1>
+
+    <form id="login-form" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="admin@iarcania.com" autocomplete="username"/>
+      </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input type="password" id="password" name="password" placeholder="••••••••••" autocomplete="current-password"/>
+      </div>
+      <button type="submit" class="btn-submit">Entrar</button>
+      <div class="error" id="error-msg">Credenciales incorrectas</div>
+    </form>
+  </div>
+
+  <a href="index.html" class="back-link">← Volver al sitio</a>
+</div>
+
+<script>
+(function(){
+  const c=document.getElementById('particles'),ctx=c.getContext('2d');let p=[];
+  function resize(){
+    c.width=innerWidth;c.height=innerHeight;
+    p=Array.from({length:Math.min(60,Math.floor(innerWidth/20))},()=>({
+      x:Math.random()*c.width,y:Math.random()*c.height,
+      r:.5+Math.random()*1.5,vx:(Math.random()-.5)*.15,
+      vy:-.05-Math.random()*.2,op:.1+Math.random()*.2
+    }));
+  }
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    p.forEach(pt=>{
+      ctx.beginPath();ctx.arc(pt.x,pt.y,pt.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(155,114,240,${pt.op})`;ctx.fill();
+      pt.x+=pt.vx;pt.y+=pt.vy;
+      if(pt.y<-10){pt.y=c.height+10;pt.x=Math.random()*c.width;}
+      if(pt.x<-10)pt.x=c.width+10;if(pt.x>c.width+10)pt.x=-10;
+    });
+    requestAnimationFrame(draw);
+  }
+  addEventListener('resize',resize);resize();draw();
+})();
+
+if(localStorage.getItem('isAdmin')==='true'){window.location.replace('index.html');}
+
+document.getElementById('login-form').addEventListener('submit',function(e){
+  e.preventDefault();
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value;
+  const errEl=document.getElementById('error-msg');
+  if(email==='admin@iarcania.com'&&pass==='IArcanIA2025!'){
+    localStorage.setItem('isAdmin','true');
+    window.location.href='index.html';
+  } else {
+    errEl.style.display='block';
+    document.getElementById('password').value='';
+    document.getElementById('password').focus();
+  }
+});
+</script>
+</body>
+</html>
