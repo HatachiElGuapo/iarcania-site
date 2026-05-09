@@ -115,6 +115,12 @@ const FORMAT_ICONS = { 'Video largo':'▶','Short':'⚡','Reel':'◎','Carrusel'
 const PROD_STEPS = ['Guión','Grabación','Edición','Thumbnail','Programar','Publicar'];
 const PLATFORMS = ['YouTube','TikTok','Instagram'];
 const PLAT_COLORS = {YouTube:'#ff4444',TikTok:'#ee1d52',Instagram:'#bc1888'};
+const DERIVADO_FORMATS = ['Short','Reel','Carrusel','Clip','Post'];
+const PLAT_INFO = {
+  YouTube:   {color:'#ff4444',bg:'rgba(255,68,68,0.10)',  border:'rgba(255,68,68,0.35)'  },
+  TikTok:    {color:'#ee1d52',bg:'rgba(238,29,82,0.10)',  border:'rgba(238,29,82,0.35)'  },
+  Instagram: {color:'#bc1888',bg:'rgba(188,24,136,0.10)', border:'rgba(188,24,136,0.35)' },
+};
 
 /* ─── Platform icons ─── */
 function IconYT({size=18,active=false}){return(<svg width={size} height={size} viewBox="0 0 24 24" fill={active?'#ff0000':'currentColor'}><path d="M21.8 8s-.2-1.4-.8-2c-.8-.8-1.7-.8-2.1-.9C16.5 5 12 5 12 5s-4.5 0-6.9.1c-.4.1-1.3.1-2.1.9-.6.6-.8 2-.8 2S2 9.6 2 11.2v1.5c0 1.6.2 3.2.2 3.2s.2 1.4.8 2c.8.8 1.8.8 2.3.8C6.8 19 12 19 12 19s4.5 0 6.9-.2c.4-.1 1.3-.1 2.1-.9.6-.6.8-2 .8-2s.2-1.6.2-3.2v-1.5C22 9.6 21.8 8 21.8 8z"/><polygon points="10,8.5 15,12 10,15.5" fill="white" opacity="0.9"/></svg>);}
@@ -201,7 +207,7 @@ function NewContentModal({onSave,onClose}){
 
   function handleSave(){
     if(!form.titulo.trim())return;
-    onSave({...form,id:Date.now(),steps:PROD_STEPS.reduce((a,s)=>({...a,[s]:false}),{}),guion:[]});
+    onSave({...form,id:Date.now(),plataformaOrigen:form.plataformaOrigen||'YouTube',steps:PROD_STEPS.reduce((a,s)=>({...a,[s]:false}),{}),guion:[],derivados:[]});
   }
 
   if(step===1){
@@ -238,6 +244,18 @@ function NewContentModal({onSave,onClose}){
         <span style={{fontSize:11,color:T.dim}}>Cambiar canal</span>
       </div>
       <Field label="Título del contenido" value={form.titulo} onChange={v=>set('titulo',v)} placeholder="Ej: Cómo usar IA en 2026"/>
+      <div style={{marginBottom:14}}>
+        <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:6,letterSpacing:0.5}}>Plataforma origen</label>
+        <div style={{display:'flex',gap:8}}>
+          {PLATFORMS.map(p=>{const isOn=(form.plataformaOrigen||'YouTube')===p;const pi=PLAT_INFO[p];return(
+            <button key={p} onClick={()=>set('plataformaOrigen',p)}
+              style={{flex:1,minHeight:52,borderRadius:10,background:isOn?pi.bg:'rgba(255,255,255,0.02)',border:`1px solid ${isOn?pi.border:T.border}`,color:isOn?pi.color:T.dim,cursor:'pointer',fontFamily:'Inter,sans-serif',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,transition:'all 0.15s'}}>
+              <PlatformIcon p={p} active={isOn} size={16}/>
+              <span style={{fontSize:9,fontWeight:600}}>{p}</span>
+            </button>
+          );})}
+        </div>
+      </div>
       <Sel label="Formato" value={form.formato} onChange={v=>set('formato',v)} options={FORMATS.map(f=>({value:f,label:`${FORMAT_ICONS[f]} ${f}`}))}/>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         <Field label="Fecha de grabación" value={form.fechaGrab} onChange={v=>set('fechaGrab',v)} type="date"/>
@@ -328,45 +346,169 @@ function TeleprompterModal({secs, onClose}){
 }
 function clamp(min,vw,max){return`clamp(${min}px,${vw}vw,${max}px)`;}
 
+/* ─── DerivadoChip ─── */
+function DerivadoChip({derivado}){
+  const s=STATUS[derivado.estado]||STATUS.idea;
+  return(
+    <span style={{display:'inline-flex',alignItems:'center',gap:4,background:T.s3,border:`1px solid ${T.border}`,borderRadius:100,padding:'2px 8px',fontSize:9,fontWeight:600,color:T.muted,whiteSpace:'nowrap'}}>
+      <PlatformIcon p={derivado.plataforma} size={9}/>
+      <span style={{width:5,height:5,borderRadius:'50%',background:s.dot,flexShrink:0}}/>
+      <span style={{color:T.text}}>{derivado.formato||'Clip'}</span>
+    </span>
+  );
+}
+
+/* ─── DerivadoRow ─── */
+function DerivadoRow({derivado,onChange,onDelete}){
+  const selBase={background:T.s2,border:`1px solid ${T.border}`,borderRadius:8,padding:'7px 10px',fontFamily:'Inter,sans-serif',fontSize:12,color:T.text,outline:'none',minHeight:36,cursor:'pointer'};
+  return(
+    <div style={{background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,padding:'12px',marginBottom:8}}>
+      <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10,flexWrap:'wrap'}}>
+        <select value={derivado.plataforma} onChange={e=>onChange('plataforma',e.target.value)} style={{...selBase,flex:'1 1 90px'}}>
+          {PLATFORMS.map(p=><option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={derivado.formato||'Short'} onChange={e=>onChange('formato',e.target.value)} style={{...selBase,flex:'1 1 80px'}}>
+          {DERIVADO_FORMATS.map(f=><option key={f} value={f}>{f}</option>)}
+        </select>
+        <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+          <input type="number" min="0" value={derivado.duracion||''} onChange={e=>onChange('duracion',e.target.value)}
+            placeholder="seg" style={{...selBase,width:58,textAlign:'center',padding:'7px 6px'}}/>
+          <span style={{fontSize:11,color:T.muted}}>s</span>
+        </div>
+        <button onClick={onDelete} style={{width:32,height:32,borderRadius:8,background:'transparent',border:'1px solid rgba(248,113,113,0.2)',color:'rgba(248,113,113,0.6)',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontFamily:'Inter,sans-serif'}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,0.08)';e.currentTarget.style.color=T.red;}}
+          onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(248,113,113,0.6)';}}>✕</button>
+      </div>
+      <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:8}}>
+        {Object.entries(STATUS).map(([k,st])=>{
+          const isA=derivado.estado===k;
+          return(
+            <button key={k} onClick={()=>onChange('estado',k)}
+              style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:100,background:isA?st.bg:'transparent',border:`1px solid ${isA?st.color+'55':T.border}`,color:isA?st.color:T.dim,fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:28}}>
+              <span style={{width:5,height:5,borderRadius:'50%',background:isA?st.dot:T.dim}}/>{st.label}
+            </button>
+          );
+        })}
+      </div>
+      <input value={derivado.notas||''} onChange={e=>onChange('notas',e.target.value)}
+        placeholder="Notas opcionales..."
+        style={{width:'100%',background:'rgba(255,255,255,0.02)',border:`1px solid ${T.border}`,borderRadius:8,padding:'7px 10px',fontFamily:'Inter,sans-serif',fontSize:11,color:T.text,outline:'none',minHeight:34}}/>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════
-   ITEM DETAIL MODAL (bottom sheet)
+   ITEM DETAIL MODAL
 ═══════════════════════════════════════════════ */
-function ItemDetailModal({item, onClose, onOpenGuion}){
+function ItemDetailModal({item,onClose,onOpenGuion,onUpdate,onDelete}){
   const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
+  const [derivados,setDerivados]=useState(item.derivados||[]);
+  const [platOrigen,setPlatOrigen]=useState(item.plataformaOrigen||'YouTube');
   const guionSecs=item.guion||[];
   const totalSec=guionSecs.reduce((a,gs)=>a+(parseInt(gs.duracion)||0),0);
+
+  function addDerivado(){
+    const otras=PLATFORMS.filter(p=>p!==platOrigen);
+    setDerivados(prev=>[...prev,{id:Date.now(),plataforma:otras[0]||'TikTok',formato:'Short',duracion:'60',estado:'idea',notas:''}]);
+  }
+  function updDer(id,k,v){setDerivados(prev=>prev.map(d=>d.id===id?{...d,[k]:v}:d));}
+  function delDer(id){setDerivados(prev=>prev.filter(d=>d.id!==id));}
+  function handleSave(){onUpdate({...item,derivados,plataformaOrigen:platOrigen});}
+
   return(
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:200,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'modalBack 0.2s ease',backdropFilter:'blur(6px)'}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:T.s1,border:`1px solid ${ch.colorBorder}`,borderRadius:'20px 20px 0 0',padding:'20px',width:'100%',maxWidth:540,maxHeight:'82vh',overflowY:'auto',boxShadow:'0 -24px 60px rgba(0,0,0,0.7)',animation:'slideUp 0.25s ease'}}>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.82)',zIndex:200,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'modalBack 0.2s ease',backdropFilter:'blur(6px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.s1,border:`1px solid ${ch.colorBorder}`,borderRadius:'20px 20px 0 0',padding:'20px',width:'100%',maxWidth:560,maxHeight:'92vh',overflowY:'auto',boxShadow:'0 -24px 60px rgba(0,0,0,0.7)',animation:'slideUp 0.25s ease'}}>
         <div style={{width:36,height:4,borderRadius:2,background:T.border,margin:'0 auto 18px'}}/>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap'}}>
-          <ChannelBadge channelId={item.canal}/>
-          <FormatBadge format={item.formato}/>
-          <StatusBadge status={item.estado}/>
+
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:14}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6,flexWrap:'wrap'}}>
+              <ChannelBadge channelId={item.canal}/>
+              <FormatBadge format={item.formato}/>
+              <StatusBadge status={item.estado}/>
+            </div>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.text,lineHeight:1.3}}>{item.titulo}</h3>
+          </div>
+          <button onClick={onClose} style={{width:36,height:36,flexShrink:0,borderRadius:8,background:'rgba(255,255,255,0.04)',border:`1px solid ${T.border}`,color:T.muted,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
         </div>
-        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:700,color:T.text,marginBottom:14,lineHeight:1.3}}>{item.titulo}</h3>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
-          {item.fechaGrab&&<div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
-            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Grabación</div>
-            <div style={{fontSize:13,color:T.text,fontWeight:600}}>{item.fechaGrab}{item.horaGrab&&<span style={{color:T.muted}}> · {item.horaGrab}</span>}</div>
-          </div>}
-          {item.horaPub&&<div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
-            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Publicación</div>
-            <div style={{fontSize:13,color:T.text,fontWeight:600}}>{item.horaPub}</div>
-          </div>}
-          {totalSec>0&&<div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
-            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Duración guión</div>
-            <div style={{fontSize:13,color:ch.color,fontWeight:700}}>{fmtSec(totalSec)}</div>
-          </div>}
-          <div style={{background:T.s2,borderRadius:10,padding:'12px'}}>
-            <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>Producción</div>
-            <div style={{fontSize:13,fontWeight:700,color:T.text}}>{Object.values(item.steps).filter(Boolean).length}/{PROD_STEPS.length} pasos</div>
+        <div style={{height:1,background:`linear-gradient(90deg,transparent,${ch.color}40,transparent)`,marginBottom:16}}/>
+
+        {/* Contenido principal */}
+        <div style={{background:T.s2,borderRadius:12,padding:'14px 16px',marginBottom:14}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:T.gold,marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
+            <span style={{width:12,height:1,background:T.gold,display:'inline-block'}}/>Contenido principal
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+            <PlatformIcon p={platOrigen} active size={16}/>
+            <span style={{fontSize:13,fontWeight:600,color:T.text}}>{platOrigen}</span>
+            <span style={{color:T.dim}}>·</span>
+            <FormatBadge format={item.formato}/>
+            {totalSec>0&&<><span style={{color:T.dim}}>·</span><span style={{fontSize:12,color:ch.color,fontWeight:700}}>{fmtSec(totalSec)} guión</span></>}
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            {PLATFORMS.map(p=>{const isOn=platOrigen===p;const pi=PLAT_INFO[p];return(
+              <button key={p} onClick={()=>setPlatOrigen(p)}
+                style={{flex:1,minHeight:44,borderRadius:8,background:isOn?pi.bg:'rgba(255,255,255,0.02)',border:`1px solid ${isOn?pi.border:T.border}`,color:isOn?pi.color:T.dim,cursor:'pointer',fontFamily:'Inter,sans-serif',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4,fontSize:9,fontWeight:600,transition:'all 0.15s'}}>
+                <PlatformIcon p={p} active={isOn} size={14}/>
+                {p}
+              </button>
+            );})}
           </div>
         </div>
-        <button onClick={()=>{onOpenGuion(item);onClose();}}
-          style={{width:'100%',minHeight:52,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:12,color:ch.color,fontSize:15,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
-          ✎ Editar guión
-        </button>
+
+        {/* Derivados */}
+        <div style={{marginBottom:14}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:T.gold,display:'flex',alignItems:'center',gap:6}}>
+              <span style={{width:12,height:1,background:T.gold,display:'inline-block'}}/>
+              Derivados <span style={{color:T.dim,fontSize:11,fontWeight:400,textTransform:'none',letterSpacing:0}}>({derivados.length})</span>
+            </div>
+            <button onClick={addDerivado}
+              style={{display:'flex',alignItems:'center',gap:5,padding:'5px 12px',minHeight:30,borderRadius:8,background:'rgba(155,114,240,0.12)',border:`1px solid ${T.borderH}`,color:T.purpleL,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+              + Agregar derivado
+            </button>
+          </div>
+          {derivados.length===0&&(
+            <div style={{textAlign:'center',padding:'20px',background:T.s2,borderRadius:12,color:T.dim,fontSize:12}}>
+              Sin derivados — el guión aplica al contenido origen
+            </div>
+          )}
+          {derivados.map(d=>(
+            <DerivadoRow key={d.id} derivado={d}
+              onChange={(k,v)=>updDer(d.id,k,v)}
+              onDelete={()=>delDer(d.id)}/>
+          ))}
+        </div>
+
+        {/* Info grid */}
+        {(item.fechaGrab||item.horaPub)&&(
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+            {item.fechaGrab&&<div style={{background:T.s2,borderRadius:10,padding:'10px 12px'}}>
+              <div style={{fontSize:9,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:2}}>Grabación</div>
+              <div style={{fontSize:12,color:T.text,fontWeight:600}}>{item.fechaGrab}{item.horaGrab&&<span style={{color:T.muted}}> · {item.horaGrab}</span>}</div>
+            </div>}
+            {item.horaPub&&<div style={{background:T.s2,borderRadius:10,padding:'10px 12px'}}>
+              <div style={{fontSize:9,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:2}}>Publicación</div>
+              <div style={{fontSize:12,color:T.text,fontWeight:600}}>{item.horaPub}</div>
+            </div>}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>onDelete&&onDelete()} style={{minHeight:44,padding:'0 14px',borderRadius:10,background:'transparent',border:'1px solid rgba(248,113,113,0.15)',color:'rgba(248,113,113,0.5)',fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif'}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(248,113,113,0.4)';e.currentTarget.style.color=T.red;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(248,113,113,0.15)';e.currentTarget.style.color='rgba(248,113,113,0.5)';}}>✕</button>
+          <button onClick={()=>{handleSave();onOpenGuion(item);}}
+            style={{flex:1,minHeight:44,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:10,color:ch.color,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+            ✎ Editar guión
+          </button>
+          <button onClick={()=>{handleSave();onClose();}}
+            style={{minHeight:44,padding:'0 18px',borderRadius:10,background:'rgba(155,114,240,0.16)',border:`1px solid ${T.borderH}`,color:T.purpleL,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+            Guardar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -595,7 +737,7 @@ function ScriptEditor({item,onBack,onSave,isMobile}){
 ═══════════════════════════════════════════════ */
 function Sidebar({active,onNav,isMobile}){
   const navItems=[
-    {id:'canal',icon:'◉',label:'Canal'},
+    {id:'canal',icon:'◉',label:'Plataf.'},
     {id:'contenido',icon:'▤',label:'Contenido'},
     {id:'produccion',icon:'◎',label:'Producción'},
     {id:'semanal',icon:'⊟',label:'Semana'},
@@ -635,63 +777,47 @@ function Sidebar({active,onNav,isMobile}){
 }
 
 /* ═══════════════════════════════════════════════
-   SECTION 1 — Canal (simplified, 2 cards side by side)
+   SECTION 1 — Mis plataformas
 ═══════════════════════════════════════════════ */
-function SectionCanal({canalConfig,setCanalConfig,isMobile}){
-  function togglePlat(chId,p){
-    setCanalConfig(prev=>{
-      const cfg=prev[chId]||{nombre:'',platforms:[]};
-      const plats=cfg.platforms||[];
-      const next=plats.includes(p)?plats.filter(x=>x!==p):[...plats,p];
-      return{...prev,[chId]:{...cfg,platforms:next}};
-    });
-  }
+function SectionCanal({activePlatforms,setActivePlatforms,isMobile}){
   const px=isMobile?12:28;
+  function toggle(p){
+    setActivePlatforms(prev=>prev.includes(p)?prev.filter(x=>x!==p):[...prev,p]);
+  }
+  const PLAT_DESC={YouTube:'Videos largos, Shorts y transmisiones en vivo',TikTok:'Videos cortos y contenido viral','Instagram':'Reels, carruseles y posts'};
   return(
     <div style={{padding:`28px ${px}px`,animation:'fadeIn 0.35s ease',overflowY:'auto',flex:1}}>
-      <div style={{marginBottom:22}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:6,display:'flex',alignItems:'center',gap:8}}><span style={{width:18,height:1,background:T.gold,display:'inline-block'}}/>Canales</div>
-        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.text}}>Configuración de canales</h2>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:T.gold,marginBottom:6,display:'flex',alignItems:'center',gap:8}}><span style={{width:18,height:1,background:T.gold,display:'inline-block'}}/>Plataformas</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.text}}>Mis plataformas</h2>
+        <div style={{fontSize:12,color:T.muted,marginTop:4}}>Las plataformas activas aparecerán como opciones al crear derivados.</div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16}}>
-        {Object.values(CHANNELS).map(ch=>{
-          const cfg=canalConfig[ch.id]||{nombre:ch.name,platforms:['YouTube']};
-          const plats=cfg.platforms||[];
+      <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:480}}>
+        {PLATFORMS.map(p=>{
+          const isOn=activePlatforms.includes(p);
+          const pi=PLAT_INFO[p];
           return(
-            <div key={ch.id} style={{background:T.s2,border:`1px solid ${ch.colorBorder}`,borderRadius:16,overflow:'hidden'}}>
-              <div style={{height:3,background:ch.gradient}}/>
-              <div style={{padding:'20px 18px'}}>
-                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
-                  <div style={{width:40,height:40,borderRadius:10,background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:ch.color,flexShrink:0}}>{ch.logo}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:ch.color,marginBottom:1}}>{ch.name}</div>
-                    <div style={{fontSize:12,color:T.muted}}>{ch.label}</div>
-                  </div>
-                  <div style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',borderRadius:100,padding:'3px 8px',fontSize:9,fontWeight:700,color:T.green}}>
-                    <span style={{width:4,height:4,borderRadius:'50%',background:T.green,animation:'pulse 2s infinite'}}/>Activo
-                  </div>
-                </div>
-                <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:6,letterSpacing:0.5}}>Nombre del canal</label>
-                <input value={cfg.nombre} onChange={e=>setCanalConfig(prev=>({...prev,[ch.id]:{...cfg,nombre:e.target.value}}))}
-                  style={{width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${T.border}`,borderRadius:10,padding:'10px 12px',fontFamily:'Inter,sans-serif',fontSize:13,color:T.text,outline:'none',minHeight:44,marginBottom:18}}/>
-                <label style={{display:'block',fontSize:11,fontWeight:600,color:T.muted,marginBottom:8,letterSpacing:0.5}}>Plataformas activas</label>
-                <div style={{display:'flex',gap:8}}>
-                  {PLATFORMS.map(p=>{
-                    const sel=plats.includes(p);
-                    return(
-                      <button key={p} onClick={()=>togglePlat(ch.id,p)}
-                        style={{flex:1,minHeight:60,padding:'8px 4px',borderRadius:10,background:sel?`${PLAT_COLORS[p]}18`:'rgba(255,255,255,0.02)',border:`1px solid ${sel?PLAT_COLORS[p]+'55':T.border}`,color:sel?PLAT_COLORS[p]:T.dim,cursor:'pointer',transition:'all 0.2s',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,fontFamily:'Inter,sans-serif',position:'relative'}}>
-                        {sel&&<div style={{position:'absolute',top:6,right:6,width:6,height:6,borderRadius:'50%',background:PLAT_COLORS[p]}}/>}
-                        <PlatformIcon p={p} active={sel} size={18}/>
-                        <span style={{fontSize:9,fontWeight:600}}>{p}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+            <button key={p} onClick={()=>toggle(p)}
+              style={{display:'flex',alignItems:'center',gap:16,padding:'18px 20px',borderRadius:14,background:isOn?pi.bg:'rgba(255,255,255,0.02)',border:`1px solid ${isOn?pi.border:T.border}`,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all 0.2s',textAlign:'left',minHeight:72}}
+              onMouseEnter={e=>{if(!isOn){e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor=T.borderH;}}}
+              onMouseLeave={e=>{if(!isOn){e.currentTarget.style.background='rgba(255,255,255,0.02)';e.currentTarget.style.borderColor=T.border;}}}>
+              <div style={{width:44,height:44,borderRadius:12,background:isOn?`${pi.color}20`:'rgba(255,255,255,0.04)',border:`1px solid ${isOn?pi.border:T.border}`,display:'flex',alignItems:'center',justifyContent:'center',color:isOn?pi.color:T.muted,flexShrink:0,transition:'all 0.2s'}}>
+                <PlatformIcon p={p} active={isOn} size={22}/>
               </div>
-            </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:15,fontWeight:700,color:isOn?T.text:T.muted,marginBottom:3,transition:'color 0.2s'}}>{p}</div>
+                <div style={{fontSize:12,color:T.dim}}>{PLAT_DESC[p]}</div>
+              </div>
+              {/* Toggle switch */}
+              <div style={{width:42,height:24,borderRadius:12,background:isOn?pi.color:'rgba(255,255,255,0.08)',position:'relative',transition:'background 0.25s',flexShrink:0}}>
+                <div style={{position:'absolute',top:3,left:isOn?'calc(100% - 21px)':3,width:18,height:18,borderRadius:'50%',background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.3)',transition:'left 0.25s'}}/>
+              </div>
+            </button>
           );
         })}
+      </div>
+      <div style={{marginTop:20,padding:'14px 16px',background:T.s2,border:`1px solid ${T.border}`,borderRadius:12,fontSize:12,color:T.muted,maxWidth:480}}>
+        <span style={{color:T.purpleL,fontWeight:600}}>{activePlatforms.length}</span> plataforma{activePlatforms.length!==1?'s':''} activa{activePlatforms.length!==1?'s':''} · La identidad de canal (IArcanIA / VoidStoic) se define en cada pieza de contenido.
       </div>
     </div>
   );
@@ -700,13 +826,14 @@ function SectionCanal({canalConfig,setCanalConfig,isMobile}){
 /* ═══════════════════════════════════════════════
    CONTENT CARD
 ═══════════════════════════════════════════════ */
-function ContentCard({item,onStatusChange,onDelete,onOpenGuion,isMobile}){
+function ContentCard({item,onStatusChange,onDelete,onOpenGuion,onOpenDetail,isMobile}){
   const [hov,setHov]=useState(false);
   const [menuOpen,setMenuOpen]=useState(false);
   const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
   const doneSteps=Object.values(item.steps).filter(Boolean).length;
   const pct=Math.round((doneSteps/PROD_STEPS.length)*100);
   const guionFilled=item.guion&&item.guion.some(s=>s.texto&&s.texto.trim().length>0);
+  const derivados=item.derivados||[];
   const px=isMobile?12:18;
 
   return(
@@ -721,7 +848,17 @@ function ContentCard({item,onStatusChange,onDelete,onOpenGuion,isMobile}){
             <StatusBadge status={item.estado} small/>
             {guionFilled&&<span style={{fontSize:10,fontWeight:600,color:T.green,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',borderRadius:100,padding:'1px 7px'}}>✓ Guión</span>}
           </div>
-          <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:6,lineHeight:1.4}}>{item.titulo}</div>
+          <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:8,lineHeight:1.4}}>{item.titulo}</div>
+          {/* Derivados chips */}
+          <div style={{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center',marginBottom:6}}>
+            {derivados.map(d=><DerivadoChip key={d.id} derivado={d}/>)}
+            <button onClick={e=>{e.stopPropagation();onOpenDetail(item);}}
+              style={{display:'inline-flex',alignItems:'center',gap:3,background:'transparent',border:`1px dashed ${T.border}`,borderRadius:100,padding:'2px 8px',fontSize:9,fontWeight:700,color:T.dim,cursor:'pointer',fontFamily:'Inter,sans-serif',minHeight:22,transition:'all 0.15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderH;e.currentTarget.style.color=T.muted;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}>
+              + derivado
+            </button>
+          </div>
           <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
             {item.fechaGrab&&<span style={{fontSize:11,color:T.muted,display:'flex',alignItems:'center',gap:4}}><span style={{color:T.dim}}>●</span>{item.fechaGrab}{item.horaGrab&&` · ${item.horaGrab}`}</span>}
             {item.horaPub&&<span style={{fontSize:11,color:T.muted,display:'flex',alignItems:'center',gap:4}}><span style={{color:T.gold,fontSize:9}}>▲</span>Pub: {item.horaPub}</span>}
@@ -744,6 +881,8 @@ function ContentCard({item,onStatusChange,onDelete,onOpenGuion,isMobile}){
                     </button>
                   ))}
                   <div style={{height:1,background:T.border,margin:'4px 0'}}/>
+                  <button onClick={()=>onOpenDetail(item)} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 10px',background:'transparent',border:'none',color:T.muted,fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:7,fontFamily:'Inter,sans-serif',minHeight:36}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>◎ Detalle</button>
                   <button onClick={()=>onDelete(item.id)} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 10px',background:'transparent',border:'none',color:'rgba(248,113,113,0.7)',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:7,fontFamily:'Inter,sans-serif',minHeight:36}}
                     onMouseEnter={e=>{e.currentTarget.style.background='rgba(248,113,113,0.06)';}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>✕ Eliminar</button>
                 </div>
@@ -765,7 +904,7 @@ function ContentCard({item,onStatusChange,onDelete,onOpenGuion,isMobile}){
 /* ═══════════════════════════════════════════════
    SECTION 2 — Plan de Contenido
 ═══════════════════════════════════════════════ */
-function SectionContenido({items,setItems,onOpenGuion,isMobile}){
+function SectionContenido({items,setItems,onOpenGuion,onOpenDetail,isMobile}){
   const [showModal,setShowModal]=useState(false);
   const [filter,setFilter]=useState('all');
   const [chanFilter,setChanFilter]=useState('all');
@@ -778,7 +917,7 @@ function SectionContenido({items,setItems,onOpenGuion,isMobile}){
   });
 
   function handleSave(form){
-    setItems(prev=>[{...form,id:Date.now(),steps:PROD_STEPS.reduce((a,s)=>({...a,[s]:false}),{}),guion:[]}, ...prev]);
+    setItems(prev=>[{...form}, ...prev]);
     setShowModal(false);
   }
   function updateStatus(id,estado){setItems(prev=>prev.map(i=>i.id===id?{...i,estado}:i));}
@@ -822,7 +961,7 @@ function SectionContenido({items,setItems,onOpenGuion,isMobile}){
             <div style={{fontSize:14,fontWeight:500}}>Sin contenido {filter!=='all'?'en este estado':chanFilter!=='all'?`para ${CHANNELS[chanFilter]?.name}`:'planificado'}</div>
           </div>
         )}
-        {filtered.map(item=><ContentCard key={item.id} item={item} onStatusChange={updateStatus} onDelete={deleteItem} onOpenGuion={onOpenGuion} isMobile={isMobile}/>)}
+        {filtered.map(item=><ContentCard key={item.id} item={item} onStatusChange={updateStatus} onDelete={deleteItem} onOpenGuion={onOpenGuion} onOpenDetail={onOpenDetail} isMobile={isMobile}/>)}
       </div>
     </div>
   );
@@ -930,7 +1069,7 @@ function SectionProduccion({items,setItems,isMobile}){
 /* ═══════════════════════════════════════════════
    SECTION 4 — Vista Semanal (rewrite)
 ═══════════════════════════════════════════════ */
-function SectionSemanal({items,onOpenGuion}){
+function SectionSemanal({items,onOpenGuion,onOpenDetail}){
   const today=new Date();
   const startOfWeek=new Date(today); startOfWeek.setDate(today.getDate()-today.getDay()+1);
   const days=Array.from({length:7},(_,i)=>{const d=new Date(startOfWeek);d.setDate(startOfWeek.getDate()+i);return d;});
@@ -938,7 +1077,6 @@ function SectionSemanal({items,onOpenGuion}){
   const MONTH_NAMES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const [chanFilter,setChanFilter]=useState('all');
   const [expandedDays,setExpandedDays]=useState({});
-  const [detailItem,setDetailItem]=useState(null);
   const isMobile=useMobile();
 
   const filtered=chanFilter==='all'?items:items.filter(i=>i.canal===chanFilter);
@@ -948,8 +1086,6 @@ function SectionSemanal({items,onOpenGuion}){
 
   return(
     <div style={{display:'flex',flexDirection:'column',height:'100%',animation:'fadeIn 0.35s ease'}}>
-      {detailItem&&<ItemDetailModal item={detailItem} onClose={()=>setDetailItem(null)} onOpenGuion={onOpenGuion}/>}
-
       <div style={{padding:`22px ${px}px 14px`,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14,flexWrap:'wrap',gap:8}}>
           <div>
@@ -988,7 +1124,12 @@ function SectionSemanal({items,onOpenGuion}){
                       {hasItems?(
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:13,fontWeight:700,color:T.text,lineHeight:1.4}}>{dayItems[0].titulo}</div>
-                          {dayItems.length>1&&<div style={{fontSize:11,color:T.muted,marginTop:2}}>+{dayItems.length-1} pieza{dayItems.length>2?'s':''} más</div>}
+                          <div style={{display:'flex',alignItems:'center',gap:6,marginTop:2,flexWrap:'wrap'}}>
+                            <PlatformIcon p={dayItems[0].plataformaOrigen||'YouTube'} size={10}/>
+                            <span style={{fontSize:10,color:T.muted}}>{dayItems[0].plataformaOrigen||'YouTube'}</span>
+                            {(dayItems[0].derivados||[]).length>0&&<span style={{fontSize:10,color:T.dim}}>+ {(dayItems[0].derivados||[]).length} derivado{(dayItems[0].derivados||[]).length>1?'s':''}</span>}
+                            {dayItems.length>1&&<span style={{fontSize:10,color:T.dim}}>· {dayItems.length-1} pieza{dayItems.length>2?'s':''} más</span>}
+                          </div>
                         </div>
                       ):(
                         <div style={{fontSize:12,color:T.dim}}>Sin contenido</div>
@@ -1001,20 +1142,35 @@ function SectionSemanal({items,onOpenGuion}){
                     </div>
                   </button>
                   {isOpen&&hasItems&&(
-                    <div style={{borderTop:`1px solid ${T.border}`,padding:'8px 12px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                    <div style={{borderTop:`1px solid ${T.border}`,padding:'8px 12px 12px',display:'flex',flexDirection:'column',gap:10}}>
                       {dayItems.map(item=>{
                         const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
+                        const ders=item.derivados||[];
                         return(
-                          <button key={item.id} onClick={()=>setDetailItem(item)}
-                            style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',background:T.s2,border:`1px solid ${ch.colorBorder}`,borderRadius:10,cursor:'pointer',fontFamily:'Inter,sans-serif',textAlign:'left',minHeight:56,width:'100%'}}>
-                            <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                              <ChannelBadge channelId={item.canal} small/>
-                              <FormatBadge format={item.formato}/>
-                              <StatusBadge status={item.estado} small/>
-                            </div>
-                            <div style={{fontSize:14,fontWeight:700,color:T.text,lineHeight:1.4}}>{item.titulo}</div>
-                            {item.horaGrab&&<div style={{fontSize:11,color:T.muted}}>⏱ Grabación: {item.horaGrab}</div>}
-                          </button>
+                          <div key={item.id}>
+                            <button onClick={()=>onOpenDetail(item)}
+                              style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',background:T.s2,border:`1px solid ${ch.colorBorder}`,borderRadius:10,cursor:'pointer',fontFamily:'Inter,sans-serif',textAlign:'left',minHeight:56,width:'100%'}}>
+                              <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                                <ChannelBadge channelId={item.canal} small/>
+                                <FormatBadge format={item.formato}/>
+                                <StatusBadge status={item.estado} small/>
+                              </div>
+                              <div style={{fontSize:14,fontWeight:700,color:T.text,lineHeight:1.4}}>{item.titulo}</div>
+                              {item.horaGrab&&<div style={{fontSize:11,color:T.muted}}>⏱ Grabación: {item.horaGrab}</div>}
+                            </button>
+                            {ders.map(d=>{
+                              const s=STATUS[d.estado]||STATUS.idea;
+                              return(
+                                <div key={d.id} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',background:T.s3,borderRadius:8,marginTop:4,marginLeft:12,border:`1px solid ${T.border}`}}>
+                                  <PlatformIcon p={d.plataforma} size={12}/>
+                                  <span style={{fontSize:11,fontWeight:600,color:T.muted}}>{d.formato||'Clip'}</span>
+                                  <span style={{width:5,height:5,borderRadius:'50%',background:s.dot,flexShrink:0}}/>
+                                  <span style={{fontSize:11,color:s.color}}>{s.label}</span>
+                                  {d.duracion&&<span style={{fontSize:11,color:T.dim,marginLeft:'auto'}}>{fmtSec(parseInt(d.duracion)||0)}</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
                         );
                       })}
                     </div>
@@ -1042,13 +1198,15 @@ function SectionSemanal({items,onOpenGuion}){
                       {dayItems.map(item=>{
                         const ch=CHANNELS[item.canal]||CHANNELS.iarcania;
                         const s=STATUS[item.estado]||STATUS.idea;
+                        const ders=item.derivados||[];
                         return(
-                          <button key={item.id} onClick={()=>setDetailItem(item)}
+                          <button key={item.id} onClick={()=>onOpenDetail(item)}
                             style={{display:'block',width:'100%',background:`${ch.color}10`,border:`1px solid ${ch.colorBorder}`,borderRadius:6,padding:'6px',cursor:'pointer',fontFamily:'Inter,sans-serif',textAlign:'left',minHeight:44}}>
                             <div style={{fontSize:9,fontWeight:700,color:ch.colorLight,marginBottom:2}}>{ch.name}</div>
                             <div style={{fontSize:10,fontWeight:600,color:T.text,lineHeight:1.4}}>{item.titulo}</div>
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:3}}>
                               <span style={{fontSize:9,color:s.color,fontWeight:600}}>{FORMAT_ICONS[item.formato]}</span>
+                              {ders.length>0&&<span style={{fontSize:9,color:T.dim}}>+{ders.length}</span>}
                               {item.horaGrab&&<span style={{fontSize:9,color:T.dim}}>{item.horaGrab}</span>}
                             </div>
                           </button>
@@ -1083,10 +1241,16 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 }/*EDITMODE-END*/;
 
 const SAMPLE_ITEMS=[
-  {id:1,canal:'iarcania',titulo:'Cómo automatizar tu negocio con IA en 2026',formato:'Video largo',fechaGrab:'2026-05-05',horaGrab:'10:00',horaPub:'18:00',estado:'editando',steps:{Guión:true,Grabación:true,Edición:false,Thumbnail:false,Programar:false,Publicar:false},guion:[{id:1,nombre:'Intro / Hook',duracion:30,texto:'¿Sabías que el 80% de las tareas repetitivas de tu negocio pueden automatizarse hoy mismo? Hola, soy [nombre] y en este video te voy a mostrar exactamente cómo.'},{id:2,nombre:'Desarrollo principal',duracion:180,texto:''},{id:3,nombre:'Demo en vivo',duracion:120,texto:''},{id:4,nombre:'CTA & Cierre',duracion:30,texto:''}]},
-  {id:2,canal:'voidstoic',titulo:'El estoicismo y la ansiedad moderna',formato:'Video largo',fechaGrab:'2026-05-06',horaGrab:'14:00',horaPub:'20:00',estado:'grabando',steps:{Guión:true,Grabación:false,Edición:false,Thumbnail:false,Programar:false,Publicar:false},guion:[{id:1,nombre:'Apertura',duracion:45,texto:'Marco Aurelio escribió: "No pierdas más tiempo discutiendo qué debe ser un buen hombre. Sé uno." Esa frase la leí a los 22 años...'},{id:2,nombre:'El problema actual',duracion:120,texto:''},{id:3,nombre:'Solución estoica',duracion:150,texto:''},{id:4,nombre:'CTA',duracion:30,texto:''}]},
-  {id:3,canal:'iarcania',titulo:'3 herramientas de IA que no conoces',formato:'Short',fechaGrab:'2026-05-07',horaGrab:'09:00',horaPub:'12:00',estado:'idea',steps:{Guión:false,Grabación:false,Edición:false,Thumbnail:false,Programar:false,Publicar:false},guion:[]},
-  {id:4,canal:'voidstoic',titulo:'Por qué el Ego te destruye (y cómo frenarlo)',formato:'Reel',fechaGrab:'2026-05-08',horaGrab:'11:00',horaPub:'19:00',estado:'idea',steps:{Guión:false,Grabación:false,Edición:false,Thumbnail:false,Programar:false,Publicar:false},guion:[]},
+  {id:1,canal:'iarcania',titulo:'Cómo automatizar tu negocio con IA en 2026',formato:'Video largo',plataformaOrigen:'YouTube',fechaGrab:'2026-05-05',horaGrab:'10:00',horaPub:'18:00',estado:'editando',
+   steps:{Guión:true,Grabación:true,Edición:false,Thumbnail:false,Programar:false,Publicar:false},
+   guion:[{id:1,nombre:'Intro / Hook',duracion:30,texto:'¿Sabías que el 80% de las tareas repetitivas de tu negocio pueden automatizarse hoy mismo?'},{id:2,nombre:'Desarrollo principal',duracion:180,texto:''},{id:3,nombre:'Demo en vivo',duracion:120,texto:''},{id:4,nombre:'CTA & Cierre',duracion:30,texto:''}],
+   derivados:[{id:101,plataforma:'TikTok',formato:'Short',duracion:'60',estado:'idea',notas:'Cortar hook + demo rápida'},{id:102,plataforma:'Instagram',formato:'Reel',duracion:'90',estado:'idea',notas:''}]},
+  {id:2,canal:'voidstoic',titulo:'El estoicismo y la ansiedad moderna',formato:'Video largo',plataformaOrigen:'YouTube',fechaGrab:'2026-05-06',horaGrab:'14:00',horaPub:'20:00',estado:'grabando',
+   steps:{Guión:true,Grabación:false,Edición:false,Thumbnail:false,Programar:false,Publicar:false},
+   guion:[{id:1,nombre:'Apertura',duracion:45,texto:'Marco Aurelio escribió: "No pierdas más tiempo discutiendo qué debe ser un buen hombre. Sé uno."'},{id:2,nombre:'El problema actual',duracion:120,texto:''},{id:3,nombre:'Solución estoica',duracion:150,texto:''},{id:4,nombre:'CTA',duracion:30,texto:''}],
+   derivados:[{id:201,plataforma:'TikTok',formato:'Short',duracion:'45',estado:'idea',notas:''}]},
+  {id:3,canal:'iarcania',titulo:'3 herramientas de IA que no conoces',formato:'Short',plataformaOrigen:'YouTube',fechaGrab:'2026-05-07',horaGrab:'09:00',horaPub:'12:00',estado:'idea',steps:{Guión:false,Grabación:false,Edición:false,Thumbnail:false,Programar:false,Publicar:false},guion:[],derivados:[]},
+  {id:4,canal:'voidstoic',titulo:'Por qué el Ego te destruye (y cómo frenarlo)',formato:'Reel',plataformaOrigen:'YouTube',fechaGrab:'2026-05-08',horaGrab:'11:00',horaPub:'19:00',estado:'idea',steps:{Guión:false,Grabación:false,Edición:false,Thumbnail:false,Programar:false,Publicar:false},guion:[],derivados:[]},
 ];
 
 function App(){
@@ -1094,10 +1258,8 @@ function App(){
   const [nav,setNav]=useState('contenido');
   const [items,setItems]=useState(SAMPLE_ITEMS);
   const [guionItem,setGuionItem]=useState(null);
-  const [canalConfig,setCanalConfig]=useState({
-    iarcania:{nombre:'IArcanIA',platforms:['YouTube']},
-    voidstoic:{nombre:'VoidStoic',platforms:['YouTube']},
-  });
+  const [detailItem,setDetailItem]=useState(null);
+  const [activePlatforms,setActivePlatforms]=useState(['YouTube','TikTok','Instagram']);
   const isMobile=useMobile();
 
   useEffect(()=>{
@@ -1105,17 +1267,34 @@ function App(){
     if(el) el.style.display=tweaks.showRainBg?'block':'none';
   },[tweaks.showRainBg]);
 
-  function openGuion(item){setGuionItem(item);}
+  function updateItem(updated){setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));}
+  function deleteItem(id){setItems(prev=>prev.filter(i=>i.id!==id));}
+  function openDetail(item){
+    const latest=items.find(i=>i.id===item.id)||item;
+    setDetailItem(latest);
+  }
+  function openGuion(item){setDetailItem(null);setGuionItem(item);}
   function saveGuion(secs){
     setItems(prev=>prev.map(i=>i.id===guionItem.id?{...i,guion:secs}:i));
     setGuionItem(null);
   }
 
-  const sectionTitle={canal:'Canal',contenido:'Contenido',produccion:'Producción',semanal:'Semana'};
+  const sectionTitle={canal:'Plataformas',contenido:'Contenido',produccion:'Producción',semanal:'Semana'};
+
+  const DetailModal=detailItem&&(
+    <ItemDetailModal
+      item={detailItem}
+      onClose={()=>setDetailItem(null)}
+      onOpenGuion={openGuion}
+      onUpdate={u=>{updateItem(u);setDetailItem(u);}}
+      onDelete={()=>{deleteItem(detailItem.id);setDetailItem(null);}}
+    />
+  );
 
   if(guionItem){
     return(
       <div style={{width:'100vw',height:'100vh',display:'flex',overflow:'hidden',position:'relative',zIndex:1}}>
+        {DetailModal}
         {!isMobile&&<Sidebar active={nav} onNav={n=>{setGuionItem(null);setNav(n);}} isMobile={false}/>}
         <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
           <ScriptEditor item={guionItem} onBack={()=>setGuionItem(null)} onSave={saveGuion} isMobile={isMobile}/>
@@ -1126,6 +1305,7 @@ function App(){
 
   return(
     <div style={{width:'100vw',height:'100vh',display:'flex',overflow:'hidden',position:'relative',zIndex:1}}>
+      {DetailModal}
       {!isMobile&&<Sidebar active={nav} onNav={setNav} isMobile={false}/>}
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',paddingBottom:isMobile?56:0}}>
         {/* Topbar */}
@@ -1140,7 +1320,7 @@ function App(){
             <div style={{display:'flex',gap:6}}>
               {Object.values(CHANNELS).map(ch=>(
                 <div key={ch.id} style={{display:'flex',alignItems:'center',gap:6,padding:'4px 10px',background:ch.colorBg,border:`1px solid ${ch.colorBorder}`,borderRadius:100,fontSize:10,fontWeight:700,color:ch.color,cursor:'pointer'}} onClick={()=>setNav('canal')}>
-                  {ch.logo} {canalConfig[ch.id]?.nombre||ch.name}
+                  {ch.logo} {ch.name}
                   <span style={{width:5,height:5,borderRadius:'50%',background:ch.dot,animation:'pulse 2s infinite'}}/>
                 </div>
               ))}
@@ -1153,10 +1333,10 @@ function App(){
         </div>
         {/* Section */}
         <div style={{flex:1,overflowY:nav==='canal'?'auto':'hidden',display:'flex',flexDirection:'column'}}>
-          {nav==='canal'      && <SectionCanal canalConfig={canalConfig} setCanalConfig={setCanalConfig} isMobile={isMobile}/>}
-          {nav==='contenido'  && <SectionContenido items={items} setItems={setItems} onOpenGuion={openGuion} isMobile={isMobile}/>}
+          {nav==='canal'      && <SectionCanal activePlatforms={activePlatforms} setActivePlatforms={setActivePlatforms} isMobile={isMobile}/>}
+          {nav==='contenido'  && <SectionContenido items={items} setItems={setItems} onOpenGuion={openGuion} onOpenDetail={openDetail} isMobile={isMobile}/>}
           {nav==='produccion' && <SectionProduccion items={items} setItems={setItems} isMobile={isMobile}/>}
-          {nav==='semanal'    && <SectionSemanal items={items} onOpenGuion={openGuion}/>}
+          {nav==='semanal'    && <SectionSemanal items={items} onOpenGuion={openGuion} onOpenDetail={openDetail}/>}
         </div>
       </div>
       {isMobile&&<Sidebar active={nav} onNav={setNav} isMobile={true}/>}
@@ -1167,7 +1347,7 @@ function App(){
             <TweakToggle label="Tarjetas compactas" value={tweaks.compactCards} onChange={v=>setTweak('compactCards',v)}/>
           </TweakSection>
           <TweakSection title="Navegación rápida">
-            <TweakButton label="→ Canales" onClick={()=>setNav('canal')}/>
+            <TweakButton label="→ Plataformas" onClick={()=>setNav('canal')}/>
             <TweakButton label="→ Vista semanal" onClick={()=>setNav('semanal')}/>
             <TweakButton label="→ Producción" onClick={()=>setNav('produccion')}/>
           </TweakSection>
