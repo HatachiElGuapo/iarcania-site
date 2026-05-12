@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OS Personal — IArcanIA</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--bg-card:#111111;--bg-hover:#181818;
+  --border:#1e1e1e;--border-gold:#C4A35A33;
+  --gold:#C4A35A;--gold-dim:#C4A35A66;
+  --text:#E8E0D0;--text-dim:#8A8070;--text-muted:#4A4440;
+  --red:#E24B4A;--blue:#378ADD;--purple:#8B6CF6;
+  --green:#5DCAA5;--amber:#EF9F27;--gray:#555050;
+  --sidebar:220px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:'Playfair Display',serif;font-weight:700}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
+
+/* AUTH */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem}
+.auth-card{background:#111120;border:1px solid rgba(155,114,240,0.15);border-radius:16px;padding:36px 32px;width:100%;max-width:400px}
+.auth-logo{font-family:'Playfair Display',serif;font-size:22px;color:#C4A35A;text-align:center;margin-bottom:24px;letter-spacing:.05em}
+.auth-card h2{font-size:22px;color:var(--text);margin-bottom:24px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:#8a86b0;margin-bottom:7px}
+.field input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(155,114,240,0.18);border-radius:10px;padding:12px 14px;font-family:'Outfit',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border-color .2s}
+.field input:focus{border-color:rgba(155,114,240,0.5)}
+.field input::placeholder{color:#4a4860}
+.btn-primary{width:100%;padding:13px;background:#9b72f0;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:500;color:#fff;cursor:pointer;transition:background .2s,transform .15s;margin-top:6px}
+.btn-primary:hover{background:#ad8af5;transform:translateY(-1px)}
+.auth-error{display:none;margin-top:12px;padding:10px 14px;background:rgba(226,75,74,0.08);border:1px solid rgba(226,75,74,0.25);border-radius:8px;font-size:13px;color:var(--red);text-align:center}
+
+/* LAYOUT */
+#app{display:none;min-height:100vh}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar);background:#0C0C0C;border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100}
+.sidebar-logo{padding:1.5rem;border-bottom:1px solid var(--border)}
+.sidebar-logo-text{font-family:'Playfair Display',serif;font-size:18px;color:var(--gold);letter-spacing:.05em}
+.sidebar-logo-sub{font-size:10px;color:var(--text-muted);letter-spacing:.15em;text-transform:uppercase;margin-top:2px}
+nav{flex:1;padding:.5rem 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 1.25rem;cursor:pointer;border-left:2px solid transparent;color:var(--text-muted);font-size:13px;transition:all .15s;border:none;background:transparent;width:100%;text-align:left}
+.nav-item:hover{color:var(--text-dim);background:var(--bg-hover)}
+.nav-item.active{color:var(--gold);background:#161616;border-left:2px solid var(--gold)}
+.nav-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;font-family:'Outfit',sans-serif}
+.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.sidebar-user{font-size:12px;color:var(--text-muted)}
+.sidebar-user-name{color:var(--text-dim);font-weight:500;margin-bottom:2px}
+.btn-logout{font-size:11px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;margin-top:6px}
+.btn-logout:hover{color:var(--red)}
+
+.main{margin-left:var(--sidebar);padding:2rem 2.5rem;min-height:100vh}
+.section{display:none}
+.section.active{display:block}
+
+/* HEADER */
+.page-header{margin-bottom:1.75rem;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.page-title{font-size:26px;font-weight:700;color:var(--text);margin-bottom:3px}
+.page-sub{font-size:12px;color:var(--text-muted)}
+.stats-row{display:flex;gap:10px}
+.stat-box{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;text-align:center;min-width:64px}
+.stat-num{font-family:'Playfair Display',serif;font-size:22px;color:var(--text)}
+.stat-num.green{color:var(--green)}
+.stat-label{font-size:10px;color:var(--text-muted);margin-top:1px}
+
+/* ALERTS */
+.alert-bar{border-radius:10px;padding:12px 16px;margin-bottom:1.25rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px}
+.alert-red{background:#130D0D;border:1px solid rgba(226,75,74,0.2);color:var(--red)}
+.alert-amber{background:#130F00;border:1px solid rgba(239,159,39,0.2);color:var(--amber)}
+.alert-label{font-weight:600;font-size:11px;letter-spacing:.05em;flex-shrink:0}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 10px;font-size:11px}
+.pill-hot{background:rgba(226,75,74,0.15);border:1px solid rgba(226,75,74,0.3);color:var(--red)}
+.pill-warm{background:rgba(239,159,39,0.1);border:1px solid rgba(239,159,39,0.2);color:var(--amber)}
+.pill-cool{background:var(--bg-hover);border:1px solid var(--border);color:var(--text-dim)}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 320px;gap:1.5rem}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.card-title{font-size:14px;color:var(--gold);margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+.card-title span{font-family:'Outfit',sans-serif;font-size:11px;color:var(--text-muted);font-weight:400}
+
+/* TASKS */
+.task-list{display:flex;flex-direction:column;gap:6px}
+.task-item{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s}
+.task-item:hover{border-color:#2a2a2a}
+.task-item.done{opacity:.35}
+.task-check{width:18px;height:18px;border-radius:4px;border:1.5px solid #333;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
+.task-text{flex:1;font-size:13px;color:var(--text)}
+.task-item.done .task-text{text-decoration:line-through;color:var(--text-muted)}
+.task-cat{font-size:10px;flex-shrink:0;opacity:.7}
+.cat-legend{display:flex;flex-direction:column;gap:7px}
+.cat-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)}
+.cat-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.cat-count{margin-left:auto;font-size:11px;color:var(--text-muted)}
+
+/* BIRTHDAYS */
+.bd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.bd-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:border-color .15s}
+.bd-card:hover{border-color:#2a2a2a}
+.bd-name{font-size:14px;font-weight:500;color:var(--text);margin-bottom:4px}
+.bd-date{font-size:12px;color:var(--text-muted);margin-bottom:8px}
+.bd-days{font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block}
+
+/* IDEAS */
+.idea-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:12px 14px;resize:none;height:90px;font-family:'Outfit',sans-serif;outline:none;transition:border-color .2s;margin-bottom:8px}
+.idea-input:focus{border-color:var(--border-gold)}
+.idea-input::placeholder{color:var(--text-muted)}
+.btn-gold{background:rgba(196,163,90,0.08);border:1px solid var(--border-gold);border-radius:8px;color:var(--gold);font-size:12px;padding:9px 14px;cursor:pointer;font-family:'Outfit',sans-serif;transition:background .15s;width:100%}
+.btn-gold:hover{background:rgba(196,163,90,0.14)}
+.ideas-list{display:flex;flex-direction:column;gap:8px;margin-top:1rem}
+.idea-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.idea-raw{font-size:12px;color:var(--text-dim);line-height:1.5;margin-bottom:6px}
+.idea-processed{font-size:12px;color:var(--text);line-height:1.5;padding:8px 10px;background:rgba(196,163,90,0.05);border-radius:6px;border-left:2px solid var(--gold-dim)}
+.idea-meta{font-size:10px;color:var(--text-muted);margin-top:6px}
+.idea-status{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px}
+.status-nueva{background:rgba(55,138,221,0.1);color:var(--blue)}
+.status-procesada{background:rgba(93,202,165,0.1);color:var(--green)}
+.processing{color:var(--amber);font-size:12px;margin-top:6px;display:none}
+
+/* CLIENTS */
+.client-list{display:flex;flex-direction:column;gap:8px}
+.client-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px}
+.client-avatar{width:36px;height:36px;border-radius:8px;background:rgba(196,163,90,0.1);border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:16px;color:var(--gold);flex-shrink:0}
+.client-info{flex:1}
+.client-name{font-size:13px;font-weight:500;color:var(--text)}
+.client-biz{font-size:11px;color:var(--text-muted)}
+.client-amount{font-size:14px;color:var(--green);font-weight:500}
+.client-status{font-size:10px;padding:2px 8px;border-radius:10px}
+.status-activo{background:rgba(93,202,165,0.1);color:var(--green)}
+.empty-state{text-align:center;padding:2rem;color:var(--text-muted);font-size:13px}
+.empty-icon{font-size:2rem;margin-bottom:.5rem;opacity:.3}
+
+/* PAYMENTS */
+.payment-list{display:flex;flex-direction:column;gap:6px}
+.payment-row{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.payment-info{flex:1}
+.payment-title{font-size:13px;color:var(--text)}
+.payment-date{font-size:11px;color:var(--text-muted);margin-top:2px}
+.payment-amount{font-size:14px;font-weight:500}
+.paid{color:var(--green)}.pending{color:var(--amber)}.overdue{color:var(--red)}
+.payment-badge{font-size:10px;padding:2px 8px;border-radius:10px}
+.badge-paid{background:rgba(93,202,165,0.1);color:var(--green)}
+.badge-pending{background:rgba(239,159,39,0.1);color:var(--amber)}
+.badge-overdue{background:rgba(226,75,74,0.1);color:var(--red)}
+
+/* MODAL / FORM */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:#111120;border:1px solid rgba(155,114,240,0.15);border-radius:16px;padding:28px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:18px;color:var(--text);margin-bottom:1.25rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-row{display:flex;gap:8px;margin-top:1.25rem}
+.btn-cancel{flex:1;padding:11px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Outfit',sans-serif;font-size:14px;cursor:pointer}
+.btn-save{flex:2;padding:11px;background:#9b72f0;border:none;border-radius:8px;color:#fff;font-family:'Outfit',sans-serif;font-size:14px;cursor:pointer}
+.btn-add{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Outfit',sans-serif;font-size:12px;padding:7px 12px;cursor:pointer;transition:all .15s}
+.btn-add:hover{border-color:var(--gold-dim);color:var(--gold)}
+
+/* LOADING */
+.loading{text-align:center;padding:2rem;color:var(--text-muted);font-size:13px}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* MOBILE */
+.mobile-menu-btn{display:none;position:fixed;bottom:1.5rem;right:1.5rem;width:52px;height:52px;background:#9b72f0;border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;z-index:150;box-shadow:0 4px 20px rgba(155,114,240,0.4)}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform .25s}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:1.25rem}
+  .grid-2{grid-template-columns:1fr}
+  .mobile-menu-btn{display:flex;align-items:center;justify-content:center}
+  .page-title{font-size:20px}
+  .stats-row{gap:6px}
+  .stat-box{padding:8px 12px;min-width:52px}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">IArcanIA OS</div>
+    <h2>Acceso</h2>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="tu@email.com"/>
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="auth-pass" placeholder="••••••••"/>
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <div class="auth-error" id="auth-error">Credenciales incorrectas</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">IArcanIA</div>
+      <div class="sidebar-logo-sub">Sistema Operativo</div>
+    </div>
+    <nav>
+      <button class="nav-item active" onclick="showSection('dashboard',this)">
+        <span class="nav-icon">◈</span>Dashboard
+        <span class="nav-badge" id="badge-pending">0</span>
+      </button>
+      <button class="nav-item" onclick="showSection('actividades',this)">
+        <span class="nav-icon">◎</span>Actividades
+      </button>
+      <button class="nav-item" onclick="showSection('ideas',this)">
+        <span class="nav-icon">◇</span>Ideas
+      </button>
+      <button class="nav-item" onclick="showSection('fechas',this)">
+        <span class="nav-icon">◉</span>Fechas
+      </button>
+      <button class="nav-item" onclick="showSection('clientes',this)">
+        <span class="nav-icon">◆</span>Clientes
+      </button>
+      <button class="nav-item" onclick="showSection('cobros',this)">
+        <span class="nav-icon">◐</span>Cobros
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="user-name">Miguel</div>
+        <div>IArcanIA · Founder</div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="section-dashboard">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Buen día, Miguel</h1>
+          <div class="page-sub" id="today-date"></div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-num" id="stat-pending">—</div>
+            <div class="stat-label">pendientes</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num green" id="stat-done">—</div>
+            <div class="stat-label">completadas</div>
+          </div>
+        </div>
+      </div>
+      <div class="alert-bar alert-red" id="bd-alert" style="display:none">
+        <span class="alert-label">🎂 CUMPLEAÑOS</span>
+        <div id="bd-pills"></div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title">Actividades de hoy</div>
+            <div class="task-list" id="dashboard-tasks">
+              <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1rem">
+          <div class="card">
+            <div class="card-title">Capturar idea rápida</div>
+            <textarea class="idea-input" id="quick-idea" placeholder="Escribe una idea..."></textarea>
+            <button class="btn-gold" onclick="saveQuickIdea()">Guardar + procesar con IA →</button>
+            <div class="processing" id="quick-processing">Procesando con IA...</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Categorías</div>
+            <div class="cat-legend" id="cat-legend"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVIDADES -->
+    <div class="section" id="section-actividades">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Actividades</h1>
+          <div class="page-sub">Toca para marcar como completada</div>
+        </div>
+        <button class="btn-add" onclick="openModal('task')">+ Nueva actividad</button>
+      </div>
+      <div class="task-list" id="all-tasks">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
+    <!-- IDEAS -->
+    <div class="section" id="section-ideas">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Ideas</h1>
+          <div class="page-sub">La IA las estructura automáticamente</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Nueva idea</div>
+        <textarea class="idea-input" id="new-idea" placeholder="Escribe tu idea aquí..."></textarea>
+        <button class="btn-gold" onclick="saveIdea()">Guardar + procesar con IA →</button>
+        <div class="processing" id="idea-processing">Procesando con IA...</div>
+      </div>
+      <div class="ideas-list" id="ideas-list">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
+    <!-- FECHAS -->
+    <div class="section" id="section-fechas">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Fechas importantes</h1>
+          <div class="page-sub">Cumpleaños, citas y eventos</div>
+        </div>
+        <button class="btn-add" onclick="openModal('birthday')">+ Agregar fecha</button>
+      </div>
+      <div class="bd-grid" id="bd-grid">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="section" id="section-clientes">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Clientes</h1>
+          <div class="page-sub">Clientes activos de IArcanIA</div>
+        </div>
+        <button class="btn-add" onclick="openModal('client')">+ Nuevo cliente</button>
+      </div>
+      <div class="client-list" id="client-list">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
+    <!-- COBROS -->
+    <div class="section" id="section-cobros">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Cobros</h1>
+          <div class="page-sub">Lo que has cobrado y lo que falta</div>
+        </div>
+        <button class="btn-add" onclick="openModal('payment')">+ Registrar cobro</button>
+      </div>
+      <div class="alert-bar alert-amber" id="cobros-summary" style="display:none">
+        <span class="alert-label">💰 PENDIENTE</span>
+        <span id="cobros-total"></span>
+      </div>
+      <div class="payment-list" id="payment-list">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MOBILE MENU -->
+<button class="mobile-menu-btn" id="mobile-btn" onclick="toggleSidebar()">☰</button>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <h3>Nueva actividad</h3>
+    <div class="field"><label>Título</label><input type="text" id="t-title" placeholder="¿Qué hay que hacer?"/></div>
+    <div class="form-row">
+      <div class="field">
+        <label>Categoría</label>
+        <select id="t-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="iarcania">IArcanIA</option>
+          <option value="contenido">Contenido</option>
+          <option value="proyectos">Proyectos</option>
+          <option value="personal">Personal</option>
+          <option value="infra">Infraestructura</option>
+          <option value="habitos">Hábitos</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Prioridad</label>
+        <select id="t-priority" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="alta">Alta</option>
+          <option value="media">Media</option>
+          <option value="baja">Baja</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('task')">Cancelar</button>
+      <button class="btn-save" onclick="saveTask()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-birthday">
+  <div class="modal">
+    <h3>Agregar fecha importante</h3>
+    <div class="field"><label>Nombre</label><input type="text" id="bd-name" placeholder="ej. Abuela"/></div>
+    <div class="field"><label>Relación</label><input type="text" id="bd-rel" placeholder="ej. Abuela, Tío, Amigo"/></div>
+    <div class="form-row">
+      <div class="field"><label>Día</label><input type="number" id="bd-day" min="1" max="31" placeholder="15"/></div>
+      <div class="field"><label>Mes</label><input type="number" id="bd-month" min="1" max="12" placeholder="5"/></div>
+    </div>
+    <div class="field"><label>Avisar (días antes)</label><input type="number" id="bd-reminder" value="3"/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('birthday')">Cancelar</button>
+      <button class="btn-save" onclick="saveBirthday()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <h3>Nuevo cliente</h3>
+    <div class="field"><label>Nombre</label><input type="text" id="c-name" placeholder="Nombre del cliente"/></div>
+    <div class="field"><label>Negocio</label><input type="text" id="c-biz" placeholder="ej. Inmobiliaria XYZ"/></div>
+    <div class="form-row">
+      <div class="field"><label>WhatsApp</label><input type="text" id="c-wa" placeholder="+57..."/></div>
+      <div class="field"><label>Email</label><input type="email" id="c-email" placeholder="email@..."/></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Servicio</label><input type="text" id="c-service" placeholder="ej. Agente WhatsApp"/></div>
+      <div class="field"><label>Monto mensual (USD)</label><input type="number" id="c-amount" placeholder="500"/></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('client')">Cancelar</button>
+      <button class="btn-save" onclick="saveClient()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal">
+    <h3>Registrar cobro</h3>
+    <div class="field">
+      <label>Cliente</label>
+      <select id="p-client" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="">Seleccionar cliente...</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Monto (USD)</label><input type="number" id="p-amount" placeholder="500"/></div>
+      <div class="field">
+        <label>Estado</label>
+        <select id="p-status" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="pendiente">Pendiente</option>
+          <option value="pagado">Pagado</option>
+          <option value="vencido">Vencido</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Fecha vence</label><input type="date" id="p-due"/></div>
+      <div class="field"><label>Fecha pago (si aplica)</label><input type="date" id="p-paid"/></div>
+    </div>
+    <div class="field"><label>Notas</label><input type="text" id="p-notes" placeholder="opcional"/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('payment')">Cancelar</button>
+      <button class="btn-save" onclick="savePayment()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createClient } = supabase
+
+const SB_P = createClient(
+  'https://gpfidxxawcwsbuzsbeob.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZmlkeHhhd2N3c2J1enNiZW9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjgxOTksImV4cCI6MjA4ODMwNDE5OX0.i96CvvseJCPSvEveUCx2FWECNKEuWHj51EP_3b2mCkc'
+)
+
+const SB_I = createClient(
+  'https://ktmiurbvgewuwkzkqitj.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0bWl1cmJ2Z2V3dXdremtxaXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NTc5NzAsImV4cCI6MjA5NDEzMzk3MH0.5A7CyvnVmlYJQp2L_naMuW8n7quIdbEq8kL5hHbVSoY'
+)
+
+const CATS = {
+  iarcania: { label:'IArcanIA', color:'#E24B4A' },
+  contenido: { label:'Contenido', color:'#378ADD' },
+  proyectos: { label:'Proyectos', color:'#8B6CF6' },
+  personal:  { label:'Personal',  color:'#5DCAA5' },
+  infra:     { label:'Infraestructura', color:'#EF9F27' },
+  habitos:   { label:'Hábitos',   color:'#555050' },
+}
+
+let USER_ID = null
+let allTasks = []
+let allClients = []
+
+// --- AUTH ---
+async function doLogin(){
+  const email = document.getElementById('auth-email').value.trim()
+  const pass  = document.getElementById('auth-pass').value
+  const errEl = document.getElementById('auth-error')
+  errEl.style.display = 'none'
+  const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
+  if(error){ errEl.style.display='block'; return }
+  USER_ID = data.user.id
+  document.getElementById('auth-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'block'
+  document.getElementById('user-name').textContent = email.split('@')[0]
+  await SB_I.auth.signInWithPassword({ email, password: pass })
+  initApp()
+}
+
+async function doLogout(){
+  await SB_P.auth.signOut()
+  await SB_I.auth.signOut()
+  location.reload()
+}
+
+document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin() })
+
+// --- INIT ---
+async function initApp(){
+  setDate()
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments()])
+}
+
+function setDate(){
+  const d = new Date()
+  document.getElementById('today-date').textContent = d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})
+}
+
+// --- NAV ---
+function showSection(id, btn){
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'))
+  document.getElementById('section-'+id).classList.add('active')
+  btn.classList.add('active')
+  if(window.innerWidth <= 768) closeSidebar()
+}
+
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open') }
+function closeSidebar(){ document.getElementById('sidebar').classList.remove('open') }
+
+// --- TASKS ---
+async function loadTasks(){
+  const { data } = await SB_P.from('tasks').select('*').order('priority')
+  allTasks = data || []
+  renderTasks()
+}
+
+function renderTasks(){
+  const pending = allTasks.filter(t => t.status !== 'completada')
+  const done    = allTasks.filter(t => t.status === 'completada')
+  document.getElementById('stat-pending').textContent = pending.length
+  document.getElementById('stat-done').textContent    = done.length
+  document.getElementById('badge-pending').textContent = pending.length
+  renderTaskList('dashboard-tasks', allTasks.slice(0,6))
+  renderTaskList('all-tasks', allTasks)
+  renderCatLegend()
+}
+
+function renderTaskList(elId, tasks){
+  const el = document.getElementById(elId)
+  if(!tasks.length){ el.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div>No hay actividades todavía</div>'; return }
+  el.innerHTML = tasks.map(t => {
+    const cat = CATS[t.category] || CATS.habitos
+    const done = t.status === 'completada'
+    return `<div class="task-item${done?' done':''}" onclick="toggleTask('${t.id}')" style="border-left-color:${done?'var(--border)':cat.color}">
+      <div class="task-check" style="${done?`background:${cat.color};border-color:${cat.color}`:''}">
+        ${done?'✓':''}
+      </div>
+      <div class="task-text">${t.title}</div>
+      <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
+    </div>`
+  }).join('')
+}
+
+function renderCatLegend(){
+  const el = document.getElementById('cat-legend')
+  el.innerHTML = Object.entries(CATS).map(([id,c]) => {
+    const count = allTasks.filter(t => t.category===id && t.status!=='completada').length
+    return `<div class="cat-row">
+      <div class="cat-dot" style="background:${c.color}"></div>
+      <span>${c.label}</span>
+      <span class="cat-count">${count} pendientes</span>
+    </div>`
+  }).join('')
+}
+
+async function toggleTask(id){
+  const task = allTasks.find(t => t.id===id)
+  if(!task) return
+  const newStatus = task.status === 'completada' ? 'pendiente' : 'completada'
+  await SB_P.from('tasks').update({ status: newStatus }).eq('id', id)
+  task.status = newStatus
+  renderTasks()
+}
+
+async function saveTask(){
+  const title = document.getElementById('t-title').value.trim()
+  if(!title) return
+  const id = 'task_'+Date.now()
+  const cat = CATS[document.getElementById('t-cat').value]
+  await SB_P.from('tasks').insert({
+    id, title,
+    category: document.getElementById('t-cat').value,
+    color: cat.color,
+    priority: document.getElementById('t-priority').value,
+    due_date: document.getElementById('t-due').value || null,
+    assigned_to: USER_ID,
+    created_by: USER_ID,
+    status: 'pendiente'
+  })
+  closeModal('task')
+  document.getElementById('t-title').value = ''
+  await loadTasks()
+}
+
+// --- BIRTHDAYS ---
+async function loadBirthdays(){
+  const { data } = await SB_P.from('birthdays').select('*').order('month').order('day')
+  renderBirthdays(data||[])
+}
+
+function daysUntil(day, month){
+  const now = new Date()
+  let next = new Date(now.getFullYear(), month-1, day)
+  if(next < now) next.setFullYear(now.getFullYear()+1)
+  return Math.ceil((next - now) / 86400000)
+}
+
+function renderBirthdays(bds){
+  const grid = document.getElementById('bd-grid')
+  if(!bds.length){ grid.innerHTML='<div class="empty-state"><div class="empty-icon">◉</div>No hay fechas guardadas</div>'; return }
+  grid.innerHTML = bds.map(b => {
+    const days = daysUntil(b.day, b.month)
+    const cls = days<=3?'pill-hot':days<=7?'pill-warm':'pill-cool'
+    const label = days===0?'¡Hoy!':days===1?'Mañana':`${days} días`
+    return `<div class="bd-card">
+      <div class="bd-name">${b.name}</div>
+      <div class="bd-date">${b.relationship} · ${b.day}/${b.month}</div>
+      <span class="bd-days pill ${cls}">${label}</span>
+    </div>`
+  }).join('')
+
+  const urgent = bds.filter(b => daysUntil(b.day,b.month)<=7)
+  const alertBar = document.getElementById('bd-alert')
+  if(urgent.length){
+    alertBar.style.display='flex'
+    document.getElementById('bd-pills').innerHTML = urgent.map(b=>{
+      const days=daysUntil(b.day,b.month)
+      const cls=days<=3?'pill-hot':'pill-warm'
+      const label=days===0?'¡Hoy!':days===1?'Mañana':`en ${days} días`
+      return `<span class="pill ${cls}">${b.name} — ${label}</span>`
+    }).join(' ')
+  } else {
+    alertBar.style.display='none'
+  }
+}
+
+async function saveBirthday(){
+  const name = document.getElementById('bd-name').value.trim()
+  if(!name) return
+  await SB_P.from('birthdays').insert({
+    id: 'bd_'+Date.now(),
+    name,
+    relationship: document.getElementById('bd-rel').value,
+    day: parseInt(document.getElementById('bd-day').value),
+    month: parseInt(document.getElementById('bd-month').value),
+    reminder_days_before: parseInt(document.getElementById('bd-reminder').value)||3
+  })
+  closeModal('birthday')
+  await loadBirthdays()
+}
+
+// --- IDEAS ---
+async function loadIdeas(){
+  const { data } = await SB_P.from('ideas').select('*').order('created_at',{ascending:false})
+  renderIdeas(data||[])
+}
+
+function renderIdeas(ideas){
+  const el = document.getElementById('ideas-list')
+  if(!ideas.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◇</div>No hay ideas todavía</div>'; return }
+  el.innerHTML = ideas.map(i => `
+    <div class="idea-card">
+      <div class="idea-raw">${i.raw_content||''}</div>
+      ${i.processed_content?`<div class="idea-processed">${i.processed_content}</div>`:''}
+      <div class="idea-meta">
+        <span class="idea-status ${i.status==='procesada'?'status-procesada':'status-nueva'}">${i.status||'nueva'}</span>
+        · ${new Date(i.created_at).toLocaleDateString('es-CO')}
+      </div>
+    </div>`).join('')
+}
+
+async function saveIdea(){ await _saveIdea('new-idea','idea-processing') }
+async function saveQuickIdea(){ await _saveIdea('quick-idea','quick-processing') }
+
+async function _saveIdea(inputId, procId){
+  const raw = document.getElementById(inputId).value.trim()
+  if(!raw) return
+  document.getElementById(procId).style.display='block'
+  const id = 'idea_'+Date.now()
+  let processed = null
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:300,
+        messages:[{role:'user',content:`Estructura esta idea en máximo 2 oraciones claras y accionables. Sin preámbulos, solo el resultado:\n\n"${raw}"`}]
+      })
+    })
+    const d = await res.json()
+    processed = d.content?.[0]?.text || null
+  } catch(e){ processed = null }
+  await SB_P.from('ideas').insert({
+    id, user_id: USER_ID, raw_content: raw,
+    processed_content: processed,
+    source: 'text', status: processed?'procesada':'nueva',
+    created_at: new Date().toISOString()
+  })
+  document.getElementById(inputId).value = ''
+  document.getElementById(procId).style.display='none'
+  await loadIdeas()
+}
+
+// --- CLIENTS ---
+async function loadClients(){
+  const { data } = await SB_I.from('clients').select('*').order('created_at',{ascending:false})
+  allClients = data||[]
+  renderClients()
+  const sel = document.getElementById('p-client')
+  sel.innerHTML = '<option value="">Seleccionar cliente...</option>' +
+    allClients.map(c=>`<option value="${c.id}">${c.name} — ${c.business||''}</option>`).join('')
+}
+
+function renderClients(){
+  const el = document.getElementById('client-list')
+  if(!allClients.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◆</div>Sin clientes todavía — cierra tu primer deal 🎯</div>'; return }
+  el.innerHTML = allClients.map(c=>`
+    <div class="client-card">
+      <div class="client-avatar">${c.name.charAt(0)}</div>
+      <div class="client-info">
+        <div class="client-name">${c.name}</div>
+        <div class="client-biz">${c.business||''} · ${c.service||''}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="client-amount">$${c.monthly_amount||0}/mes</div>
+        <span class="client-status status-${c.status||'activo'}">${c.status||'activo'}</span>
+      </div>
+    </div>`).join('')
+}
+
+async function saveClient(){
+  const name = document.getElementById('c-name').value.trim()
+  if(!name) return
+  await SB_I.from('clients').insert({
+    id:'cli_'+Date.now(), name,
+    business: document.getElementById('c-biz').value,
+    whatsapp: document.getElementById('c-wa').value,
+    email: document.getElementById('c-email').value,
+    service: document.getElementById('c-service').value,
+    monthly_amount: parseFloat(document.getElementById('c-amount').value)||0,
+    start_date: new Date().toISOString().split('T')[0],
+    status:'activo'
+  })
+  closeModal('client')
+  await loadClients()
+}
+
+// --- PAYMENTS ---
+async function loadPayments(){
+  const { data } = await SB_I.from('payments').select('*').order('due_date',{ascending:false})
+  renderPayments(data||[])
+}
+
+function renderPayments(payments){
+  const el = document.getElementById('payment-list')
+  if(!payments.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◐</div>No hay cobros registrados todavía</div>'; return }
+  const pending = payments.filter(p=>p.status==='pendiente').reduce((a,p)=>a+(p.amount||0),0)
+  const summary = document.getElementById('cobros-summary')
+  if(pending>0){
+    summary.style.display='flex'
+    document.getElementById('cobros-total').textContent=`$${pending.toFixed(0)} USD por cobrar`
+  }
+  el.innerHTML = payments.map(p=>{
+    const client = allClients.find(c=>c.id===p.client_id)
+    const cls = p.status==='pagado'?'paid':p.status==='vencido'?'overdue':'pending'
+    const badgeCls = p.status==='pagado'?'badge-paid':p.status==='vencido'?'badge-overdue':'badge-pending'
+    return `<div class="payment-row">
+      <div class="payment-info">
+        <div class="payment-title">${client?client.name:'Cliente'}</div>
+        <div class="payment-date">Vence: ${p.due_date||'—'}${p.paid_date?` · Pagado: ${p.paid_date}`:''}</div>
+      </div>
+      <div class="payment-amount ${cls}">$${p.amount||0}</div>
+      <span class="payment-badge ${badgeCls}">${p.status}</span>
+    </div>`
+  }).join('')
+}
+
+async function savePayment(){
+  const client_id = document.getElementById('p-client').value
+  if(!client_id) return
+  await SB_I.from('payments').insert({
+    id:'pay_'+Date.now(), client_id,
+    amount: parseFloat(document.getElementById('p-amount').value)||0,
+    status: document.getElementById('p-status').value,
+    due_date: document.getElementById('p-due').value||null,
+    paid_date: document.getElementById('p-paid').value||null,
+    notes: document.getElementById('p-notes').value
+  })
+  closeModal('payment')
+  await loadPayments()
+}
+
+// --- MODALS ---
+function openModal(type){ document.getElementById('modal-'+type).classList.add('open') }
+function closeModal(type){ document.getElementById('modal-'+type).classList.remove('open') }
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open') })
+})
+
+// --- CHECK SESSION ---
+;(async()=>{
+  const { data } = await SB_P.auth.getSession()
+  if(data.session){
+    USER_ID = data.session.user.id
+    document.getElementById('auth-screen').style.display='none'
+    document.getElementById('app').style.display='block'
+    document.getElementById('user-name').textContent = data.session.user.email.split('@')[0]
+    await SB_I.auth.signInWithPassword({
+      email: data.session.user.email,
+      password: ''
+    }).catch(()=>{})
+    initApp()
+  }
+})()
+</script>
+</body>
+</html>
