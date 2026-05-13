@@ -159,6 +159,24 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .btn-add{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Outfit',sans-serif;font-size:12px;padding:7px 12px;cursor:pointer;transition:all .15s}
 .btn-add:hover{border-color:var(--gold-dim);color:var(--gold)}
 
+/* HABITOS */
+.cat-filter{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;font-family:'Outfit',sans-serif}
+.cat-filter:hover{color:var(--text-dim);border-color:#333}
+.cat-filter.active{background:var(--gold);border-color:var(--gold);color:#000;font-weight:500}
+.habito-item{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:12px;transition:all .15s}
+.habito-item.done{opacity:.4}
+.habito-item.inactive{opacity:.3;border-style:dashed}
+.habito-check{width:20px;height:20px;border-radius:50%;border:1.5px solid #333;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;transition:all .15s}
+.habito-check:hover{border-color:var(--gold)}
+.habito-name{flex:1;font-size:13px;color:var(--text)}
+.habito-item.done .habito-name{text-decoration:line-through;color:var(--text-muted)}
+.habito-cat-label{font-size:10px;color:var(--text-muted);flex-shrink:0}
+.habito-toggle{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0}
+.habito-toggle:hover{border-color:var(--gold-dim);color:var(--gold)}
+.habito-group{margin-bottom:1.25rem}
+.habito-group-title{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.habito-group-line{flex:1;height:1px;background:var(--border)}
+
 /* LOADING */
 .loading{text-align:center;padding:2rem;color:var(--text-muted);font-size:13px}
 .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:8px}
@@ -218,6 +236,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </button>
       <button class="nav-item" onclick="showSection('fechas',this)">
         <span class="nav-icon">◉</span>Fechas
+      </button>
+      <button class="nav-item" onclick="showSection('habitos',this)">
+        <span class="nav-icon">◑</span>Hábitos
       </button>
       <button class="nav-item" onclick="showSection('clientes',this)">
         <span class="nav-icon">◆</span>Clientes
@@ -327,6 +348,40 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
       <div class="bd-grid" id="bd-grid">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
+    <!-- HABITOS -->
+    <div class="section" id="section-habitos">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Hábitos</h1>
+          <div class="page-sub" id="habitos-sub">Hoy</div>
+        </div>
+        <button class="btn-add" onclick="toggleShowAll()" id="btn-show-all">Ver inactivos</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem">
+        <button class="cat-filter active" onclick="filterHabitos('all',this)">Todos</button>
+        <button class="cat-filter" onclick="filterHabitos('identidad_diaria',this)">Identidad</button>
+        <button class="cat-filter" onclick="filterHabitos('base_estabilidad',this)">Estabilidad</button>
+        <button class="cat-filter" onclick="filterHabitos('expansion_cognitiva',this)">Cognitiva</button>
+        <button class="cat-filter" onclick="filterHabitos('expansion_creativa',this)">Creativa</button>
+        <button class="cat-filter" onclick="filterHabitos('expansion_fisica',this)">Física</button>
+        <button class="cat-filter" onclick="filterHabitos('expansion_relacional',this)">Relacional</button>
+        <button class="cat-filter" onclick="filterHabitos('vida_practica',this)">Práctica</button>
+        <button class="cat-filter" onclick="filterHabitos('vicios',this)">Vicios</button>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:1.25rem">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--text-dim)">Progreso de hoy</span>
+          <span style="font-size:12px;color:var(--gold)" id="habitos-progress-text">0 / 0</span>
+        </div>
+        <div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden">
+          <div id="habitos-progress-bar" style="background:var(--gold);height:100%;border-radius:4px;transition:width .3s;width:0%"></div>
+        </div>
+      </div>
+      <div id="habitos-list" style="display:flex;flex-direction:column;gap:6px">
+        <div class="loading"><div class="spinner"></div><br>Cargando hábitos...</div>
       </div>
     </div>
 
@@ -524,7 +579,7 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 // --- INIT ---
 async function initApp(){
   setDate()
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos()])
 }
 
 function setDate(){
@@ -727,6 +782,124 @@ async function _saveIdea(inputId, procId){
   document.getElementById(inputId).value = ''
   document.getElementById(procId).style.display='none'
   await loadIdeas()
+}
+
+// --- HABITOS ---
+const CAT_COLORS = {
+  identidad_diaria:    '#C4A35A',
+  base_estabilidad:    '#5DCAA5',
+  expansion_cognitiva: '#378ADD',
+  expansion_creativa:  '#8B6CF6',
+  expansion_fisica:    '#EF9F27',
+  expansion_relacional:'#E24B4A',
+  vida_practica:       '#555050',
+  vicios:              '#8B1A1A',
+  eventos_crisis:      '#2A2A2A',
+}
+
+const CAT_LABELS = {
+  identidad_diaria:    'Identidad diaria',
+  base_estabilidad:    'Estabilidad base',
+  expansion_cognitiva: 'Expansión cognitiva',
+  expansion_creativa:  'Expansión creativa',
+  expansion_fisica:    'Expansión física',
+  expansion_relacional:'Expansión relacional',
+  vida_practica:       'Vida práctica',
+  vicios:              'Vicios',
+  eventos_crisis:      'Eventos / crisis',
+}
+
+let allActivities = []
+let habitLogs = {}
+let showInactive = false
+let currentCatFilter = 'all'
+const TODAY = new Date().toISOString().split('T')[0]
+
+async function loadHabitos(){
+  const { data: acts } = await SB_P.from('activities').select('*').order('category').order('name')
+  allActivities = acts || []
+
+  const { data: logs } = await SB_P.from('activity_logs')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('date', TODAY)
+
+  habitLogs = {}
+  ;(logs||[]).forEach(l => { habitLogs[l.activity_id] = l })
+
+  renderHabitos()
+}
+
+function renderHabitos(){
+  const el = document.getElementById('habitos-list')
+  let toShow = allActivities.filter(a => showInactive ? true : a.is_active)
+  if(currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
+
+  const active = toShow.filter(a => a.is_active)
+  const done = active.filter(a => habitLogs[a.id])
+  document.getElementById('habitos-progress-text').textContent = `${done.length} / ${active.length}`
+  const pct = active.length ? (done.length/active.length*100) : 0
+  document.getElementById('habitos-progress-bar').style.width = pct+'%'
+
+  if(!toShow.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◑</div>No hay hábitos en esta categoría</div>'; return }
+
+  const grouped = {}
+  toShow.forEach(a => {
+    if(!grouped[a.category]) grouped[a.category] = []
+    grouped[a.category].push(a)
+  })
+
+  el.innerHTML = Object.entries(grouped).map(([cat, acts]) => {
+    const color = CAT_COLORS[cat] || '#555'
+    const label = CAT_LABELS[cat] || cat
+    const items = acts.map(a => {
+      const isDone = !!habitLogs[a.id]
+      const isActive = a.is_active
+      return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+        <div class="habito-check" onclick="toggleHabito('${a.id}')" style="${isDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}33`}">
+          ${isDone?'✓':''}
+        </div>
+        <div class="habito-name">${a.name}</div>
+        <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'Desactivar':'Activar'}</button>
+      </div>`
+    }).join('')
+    return `<div class="habito-group">
+      <div class="habito-group-title" style="color:${color}">${label}<div class="habito-group-line"></div></div>
+      <div style="display:flex;flex-direction:column;gap:5px">${items}</div>
+    </div>`
+  }).join('')
+}
+
+async function toggleHabito(activityId){
+  if(habitLogs[activityId]){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs[activityId].id)
+    delete habitLogs[activityId]
+  } else {
+    const log = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
+    await SB_P.from('activity_logs').insert(log)
+    habitLogs[activityId] = log
+  }
+  renderHabitos()
+}
+
+async function toggleActive(activityId, currentState){
+  await SB_P.from('activities').update({ is_active: !currentState }).eq('id', activityId)
+  const act = allActivities.find(a => a.id===activityId)
+  if(act) act.is_active = !currentState
+  renderHabitos()
+}
+
+function filterHabitos(cat, btn){
+  currentCatFilter = cat
+  document.querySelectorAll('.cat-filter').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  renderHabitos()
+}
+
+function toggleShowAll(){
+  showInactive = !showInactive
+  document.getElementById('btn-show-all').textContent = showInactive ? 'Ocultar inactivos' : 'Ver inactivos'
+  renderHabitos()
 }
 
 // --- CLIENTS ---
