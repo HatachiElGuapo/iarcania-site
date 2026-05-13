@@ -816,7 +816,7 @@ let currentCatFilter = 'all'
 const TODAY = new Date().toISOString().split('T')[0]
 
 async function loadHabitos(){
-  const { data: acts } = await SB_P.from('activities').select('*').order('category').order('name')
+  const { data: acts } = await SB_P.from('activities').select('*').order('sort_order').order('name')
   allActivities = acts || []
 
   const { data: logs } = await SB_P.from('activity_logs')
@@ -843,6 +843,13 @@ function renderHabitos(){
 
   if(!toShow.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◑</div>No hay hábitos en esta categoría</div>'; return }
 
+  // Si filtro es 'all', mostrar en orden lineal sin agrupar
+  if(currentCatFilter === 'all'){
+    el.innerHTML = toShow.map(a => habitoHTML(a)).join('')
+    return
+  }
+
+  // Si hay filtro, agrupar por categoría
   const grouped = {}
   toShow.forEach(a => {
     if(!grouped[a.category]) grouped[a.category] = []
@@ -852,22 +859,28 @@ function renderHabitos(){
   el.innerHTML = Object.entries(grouped).map(([cat, acts]) => {
     const color = CAT_COLORS[cat] || '#555'
     const label = CAT_LABELS[cat] || cat
-    const items = acts.map(a => {
-      const isDone = !!habitLogs[a.id]
-      const isActive = a.is_active
-      return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
-        <div class="habito-check" onclick="toggleHabito('${a.id}')" style="${isDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}33`}">
-          ${isDone?'✓':''}
-        </div>
-        <div class="habito-name">${a.name}</div>
-        <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'Desactivar':'Activar'}</button>
-      </div>`
-    }).join('')
     return `<div class="habito-group">
       <div class="habito-group-title" style="color:${color}">${label}<div class="habito-group-line"></div></div>
-      <div style="display:flex;flex-direction:column;gap:5px">${items}</div>
+      <div style="display:flex;flex-direction:column;gap:5px">${acts.map(a => habitoHTML(a)).join('')}</div>
     </div>`
   }).join('')
+}
+
+function habitoHTML(a){
+  const isDone = !!habitLogs[a.id]
+  const isActive = a.is_active
+  const color = CAT_COLORS[a.category] || '#555'
+  const is2020 = a.id === 'a70'
+  return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+    <div class="habito-check" onclick="${is2020?'':(`toggleHabito('${a.id}')`)}}" style="${isDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}33`}${is2020?';cursor:default':''}">
+      ${isDone?'✓':''}
+    </div>
+    <div style="flex:1">
+      <div class="habito-name">${a.name}${is2020?` <span style="font-size:10px;color:var(--text-muted)">(auto)</span>`:''}</div>
+    </div>
+    <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0">${CAT_LABELS[a.category]||''}</span>
+    <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
+  </div>`
 }
 
 async function toggleHabito(activityId){
@@ -879,6 +892,19 @@ async function toggleHabito(activityId){
     await SB_P.from('activity_logs').insert(log)
     habitLogs[activityId] = log
   }
+
+  // Lógica 20/20/20: si saltos (a35) + baño (a14) + meditar (a02) están completos → marcar a70
+  const trio = ['a35','a14','a02']
+  const trioCompleto = trio.every(id => !!habitLogs[id])
+  if(trioCompleto && !habitLogs['a70']){
+    const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: TODAY }
+    await SB_P.from('activity_logs').insert(log70)
+    habitLogs['a70'] = log70
+  } else if(!trioCompleto && habitLogs['a70']){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
+    delete habitLogs['a70']
+  }
+
   renderHabitos()
 }
 
