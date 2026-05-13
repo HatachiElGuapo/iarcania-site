@@ -362,15 +362,14 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem">
         <button class="cat-filter active" onclick="filterHabitos('all',this)">Todos</button>
-        <button class="cat-filter" onclick="filterHabitos('identidad_diaria',this)">Identidad</button>
-        <button class="cat-filter" onclick="filterHabitos('base_estabilidad',this)">Estabilidad</button>
-        <button class="cat-filter" onclick="filterHabitos('expansion_cognitiva',this)">Cognitiva</button>
-        <button class="cat-filter" onclick="filterHabitos('expansion_creativa',this)">Creativa</button>
-        <button class="cat-filter" onclick="filterHabitos('expansion_fisica',this)">Física</button>
-        <button class="cat-filter" onclick="filterHabitos('expansion_relacional',this)">Relacional</button>
-        <button class="cat-filter" onclick="filterHabitos('vida_practica',this)">Práctica</button>
+        <button class="cat-filter" onclick="filterHabitos('despertar',this)">🌅 Despertar</button>
+        <button class="cat-filter" onclick="filterHabitos('ritual_2020',this)">🔄 20/20/20</button>
+        <button class="cat-filter" onclick="filterHabitos('secundarios_manana',this)">☀️ Mañana</button>
+        <button class="cat-filter" onclick="filterHabitos('trabajo_profundo',this)">💼 Trabajo</button>
+        <button class="cat-filter" onclick="filterHabitos('secundarios_tarde',this)">🌤️ Tarde</button>
+        <button class="cat-filter" onclick="filterHabitos('rutina_nocturna',this)">🌙 Noche</button>
         <button class="cat-filter" onclick="filterHabitos('vicios',this)">Vicios</button>
-        <button class="cat-filter" onclick="filterHabitos('ritual_2020',this)">20/20/20</button>
+        <button class="cat-filter" onclick="filterHabitos('expansion_fisica',this)">Física</button>
       </div>
       <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:1.25rem">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
@@ -787,6 +786,12 @@ async function _saveIdea(inputId, procId){
 
 // --- HABITOS ---
 const CAT_COLORS = {
+  despertar:           '#FFD166',
+  ritual_2020:         '#00C2FF',
+  secundarios_manana:  '#C4A35A',
+  trabajo_profundo:    '#8B6CF6',
+  secundarios_tarde:   '#EF9F27',
+  rutina_nocturna:     '#378ADD',
   identidad_diaria:    '#C4A35A',
   base_estabilidad:    '#5DCAA5',
   expansion_cognitiva: '#378ADD',
@@ -796,10 +801,15 @@ const CAT_COLORS = {
   vida_practica:       '#555050',
   vicios:              '#8B1A1A',
   eventos_crisis:      '#2A2A2A',
-  ritual_2020:         '#00C2FF',
 }
 
 const CAT_LABELS = {
+  despertar:           '🌅 Despertar',
+  ritual_2020:         '🔄 20/20/20',
+  secundarios_manana:  '☀️ Secundarios mañana',
+  trabajo_profundo:    '💼 Trabajo profundo',
+  secundarios_tarde:   '🌤️ Secundarios tarde',
+  rutina_nocturna:     '🌙 Rutina nocturna',
   identidad_diaria:    'Identidad diaria',
   base_estabilidad:    'Estabilidad base',
   expansion_cognitiva: 'Expansión cognitiva',
@@ -809,8 +819,15 @@ const CAT_LABELS = {
   vida_practica:       'Vida práctica',
   vicios:              'Vicios',
   eventos_crisis:      'Eventos / crisis',
-  ritual_2020:         '20/20/20',
 }
+
+const CAT_ORDER = [
+  'despertar','ritual_2020','secundarios_manana',
+  'trabajo_profundo','secundarios_tarde','rutina_nocturna',
+  'vicios','expansion_cognitiva','expansion_creativa',
+  'expansion_fisica','expansion_relacional','vida_practica',
+  'identidad_diaria','base_estabilidad','eventos_crisis'
+]
 
 let allActivities = []
 let habitLogs = {}
@@ -846,9 +863,23 @@ function renderHabitos(){
 
   if(!toShow.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◑</div>No hay hábitos en esta categoría</div>'; return }
 
-  // Si filtro es 'all', mostrar en orden lineal sin agrupar
+  // Si filtro es 'all', mostrar agrupado en orden correcto
   if(currentCatFilter === 'all'){
-    el.innerHTML = toShow.map(a => habitoHTML(a)).join('')
+    const grouped = {}
+    toShow.forEach(a => {
+      if(!grouped[a.category]) grouped[a.category] = []
+      grouped[a.category].push(a)
+    })
+    const orderedCats = CAT_ORDER.filter(c => grouped[c])
+    const rest = Object.keys(grouped).filter(c => !CAT_ORDER.includes(c))
+    el.innerHTML = [...orderedCats, ...rest].map(cat => {
+      const color = CAT_COLORS[cat] || '#555'
+      const label = CAT_LABELS[cat] || cat
+      return `<div class="habito-group">
+        <div class="habito-group-title" style="color:${color}">${label}<div class="habito-group-line"></div></div>
+        <div style="display:flex;flex-direction:column;gap:5px">${grouped[cat].map(a => habitoHTML(a)).join('')}</div>
+      </div>`
+    }).join('')
     return
   }
 
