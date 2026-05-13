@@ -370,6 +370,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="cat-filter" onclick="filterHabitos('expansion_relacional',this)">Relacional</button>
         <button class="cat-filter" onclick="filterHabitos('vida_practica',this)">Práctica</button>
         <button class="cat-filter" onclick="filterHabitos('vicios',this)">Vicios</button>
+        <button class="cat-filter" onclick="filterHabitos('ritual_2020',this)">20/20/20</button>
       </div>
       <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:1.25rem">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
@@ -795,6 +796,7 @@ const CAT_COLORS = {
   vida_practica:       '#555050',
   vicios:              '#8B1A1A',
   eventos_crisis:      '#2A2A2A',
+  ritual_2020:         '#00C2FF',
 }
 
 const CAT_LABELS = {
@@ -807,6 +809,7 @@ const CAT_LABELS = {
   vida_practica:       'Vida práctica',
   vicios:              'Vicios',
   eventos_crisis:      'Eventos / crisis',
+  ritual_2020:         '20/20/20',
 }
 
 let allActivities = []
@@ -871,14 +874,16 @@ function habitoHTML(a){
   const isActive = a.is_active
   const color = CAT_COLORS[a.category] || '#555'
   const is2020 = a.id === 'a70'
+  const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
+  const onclick = is2020 ? '' : `onclick="toggleHabito('${a.id}')"`
   return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
-    <div class="habito-check" onclick="${is2020?'':(`toggleHabito('${a.id}')`)}}" style="${isDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}33`}${is2020?';cursor:default':''}">
+    <div class="habito-check" ${onclick} style="${checkStyle}${is2020?';cursor:default':''}">
       ${isDone?'✓':''}
     </div>
     <div style="flex:1">
-      <div class="habito-name">${a.name}${is2020?` <span style="font-size:10px;color:var(--text-muted)">(auto)</span>`:''}</div>
+      <div class="habito-name">${a.name}${is2020?' <span style="font-size:10px;color:var(--text-muted)">(auto)</span>':''}</div>
     </div>
-    <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0">${CAT_LABELS[a.category]||''}</span>
+    <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:8px">${CAT_LABELS[a.category]||''}</span>
     <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
   </div>`
 }
