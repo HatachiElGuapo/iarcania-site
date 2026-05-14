@@ -319,6 +319,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
                 <!-- Buscar existente -->
                 <input type="text" id="tarea-search" placeholder="Buscar en actividades existentes..."
                   oninput="searchTareasExistentes(this.value)"
+                  onfocus="searchTareasExistentes(this.value || ' ')"
                   style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
                 <div id="tarea-search-results" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
 
@@ -753,26 +754,22 @@ function closeAddTareaHoy(){
 
 function searchTareasExistentes(q){
   const res = document.getElementById('tarea-search-results')
-  if(!q.trim()){ res.style.display='none'; return }
-  const ql = q.toLowerCase()
+  const ql = (q||'').trim().toLowerCase()
 
-  // Buscar en tasks existentes
   const fromTasks = allTasks
-    .filter(t => t.title.toLowerCase().includes(ql) && t.status !== 'completada')
+    .filter(t => t.status !== 'completada' && (!ql || t.title.toLowerCase().includes(ql)))
     .map(t => ({ id: t.id, title: t.title, source: 'task' }))
 
-  // Buscar en activities
   const fromActivities = allActivities
-    .filter(a => a.name.toLowerCase().includes(ql))
+    .filter(a => !ql || a.name.toLowerCase().includes(ql))
     .map(a => ({ id: a.id, title: a.name, source: 'activity' }))
 
-  // Combinar sin duplicados
   const seen = new Set()
   const matches = [...fromTasks, ...fromActivities].filter(item => {
-    if(seen.has(item.title)){ return false }
+    if(seen.has(item.title)) return false
     seen.add(item.title)
     return true
-  }).slice(0, 6)
+  }).slice(0, 8)
 
   if(!matches.length){ res.style.display='none'; return }
   res.style.display = 'block'
