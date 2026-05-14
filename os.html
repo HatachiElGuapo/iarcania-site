@@ -559,6 +559,8 @@ let allTasks = []
 let allClients = []
 
 // --- AUTH ---
+let USER_PASSWORD = ''
+
 async function doLogin(){
   const email = document.getElementById('auth-email').value.trim()
   const pass  = document.getElementById('auth-pass').value
@@ -567,6 +569,7 @@ async function doLogin(){
   const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
   if(error){ errEl.style.display='block'; return }
   USER_ID = data.user.id
+  USER_PASSWORD = pass
   document.getElementById('auth-screen').style.display = 'none'
   document.getElementById('app').style.display = 'block'
   document.getElementById('user-name').textContent = email.split('@')[0]
@@ -1088,10 +1091,7 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
     document.getElementById('auth-screen').style.display='none'
     document.getElementById('app').style.display='block'
     document.getElementById('user-name').textContent = data.session.user.email.split('@')[0]
-    await SB_I.auth.signInWithPassword({
-      email: data.session.user.email,
-      password: ''
-    }).catch(()=>{})
+    // Para sesión guardada, IArcanIA requiere login fresco — se hace al entrar a Clientes/Cobros
     initApp()
   }
 })()
