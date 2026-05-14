@@ -86,7 +86,22 @@ const T = {
   green:'#4ade80', blue:'#60a5fa', red:'#f87171',
 };
 
-/* ─── Channel definitions ─── */
+/* ─── Relative date helper ─── */
+function relativeDate(dateStr){
+  if(!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr + 'T00:00:00'); d.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if(diff === 0)  return { label:'Hoy',    color:'#4ade80' };
+  if(diff === 1)  return { label:'Mañana', color:'#60a5fa' };
+  if(diff === -1) return { label:'Ayer',   color:'#f87171' };
+  if(diff > 1 && diff <= 7) return { label:`En ${diff} días`, color:'#c9a84c' };
+  if(diff < -1)  return { label:`Hace ${Math.abs(diff)}d`, color:'#7a788f' };
+  const mes=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return { label:`${d.getDate()} ${mes[d.getMonth()]}`, color:'#7a788f' };
+}
+
+
 const CHANNELS = {
   iarcania: {
     id: 'iarcania', name: 'IArcanIA', color: '#9b72f0', colorLight: '#c4b0ff',
@@ -486,7 +501,7 @@ function ItemDetailModal({item,onClose,onOpenGuion,onUpdate,onDelete}){
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
             {item.fechaGrab&&<div style={{background:T.s2,borderRadius:10,padding:'10px 12px'}}>
               <div style={{fontSize:9,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:2}}>Grabación</div>
-              <div style={{fontSize:12,color:T.text,fontWeight:600}}>{item.fechaGrab}{item.horaGrab&&<span style={{color:T.muted}}> · {item.horaGrab}</span>}</div>
+              <div style={{fontSize:12,color:T.text,fontWeight:600}}>{(()=>{const rd=relativeDate(item.fechaGrab);return rd?<span style={{color:rd.color}}>{rd.label}</span>:item.fechaGrab})()}{item.horaGrab&&<span style={{color:T.muted}}> · {item.horaGrab}</span>}</div>
             </div>}
             {item.horaPub&&<div style={{background:T.s2,borderRadius:10,padding:'10px 12px'}}>
               <div style={{fontSize:9,fontWeight:700,color:T.muted,textTransform:'uppercase',letterSpacing:1,marginBottom:2}}>Publicación</div>
@@ -860,7 +875,7 @@ function ContentCard({item,onStatusChange,onDelete,onOpenGuion,onOpenDetail,isMo
             </button>
           </div>
           <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
-            {item.fechaGrab&&<span style={{fontSize:11,color:T.muted,display:'flex',alignItems:'center',gap:4}}><span style={{color:T.dim}}>●</span>{item.fechaGrab}{item.horaGrab&&` · ${item.horaGrab}`}</span>}
+            {item.fechaGrab&&<span style={{fontSize:11,color:T.muted,display:'flex',alignItems:'center',gap:4}}><span style={{color:T.dim}}>●</span>{(()=>{const rd=relativeDate(item.fechaGrab);return rd?<span style={{color:rd.color,fontWeight:600}}>{rd.label}</span>:item.fechaGrab})()}{item.horaGrab&&` · ${item.horaGrab}`}</span>}
             {item.horaPub&&<span style={{fontSize:11,color:T.muted,display:'flex',alignItems:'center',gap:4}}><span style={{color:T.gold,fontSize:9}}>▲</span>Pub: {item.horaPub}</span>}
           </div>
         </div>

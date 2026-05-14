@@ -436,6 +436,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <option value="contenido">Contenido</option>
           <option value="proyectos">Proyectos</option>
           <option value="personal">Personal</option>
+          <option value="familia">Familia</option>
           <option value="infra">Infraestructura</option>
           <option value="habitos">Hábitos</option>
         </select>
@@ -449,7 +450,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </select>
       </div>
     </div>
-    <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    <div class="form-row">
+      <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div class="field"><label>Hora (opcional)</label><input type="time" id="t-hora" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    </div>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('task')">Cancelar</button>
       <button class="btn-save" onclick="saveTask()">Guardar</button>
@@ -544,6 +548,7 @@ const CATS = {
   contenido: { label:'Contenido', color:'#378ADD' },
   proyectos: { label:'Proyectos', color:'#8B6CF6' },
   personal:  { label:'Personal',  color:'#5DCAA5' },
+  familia:   { label:'Familia',   color:'#f472b6' },
   infra:     { label:'Infraestructura', color:'#EF9F27' },
   habitos:   { label:'Hábitos',   color:'#555050' },
 }
@@ -623,11 +628,12 @@ function renderTaskList(elId, tasks){
   el.innerHTML = tasks.map(t => {
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
+    const hora = t.scheduled_time ? `<span style="font-size:10px;color:var(--gold);margin-right:4px">⏰ ${t.scheduled_time.slice(0,5)}</span>` : ''
     return `<div class="task-item${done?' done':''}" onclick="toggleTask('${t.id}')" style="border-left-color:${done?'var(--border)':cat.color}">
       <div class="task-check" style="${done?`background:${cat.color};border-color:${cat.color}`:''}">
         ${done?'✓':''}
       </div>
-      <div class="task-text">${t.title}</div>
+      <div class="task-text">${hora}${t.title}</div>
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
     </div>`
   }).join('')
@@ -665,12 +671,14 @@ async function saveTask(){
     color: cat.color,
     priority: document.getElementById('t-priority').value,
     due_date: document.getElementById('t-due').value || null,
+    scheduled_time: document.getElementById('t-hora').value || null,
     assigned_to: USER_ID,
     created_by: USER_ID,
     status: 'pendiente'
   })
   closeModal('task')
   document.getElementById('t-title').value = ''
+  document.getElementById('t-hora').value = ''
   await loadTasks()
 }
 
@@ -681,10 +689,10 @@ async function loadBirthdays(){
 }
 
 function daysUntil(day, month){
-  const now = new Date()
-  let next = new Date(now.getFullYear(), month-1, day)
+  const now = new Date(); now.setHours(0,0,0,0)
+  let next = new Date(now.getFullYear(), month-1, day); next.setHours(0,0,0,0)
   if(next < now) next.setFullYear(now.getFullYear()+1)
-  return Math.ceil((next - now) / 86400000)
+  return Math.round((next - now) / 86400000)
 }
 
 function renderBirthdays(bds){
