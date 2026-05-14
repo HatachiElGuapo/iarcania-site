@@ -328,6 +328,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                   <select id="tarea-prioridad" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none">
+                    <option value="extrema">🚨 Extremadamente urgente</option>
                     <option value="alta">🔴 Alta</option>
                     <option value="media" selected>🟡 Media</option>
                     <option value="baja">🟢 Baja</option>
@@ -681,6 +682,17 @@ async function loadTareasHoy(){
 
   // Tareas marcadas para hoy o vencidas
   tareasHoy = (data||[]).filter(t => t.due_date === TODAY || t.status === 'hoy')
+
+  // Ordenar: extrema > alta > media > baja, luego por hora
+  const prioOrder = { extrema: 0, alta: 1, media: 2, baja: 3 }
+  tareasHoy.sort((a, b) => {
+    const pa = prioOrder[a.priority] ?? 2
+    const pb = prioOrder[b.priority] ?? 2
+    if(pa !== pb) return pa - pb
+    const ha = a.notes || '23:59'
+    const hb = b.notes || '23:59'
+    return ha.localeCompare(hb)
+  })
   renderTareasHoy()
 }
 
@@ -700,7 +712,8 @@ function renderTareasHoy(){
     list.innerHTML = tareasHoy.map(t => {
       const cat = CATS[t.category] || CATS.habitos
       const done = t.status === 'completada'
-      const prioColor = t.priority==='alta'?'var(--red)':t.priority==='baja'?'var(--green)':'var(--amber)'
+      const prioColor = t.priority==='extrema'?'#FF00FF':t.priority==='alta'?'var(--red)':t.priority==='baja'?'var(--green)':'var(--amber)'
+      const prioLabel = t.priority==='extrema'?'🚨 Extrema':t.priority==='alta'?'🔴 Alta':t.priority==='media'?'🟡 Media':'🟢 Baja'
       const isOld = t.due_date && t.due_date < TODAY
       return `<div class="task-item${done?' done':''}" onclick="toggleTask('${t.id}')" style="border-left-color:${done?'var(--border)':cat.color}">
         <div class="task-check" style="${done?`background:${cat.color};border-color:${cat.color}`:''}">
@@ -711,7 +724,7 @@ function renderTareasHoy(){
           <div style="display:flex;gap:8px;margin-top:3px;align-items:center">
             ${t.due_date?`<span style="font-size:10px;color:${isOld?'var(--red)':'var(--text-muted)'}">${isOld?'⚠ Vencida: ':''} ${t.due_date}</span>`:''}
             ${t.notes?`<span style="font-size:10px;color:var(--text-muted)">🕐 ${t.notes}</span>`:''}
-            <span style="font-size:10px;color:${prioColor}">${t.priority}</span>
+            <span style="font-size:10px;color:${prioColor}">${prioLabel}</span>
           </div>
         </div>
       </div>`
@@ -740,25 +753,49 @@ function closeAddTareaHoy(){
 
 function searchTareasExistentes(q){
   const res = document.getElementById('tarea-search-results')
-  if(!q){ res.style.display='none'; return }
-  const matches = allTasks.filter(t =>
-    t.title.toLowerCase().includes(q.toLowerCase()) && t.status !== 'completada'
-  ).slice(0,5)
+  if(!q.trim()){ res.style.display='none'; return }
+  const ql = q.toLowerCase()
+
+  // Buscar en tasks existentes
+  const fromTasks = allTasks
+    .filter(t => t.title.toLowerCase().includes(ql) && t.status !== 'completada')
+    .map(t => ({ id: t.id, title: t.title, source: 'task' }))
+
+  // Buscar en activities
+  const fromActivities = allActivities
+    .filter(a => a.name.toLowerCase().includes(ql))
+    .map(a => ({ id: a.id, title: a.name, source: 'activity' }))
+
+  // Combinar sin duplicados
+  const seen = new Set()
+  const matches = [...fromTasks, ...fromActivities].filter(item => {
+    if(seen.has(item.title)){ return false }
+    seen.add(item.title)
+    return true
+  }).slice(0, 6)
+
   if(!matches.length){ res.style.display='none'; return }
   res.style.display = 'block'
-  res.innerHTML = matches.map(t => `
-    <div onclick="selectTareaExistente('${t.id}')" style="padding:8px 12px;font-size:12px;color:var(--text-dim);cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s"
+  res.innerHTML = matches.map(item => `
+    <div onclick="selectTareaExistente('${item.id}','${item.source}')"
+      style="padding:9px 12px;font-size:12px;color:var(--text-dim);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px"
       onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
-      ${t.title}
+      <span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${item.source==='task'?'📋':'⚡'}</span>
+      ${item.title}
     </div>`).join('')
 }
 
-function selectTareaExistente(id){
-  const task = allTasks.find(t => t.id === id)
-  if(!task) return
-  selectedTareaExistente = task
-  document.getElementById('tarea-nueva-texto').value = task.title
-  document.getElementById('tarea-search').value = task.title
+function selectTareaExistente(id, source){
+  let title = ''
+  if(source === 'task'){
+    const t = allTasks.find(t => t.id === id)
+    if(t){ selectedTareaExistente = { ...t, source }; title = t.title }
+  } else {
+    const a = allActivities.find(a => a.id === id)
+    if(a){ selectedTareaExistente = { id: a.id, title: a.name, source }; title = a.name }
+  }
+  document.getElementById('tarea-nueva-texto').value = title
+  document.getElementById('tarea-search').value = title
   document.getElementById('tarea-search-results').style.display = 'none'
 }
 
