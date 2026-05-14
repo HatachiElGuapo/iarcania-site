@@ -174,6 +174,27 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .habito-toggle{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0}
 .habito-toggle:hover{border-color:var(--gold-dim);color:var(--gold)}
 .habito-group{margin-bottom:1.25rem}
+/* Toast celebración */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#111;border:1px solid var(--gold);border-radius:12px;padding:14px 22px;font-size:14px;color:var(--gold);font-weight:600;z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+/* Widget 20/20/20 */
+.ritual-widget{background:linear-gradient(135deg,rgba(0,194,255,0.07),rgba(0,194,255,0.02));border:1px solid rgba(0,194,255,0.2);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.ritual-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ritual-badge{font-size:11px;font-weight:700;letter-spacing:1.5px;color:#00C2FF;background:rgba(0,194,255,0.12);border:1px solid rgba(0,194,255,0.3);border-radius:20px;padding:3px 10px}
+.ritual-badge.done{background:rgba(0,194,255,0.25);box-shadow:0 0 12px rgba(0,194,255,0.3)}
+.ritual-sub{display:flex;flex-direction:column;gap:5px}
+.ritual-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:8px;cursor:pointer;transition:background .15s}
+.ritual-item:hover{background:rgba(0,194,255,0.06)}
+.ritual-item.done{opacity:.55}
+.ritual-check{width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(0,194,255,0.4);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s}
+.ritual-check.done{background:#00C2FF;border-color:#00C2FF;color:#000}
+.ritual-label{font-size:13px;flex:1}
+.ritual-item.done .ritual-label{text-decoration:line-through;color:var(--text-muted)}
+/* Lock overlay en tareas */
+.tasks-locked{position:relative}
+.tasks-locked::after{content:'Completa el 20/20/20 primero';position:absolute;inset:0;background:rgba(6,6,9,0.75);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);border-radius:8px;pointer-events:none}
+/* Fechas categorías */
+.fecha-cat-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;flex-shrink:0}
 .habito-group-title{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
 .habito-group-line{flex:1;height:1px;background:var(--border)}
 
@@ -284,8 +305,35 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <div>
           <div class="card">
             <div class="card-title">Actividades de hoy</div>
-            <div class="task-list" id="dashboard-tasks">
-              <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+            <!-- Widget 20/20/20 -->
+            <div class="ritual-widget" id="ritual-widget">
+              <div class="ritual-header">
+                <span class="ritual-badge" id="ritual-badge">🔄 20/20/20</span>
+                <span style="font-size:11px;color:var(--text-muted)">Completa las 3 para desbloquear</span>
+              </div>
+              <div class="ritual-sub">
+                <div class="ritual-item" id="r-a35" onclick="toggleHabitoFromDash('a35')">
+                  <div class="ritual-check" id="rc-a35"></div>
+                  <span class="ritual-label">1000 saltos</span>
+                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                </div>
+                <div class="ritual-item" id="r-a14" onclick="toggleHabitoFromDash('a14')">
+                  <div class="ritual-check" id="rc-a14"></div>
+                  <span class="ritual-label">Baño frío</span>
+                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                </div>
+                <div class="ritual-item" id="r-a02" onclick="toggleHabitoFromDash('a02')">
+                  <div class="ritual-check" id="rc-a02"></div>
+                  <span class="ritual-label">Meditar</span>
+                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                </div>
+              </div>
+            </div>
+            <!-- Tareas del día (bloqueadas hasta 20/20/20) -->
+            <div id="dashboard-tasks-wrap">
+              <div class="task-list" id="dashboard-tasks">
+                <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+              </div>
             </div>
           </div>
         </div>
@@ -436,7 +484,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <option value="contenido">Contenido</option>
           <option value="proyectos">Proyectos</option>
           <option value="personal">Personal</option>
-          <option value="familia">Familia</option>
           <option value="infra">Infraestructura</option>
           <option value="habitos">Hábitos</option>
         </select>
@@ -450,10 +497,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </select>
       </div>
     </div>
-    <div class="form-row">
-      <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-      <div class="field"><label>Hora (opcional)</label><input type="time" id="t-hora" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-    </div>
+    <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('task')">Cancelar</button>
       <button class="btn-save" onclick="saveTask()">Guardar</button>
@@ -465,12 +509,32 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   <div class="modal">
     <h3>Agregar fecha importante</h3>
     <div class="field"><label>Nombre</label><input type="text" id="bd-name" placeholder="ej. Abuela"/></div>
-    <div class="field"><label>Relación</label><input type="text" id="bd-rel" placeholder="ej. Abuela, Tío, Amigo"/></div>
+    <div class="form-row">
+      <div class="field"><label>Tipo</label>
+        <select id="bd-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="cumpleanos">🎂 Cumpleaños</option>
+          <option value="aniversario">💍 Aniversario</option>
+          <option value="pago">💸 Pago recurrente</option>
+          <option value="cita">🏥 Cita médica</option>
+          <option value="evento">📅 Evento</option>
+          <option value="otro">⭐ Otro</option>
+        </select>
+      </div>
+      <div class="field"><label>Relación / Detalle</label><input type="text" id="bd-rel" placeholder="ej. Abuela, Tío, Amigo"/></div>
+    </div>
     <div class="form-row">
       <div class="field"><label>Día</label><input type="number" id="bd-day" min="1" max="31" placeholder="15"/></div>
       <div class="field"><label>Mes</label><input type="number" id="bd-month" min="1" max="12" placeholder="5"/></div>
     </div>
-    <div class="field"><label>Avisar (días antes)</label><input type="number" id="bd-reminder" value="3"/></div>
+    <div class="form-row">
+      <div class="field"><label>Avisar (días antes)</label><input type="number" id="bd-reminder" value="3"/></div>
+      <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="bd-autotask" style="accent-color:var(--gold)"/>
+          Crear tarea automática el día
+        </label>
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('birthday')">Cancelar</button>
       <button class="btn-save" onclick="saveBirthday()">Guardar</button>
@@ -530,8 +594,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div id="toast"></div>
+
 <script>
-const { createClient } = supabase
 
 const SB_P = createClient(
   'https://gpfidxxawcwsbuzsbeob.supabase.co',
@@ -548,7 +613,6 @@ const CATS = {
   contenido: { label:'Contenido', color:'#378ADD' },
   proyectos: { label:'Proyectos', color:'#8B6CF6' },
   personal:  { label:'Personal',  color:'#5DCAA5' },
-  familia:   { label:'Familia',   color:'#f472b6' },
   infra:     { label:'Infraestructura', color:'#EF9F27' },
   habitos:   { label:'Hábitos',   color:'#555050' },
 }
@@ -617,9 +681,12 @@ function renderTasks(){
   document.getElementById('stat-pending').textContent = pending.length
   document.getElementById('stat-done').textContent    = done.length
   document.getElementById('badge-pending').textContent = pending.length
-  renderTaskList('dashboard-tasks', allTasks.slice(0,6))
+  // Dashboard: solo tareas de hoy (due_date === hoy) o sin fecha
+  const todayTasks = allTasks.filter(t => !t.due_date || t.due_date === TODAY)
+  renderTaskList('dashboard-tasks', todayTasks)
   renderTaskList('all-tasks', allTasks)
   renderCatLegend()
+  update2020Widget()
 }
 
 function renderTaskList(elId, tasks){
@@ -628,18 +695,71 @@ function renderTaskList(elId, tasks){
   el.innerHTML = tasks.map(t => {
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
-    const hora = t.scheduled_time ? `<span style="font-size:10px;color:var(--gold);margin-right:4px">⏰ ${t.scheduled_time.slice(0,5)}</span>` : ''
     return `<div class="task-item${done?' done':''}" onclick="toggleTask('${t.id}')" style="border-left-color:${done?'var(--border)':cat.color}">
       <div class="task-check" style="${done?`background:${cat.color};border-color:${cat.color}`:''}">
         ${done?'✓':''}
       </div>
-      <div class="task-text">${hora}${t.title}</div>
+      <div class="task-text">${t.title}</div>
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
     </div>`
   }).join('')
 }
 
-function renderCatLegend(){
+function showToast(msg, duration=3500){
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), duration)
+}
+
+function update2020Widget(){
+  const trio = ['a35','a14','a02']
+  trio.forEach(id => {
+    const done = !!habitLogs[id]
+    const item = document.getElementById('r-'+id)
+    const check = document.getElementById('rc-'+id)
+    if(!item) return
+    item.classList.toggle('done', done)
+    check.classList.toggle('done', done)
+    check.textContent = done ? '✓' : ''
+  })
+  const trioCompleto = trio.every(id => !!habitLogs[id])
+  const badge = document.getElementById('ritual-badge')
+  if(badge){
+    badge.classList.toggle('done', trioCompleto)
+    badge.textContent = trioCompleto ? '✅ 20/20/20 Completado' : '🔄 20/20/20'
+  }
+  const wrap = document.getElementById('dashboard-tasks-wrap')
+  if(wrap){
+    wrap.classList.toggle('tasks-locked', !trioCompleto)
+  }
+}
+
+async function toggleHabitoFromDash(activityId){
+  if(habitLogs[activityId]){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs[activityId].id)
+    delete habitLogs[activityId]
+  } else {
+    const log = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
+    await SB_P.from('activity_logs').insert(log)
+    habitLogs[activityId] = log
+  }
+  const trio = ['a35','a14','a02']
+  const trioCompleto = trio.every(id => !!habitLogs[id])
+  if(trioCompleto && !habitLogs['a70']){
+    const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: TODAY }
+    await SB_P.from('activity_logs').insert(log70)
+    habitLogs['a70'] = log70
+    showToast('🔥 ¡20/20/20 completado! Cuerpo y mente listos. A trabajar.')
+  } else if(!trioCompleto && habitLogs['a70']){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
+    delete habitLogs['a70']
+  }
+  update2020Widget()
+  renderHabitos()
+}
+
+
   const el = document.getElementById('cat-legend')
   el.innerHTML = Object.entries(CATS).map(([id,c]) => {
     const count = allTasks.filter(t => t.category===id && t.status!=='completada').length
@@ -671,14 +791,12 @@ async function saveTask(){
     color: cat.color,
     priority: document.getElementById('t-priority').value,
     due_date: document.getElementById('t-due').value || null,
-    scheduled_time: document.getElementById('t-hora').value || null,
     assigned_to: USER_ID,
     created_by: USER_ID,
     status: 'pendiente'
   })
   closeModal('task')
   document.getElementById('t-title').value = ''
-  document.getElementById('t-hora').value = ''
   await loadTasks()
 }
 
@@ -695,17 +813,32 @@ function daysUntil(day, month){
   return Math.round((next - now) / 86400000)
 }
 
+const FECHA_TIPOS = {
+  cumpleanos: { label:'🎂 Cumpleaños', color:'#f472b6' },
+  aniversario: { label:'💍 Aniversario', color:'#c9a84c' },
+  pago:        { label:'💸 Pago',        color:'#4ade80' },
+  cita:        { label:'🏥 Cita',        color:'#60a5fa' },
+  evento:      { label:'📅 Evento',      color:'#a78bfa' },
+  otro:        { label:'⭐ Otro',         color:'#7a788f' },
+}
+
 function renderBirthdays(bds){
   const grid = document.getElementById('bd-grid')
   if(!bds.length){ grid.innerHTML='<div class="empty-state"><div class="empty-icon">◉</div>No hay fechas guardadas</div>'; return }
   grid.innerHTML = bds.map(b => {
     const days = daysUntil(b.day, b.month)
-    const cls = days<=3?'pill-hot':days<=7?'pill-warm':'pill-cool'
+    const cls = days===0?'pill-hot':days<=3?'pill-hot':days<=7?'pill-warm':'pill-cool'
     const label = days===0?'¡Hoy!':days===1?'Mañana':`${days} días`
+    const tipo = FECHA_TIPOS[b.type||b.relationship_type] || FECHA_TIPOS.otro
+    const autoTaskBtn = days===0 ? `<button onclick="createTaskFromFecha('${b.name}','${b.type||'evento'}')" style="margin-top:8px;width:100%;padding:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ Crear tarea para hoy</button>` : ''
     return `<div class="bd-card">
-      <div class="bd-name">${b.name}</div>
-      <div class="bd-date">${b.relationship} · ${b.day}/${b.month}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="bd-name">${b.name}</div>
+        <span class="fecha-cat-badge" style="background:${tipo.color}22;color:${tipo.color};border:1px solid ${tipo.color}44">${tipo.label}</span>
+      </div>
+      <div class="bd-date">${b.relationship||b.relationship_type||''} · ${b.day}/${b.month}</div>
       <span class="bd-days pill ${cls}">${label}</span>
+      ${autoTaskBtn}
     </div>`
   }).join('')
 
@@ -715,7 +848,7 @@ function renderBirthdays(bds){
     alertBar.style.display='flex'
     document.getElementById('bd-pills').innerHTML = urgent.map(b=>{
       const days=daysUntil(b.day,b.month)
-      const cls=days<=3?'pill-hot':'pill-warm'
+      const cls=days===0?'pill-hot':days<=3?'pill-hot':'pill-warm'
       const label=days===0?'¡Hoy!':days===1?'Mañana':`en ${days} días`
       return `<span class="pill ${cls}">${b.name} — ${label}</span>`
     }).join(' ')
@@ -724,18 +857,34 @@ function renderBirthdays(bds){
   }
 }
 
+async function createTaskFromFecha(nombre, tipo){
+  const title = `${FECHA_TIPOS[tipo]?.label||'📅'} ${nombre}`
+  const id = 'task_'+Date.now()
+  await SB_P.from('tasks').insert({
+    id, title, category:'familia', color:'#f472b6',
+    priority:'alta', due_date: TODAY,
+    assigned_to: USER_ID, created_by: USER_ID, status:'pendiente'
+  })
+  showToast(`✅ Tarea creada: ${title}`)
+  await loadTasks()
+}
+
 async function saveBirthday(){
   const name = document.getElementById('bd-name').value.trim()
   if(!name) return
+  const tipo = document.getElementById('bd-type').value
   await SB_P.from('birthdays').insert({
     id: 'bd_'+Date.now(),
     name,
     relationship: document.getElementById('bd-rel').value,
+    relationship_type: tipo,
     day: parseInt(document.getElementById('bd-day').value),
     month: parseInt(document.getElementById('bd-month').value),
     reminder_days_before: parseInt(document.getElementById('bd-reminder').value)||3
   })
   closeModal('birthday')
+  document.getElementById('bd-name').value = ''
+  document.getElementById('bd-rel').value = ''
   await loadBirthdays()
 }
 
@@ -856,6 +1005,7 @@ async function loadHabitos(){
   ;(logs||[]).forEach(l => { habitLogs[l.activity_id] = l })
 
   renderHabitos()
+  update2020Widget()
 }
 
 function renderHabitos(){
@@ -937,19 +1087,18 @@ async function toggleHabito(activityId){
     habitLogs[activityId] = log
   }
 
-  // Lógica 20/20/20: si saltos (a35) + baño (a14) + meditar (a02) están completos → marcar a70
-  const trio = ['a35','a14','a02']
-  const trioCompleto = trio.every(id => !!habitLogs[id])
   if(trioCompleto && !habitLogs['a70']){
     const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: TODAY }
     await SB_P.from('activity_logs').insert(log70)
     habitLogs['a70'] = log70
+    showToast('🔥 ¡20/20/20 completado! Cuerpo y mente listos. A trabajar.')
   } else if(!trioCompleto && habitLogs['a70']){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
     delete habitLogs['a70']
   }
 
   renderHabitos()
+  update2020Widget()
 }
 
 async function toggleActive(activityId, currentState){
