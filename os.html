@@ -295,12 +295,53 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             </div>
           </div>
           <div class="card" style="margin-top:1rem">
-            <div class="card-title" style="cursor:pointer" onclick="toggleCollapse('tareas')">
-              Actividades de hoy
-              <span id="tareas-chevron" style="font-size:12px;transition:transform .2s">▼</span>
+            <div class="card-title" style="cursor:pointer;user-select:none" onclick="toggleCollapse('tareas')">
+              📋 Mis 3 tareas de hoy
+              <span style="display:flex;align-items:center;gap:8px">
+                <span id="tareas-done-count" style="font-size:11px;color:var(--text-muted)"></span>
+                <span id="tareas-chevron" style="font-size:12px;transition:transform .2s">▼</span>
+              </span>
             </div>
-            <div id="dashboard-tasks" style="display:flex;flex-direction:column;gap:6px">
-              <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+            <div id="dashboard-tasks" style="display:flex;flex-direction:column;gap:8px">
+
+              <!-- Slots de tareas -->
+              <div id="tareas-hoy-list" style="display:flex;flex-direction:column;gap:6px"></div>
+
+              <!-- Agregar tarea si hay menos de 3 -->
+              <div id="add-tarea-btn-wrap">
+                <button class="btn-gold" style="margin-top:4px" onclick="openAddTareaHoy()">+ Agregar tarea de hoy</button>
+              </div>
+
+              <!-- Formulario inline -->
+              <div id="add-tarea-form" style="display:none;flex-direction:column;gap:8px;margin-top:4px;padding:12px;background:var(--bg);border:1px solid var(--border-gold);border-radius:8px">
+                <div style="font-size:11px;color:var(--gold);margin-bottom:4px;letter-spacing:.05em">NUEVA TAREA</div>
+
+                <!-- Buscar existente -->
+                <input type="text" id="tarea-search" placeholder="Buscar en actividades existentes..."
+                  oninput="searchTareasExistentes(this.value)"
+                  style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
+                <div id="tarea-search-results" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
+
+                <!-- O escribir nueva -->
+                <input type="text" id="tarea-nueva-texto" placeholder="O escribe una tarea nueva..."
+                  style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <select id="tarea-prioridad" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none">
+                    <option value="alta">🔴 Alta</option>
+                    <option value="media" selected>🟡 Media</option>
+                    <option value="baja">🟢 Baja</option>
+                  </select>
+                  <input type="time" id="tarea-hora"
+                    style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
+                </div>
+
+                <div style="display:flex;gap:8px">
+                  <button class="btn-cancel" style="flex:1;padding:9px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer" onclick="closeAddTareaHoy()">Cancelar</button>
+                  <button class="btn-save" style="flex:2;padding:9px;background:#9b72f0;border:none;border-radius:6px;color:#fff;font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer" onclick="saveTareaHoy()">Guardar</button>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -597,7 +638,7 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 // --- INIT ---
 async function initApp(){
   setDate()
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadTareasHoy()])
 }
 
 function setDate(){
@@ -625,6 +666,137 @@ function toggleCollapse(id){
   el.style.display = isHidden ? 'flex' : 'none'
   if(id !== 'despertar') el.style.flexDirection = 'column'
   if(chevron) chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)'
+}
+
+// --- TAREAS DE HOY ---
+let tareasHoy = []
+let selectedTareaExistente = null
+
+async function loadTareasHoy(){
+  const { data } = await SB_P.from('tasks')
+    .select('*')
+    .eq('assigned_to', USER_ID)
+    .in('status', ['pendiente', 'hoy'])
+    .order('due_date', { ascending: true })
+
+  // Tareas marcadas para hoy o vencidas
+  tareasHoy = (data||[]).filter(t => t.due_date === TODAY || t.status === 'hoy')
+  renderTareasHoy()
+}
+
+function renderTareasHoy(){
+  const list = document.getElementById('tareas-hoy-list')
+  const addBtn = document.getElementById('add-tarea-btn-wrap')
+  if(!list) return
+
+  const done = tareasHoy.filter(t => t.status === 'completada').length
+  const total = tareasHoy.length
+  const countEl = document.getElementById('tareas-done-count')
+  if(countEl) countEl.textContent = total ? `${done}/${total}` : ''
+
+  if(!tareasHoy.length){
+    list.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0">No hay tareas para hoy — agrega hasta 3</div>`
+  } else {
+    list.innerHTML = tareasHoy.map(t => {
+      const cat = CATS[t.category] || CATS.habitos
+      const done = t.status === 'completada'
+      const prioColor = t.priority==='alta'?'var(--red)':t.priority==='baja'?'var(--green)':'var(--amber)'
+      const isOld = t.due_date && t.due_date < TODAY
+      return `<div class="task-item${done?' done':''}" onclick="toggleTask('${t.id}')" style="border-left-color:${done?'var(--border)':cat.color}">
+        <div class="task-check" style="${done?`background:${cat.color};border-color:${cat.color}`:''}">
+          ${done?'✓':''}
+        </div>
+        <div style="flex:1">
+          <div class="task-text">${t.title}</div>
+          <div style="display:flex;gap:8px;margin-top:3px;align-items:center">
+            ${t.due_date?`<span style="font-size:10px;color:${isOld?'var(--red)':'var(--text-muted)'}">${isOld?'⚠ Vencida: ':''} ${t.due_date}</span>`:''}
+            ${t.notes?`<span style="font-size:10px;color:var(--text-muted)">🕐 ${t.notes}</span>`:''}
+            <span style="font-size:10px;color:${prioColor}">${t.priority}</span>
+          </div>
+        </div>
+      </div>`
+    }).join('')
+  }
+
+  // Mostrar botón solo si hay menos de 3
+  if(addBtn) addBtn.style.display = tareasHoy.length >= 3 ? 'none' : 'block'
+}
+
+function openAddTareaHoy(){
+  document.getElementById('add-tarea-form').style.display = 'flex'
+  document.getElementById('add-tarea-btn-wrap').style.display = 'none'
+  document.getElementById('tarea-nueva-texto').focus()
+  selectedTareaExistente = null
+}
+
+function closeAddTareaHoy(){
+  document.getElementById('add-tarea-form').style.display = 'none'
+  document.getElementById('tarea-search').value = ''
+  document.getElementById('tarea-nueva-texto').value = ''
+  document.getElementById('tarea-search-results').style.display = 'none'
+  document.getElementById('add-tarea-btn-wrap').style.display = tareasHoy.length >= 3 ? 'none' : 'block'
+  selectedTareaExistente = null
+}
+
+function searchTareasExistentes(q){
+  const res = document.getElementById('tarea-search-results')
+  if(!q){ res.style.display='none'; return }
+  const matches = allTasks.filter(t =>
+    t.title.toLowerCase().includes(q.toLowerCase()) && t.status !== 'completada'
+  ).slice(0,5)
+  if(!matches.length){ res.style.display='none'; return }
+  res.style.display = 'block'
+  res.innerHTML = matches.map(t => `
+    <div onclick="selectTareaExistente('${t.id}')" style="padding:8px 12px;font-size:12px;color:var(--text-dim);cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s"
+      onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+      ${t.title}
+    </div>`).join('')
+}
+
+function selectTareaExistente(id){
+  const task = allTasks.find(t => t.id === id)
+  if(!task) return
+  selectedTareaExistente = task
+  document.getElementById('tarea-nueva-texto').value = task.title
+  document.getElementById('tarea-search').value = task.title
+  document.getElementById('tarea-search-results').style.display = 'none'
+}
+
+async function saveTareaHoy(){
+  const texto = document.getElementById('tarea-nueva-texto').value.trim()
+  if(!texto) return
+  const prioridad = document.getElementById('tarea-prioridad').value
+  const hora = document.getElementById('tarea-hora').value
+
+  if(selectedTareaExistente){
+    // Actualizar tarea existente con fecha de hoy
+    await SB_P.from('tasks').update({
+      due_date: TODAY,
+      priority: prioridad,
+      status: 'hoy',
+      notes: hora || null
+    }).eq('id', selectedTareaExistente.id)
+    const t = allTasks.find(t => t.id === selectedTareaExistente.id)
+    if(t){ t.due_date = TODAY; t.priority = prioridad; t.status = 'hoy'; t.notes = hora }
+  } else {
+    // Nueva tarea
+    const id = 'task_'+Date.now()
+    const newTask = {
+      id, title: texto,
+      category: 'iarcania',
+      priority: prioridad,
+      status: 'hoy',
+      due_date: TODAY,
+      notes: hora || null,
+      assigned_to: USER_ID,
+      created_by: USER_ID
+    }
+    await SB_P.from('tasks').insert(newTask)
+    allTasks.push(newTask)
+  }
+
+  closeAddTareaHoy()
+  await loadTareasHoy()
 }
 
 // --- TASKS ---
