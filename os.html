@@ -812,7 +812,6 @@ function renderTasks(){
   document.getElementById('stat-pending').textContent = pending.length
   document.getElementById('stat-done').textContent    = done.length
   document.getElementById('badge-pending').textContent = pending.length
-  renderTaskList('dashboard-tasks', allTasks.slice(0,6))
   renderTaskList('all-tasks', allTasks)
   renderCatLegend()
 }
