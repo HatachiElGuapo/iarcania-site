@@ -232,7 +232,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <label>Contraseña</label>
       <input type="password" id="auth-pass" placeholder="••••••••"/>
     </div>
-    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Entrar</button>
     <div class="auth-error" id="auth-error">Credenciales incorrectas</div>
   </div>
 </div>
@@ -626,15 +626,26 @@ async function doLogin(){
   const email = document.getElementById('auth-email').value.trim()
   const pass  = document.getElementById('auth-pass').value
   const errEl = document.getElementById('auth-error')
+  const btn   = document.getElementById('login-btn')
   errEl.style.display = 'none'
-  const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
-  if(error){ errEl.style.display='block'; return }
-  USER_ID = data.user.id
-  document.getElementById('auth-screen').style.display = 'none'
-  document.getElementById('app').style.display = 'block'
-  document.getElementById('user-name').textContent = email.split('@')[0]
-  await SB_I.auth.signInWithPassword({ email, password: pass })
-  initApp()
+  if(!email || !pass){ errEl.textContent='Completa email y contraseña'; errEl.style.display='block'; return }
+  btn.textContent = 'Entrando...'
+  btn.disabled = true
+  try {
+    const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
+    if(error){ throw new Error(error.message) }
+    USER_ID = data.user.id
+    document.getElementById('auth-screen').style.display = 'none'
+    document.getElementById('app').style.display = 'block'
+    document.getElementById('user-name').textContent = email.split('@')[0]
+    try { await SB_I.auth.signInWithPassword({ email, password: pass }) } catch(e){}
+    initApp()
+  } catch(e) {
+    errEl.textContent = e.message === 'Invalid login credentials' ? 'Credenciales incorrectas' : (e.message || 'Error de conexión')
+    errEl.style.display='block'
+    btn.textContent = 'Entrar'
+    btn.disabled = false
+  }
 }
 
 async function doLogout(){
