@@ -867,6 +867,8 @@ function renderDespertar(){
   if(!acts.length){ el.innerHTML='<div class="empty-state">Sin hábitos de despertar</div>'; return }
   el.innerHTML = acts.map(a => habitoHTML(a)).join('')
 }
+
+function renderHabitos(){
   const el = document.getElementById('habitos-list')
   let toShow = allActivities.filter(a => showInactive ? true : a.is_active)
   if(currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
