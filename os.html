@@ -283,14 +283,23 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="grid-2">
         <div>
           <div class="card">
-            <div class="card-title">🌅 Despertar <span id="despertar-progress"></span></div>
+            <div class="card-title" style="cursor:pointer" onclick="toggleCollapse('despertar')">
+              🌅 Despertar 
+              <span style="display:flex;align-items:center;gap:8px">
+                <span id="despertar-progress" style="font-size:11px;color:var(--text-muted)"></span>
+                <span id="despertar-chevron" style="font-size:12px;transition:transform .2s">▼</span>
+              </span>
+            </div>
             <div id="dashboard-despertar" style="display:flex;flex-direction:column;gap:5px">
               <div class="loading"><div class="spinner"></div></div>
             </div>
           </div>
           <div class="card" style="margin-top:1rem">
-            <div class="card-title">Actividades de hoy</div>
-            <div class="task-list" id="dashboard-tasks">
+            <div class="card-title" style="cursor:pointer" onclick="toggleCollapse('tareas')">
+              Actividades de hoy
+              <span id="tareas-chevron" style="font-size:12px;transition:transform .2s">▼</span>
+            </div>
+            <div id="dashboard-tasks" style="display:flex;flex-direction:column;gap:6px">
               <div class="loading"><div class="spinner"></div><br>Cargando...</div>
             </div>
           </div>
@@ -607,6 +616,16 @@ function showSection(id, btn){
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open') }
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('open') }
+
+function toggleCollapse(id){
+  const el = document.getElementById(id==='despertar'?'dashboard-despertar':'dashboard-tasks')
+  const chevron = document.getElementById(id+'-chevron')
+  if(!el) return
+  const isHidden = el.style.display === 'none'
+  el.style.display = isHidden ? 'flex' : 'none'
+  if(id !== 'despertar') el.style.flexDirection = 'column'
+  if(chevron) chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)'
+}
 
 // --- TASKS ---
 async function loadTasks(){
