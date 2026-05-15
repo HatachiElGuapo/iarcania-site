@@ -374,10 +374,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Tareas</h1>
           <div class="page-sub">Toca para marcar como completada</div>
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-add" onclick="showSection('habitos',document.querySelector('.nav-item[onclick*=habitos]'))" style="font-size:11px;color:var(--purple);border-color:rgba(139,108,246,0.3)">⚡ Gestionar hábitos</button>
-          <button class="btn-add" onclick="openNewTask()">+ Nueva tarea</button>
-        </div>
+        <button class="btn-add" onclick="openNewTask()">+ Nueva tarea</button>
       </div>
       <div class="task-list" id="all-tasks">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
@@ -935,10 +932,12 @@ async function saveTask(){
 
 // --- EVENTOS ---
 async function loadEventos(){
-  try {
-    const { data } = await SB_P.from('events').select('*').order('date')
-    window.allEventos = data || []
-  } catch(e){ window.allEventos = [] }
+  const { data } = await SB_P.from('tasks').select('*')
+    .eq('assigned_to', USER_ID)
+    .eq('category', 'evento')
+    .neq('status', 'completada')
+    .order('due_date', { ascending: true, nullsFirst: false })
+  window.allEventos = data || []
 }
 
 // --- BIRTHDAYS ---
