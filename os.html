@@ -85,8 +85,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 
 /* TASKS */
 .task-list{display:flex;flex-direction:column;gap:6px}
-.task-item{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s}
+.task-item{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:12px;cursor:grab;transition:all .15s}
 .task-item:hover{border-color:#2a2a2a}
+.task-item:active{cursor:grabbing}
+.task-item.drag-over{border-color:var(--gold);background:rgba(196,163,90,0.05)}
 .task-item.done{opacity:.35}
 .task-check{width:18px;height:18px;border-radius:4px;border:1.5px solid #333;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
 .task-text{flex:1;font-size:13px;color:var(--text)}
@@ -554,7 +556,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </select>
       </div>
     </div>
-    <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    <div class="form-row">
+      <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div class="field"><label>Hora (opcional)</label><input type="time" id="t-time" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    </div>
     <div class="btn-row" style="justify-content:space-between">
       <button id="task-delete-btn" onclick="deleteTask()" style="display:none;padding:9px 16px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
       <div style="display:flex;gap:8px;margin-left:auto">
@@ -620,7 +625,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 <div class="modal-overlay" id="modal-birthday">
   <div class="modal">
     <h3>Agregar fecha importante</h3>
-    <div class="field"><label>Nombre</label><input type="text" id="bd-name" placeholder="ej. Abuela"/></div>
+    <div class="field"><label>Nombre del evento</label><input type="text" id="bd-name" placeholder="ej. Cumpleaños de Abuela"/></div>
     <div class="form-row">
       <div class="field"><label>Tipo</label>
         <select id="bd-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
@@ -639,14 +644,11 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="field"><label>Mes</label><input type="number" id="bd-month" min="1" max="12" placeholder="5"/></div>
     </div>
     <div class="form-row">
+      <div class="field"><label>Hora (opcional)</label><input type="time" id="bd-time" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
       <div class="field"><label>Avisar (días antes)</label><input type="number" id="bd-reminder" value="3"/></div>
-      <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-          <input type="checkbox" id="bd-autotask" style="accent-color:var(--gold)"/>
-          Crear tarea automática el día
-        </label>
-      </div>
     </div>
+    <div class="field"><label>Lugar (opcional)</label><input type="text" id="bd-location" placeholder="ej. Casa de mamá, Hospital Central"/></div>
+    <div class="field"><label>Notas (opcional)</label><input type="text" id="bd-notes" placeholder="ej. Llevar regalo, confirmar asistencia"/></div>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('birthday')">Cancelar</button>
       <button class="btn-save" onclick="saveBirthday()">Guardar</button>
@@ -835,15 +837,29 @@ function renderTasks(){
 
 function renderTaskList(elId, tasks){
   const el = document.getElementById(elId)
-  if(!tasks.length){ el.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div>No hay actividades todavía</div>'; return }
-  el.innerHTML = tasks.map(t => {
+  const ordered = applyTaskOrder(tasks)
+  if(!ordered.length){ el.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div>No hay actividades todavía</div>'; return }
+  el.innerHTML = ordered.map(t => {
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
-    return `<div class="task-item${done?' done':''}" onclick="toggleTask('${t.id}')" style="border-left-color:${done?'var(--border)':cat.color}">
+    const timeStr = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : ''
+    return `<div class="task-item${done?' done':''}"
+      data-id="${t.id}"
+      onclick="toggleTask('${t.id}')"
+      draggable="true"
+      ondragstart="onTaskDragStart(event,'${t.id}')"
+      ondragover="onTaskDragOver(event)"
+      ondragleave="onTaskDragLeave(event)"
+      ondrop="onTaskDrop(event,'${t.id}','${elId}')"
+      ondragend="onTaskDragEnd(event)"
+      style="border-left-color:${done?'var(--border)':cat.color}">
       <div class="task-check" style="${done?`background:${cat.color};border-color:${cat.color}`:''}">
         ${done?'✓':''}
       </div>
-      <div class="task-text">${t.title}</div>
+      <div class="task-text">
+        ${t.title}
+        ${timeStr ? `<span style="font-size:11px;color:var(--text-muted);margin-left:6px">⏰ ${timeStr}</span>` : ''}
+      </div>
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
       <button class="habito-toggle" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
     </div>`
@@ -971,6 +987,7 @@ function openNewTask(){
   document.getElementById('t-cat').value = 'iarcania'
   document.getElementById('t-priority').value = 'alta'
   document.getElementById('t-due').value = ''
+  document.getElementById('t-time').value = ''
   document.getElementById('task-delete-btn').style.display = 'none'
   openModal('task')
 }
@@ -984,6 +1001,7 @@ function openEditTask(id){
   document.getElementById('t-cat').value = task.category || 'iarcania'
   document.getElementById('t-priority').value = task.priority || 'alta'
   document.getElementById('t-due').value = task.due_date || ''
+  document.getElementById('t-time').value = (task.notes && /^\d{2}:\d{2}$/.test(task.notes.trim())) ? task.notes.trim() : ''
   document.getElementById('task-delete-btn').style.display = 'block'
   openModal('task')
 }
@@ -999,6 +1017,7 @@ async function saveTask(){
     color: cat.color,
     priority: document.getElementById('t-priority').value,
     due_date: document.getElementById('t-due').value || null,
+    notes: document.getElementById('t-time').value || null,
   }
   if(existingId){
     await SB_P.from('tasks').update(taskData).eq('id', existingId)
@@ -1062,13 +1081,16 @@ function renderBirthdays(bds){
     const label = days===0?'¡Hoy!':days===1?'Mañana':`${days} días`
     const tipo = FECHA_TIPOS[b.type||b.relationship_type] || FECHA_TIPOS.otro
     const autoTaskBtn = days===0 ? `<button onclick="createTaskFromFecha('${b.name}','${b.type||'evento'}')" style="margin-top:8px;width:100%;padding:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ Crear tarea para hoy</button>` : ''
+    const extra = [b.time ? `⏰ ${b.time}` : '', b.location ? `📍 ${b.location}` : ''].filter(Boolean).join(' · ')
     return `<div class="bd-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div class="bd-name">${b.name}</div>
         <span class="fecha-cat-badge" style="background:${tipo.color}22;color:${tipo.color};border:1px solid ${tipo.color}44">${tipo.label}</span>
       </div>
       <div class="bd-date">${b.relationship||b.relationship_type||''} · ${b.day}/${b.month}</div>
-      <span class="bd-days pill ${cls}">${label}</span>
+      ${extra ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${extra}</div>` : ''}
+      ${b.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;font-style:italic">${b.notes}</div>` : ''}
+      <span class="bd-days pill ${cls}" style="margin-top:6px;display:inline-block">${label}</span>
       ${autoTaskBtn}
     </div>`
   }).join('')
@@ -1107,15 +1129,19 @@ async function saveBirthday(){
   await SB_P.from('birthdays').insert({
     id: 'bd_'+Date.now(),
     name,
+    type: tipo,
     relationship: document.getElementById('bd-rel').value,
     relationship_type: tipo,
     day: parseInt(document.getElementById('bd-day').value),
     month: parseInt(document.getElementById('bd-month').value),
+    time: document.getElementById('bd-time').value || null,
+    location: document.getElementById('bd-location').value.trim() || null,
+    notes: document.getElementById('bd-notes').value.trim() || null,
     reminder_days_before: parseInt(document.getElementById('bd-reminder').value)||3
   })
   closeModal('birthday')
-  document.getElementById('bd-name').value = ''
-  document.getElementById('bd-rel').value = ''
+  ;['bd-name','bd-rel','bd-time','bd-location','bd-notes'].forEach(id => { document.getElementById(id).value = '' })
+  document.getElementById('bd-reminder').value = '3'
   await loadBirthdays()
 }
 
@@ -1632,6 +1658,54 @@ async function savePayment(){
   })
   closeModal('payment')
   await loadPayments()
+}
+
+// --- TASK ORDER & DRAG AND DROP ---
+function getTaskOrder(){ return JSON.parse(localStorage.getItem('tasks_order') || 'null') }
+function saveTaskOrder(ids){ localStorage.setItem('tasks_order', JSON.stringify(ids)) }
+function applyTaskOrder(tasks){
+  const order = getTaskOrder()
+  if(!order || !order.length) return tasks
+  return [...tasks].sort((a, b) => {
+    const ai = order.indexOf(a.id), bi = order.indexOf(b.id)
+    if(ai === -1 && bi === -1) return 0
+    if(ai === -1) return 1
+    if(bi === -1) return -1
+    return ai - bi
+  })
+}
+
+let dragTaskId = null
+
+function onTaskDragStart(e, id){
+  dragTaskId = id
+  e.dataTransfer.effectAllowed = 'move'
+  setTimeout(() => { const el = document.querySelector(`[data-id="${id}"]`); if(el) el.style.opacity = '0.4' }, 0)
+}
+function onTaskDragOver(e){
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  e.currentTarget.classList.add('drag-over')
+}
+function onTaskDragLeave(e){ e.currentTarget.classList.remove('drag-over') }
+function onTaskDragEnd(e){
+  e.target.style.opacity = ''
+  document.querySelectorAll('.task-item.drag-over').forEach(el => el.classList.remove('drag-over'))
+  dragTaskId = null
+}
+function onTaskDrop(e, targetId, elId){
+  e.preventDefault()
+  document.querySelectorAll('.task-item.drag-over').forEach(el => el.classList.remove('drag-over'))
+  if(!dragTaskId || dragTaskId === targetId) return
+  const listEl = document.getElementById(elId)
+  const currentIds = [...listEl.querySelectorAll('[data-id]')].map(el => el.dataset.id)
+  const dragIdx = currentIds.indexOf(dragTaskId)
+  const targetIdx = currentIds.indexOf(targetId)
+  if(dragIdx === -1 || targetIdx === -1) return
+  currentIds.splice(dragIdx, 1)
+  currentIds.splice(targetIdx, 0, dragTaskId)
+  saveTaskOrder(currentIds)
+  renderTasks()
 }
 
 // --- MODALS ---
