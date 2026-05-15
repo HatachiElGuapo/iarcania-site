@@ -369,10 +369,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
             </div>
 
-            <!-- Mis 3 tareas de hoy colapsable — 3º (expandido por defecto) -->
+            <!-- Mis 5 tareas de hoy colapsable — 3º (expandido por defecto) -->
             <div class="dash-section">
               <div class="dash-section-hdr" onclick="toggleDashSection('today')">
-                <span style="font-size:13px;font-weight:600;color:var(--text-dim)">📋 Mis 3 tareas de hoy</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text-dim)">📋 Mis 5 tareas de hoy</span>
                 <span class="dash-arrow" id="dash-today-arrow">▼</span>
               </div>
               <div class="dash-section-body" id="dash-today-body">
@@ -842,12 +842,12 @@ function renderTasks(){
   document.getElementById('stat-pending').textContent = pending.length
   document.getElementById('stat-done').textContent    = done.length
   document.getElementById('badge-pending').textContent = pending.length
-  // Dashboard: top 3 tareas pendientes de hoy (due_date === hoy o sin fecha), por prioridad
+  // Dashboard: top 5 tareas pendientes de hoy (due_date === hoy o sin fecha), por prioridad
   const PRIO = { alta: 0, media: 1, baja: 2 }
   const todayTasks = allTasks
     .filter(t => t.status !== 'completada' && (!t.due_date || t.due_date === TODAY))
     .sort((a, b) => (PRIO[a.priority] ?? 1) - (PRIO[b.priority] ?? 1))
-    .slice(0, 3)
+    .slice(0, 5)
   renderTaskList('dashboard-tasks', todayTasks)
   renderTaskList('all-tasks', allTasks)
   renderTop5Dash()
