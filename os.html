@@ -174,6 +174,42 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .habito-toggle{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0}
 .habito-toggle:hover{border-color:var(--gold-dim);color:var(--gold)}
 .habito-group{margin-bottom:1.25rem}
+/* Frequency tabs */
+.freq-tabs{display:flex;gap:0;margin-bottom:1rem;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.freq-tab{flex:1;padding:9px 6px;font-size:12px;font-family:'Outfit',sans-serif;font-weight:500;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;border-right:1px solid var(--border)}
+.freq-tab:last-child{border-right:none}
+.freq-tab.active{background:#161616;color:var(--gold)}
+.freq-tab:hover:not(.active){color:var(--text-dim);background:#111}
+/* Único activity */
+.unica-item{background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.unica-item.done-arch{border-left-color:var(--green);opacity:.5}
+.btn-archive{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--green);background:transparent;color:var(--green);cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0}
+.btn-archive:hover{background:rgba(93,202,165,0.1)}
+.btn-edit-act{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0}
+.btn-edit-act:hover{border-color:var(--gold-dim);color:var(--gold)}
+/* Weekly/monthly done badge */
+.freq-done-badge{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(93,202,165,0.15);color:var(--green);border:1px solid rgba(93,202,165,0.3);flex-shrink:0}
+/* Toast celebración */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#111;border:1px solid var(--gold);border-radius:12px;padding:14px 22px;font-size:14px;color:var(--gold);font-weight:600;z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+/* Widget 20/20/20 */
+.ritual-widget{background:linear-gradient(135deg,rgba(0,194,255,0.07),rgba(0,194,255,0.02));border:1px solid rgba(0,194,255,0.2);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.ritual-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ritual-badge{font-size:11px;font-weight:700;letter-spacing:1.5px;color:#00C2FF;background:rgba(0,194,255,0.12);border:1px solid rgba(0,194,255,0.3);border-radius:20px;padding:3px 10px}
+.ritual-badge.done{background:rgba(0,194,255,0.25);box-shadow:0 0 12px rgba(0,194,255,0.3)}
+.ritual-sub{display:flex;flex-direction:column;gap:5px}
+.ritual-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:8px;cursor:pointer;transition:background .15s}
+.ritual-item:hover{background:rgba(0,194,255,0.06)}
+.ritual-item.done{opacity:.55}
+.ritual-check{width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(0,194,255,0.4);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s}
+.ritual-check.done{background:#00C2FF;border-color:#00C2FF;color:#000}
+.ritual-label{font-size:13px;flex:1}
+.ritual-item.done .ritual-label{text-decoration:line-through;color:var(--text-muted)}
+/* Lock overlay en tareas */
+.tasks-locked{position:relative}
+.tasks-locked::after{content:'Completa el 20/20/20 primero';position:absolute;inset:0;background:rgba(6,6,9,0.75);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);border-radius:8px;pointer-events:none}
+/* Fechas categorías */
+.fecha-cat-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;flex-shrink:0}
 .habito-group-title{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
 .habito-group-line{flex:1;height:1px;background:var(--border)}
 
@@ -211,7 +247,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <label>Contraseña</label>
       <input type="password" id="auth-pass" placeholder="••••••••"/>
     </div>
-    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Entrar</button>
     <div class="auth-error" id="auth-error">Credenciales incorrectas</div>
   </div>
 </div>
@@ -283,67 +319,36 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="grid-2">
         <div>
           <div class="card">
-            <div class="card-title" style="cursor:pointer" onclick="toggleCollapse('despertar')">
-              🌅 Despertar 
-              <span style="display:flex;align-items:center;gap:8px">
-                <span id="despertar-progress" style="font-size:11px;color:var(--text-muted)"></span>
-                <span id="despertar-chevron" style="font-size:12px;transition:transform .2s">▼</span>
-              </span>
-            </div>
-            <div id="dashboard-despertar" style="display:flex;flex-direction:column;gap:5px">
-              <div class="loading"><div class="spinner"></div></div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:1rem">
-            <div class="card-title" style="cursor:pointer;user-select:none" onclick="toggleCollapse('tareas')">
-              📋 Mis 3 tareas de hoy
-              <span style="display:flex;align-items:center;gap:8px">
-                <span id="tareas-done-count" style="font-size:11px;color:var(--text-muted)"></span>
-                <span id="tareas-chevron" style="font-size:12px;transition:transform .2s">▼</span>
-              </span>
-            </div>
-            <div id="dashboard-tasks" style="display:flex;flex-direction:column;gap:8px">
-
-              <!-- Slots de tareas -->
-              <div id="tareas-hoy-list" style="display:flex;flex-direction:column;gap:6px"></div>
-
-              <!-- Agregar tarea si hay menos de 3 -->
-              <div id="add-tarea-btn-wrap">
-                <button class="btn-gold" style="margin-top:4px" onclick="openAddTareaHoy()">+ Agregar tarea de hoy</button>
+            <div class="card-title">Actividades de hoy</div>
+            <!-- Widget 20/20/20 -->
+            <div class="ritual-widget" id="ritual-widget">
+              <div class="ritual-header">
+                <span class="ritual-badge" id="ritual-badge">🔄 20/20/20</span>
+                <span style="font-size:11px;color:var(--text-muted)">Completa las 3 para desbloquear</span>
               </div>
-
-              <!-- Formulario inline -->
-              <div id="add-tarea-form" style="display:none;flex-direction:column;gap:8px;margin-top:4px;padding:12px;background:var(--bg);border:1px solid var(--border-gold);border-radius:8px">
-                <div style="font-size:11px;color:var(--gold);margin-bottom:4px;letter-spacing:.05em">NUEVA TAREA</div>
-
-                <!-- Buscar existente -->
-                <input type="text" id="tarea-search" placeholder="Buscar en actividades existentes..."
-                  oninput="searchTareasExistentes(this.value)"
-                  onfocus="searchTareasExistentes(this.value || ' ')"
-                  style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
-                <div id="tarea-search-results" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
-
-                <!-- O escribir nueva -->
-                <input type="text" id="tarea-nueva-texto" placeholder="O escribe una tarea nueva..."
-                  style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                  <select id="tarea-prioridad" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none">
-                    <option value="extrema">🚨 Extremadamente urgente</option>
-                    <option value="alta">🔴 Alta</option>
-                    <option value="media" selected>🟡 Media</option>
-                    <option value="baja">🟢 Baja</option>
-                  </select>
-                  <input type="time" id="tarea-hora"
-                    style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:9px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
+              <div class="ritual-sub">
+                <div class="ritual-item" id="r-a35" onclick="toggleHabitoFromDash('a35')">
+                  <div class="ritual-check" id="rc-a35"></div>
+                  <span class="ritual-label">1000 saltos</span>
+                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
                 </div>
-
-                <div style="display:flex;gap:8px">
-                  <button class="btn-cancel" style="flex:1;padding:9px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer" onclick="closeAddTareaHoy()">Cancelar</button>
-                  <button class="btn-save" style="flex:2;padding:9px;background:#9b72f0;border:none;border-radius:6px;color:#fff;font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer" onclick="saveTareaHoy()">Guardar</button>
+                <div class="ritual-item" id="r-a14" onclick="toggleHabitoFromDash('a14')">
+                  <div class="ritual-check" id="rc-a14"></div>
+                  <span class="ritual-label">Baño frío</span>
+                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                </div>
+                <div class="ritual-item" id="r-a02" onclick="toggleHabitoFromDash('a02')">
+                  <div class="ritual-check" id="rc-a02"></div>
+                  <span class="ritual-label">Meditar</span>
+                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
                 </div>
               </div>
-
+            </div>
+            <!-- Tareas del día (bloqueadas hasta 20/20/20) -->
+            <div id="dashboard-tasks-wrap">
+              <div class="task-list" id="dashboard-tasks">
+                <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+              </div>
             </div>
           </div>
         </div>
@@ -416,9 +421,22 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Hábitos</h1>
           <div class="page-sub" id="habitos-sub">Hoy</div>
         </div>
-        <button class="btn-add" onclick="toggleShowAll()" id="btn-show-all">Ver inactivos</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-add" onclick="toggleShowAll()" id="btn-show-all">Ver inactivos</button>
+          <button class="btn-add" onclick="openActivityModal()" style="background:rgba(139,108,246,0.15);border-color:rgba(139,108,246,0.4);color:#8B6CF6">+ Nueva</button>
+        </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem">
+
+      <!-- Frequency tabs -->
+      <div class="freq-tabs">
+        <button class="freq-tab active" onclick="filterFreq('diaria',this)">📅 Diario</button>
+        <button class="freq-tab" onclick="filterFreq('semanal',this)">📆 Semanal</button>
+        <button class="freq-tab" onclick="filterFreq('mensual',this)">🗓️ Mensual</button>
+        <button class="freq-tab" onclick="filterFreq('unica',this)">⭐ Único</button>
+      </div>
+
+      <!-- Category filter (solo en diario) -->
+      <div id="habitos-cat-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem">
         <button class="cat-filter active" onclick="filterHabitos('all',this)">Todos</button>
         <button class="cat-filter" onclick="filterHabitos('despertar',this)">🌅 Despertar</button>
         <button class="cat-filter" onclick="filterHabitos('ritual_2020',this)">🔄 20/20/20</button>
@@ -429,7 +447,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="cat-filter" onclick="filterHabitos('vicios',this)">Vicios</button>
         <button class="cat-filter" onclick="filterHabitos('expansion_fisica',this)">Física</button>
       </div>
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:1.25rem">
+
+      <!-- Progress bar (solo en diario) -->
+      <div id="habitos-progress-wrap" style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:1.25rem">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:12px;color:var(--text-dim)">Progreso de hoy</span>
           <span style="font-size:12px;color:var(--gold)" id="habitos-progress-text">0 / 0</span>
@@ -438,6 +458,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <div id="habitos-progress-bar" style="background:var(--gold);height:100%;border-radius:4px;transition:width .3s;width:0%"></div>
         </div>
       </div>
+
       <div id="habitos-list" style="display:flex;flex-direction:column;gap:6px">
         <div class="loading"><div class="spinner"></div><br>Cargando hábitos...</div>
       </div>
@@ -515,16 +536,86 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-birthday">
+<div class="modal-overlay" id="modal-activity">
+  <div class="modal">
+    <h3 id="activity-modal-title">Nueva actividad</h3>
+    <input type="hidden" id="act-id"/>
+    <div class="field"><label>Nombre</label><input type="text" id="act-name" placeholder="ej. Colgar cuadros"/></div>
+    <div class="form-row">
+      <div class="field"><label>Frecuencia</label>
+        <select id="act-freq" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none" onchange="updateActFreqHint()">
+          <option value="diaria">📅 Diaria</option>
+          <option value="semanal">📆 Semanal</option>
+          <option value="mensual">🗓️ Mensual</option>
+          <option value="unica">⭐ Única (una vez)</option>
+        </select>
+      </div>
+      <div class="field"><label>Categoría</label>
+        <select id="act-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="despertar">🌅 Despertar</option>
+          <option value="ritual_2020">🔄 20/20/20</option>
+          <option value="secundarios_manana">☀️ Mañana</option>
+          <option value="trabajo_profundo">💼 Trabajo profundo</option>
+          <option value="secundarios_tarde">🌤️ Tarde</option>
+          <option value="rutina_nocturna">🌙 Noche</option>
+          <option value="expansion_fisica">🏃 Física</option>
+          <option value="expansion_cognitiva">🧠 Cognitiva</option>
+          <option value="expansion_relacional">👥 Relacional</option>
+          <option value="expansion_creativa">🎨 Creativa</option>
+          <option value="vida_practica">🏠 Vida práctica</option>
+          <option value="vicios">⚠️ Vicios</option>
+          <option value="eventos_crisis">🚨 Eventos</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Tipo</label>
+        <select id="act-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="binary">✓ Sí / No</option>
+          <option value="numeric">🔢 Numérico</option>
+        </select>
+      </div>
+      <div class="field"><label>Unidad (si numérico)</label><input type="text" id="act-unit" placeholder="ej. reps, km, min"/></div>
+    </div>
+    <div id="act-freq-hint" style="font-size:11px;color:var(--text-muted);margin-bottom:12px;padding:8px 10px;background:#111;border-radius:6px;display:none"></div>
+    <div class="btn-row" style="justify-content:space-between">
+      <button id="act-delete-btn" onclick="deleteActivity()" style="display:none;padding:9px 16px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn-cancel" onclick="closeModal('activity')">Cancelar</button>
+        <button class="btn-save" onclick="saveActivity()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
   <div class="modal">
     <h3>Agregar fecha importante</h3>
     <div class="field"><label>Nombre</label><input type="text" id="bd-name" placeholder="ej. Abuela"/></div>
-    <div class="field"><label>Relación</label><input type="text" id="bd-rel" placeholder="ej. Abuela, Tío, Amigo"/></div>
+    <div class="form-row">
+      <div class="field"><label>Tipo</label>
+        <select id="bd-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="cumpleanos">🎂 Cumpleaños</option>
+          <option value="aniversario">💍 Aniversario</option>
+          <option value="pago">💸 Pago recurrente</option>
+          <option value="cita">🏥 Cita médica</option>
+          <option value="evento">📅 Evento</option>
+          <option value="otro">⭐ Otro</option>
+        </select>
+      </div>
+      <div class="field"><label>Relación / Detalle</label><input type="text" id="bd-rel" placeholder="ej. Abuela, Tío, Amigo"/></div>
+    </div>
     <div class="form-row">
       <div class="field"><label>Día</label><input type="number" id="bd-day" min="1" max="31" placeholder="15"/></div>
       <div class="field"><label>Mes</label><input type="number" id="bd-month" min="1" max="12" placeholder="5"/></div>
     </div>
-    <div class="field"><label>Avisar (días antes)</label><input type="number" id="bd-reminder" value="3"/></div>
+    <div class="form-row">
+      <div class="field"><label>Avisar (días antes)</label><input type="number" id="bd-reminder" value="3"/></div>
+      <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="bd-autotask" style="accent-color:var(--gold)"/>
+          Crear tarea automática el día
+        </label>
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('birthday')">Cancelar</button>
       <button class="btn-save" onclick="saveBirthday()">Guardar</button>
@@ -584,6 +675,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div id="toast"></div>
+
 <script>
 const { createClient } = supabase
 
@@ -611,22 +704,30 @@ let allTasks = []
 let allClients = []
 
 // --- AUTH ---
-let USER_PASSWORD = ''
-
 async function doLogin(){
   const email = document.getElementById('auth-email').value.trim()
   const pass  = document.getElementById('auth-pass').value
   const errEl = document.getElementById('auth-error')
+  const btn   = document.getElementById('login-btn')
   errEl.style.display = 'none'
-  const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
-  if(error){ errEl.style.display='block'; return }
-  USER_ID = data.user.id
-  USER_PASSWORD = pass
-  document.getElementById('auth-screen').style.display = 'none'
-  document.getElementById('app').style.display = 'block'
-  document.getElementById('user-name').textContent = email.split('@')[0]
-  await SB_I.auth.signInWithPassword({ email, password: pass })
-  initApp()
+  if(!email || !pass){ errEl.textContent='Completa email y contraseña'; errEl.style.display='block'; return }
+  btn.textContent = 'Entrando...'
+  btn.disabled = true
+  try {
+    const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
+    if(error){ throw new Error(error.message) }
+    USER_ID = data.user.id
+    document.getElementById('auth-screen').style.display = 'none'
+    document.getElementById('app').style.display = 'block'
+    document.getElementById('user-name').textContent = email.split('@')[0]
+    try { await SB_I.auth.signInWithPassword({ email, password: pass }) } catch(e){}
+    initApp()
+  } catch(e) {
+    errEl.textContent = e.message === 'Invalid login credentials' ? 'Credenciales incorrectas' : (e.message || 'Error de conexión')
+    errEl.style.display='block'
+    btn.textContent = 'Entrar'
+    btn.disabled = false
+  }
 }
 
 async function doLogout(){
@@ -640,7 +741,7 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 // --- INIT ---
 async function initApp(){
   setDate()
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadTareasHoy()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos()])
 }
 
 function setDate(){
@@ -660,179 +761,6 @@ function showSection(id, btn){
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open') }
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('open') }
 
-function toggleCollapse(id){
-  const el = document.getElementById(id==='despertar'?'dashboard-despertar':'dashboard-tasks')
-  const chevron = document.getElementById(id+'-chevron')
-  if(!el) return
-  const isHidden = el.style.display === 'none'
-  el.style.display = isHidden ? 'flex' : 'none'
-  if(id !== 'despertar') el.style.flexDirection = 'column'
-  if(chevron) chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)'
-}
-
-// --- TAREAS DE HOY ---
-let tareasHoy = []
-let selectedTareaExistente = null
-
-async function loadTareasHoy(){
-  const { data } = await SB_P.from('tasks')
-    .select('*')
-    .eq('assigned_to', USER_ID)
-    .in('status', ['pendiente', 'hoy'])
-    .order('due_date', { ascending: true })
-
-  // Tareas marcadas para hoy o vencidas
-  tareasHoy = (data||[]).filter(t => t.due_date === TODAY || t.status === 'hoy')
-
-  // Ordenar: extrema > alta > media > baja, luego por hora
-  const prioOrder = { extrema: 0, alta: 1, media: 2, baja: 3 }
-  tareasHoy.sort((a, b) => {
-    const pa = prioOrder[a.priority] ?? 2
-    const pb = prioOrder[b.priority] ?? 2
-    if(pa !== pb) return pa - pb
-    const ha = a.notes || '23:59'
-    const hb = b.notes || '23:59'
-    return ha.localeCompare(hb)
-  })
-  renderTareasHoy()
-}
-
-function renderTareasHoy(){
-  const list = document.getElementById('tareas-hoy-list')
-  const addBtn = document.getElementById('add-tarea-btn-wrap')
-  if(!list) return
-
-  const done = tareasHoy.filter(t => t.status === 'completada').length
-  const total = tareasHoy.length
-  const countEl = document.getElementById('tareas-done-count')
-  if(countEl) countEl.textContent = total ? `${done}/${total}` : ''
-
-  if(!tareasHoy.length){
-    list.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0">No hay tareas para hoy — agrega hasta 3</div>`
-  } else {
-    list.innerHTML = tareasHoy.map(t => {
-      const cat = CATS[t.category] || CATS.habitos
-      const done = t.status === 'completada'
-      const prioColor = t.priority==='extrema'?'#FF00FF':t.priority==='alta'?'var(--red)':t.priority==='baja'?'var(--green)':'var(--amber)'
-      const prioLabel = t.priority==='extrema'?'🚨 Extrema':t.priority==='alta'?'🔴 Alta':t.priority==='media'?'🟡 Media':'🟢 Baja'
-      const isOld = t.due_date && t.due_date < TODAY
-      return `<div class="task-item${done?' done':''}" onclick="toggleTask('${t.id}')" style="border-left-color:${done?'var(--border)':cat.color}">
-        <div class="task-check" style="${done?`background:${cat.color};border-color:${cat.color}`:''}">
-          ${done?'✓':''}
-        </div>
-        <div style="flex:1">
-          <div class="task-text">${t.title}</div>
-          <div style="display:flex;gap:8px;margin-top:3px;align-items:center">
-            ${t.due_date?`<span style="font-size:10px;color:${isOld?'var(--red)':'var(--text-muted)'}">${isOld?'⚠ Vencida: ':''} ${t.due_date}</span>`:''}
-            ${t.notes?`<span style="font-size:10px;color:var(--text-muted)">🕐 ${t.notes}</span>`:''}
-            <span style="font-size:10px;color:${prioColor}">${prioLabel}</span>
-          </div>
-        </div>
-      </div>`
-    }).join('')
-  }
-
-  // Mostrar botón solo si hay menos de 3
-  if(addBtn) addBtn.style.display = tareasHoy.length >= 3 ? 'none' : 'block'
-}
-
-function openAddTareaHoy(){
-  document.getElementById('add-tarea-form').style.display = 'flex'
-  document.getElementById('add-tarea-btn-wrap').style.display = 'none'
-  document.getElementById('tarea-nueva-texto').focus()
-  selectedTareaExistente = null
-}
-
-function closeAddTareaHoy(){
-  document.getElementById('add-tarea-form').style.display = 'none'
-  document.getElementById('tarea-search').value = ''
-  document.getElementById('tarea-nueva-texto').value = ''
-  document.getElementById('tarea-search-results').style.display = 'none'
-  document.getElementById('add-tarea-btn-wrap').style.display = tareasHoy.length >= 3 ? 'none' : 'block'
-  selectedTareaExistente = null
-}
-
-function searchTareasExistentes(q){
-  const res = document.getElementById('tarea-search-results')
-  const ql = (q||'').trim().toLowerCase()
-
-  const fromTasks = allTasks
-    .filter(t => t.status !== 'completada' && (!ql || t.title.toLowerCase().includes(ql)))
-    .map(t => ({ id: t.id, title: t.title, source: 'task' }))
-
-  const fromActivities = allActivities
-    .filter(a => !ql || a.name.toLowerCase().includes(ql))
-    .map(a => ({ id: a.id, title: a.name, source: 'activity' }))
-
-  const seen = new Set()
-  const matches = [...fromTasks, ...fromActivities].filter(item => {
-    if(seen.has(item.title)) return false
-    seen.add(item.title)
-    return true
-  }).slice(0, 8)
-
-  if(!matches.length){ res.style.display='none'; return }
-  res.style.display = 'block'
-  res.innerHTML = matches.map(item => `
-    <div onclick="selectTareaExistente('${item.id}','${item.source}')"
-      style="padding:9px 12px;font-size:12px;color:var(--text-dim);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px"
-      onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
-      <span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${item.source==='task'?'📋':'⚡'}</span>
-      ${item.title}
-    </div>`).join('')
-}
-
-function selectTareaExistente(id, source){
-  let title = ''
-  if(source === 'task'){
-    const t = allTasks.find(t => t.id === id)
-    if(t){ selectedTareaExistente = { ...t, source }; title = t.title }
-  } else {
-    const a = allActivities.find(a => a.id === id)
-    if(a){ selectedTareaExistente = { id: a.id, title: a.name, source }; title = a.name }
-  }
-  document.getElementById('tarea-nueva-texto').value = title
-  document.getElementById('tarea-search').value = title
-  document.getElementById('tarea-search-results').style.display = 'none'
-}
-
-async function saveTareaHoy(){
-  const texto = document.getElementById('tarea-nueva-texto').value.trim()
-  if(!texto) return
-  const prioridad = document.getElementById('tarea-prioridad').value
-  const hora = document.getElementById('tarea-hora').value
-
-  if(selectedTareaExistente){
-    // Actualizar tarea existente con fecha de hoy
-    await SB_P.from('tasks').update({
-      due_date: TODAY,
-      priority: prioridad,
-      status: 'hoy',
-      notes: hora || null
-    }).eq('id', selectedTareaExistente.id)
-    const t = allTasks.find(t => t.id === selectedTareaExistente.id)
-    if(t){ t.due_date = TODAY; t.priority = prioridad; t.status = 'hoy'; t.notes = hora }
-  } else {
-    // Nueva tarea
-    const id = 'task_'+Date.now()
-    const newTask = {
-      id, title: texto,
-      category: 'iarcania',
-      priority: prioridad,
-      status: 'hoy',
-      due_date: TODAY,
-      notes: hora || null,
-      assigned_to: USER_ID,
-      created_by: USER_ID
-    }
-    await SB_P.from('tasks').insert(newTask)
-    allTasks.push(newTask)
-  }
-
-  closeAddTareaHoy()
-  await loadTareasHoy()
-}
-
 // --- TASKS ---
 async function loadTasks(){
   const { data } = await SB_P.from('tasks').select('*').order('priority')
@@ -846,8 +774,12 @@ function renderTasks(){
   document.getElementById('stat-pending').textContent = pending.length
   document.getElementById('stat-done').textContent    = done.length
   document.getElementById('badge-pending').textContent = pending.length
+  // Dashboard: solo tareas de hoy (due_date === hoy) o sin fecha
+  const todayTasks = allTasks.filter(t => !t.due_date || t.due_date === TODAY)
+  renderTaskList('dashboard-tasks', todayTasks)
   renderTaskList('all-tasks', allTasks)
   renderCatLegend()
+  update2020Widget()
 }
 
 function renderTaskList(elId, tasks){
@@ -864,6 +796,60 @@ function renderTaskList(elId, tasks){
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
     </div>`
   }).join('')
+}
+
+function showToast(msg, duration=3500){
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), duration)
+}
+
+function update2020Widget(){
+  const trio = ['a35','a14','a02']
+  trio.forEach(id => {
+    const done = !!habitLogs[id]
+    const item = document.getElementById('r-'+id)
+    const check = document.getElementById('rc-'+id)
+    if(!item) return
+    item.classList.toggle('done', done)
+    check.classList.toggle('done', done)
+    check.textContent = done ? '✓' : ''
+  })
+  const trioCompleto = trio.every(id => !!habitLogs[id])
+  const badge = document.getElementById('ritual-badge')
+  if(badge){
+    badge.classList.toggle('done', trioCompleto)
+    badge.textContent = trioCompleto ? '✅ 20/20/20 Completado' : '🔄 20/20/20'
+  }
+  const wrap = document.getElementById('dashboard-tasks-wrap')
+  if(wrap){
+    wrap.classList.toggle('tasks-locked', !trioCompleto)
+  }
+}
+
+async function toggleHabitoFromDash(activityId){
+  if(habitLogs[activityId]){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs[activityId].id)
+    delete habitLogs[activityId]
+  } else {
+    const log = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
+    await SB_P.from('activity_logs').insert(log)
+    habitLogs[activityId] = log
+  }
+  const trio = ['a35','a14','a02']
+  const trioCompleto = trio.every(id => !!habitLogs[id])
+  if(trioCompleto && !habitLogs['a70']){
+    const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: TODAY }
+    await SB_P.from('activity_logs').insert(log70)
+    habitLogs['a70'] = log70
+    showToast('🔥 ¡20/20/20 completado! Cuerpo y mente listos. A trabajar.')
+  } else if(!trioCompleto && habitLogs['a70']){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
+    delete habitLogs['a70']
+  }
+  update2020Widget()
+  renderHabitos()
 }
 
 function renderCatLegend(){
@@ -914,10 +900,19 @@ async function loadBirthdays(){
 }
 
 function daysUntil(day, month){
-  const now = new Date()
-  let next = new Date(now.getFullYear(), month-1, day)
+  const now = new Date(); now.setHours(0,0,0,0)
+  let next = new Date(now.getFullYear(), month-1, day); next.setHours(0,0,0,0)
   if(next < now) next.setFullYear(now.getFullYear()+1)
-  return Math.ceil((next - now) / 86400000)
+  return Math.round((next - now) / 86400000)
+}
+
+const FECHA_TIPOS = {
+  cumpleanos: { label:'🎂 Cumpleaños', color:'#f472b6' },
+  aniversario: { label:'💍 Aniversario', color:'#c9a84c' },
+  pago:        { label:'💸 Pago',        color:'#4ade80' },
+  cita:        { label:'🏥 Cita',        color:'#60a5fa' },
+  evento:      { label:'📅 Evento',      color:'#a78bfa' },
+  otro:        { label:'⭐ Otro',         color:'#7a788f' },
 }
 
 function renderBirthdays(bds){
@@ -925,12 +920,18 @@ function renderBirthdays(bds){
   if(!bds.length){ grid.innerHTML='<div class="empty-state"><div class="empty-icon">◉</div>No hay fechas guardadas</div>'; return }
   grid.innerHTML = bds.map(b => {
     const days = daysUntil(b.day, b.month)
-    const cls = days<=3?'pill-hot':days<=7?'pill-warm':'pill-cool'
+    const cls = days===0?'pill-hot':days<=3?'pill-hot':days<=7?'pill-warm':'pill-cool'
     const label = days===0?'¡Hoy!':days===1?'Mañana':`${days} días`
+    const tipo = FECHA_TIPOS[b.type||b.relationship_type] || FECHA_TIPOS.otro
+    const autoTaskBtn = days===0 ? `<button onclick="createTaskFromFecha('${b.name}','${b.type||'evento'}')" style="margin-top:8px;width:100%;padding:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ Crear tarea para hoy</button>` : ''
     return `<div class="bd-card">
-      <div class="bd-name">${b.name}</div>
-      <div class="bd-date">${b.relationship} · ${b.day}/${b.month}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="bd-name">${b.name}</div>
+        <span class="fecha-cat-badge" style="background:${tipo.color}22;color:${tipo.color};border:1px solid ${tipo.color}44">${tipo.label}</span>
+      </div>
+      <div class="bd-date">${b.relationship||b.relationship_type||''} · ${b.day}/${b.month}</div>
       <span class="bd-days pill ${cls}">${label}</span>
+      ${autoTaskBtn}
     </div>`
   }).join('')
 
@@ -940,7 +941,7 @@ function renderBirthdays(bds){
     alertBar.style.display='flex'
     document.getElementById('bd-pills').innerHTML = urgent.map(b=>{
       const days=daysUntil(b.day,b.month)
-      const cls=days<=3?'pill-hot':'pill-warm'
+      const cls=days===0?'pill-hot':days<=3?'pill-hot':'pill-warm'
       const label=days===0?'¡Hoy!':days===1?'Mañana':`en ${days} días`
       return `<span class="pill ${cls}">${b.name} — ${label}</span>`
     }).join(' ')
@@ -949,18 +950,34 @@ function renderBirthdays(bds){
   }
 }
 
+async function createTaskFromFecha(nombre, tipo){
+  const title = `${FECHA_TIPOS[tipo]?.label||'📅'} ${nombre}`
+  const id = 'task_'+Date.now()
+  await SB_P.from('tasks').insert({
+    id, title, category:'familia', color:'#f472b6',
+    priority:'alta', due_date: TODAY,
+    assigned_to: USER_ID, created_by: USER_ID, status:'pendiente'
+  })
+  showToast(`✅ Tarea creada: ${title}`)
+  await loadTasks()
+}
+
 async function saveBirthday(){
   const name = document.getElementById('bd-name').value.trim()
   if(!name) return
+  const tipo = document.getElementById('bd-type').value
   await SB_P.from('birthdays').insert({
     id: 'bd_'+Date.now(),
     name,
     relationship: document.getElementById('bd-rel').value,
+    relationship_type: tipo,
     day: parseInt(document.getElementById('bd-day').value),
     month: parseInt(document.getElementById('bd-month').value),
     reminder_days_before: parseInt(document.getElementById('bd-reminder').value)||3
   })
   closeModal('birthday')
+  document.getElementById('bd-name').value = ''
+  document.getElementById('bd-rel').value = ''
   await loadBirthdays()
 }
 
@@ -1064,52 +1081,110 @@ const CAT_ORDER = [
 
 let allActivities = []
 let habitLogs = {}
+let weeklyLogs = {}
+let monthlyLogs = {}
 let showInactive = false
 let currentCatFilter = 'all'
+let currentFreqFilter = 'diaria'
 const TODAY = new Date().toISOString().split('T')[0]
 
 async function loadHabitos(){
   const { data: acts } = await SB_P.from('activities').select('*').order('sort_order').order('name')
   allActivities = acts || []
 
+  // Daily logs
   const { data: logs } = await SB_P.from('activity_logs')
-    .select('*')
-    .eq('user_id', USER_ID)
-    .eq('date', TODAY)
-
+    .select('*').eq('user_id', USER_ID).eq('date', TODAY)
   habitLogs = {}
   ;(logs||[]).forEach(l => { habitLogs[l.activity_id] = l })
 
-  renderHabitos()
-  renderDespertar()
-}
+  // Weekly logs (Monday to Sunday of current week)
+  const now = new Date()
+  const day = now.getDay()
+  const monday = new Date(now); monday.setDate(now.getDate() - (day===0?6:day-1)); monday.setHours(0,0,0,0)
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6)
+  const weekStart = monday.toISOString().split('T')[0]
+  const weekEnd   = sunday.toISOString().split('T')[0]
+  const { data: wlogs } = await SB_P.from('activity_logs')
+    .select('*').eq('user_id', USER_ID).gte('date', weekStart).lte('date', weekEnd)
+  weeklyLogs = {}
+  ;(wlogs||[]).forEach(l => {
+    if(!weeklyLogs[l.activity_id]) weeklyLogs[l.activity_id] = []
+    weeklyLogs[l.activity_id].push(l)
+  })
 
-function renderDespertar(){
-  const el = document.getElementById('dashboard-despertar')
-  if(!el) return
-  const despertarCats = ['despertar','ritual_2020']
-  const acts = allActivities.filter(a => despertarCats.includes(a.category) && a.is_active)
-  const done = acts.filter(a => habitLogs[a.id]).length
-  const prog = document.getElementById('despertar-progress')
-  if(prog) prog.textContent = `${done}/${acts.length}`
-  if(!acts.length){ el.innerHTML='<div class="empty-state">Sin hábitos de despertar</div>'; return }
-  el.innerHTML = acts.map(a => habitoHTML(a)).join('')
+  // Monthly logs
+  const monthStart = TODAY.slice(0,7)+'-01'
+  const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate()
+  const monthEnd = TODAY.slice(0,7)+'-'+String(lastDay).padStart(2,'0')
+  const { data: mlogs } = await SB_P.from('activity_logs')
+    .select('*').eq('user_id', USER_ID).gte('date', monthStart).lte('date', monthEnd)
+  monthlyLogs = {}
+  ;(mlogs||[]).forEach(l => {
+    if(!monthlyLogs[l.activity_id]) monthlyLogs[l.activity_id] = []
+    monthlyLogs[l.activity_id].push(l)
+  })
+
+  renderHabitos()
+  update2020Widget()
 }
 
 function renderHabitos(){
   const el = document.getElementById('habitos-list')
-  let toShow = allActivities.filter(a => showInactive ? true : a.is_active)
-  if(currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
+  const catFilters = document.getElementById('habitos-cat-filters')
+  const progressWrap = document.getElementById('habitos-progress-wrap')
 
-  const active = toShow.filter(a => a.is_active)
-  const done = active.filter(a => habitLogs[a.id])
-  document.getElementById('habitos-progress-text').textContent = `${done.length} / ${active.length}`
-  const pct = active.length ? (done.length/active.length*100) : 0
-  document.getElementById('habitos-progress-bar').style.width = pct+'%'
+  // Show/hide elements based on frequency tab
+  const isDaily = currentFreqFilter === 'diaria'
+  catFilters.style.display = isDaily ? 'flex' : 'none'
+  progressWrap.style.display = isDaily ? 'block' : 'none'
 
-  if(!toShow.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◑</div>No hay hábitos en esta categoría</div>'; return }
+  let toShow = allActivities.filter(a => {
+    const freq = a.frequency || 'diaria'
+    if(freq !== currentFreqFilter) return false
+    if(!showInactive && !a.is_active) return false
+    return true
+  })
 
-  // Si filtro es 'all', mostrar agrupado en orden correcto
+  // Unique activities: show all including inactive for archiving
+  if(currentFreqFilter === 'unica') toShow = allActivities.filter(a => (a.frequency||'diaria') === 'unica')
+
+  // Category filter (only for daily)
+  if(isDaily && currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
+
+  // Progress bar (daily only)
+  if(isDaily){
+    const active = toShow.filter(a => a.is_active)
+    const done = active.filter(a => habitLogs[a.id])
+    document.getElementById('habitos-progress-text').textContent = `${done.length} / ${active.length}`
+    const pct = active.length ? (done.length/active.length*100) : 0
+    document.getElementById('habitos-progress-bar').style.width = pct+'%'
+  }
+
+  if(!toShow.length){
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">◑</div>${
+      currentFreqFilter==='unica' ? 'No hay actividades únicas. Agrega tareas pendientes con "+ Nueva"' :
+      'No hay actividades en esta frecuencia'
+    }</div>`
+    return
+  }
+
+  if(currentFreqFilter === 'unica'){
+    el.innerHTML = toShow.map(a => habitoUnicoHTML(a)).join('')
+    return
+  }
+
+  if(currentFreqFilter === 'semanal'){
+    el.innerHTML = toShow.map(a => habitoPeriodicoHTML(a, 'semanal')).join('')
+    return
+  }
+
+  if(currentFreqFilter === 'mensual'){
+    el.innerHTML = toShow.map(a => habitoPeriodicoHTML(a, 'mensual')).join('')
+    return
+  }
+
+  // Daily - grouped by category
   if(currentCatFilter === 'all'){
     const grouped = {}
     toShow.forEach(a => {
@@ -1129,21 +1204,7 @@ function renderHabitos(){
     return
   }
 
-  // Si hay filtro, agrupar por categoría
-  const grouped = {}
-  toShow.forEach(a => {
-    if(!grouped[a.category]) grouped[a.category] = []
-    grouped[a.category].push(a)
-  })
-
-  el.innerHTML = Object.entries(grouped).map(([cat, acts]) => {
-    const color = CAT_COLORS[cat] || '#555'
-    const label = CAT_LABELS[cat] || cat
-    return `<div class="habito-group">
-      <div class="habito-group-title" style="color:${color}">${label}<div class="habito-group-line"></div></div>
-      <div style="display:flex;flex-direction:column;gap:5px">${acts.map(a => habitoHTML(a)).join('')}</div>
-    </div>`
-  }).join('')
+  el.innerHTML = toShow.map(a => habitoHTML(a)).join('')
 }
 
 function habitoHTML(a){
@@ -1152,17 +1213,145 @@ function habitoHTML(a){
   const color = CAT_COLORS[a.category] || '#555'
   const is2020 = a.id === 'a70'
   const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
-  const rowClick = is2020 ? '' : `onclick="toggleHabito('${a.id}')"`
-  return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" ${rowClick} style="border-left-color:${isActive?color:'var(--border)'};cursor:${is2020?'default':'pointer'}">
-    <div class="habito-check" style="${checkStyle}${is2020?';cursor:default':''}">
+  const onclick = is2020 ? '' : `onclick="toggleHabito('${a.id}')"`
+  return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+    <div class="habito-check" ${onclick} style="${checkStyle}${is2020?';cursor:default':''}">
       ${isDone?'✓':''}
     </div>
     <div style="flex:1">
       <div class="habito-name">${a.name}${is2020?' <span style="font-size:10px;color:var(--text-muted)">(auto)</span>':''}</div>
     </div>
     <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:8px">${CAT_LABELS[a.category]||''}</span>
-    <button class="habito-toggle" onclick="event.stopPropagation();toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
+    <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
   </div>`
+}
+
+function habitoUnicoHTML(a){
+  const isDone = !!habitLogs[a.id] || !a.is_active
+  const color = CAT_COLORS[a.category] || '#555'
+  return `<div class="unica-item${isDone?' done-arch':''}">
+    <div style="flex:1">
+      <div style="font-size:13px;color:${isDone?'var(--text-muted)':'var(--text)'};${isDone?'text-decoration:line-through':''}">${a.name}</div>
+      <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
+    </div>
+    ${!isDone ? `<button class="btn-edit-act" onclick="openActivityModal('${a.id}')">✏️</button>` : ''}
+    ${!isDone ? `<button class="btn-archive" onclick="archiveActivity('${a.id}')">✓ Hecho</button>` : '<span class="freq-done-badge">Archivado</span>'}
+  </div>`
+}
+
+function habitoPeriodicoHTML(a, freq){
+  const logs = freq==='semanal' ? (weeklyLogs[a.id]||[]) : (monthlyLogs[a.id]||[])
+  const isDone = logs.length > 0
+  const color = CAT_COLORS[a.category] || '#555'
+  const period = freq==='semanal' ? 'esta semana' : 'este mes'
+  return `<div class="habito-item${isDone?' done':''}" style="border-left-color:${a.is_active?color:'var(--border)'}">
+    <div class="habito-check" onclick="toggleHabitoPeriodico('${a.id}','${freq}')" style="${isDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">
+      ${isDone?'✓':''}
+    </div>
+    <div style="flex:1">
+      <div class="habito-name">${a.name}</div>
+      ${isDone ? `<div style="font-size:10px;color:var(--text-muted)">Completado ${period} · ${logs.length}x</div>` : ''}
+    </div>
+    ${isDone ? '<span class="freq-done-badge">✓ '+period+'</span>' : ''}
+    <button class="btn-edit-act" onclick="openActivityModal('${a.id}')">✏️</button>
+  </div>`
+}
+
+async function toggleHabitoPeriodico(activityId, freq){
+  const logs = freq==='semanal' ? weeklyLogs[activityId] : monthlyLogs[activityId]
+  if(logs && logs.length > 0){
+    await SB_P.from('activity_logs').delete().eq('id', logs[logs.length-1].id)
+    if(freq==='semanal') weeklyLogs[activityId] = logs.slice(0,-1)
+    else monthlyLogs[activityId] = logs.slice(0,-1)
+  } else {
+    const log = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
+    await SB_P.from('activity_logs').insert(log)
+    if(freq==='semanal'){ if(!weeklyLogs[activityId]) weeklyLogs[activityId]=[]; weeklyLogs[activityId].push(log) }
+    else { if(!monthlyLogs[activityId]) monthlyLogs[activityId]=[]; monthlyLogs[activityId].push(log) }
+  }
+  renderHabitos()
+}
+
+async function archiveActivity(activityId){
+  await SB_P.from('activities').update({ is_active: false }).eq('id', activityId)
+  const act = allActivities.find(a => a.id===activityId)
+  if(act){ act.is_active = false }
+  showToast('✓ Actividad archivada')
+  renderHabitos()
+}
+
+function filterFreq(freq, btn){
+  currentFreqFilter = freq
+  document.querySelectorAll('.freq-tab').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  renderHabitos()
+}
+
+// CRUD de actividades
+function openActivityModal(id){
+  const existing = id ? allActivities.find(a => a.id===id) : null
+  document.getElementById('activity-modal-title').textContent = existing ? 'Editar actividad' : 'Nueva actividad'
+  document.getElementById('act-id').value = existing ? existing.id : ''
+  document.getElementById('act-name').value = existing ? existing.name : ''
+  document.getElementById('act-freq').value = existing ? (existing.frequency||'diaria') : currentFreqFilter
+  document.getElementById('act-cat').value = existing ? existing.category : 'vida_practica'
+  document.getElementById('act-type').value = existing ? (existing.type||'binary') : 'binary'
+  document.getElementById('act-unit').value = existing ? (existing.unit||'') : ''
+  document.getElementById('act-delete-btn').style.display = existing ? 'block' : 'none'
+  updateActFreqHint()
+  openModal('activity')
+}
+
+function updateActFreqHint(){
+  const freq = document.getElementById('act-freq').value
+  const hint = document.getElementById('act-freq-hint')
+  const hints = {
+    diaria: '✓ Aparece en la lista de hábitos diarios y genera racha',
+    semanal: '✓ Se marca una vez por semana — ideal para rutinas semanales',
+    mensual: '✓ Se marca una vez al mes — ideal para revisiones y limpiezas',
+    unica: '✓ Tarea única — cuando la termines se archiva automáticamente'
+  }
+  hint.textContent = hints[freq] || ''
+  hint.style.display = 'block'
+}
+
+async function saveActivity(){
+  const id = document.getElementById('act-id').value
+  const name = document.getElementById('act-name').value.trim()
+  if(!name) return
+  const data = {
+    name,
+    frequency: document.getElementById('act-freq').value,
+    category: document.getElementById('act-cat').value,
+    type: document.getElementById('act-type').value,
+    unit: document.getElementById('act-unit').value || 'sesion',
+    is_active: true,
+    sort_order: 99
+  }
+  if(id){
+    await SB_P.from('activities').update(data).eq('id', id)
+    const act = allActivities.find(a => a.id===id)
+    if(act) Object.assign(act, data)
+    showToast('✓ Actividad actualizada')
+  } else {
+    const newId = 'a_'+Date.now()
+    await SB_P.from('activities').insert({ id: newId, ...data })
+    allActivities.push({ id: newId, ...data })
+    showToast('✓ Actividad creada')
+  }
+  closeModal('activity')
+  renderHabitos()
+}
+
+async function deleteActivity(){
+  const id = document.getElementById('act-id').value
+  if(!id) return
+  if(!confirm('¿Eliminar esta actividad permanentemente?')) return
+  await SB_P.from('activities').delete().eq('id', id)
+  allActivities = allActivities.filter(a => a.id !== id)
+  closeModal('activity')
+  showToast('🗑️ Actividad eliminada')
+  renderHabitos()
 }
 
 async function toggleHabito(activityId){
@@ -1175,20 +1364,21 @@ async function toggleHabito(activityId){
     habitLogs[activityId] = log
   }
 
-  // Lógica 20/20/20: si saltos (a35) + baño (a14) + meditar (a02) están completos → marcar a70
   const trio = ['a35','a14','a02']
   const trioCompleto = trio.every(id => !!habitLogs[id])
+
   if(trioCompleto && !habitLogs['a70']){
     const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: TODAY }
     await SB_P.from('activity_logs').insert(log70)
     habitLogs['a70'] = log70
+    showToast('🔥 ¡20/20/20 completado! Cuerpo y mente listos. A trabajar.')
   } else if(!trioCompleto && habitLogs['a70']){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
     delete habitLogs['a70']
   }
 
   renderHabitos()
-  renderDespertar()
+  update2020Widget()
 }
 
 async function toggleActive(activityId, currentState){
@@ -1196,7 +1386,6 @@ async function toggleActive(activityId, currentState){
   const act = allActivities.find(a => a.id===activityId)
   if(act) act.is_active = !currentState
   renderHabitos()
-  renderDespertar()
 }
 
 function filterHabitos(cat, btn){
@@ -1316,7 +1505,10 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
     document.getElementById('auth-screen').style.display='none'
     document.getElementById('app').style.display='block'
     document.getElementById('user-name').textContent = data.session.user.email.split('@')[0]
-    // Para sesión guardada, IArcanIA requiere login fresco — se hace al entrar a Clientes/Cobros
+    await SB_I.auth.signInWithPassword({
+      email: data.session.user.email,
+      password: ''
+    }).catch(()=>{})
     initApp()
   }
 })()
