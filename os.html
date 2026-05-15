@@ -332,7 +332,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <div class="card">
             <div class="card-title">Actividades de hoy</div>
 
-            <!-- 20/20/20 colapsable -->
+            <!-- Despertar colapsable — 1º -->
+            <div class="dash-section" style="border-color:rgba(255,209,102,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('despertar')">
+                <span style="font-size:13px;font-weight:600;color:#FFD166">🌅 Despertar</span>
+                <span class="dash-arrow" id="dash-despertar-arrow">▼</span>
+              </div>
+              <div class="dash-section-body" id="dash-despertar-body">
+                <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
+              </div>
+            </div>
+
+            <!-- 20/20/20 colapsable — 2º -->
             <div class="dash-section" style="border-color:rgba(0,194,255,0.25)">
               <div class="dash-section-hdr" onclick="toggleDashSection('2020')" style="background:linear-gradient(135deg,rgba(0,194,255,0.08),rgba(0,194,255,0.02))">
                 <span class="ritual-badge" id="ritual-badge">🔄 20/20/20</span>
@@ -358,24 +369,32 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
             </div>
 
-            <!-- Despertar colapsable -->
-            <div class="dash-section" style="border-color:rgba(255,209,102,0.2)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('despertar')">
-                <span style="font-size:13px;font-weight:600;color:#FFD166">🌅 Despertar</span>
-                <span class="dash-arrow" id="dash-despertar-arrow">▼</span>
+            <!-- Mis 3 tareas de hoy colapsable — 3º (expandido por defecto) -->
+            <div class="dash-section">
+              <div class="dash-section-hdr" onclick="toggleDashSection('today')">
+                <span style="font-size:13px;font-weight:600;color:var(--text-dim)">📋 Mis 3 tareas de hoy</span>
+                <span class="dash-arrow" id="dash-today-arrow">▼</span>
               </div>
-              <div class="dash-section-body" id="dash-despertar-body">
-                <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
+              <div class="dash-section-body" id="dash-today-body">
+                <div id="dashboard-tasks-wrap">
+                  <div class="task-list" id="dashboard-tasks">
+                    <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Mis 3 tareas de hoy -->
-            <div id="dashboard-tasks-wrap">
-              <div style="font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:12px 0 8px">Mis 3 tareas de hoy</div>
-              <div class="task-list" id="dashboard-tasks">
-                <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+            <!-- Top 5 prioridades colapsable — 4º (colapsado por defecto) -->
+            <div class="dash-section" style="border-color:rgba(239,159,39,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('top5')">
+                <span style="font-size:13px;font-weight:600;color:var(--amber)">⚡ Top 5 prioridades</span>
+                <span class="dash-arrow up" id="dash-top5-arrow">▼</span>
+              </div>
+              <div class="dash-section-body collapsed" id="dash-top5-body">
+                <div class="task-list" id="top5-tasks"></div>
               </div>
             </div>
+
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:1rem">
@@ -831,8 +850,24 @@ function renderTasks(){
     .slice(0, 3)
   renderTaskList('dashboard-tasks', todayTasks)
   renderTaskList('all-tasks', allTasks)
+  renderTop5Dash()
   renderCatLegend()
   update2020Widget()
+}
+
+function renderTop5Dash(){
+  const PRIO5 = { extrema: 0, alta: 1, media: 2, baja: 3 }
+  const top5 = allTasks
+    .filter(t => t.status !== 'completada')
+    .sort((a, b) => {
+      const pa = PRIO5[a.priority] ?? 2, pb = PRIO5[b.priority] ?? 2
+      if(pa !== pb) return pa - pb
+      const ta = (a.notes && /^\d{2}:\d{2}$/.test(a.notes.trim())) ? a.notes.trim() : '99:99'
+      const tb = (b.notes && /^\d{2}:\d{2}$/.test(b.notes.trim())) ? b.notes.trim() : '99:99'
+      return ta.localeCompare(tb)
+    })
+    .slice(0, 5)
+  renderTaskList('top5-tasks', top5)
 }
 
 function renderTaskList(elId, tasks){
