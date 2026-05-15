@@ -311,6 +311,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <div>
           <h1 class="page-title">Buen día, Miguel</h1>
           <div class="page-sub" id="today-date"></div>
+          <div class="page-sub" id="today-date-short" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
         </div>
         <div class="stats-row">
           <div class="stat-box">
@@ -804,7 +805,16 @@ async function initApp(){
 
 function setDate(){
   const d = new Date()
-  document.getElementById('today-date').textContent = d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})
+  const fecha = d.toLocaleDateString('es-CO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+  document.getElementById('today-date').textContent =
+    fecha.charAt(0).toUpperCase() + fecha.slice(1)
+  document.getElementById('today-date-short').textContent =
+    d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 // --- NAV ---
