@@ -213,6 +213,15 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .habito-group-title{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
 .habito-group-line{flex:1;height:1px;background:var(--border)}
 
+/* Dashboard collapsibles */
+.dash-section{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.dash-section-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;background:rgba(0,0,0,0.2);user-select:none;transition:background .15s}
+.dash-section-hdr:hover{background:rgba(0,0,0,0.28)}
+.dash-section-body{padding:8px 10px 10px;display:flex;flex-direction:column;gap:5px}
+.dash-section-body.collapsed{display:none}
+.dash-arrow{margin-left:auto;font-size:10px;color:var(--text-muted);transition:transform .2s;flex-shrink:0}
+.dash-arrow.up{transform:rotate(180deg)}
+
 /* LOADING */
 .loading{text-align:center;padding:2rem;color:var(--text-muted);font-size:13px}
 .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:8px}
@@ -320,13 +329,15 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <div>
           <div class="card">
             <div class="card-title">Actividades de hoy</div>
-            <!-- Widget 20/20/20 -->
-            <div class="ritual-widget" id="ritual-widget">
-              <div class="ritual-header">
+
+            <!-- 20/20/20 colapsable -->
+            <div class="dash-section" style="border-color:rgba(0,194,255,0.25)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('2020')" style="background:linear-gradient(135deg,rgba(0,194,255,0.08),rgba(0,194,255,0.02))">
                 <span class="ritual-badge" id="ritual-badge">🔄 20/20/20</span>
-                <span style="font-size:11px;color:var(--text-muted)">Completa las 3 para desbloquear</span>
+                <span style="font-size:11px;color:var(--text-muted);flex:1">Completa las 3 para desbloquear</span>
+                <span class="dash-arrow" id="dash-2020-arrow">▼</span>
               </div>
-              <div class="ritual-sub">
+              <div class="dash-section-body" id="dash-2020-body" style="background:rgba(0,194,255,0.02)">
                 <div class="ritual-item" id="r-a35" onclick="toggleHabitoFromDash('a35')">
                   <div class="ritual-check" id="rc-a35"></div>
                   <span class="ritual-label">1000 saltos</span>
@@ -344,8 +355,21 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
                 </div>
               </div>
             </div>
-            <!-- Tareas del día (bloqueadas hasta 20/20/20) -->
+
+            <!-- Despertar colapsable -->
+            <div class="dash-section" style="border-color:rgba(255,209,102,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('despertar')">
+                <span style="font-size:13px;font-weight:600;color:#FFD166">🌅 Despertar</span>
+                <span class="dash-arrow" id="dash-despertar-arrow">▼</span>
+              </div>
+              <div class="dash-section-body" id="dash-despertar-body">
+                <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
+              </div>
+            </div>
+
+            <!-- Mis 3 tareas de hoy -->
             <div id="dashboard-tasks-wrap">
+              <div style="font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:12px 0 8px">Mis 3 tareas de hoy</div>
               <div class="task-list" id="dashboard-tasks">
                 <div class="loading"><div class="spinner"></div><br>Cargando...</div>
               </div>
@@ -459,6 +483,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
       </div>
 
+      <div id="habitos-add-btn-wrap" style="margin-bottom:0.75rem"></div>
       <div id="habitos-list" style="display:flex;flex-direction:column;gap:6px">
         <div class="loading"><div class="spinner"></div><br>Cargando hábitos...</div>
       </div>
@@ -530,9 +555,12 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
     </div>
     <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-    <div class="btn-row">
-      <button class="btn-cancel" onclick="closeModal('task')">Cancelar</button>
-      <button class="btn-save" onclick="saveTask()">Guardar</button>
+    <div class="btn-row" style="justify-content:space-between">
+      <button id="task-delete-btn" onclick="deleteTask()" style="display:none;padding:9px 16px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn-cancel" onclick="closeModal('task')">Cancelar</button>
+        <button class="btn-save" onclick="saveTask()">Guardar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -584,6 +612,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn-cancel" onclick="closeModal('activity')">Cancelar</button>
         <button class="btn-save" onclick="saveActivity()">Guardar</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -739,9 +769,25 @@ async function doLogout(){
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin() })
 
+// --- MIDNIGHT RESET ---
+function checkDateReset(){
+  const now = new Date().toISOString().split('T')[0]
+  const saved = localStorage.getItem('last_date')
+  if(saved && saved !== now){
+    // El día cambió: recargar hábitos y tareas sin borrar datos de Supabase
+    habitLogs = {}
+    loadHabitos()
+    loadTasks()
+    showToast('☀️ Nuevo día — hábitos reiniciados')
+  }
+  localStorage.setItem('last_date', now)
+}
+
 // --- INIT ---
 async function initApp(){
   setDate()
+  checkDateReset()
+  setInterval(checkDateReset, 60000)
   await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos()])
 }
 
@@ -775,8 +821,12 @@ function renderTasks(){
   document.getElementById('stat-pending').textContent = pending.length
   document.getElementById('stat-done').textContent    = done.length
   document.getElementById('badge-pending').textContent = pending.length
-  // Dashboard: solo tareas de hoy (due_date === hoy) o sin fecha
-  const todayTasks = allTasks.filter(t => !t.due_date || t.due_date === TODAY)
+  // Dashboard: top 3 tareas pendientes de hoy (due_date === hoy o sin fecha), por prioridad
+  const PRIO = { alta: 0, media: 1, baja: 2 }
+  const todayTasks = allTasks
+    .filter(t => t.status !== 'completada' && (!t.due_date || t.due_date === TODAY))
+    .sort((a, b) => (PRIO[a.priority] ?? 1) - (PRIO[b.priority] ?? 1))
+    .slice(0, 3)
   renderTaskList('dashboard-tasks', todayTasks)
   renderTaskList('all-tasks', allTasks)
   renderCatLegend()
@@ -828,6 +878,7 @@ function update2020Widget(){
   if(wrap){
     wrap.classList.toggle('tasks-locked', !trioCompleto)
   }
+  renderDespertarDash()
 }
 
 async function toggleHabitoFromDash(activityId){
@@ -875,6 +926,44 @@ async function toggleTask(id){
   renderTasks()
 }
 
+function toggleDashSection(id){
+  const body  = document.getElementById('dash-'+id+'-body')
+  const arrow = document.getElementById('dash-'+id+'-arrow')
+  if(!body) return
+  body.classList.toggle('collapsed')
+  arrow.classList.toggle('up')
+}
+
+function renderDespertarDash(){
+  const el = document.getElementById('dash-despertar-body')
+  if(!el) return
+  const acts = allActivities.filter(a => a.category === 'despertar' && a.is_active && (a.frequency||'diaria') === 'diaria')
+  if(!acts.length){
+    el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades de despertar configuradas</div>'
+    return
+  }
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#FFD166;border-color:#FFD166;color:#000':'border-color:rgba(255,209,102,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+    </div>`
+  }).join('')
+}
+
+async function deleteTask(){
+  const id = document.getElementById('t-id').value
+  if(!id) return
+  if(!confirm('¿Eliminar esta tarea permanentemente?')) return
+  await SB_P.from('tasks').delete().eq('id', id)
+  allTasks = allTasks.filter(t => t.id !== id)
+  closeModal('task')
+  document.getElementById('t-id').value = ''
+  document.getElementById('modal-task-title').textContent = 'Nueva actividad'
+  showToast('🗑️ Tarea eliminada')
+  renderTasks()
+}
+
 function openNewTask(){
   document.getElementById('modal-task-title').textContent = 'Nueva actividad'
   document.getElementById('t-id').value = ''
@@ -882,6 +971,7 @@ function openNewTask(){
   document.getElementById('t-cat').value = 'iarcania'
   document.getElementById('t-priority').value = 'alta'
   document.getElementById('t-due').value = ''
+  document.getElementById('task-delete-btn').style.display = 'none'
   openModal('task')
 }
 
@@ -894,6 +984,7 @@ function openEditTask(id){
   document.getElementById('t-cat').value = task.category || 'iarcania'
   document.getElementById('t-priority').value = task.priority || 'alta'
   document.getElementById('t-due').value = task.due_date || ''
+  document.getElementById('task-delete-btn').style.display = 'block'
   openModal('task')
 }
 
@@ -1186,6 +1277,11 @@ function renderHabitos(){
   catFilters.style.display = isDaily ? 'flex' : 'none'
   progressWrap.style.display = isDaily ? 'block' : 'none'
 
+  // Botón agregar por pestaña
+  const FREQ_LABELS = { diaria:'Diario', semanal:'Semanal', mensual:'Mensual', unica:'Único' }
+  const addWrap = document.getElementById('habitos-add-btn-wrap')
+  if(addWrap) addWrap.innerHTML = `<button class="btn-add" onclick="openActivityModal()" style="width:100%;justify-content:center;padding:10px 14px;color:var(--gold);border-color:var(--border-gold)">+ Agregar hábito ${FREQ_LABELS[currentFreqFilter]||''}</button>`
+
   let toShow = allActivities.filter(a => {
     const freq = a.frequency || 'diaria'
     if(freq !== currentFreqFilter) return false
@@ -1426,6 +1522,7 @@ async function toggleHabito(activityId){
 
   renderHabitos()
   update2020Widget()
+  renderDespertarDash()
 }
 
 async function toggleActive(activityId, currentState){
