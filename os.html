@@ -265,7 +265,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <span class="nav-badge" id="badge-pending">0</span>
       </button>
       <button class="nav-item" onclick="showSection('actividades',this)">
-        <span class="nav-icon">◎</span>Actividades
+        <span class="nav-icon">◎</span>Tareas
       </button>
       <button class="nav-item" onclick="showSection('ideas',this)">
         <span class="nav-icon">◇</span>Ideas
@@ -371,10 +371,13 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div class="section" id="section-actividades">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Actividades</h1>
+          <h1 class="page-title">Tareas</h1>
           <div class="page-sub">Toca para marcar como completada</div>
         </div>
-        <button class="btn-add" onclick="openModal('task')">+ Nueva actividad</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-add" onclick="showSection('habitos',document.querySelector('.nav-item[onclick*=habitos]'))" style="font-size:11px;color:var(--purple);border-color:rgba(139,108,246,0.3)">⚡ Gestionar hábitos</button>
+          <button class="btn-add" onclick="openModal('task')">+ Nueva tarea</button>
+        </div>
       </div>
       <div class="task-list" id="all-tasks">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
@@ -583,10 +586,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn-cancel" onclick="closeModal('activity')">Cancelar</button>
         <button class="btn-save" onclick="saveActivity()">Guardar</button>
-      </div>
-    </div>
   </div>
 </div>
+
+<div class="modal-overlay" id="modal-birthday">
   <div class="modal">
     <h3>Agregar fecha importante</h3>
     <div class="field"><label>Nombre</label><input type="text" id="bd-name" placeholder="ej. Abuela"/></div>
