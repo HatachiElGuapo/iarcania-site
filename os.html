@@ -376,7 +376,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-add" onclick="showSection('habitos',document.querySelector('.nav-item[onclick*=habitos]'))" style="font-size:11px;color:var(--purple);border-color:rgba(139,108,246,0.3)">⚡ Gestionar hábitos</button>
-          <button class="btn-add" onclick="openModal('task')">+ Nueva tarea</button>
+          <button class="btn-add" onclick="openNewTask()">+ Nueva tarea</button>
         </div>
       </div>
       <div class="task-list" id="all-tasks">
@@ -508,7 +508,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-task">
   <div class="modal">
-    <h3>Nueva actividad</h3>
+    <h3 id="modal-task-title">Nueva actividad</h3>
+    <input type="hidden" id="t-id"/>
     <div class="field"><label>Título</label><input type="text" id="t-title" placeholder="¿Qué hay que hacer?"/></div>
     <div class="form-row">
       <div class="field">
@@ -744,7 +745,7 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 // --- INIT ---
 async function initApp(){
   setDate()
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos()])
 }
 
 function setDate(){
@@ -797,6 +798,7 @@ function renderTaskList(elId, tasks){
       </div>
       <div class="task-text">${t.title}</div>
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
+      <button class="habito-toggle" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
     </div>`
   }).join('')
 }
@@ -876,24 +878,67 @@ async function toggleTask(id){
   renderTasks()
 }
 
+function openNewTask(){
+  document.getElementById('modal-task-title').textContent = 'Nueva actividad'
+  document.getElementById('t-id').value = ''
+  document.getElementById('t-title').value = ''
+  document.getElementById('t-cat').value = 'iarcania'
+  document.getElementById('t-priority').value = 'alta'
+  document.getElementById('t-due').value = ''
+  openModal('task')
+}
+
+function openEditTask(id){
+  const task = allTasks.find(t => t.id === id)
+  if(!task) return
+  document.getElementById('modal-task-title').textContent = 'Editar tarea'
+  document.getElementById('t-id').value = task.id
+  document.getElementById('t-title').value = task.title
+  document.getElementById('t-cat').value = task.category || 'iarcania'
+  document.getElementById('t-priority').value = task.priority || 'alta'
+  document.getElementById('t-due').value = task.due_date || ''
+  openModal('task')
+}
+
 async function saveTask(){
   const title = document.getElementById('t-title').value.trim()
   if(!title) return
-  const id = 'task_'+Date.now()
+  const existingId = document.getElementById('t-id').value
   const cat = CATS[document.getElementById('t-cat').value]
-  await SB_P.from('tasks').insert({
-    id, title,
+  const taskData = {
+    title,
     category: document.getElementById('t-cat').value,
     color: cat.color,
     priority: document.getElementById('t-priority').value,
     due_date: document.getElementById('t-due').value || null,
-    assigned_to: USER_ID,
-    created_by: USER_ID,
-    status: 'pendiente'
-  })
+  }
+  if(existingId){
+    await SB_P.from('tasks').update(taskData).eq('id', existingId)
+    const task = allTasks.find(t => t.id === existingId)
+    if(task) Object.assign(task, taskData)
+    showToast('✓ Tarea actualizada')
+  } else {
+    const newId = 'task_'+Date.now()
+    await SB_P.from('tasks').insert({
+      id: newId, ...taskData,
+      assigned_to: USER_ID,
+      created_by: USER_ID,
+      status: 'pendiente'
+    })
+  }
   closeModal('task')
+  document.getElementById('t-id').value = ''
   document.getElementById('t-title').value = ''
+  document.getElementById('modal-task-title').textContent = 'Nueva actividad'
   await loadTasks()
+}
+
+// --- EVENTOS ---
+async function loadEventos(){
+  try {
+    const { data } = await SB_P.from('events').select('*').order('date')
+    window.allEventos = data || []
+  } catch(e){ window.allEventos = [] }
 }
 
 // --- BIRTHDAYS ---
