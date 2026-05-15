@@ -1045,7 +1045,7 @@ async function saveTask(){
   const title = document.getElementById('t-title').value.trim()
   if(!title) return
   const existingId = document.getElementById('t-id').value
-  const cat = CATS[document.getElementById('t-cat').value]
+  const cat = CATS[document.getElementById('t-cat').value] || CATS.habitos
   const taskData = {
     title,
     category: document.getElementById('t-cat').value,
@@ -1058,6 +1058,7 @@ async function saveTask(){
     await SB_P.from('tasks').update(taskData).eq('id', existingId)
     const task = allTasks.find(t => t.id === existingId)
     if(task) Object.assign(task, taskData)
+    renderTasks()
     showToast('✓ Tarea actualizada')
   } else {
     const newId = 'task_'+Date.now()
