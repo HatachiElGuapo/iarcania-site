@@ -384,16 +384,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
             </div>
 
-            <!-- Top 5 prioridades colapsable — 4º (colapsado por defecto) -->
-            <div class="dash-section" style="border-color:rgba(239,159,39,0.2)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('top5')">
-                <span style="font-size:13px;font-weight:600;color:var(--amber)">⚡ Top 5 prioridades</span>
-                <span class="dash-arrow up" id="dash-top5-arrow">▼</span>
-              </div>
-              <div class="dash-section-body collapsed" id="dash-top5-body">
-                <div class="task-list" id="top5-tasks"></div>
-              </div>
-            </div>
 
           </div>
         </div>
@@ -850,25 +840,10 @@ function renderTasks(){
     .slice(0, 5)
   renderTaskList('dashboard-tasks', todayTasks)
   renderTaskList('all-tasks', allTasks)
-  renderTop5Dash()
   renderCatLegend()
   update2020Widget()
 }
 
-function renderTop5Dash(){
-  const PRIO5 = { extrema: 0, alta: 1, media: 2, baja: 3 }
-  const top5 = allTasks
-    .filter(t => t.status !== 'completada')
-    .sort((a, b) => {
-      const pa = PRIO5[a.priority] ?? 2, pb = PRIO5[b.priority] ?? 2
-      if(pa !== pb) return pa - pb
-      const ta = (a.notes && /^\d{2}:\d{2}$/.test(a.notes.trim())) ? a.notes.trim() : '99:99'
-      const tb = (b.notes && /^\d{2}:\d{2}$/.test(b.notes.trim())) ? b.notes.trim() : '99:99'
-      return ta.localeCompare(tb)
-    })
-    .slice(0, 5)
-  renderTaskList('top5-tasks', top5)
-}
 
 function renderTaskList(elId, tasks){
   const el = document.getElementById(elId)
