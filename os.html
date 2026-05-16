@@ -261,6 +261,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .agenda-add-btn:hover{color:var(--gold);border-color:rgba(201,168,76,0.4)}
 .agenda-fixed-label{font-size:12px;color:var(--text-dim);padding:2px 0 4px;font-weight:500}
 .agenda-fixed-label.now{color:var(--gold);font-weight:600}
+.book-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+.book-card:hover{border-color:#2a2a2a}
+.book-card.active{border-color:var(--gold);background:#0e0e0e}
+.book-tab-btn{flex:1;padding:9px 6px;font-size:12px;font-family:'Outfit',sans-serif;font-weight:500;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;border-right:1px solid var(--border)}
+.book-tab-btn:last-child{border-right:none}
+.book-tab-btn.active{background:#161616;color:var(--gold)}
+.book-tab-btn:hover:not(.active){color:var(--text-dim);background:#111}
+.script-card{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s}
+.script-card:hover{border-color:#2a2a2a}
+.script-card.active{background:#0e0e0e}
+.script-editor-field{width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;resize:vertical;outline:none;min-height:80px;box-sizing:border-box}
+.script-editor-field:focus{border-color:rgba(155,114,240,0.5)}
 </style>
 </head>
 <body>
@@ -313,6 +325,12 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </button>
       <button class="nav-item" onclick="showSection('habitos',this)">
         <span class="nav-icon">◑</span>Hábitos
+      </button>
+      <button class="nav-item" onclick="showSection('libros',this)">
+        <span class="nav-icon">📚</span>Libros
+      </button>
+      <button class="nav-item" onclick="showSection('guiones',this)">
+        <span class="nav-icon">🎬</span>Guiones
       </button>
       <button class="nav-item" onclick="showSection('clientes',this)">
         <span class="nav-icon">◆</span>Clientes
@@ -603,6 +621,53 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
     </div>
 
+    <!-- LIBROS -->
+    <div class="section" id="section-libros">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Libros</h1>
+          <div class="page-sub">Notas de lectura, personajes y escenarios</div>
+        </div>
+        <button class="btn-add" onclick="openNewBook()">+ Nuevo libro</button>
+      </div>
+      <div id="books-list" style="display:flex;flex-direction:column;gap:8px">
+        <div class="loading"><div class="spinner"></div><br>Cargando libros...</div>
+      </div>
+      <div id="book-detail-panel" style="display:none;margin-top:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:16px 16px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div id="book-detail-title" style="font-size:15px;font-weight:600;color:var(--text)"></div>
+            <button onclick="closeBookDetail()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px 8px">✕</button>
+          </div>
+          <div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+            <button class="book-tab-btn active" id="btab-notas" onclick="switchBookTab('notas')">📝 Notas</button>
+            <button class="book-tab-btn" id="btab-personajes" onclick="switchBookTab('personajes')">👤 Personajes</button>
+            <button class="book-tab-btn" id="btab-escenarios" onclick="switchBookTab('escenarios')">🗺️ Escenarios</button>
+          </div>
+        </div>
+        <div id="book-tab-content" style="padding:16px"></div>
+      </div>
+    </div>
+
+    <!-- GUIONES -->
+    <div class="section" id="section-guiones">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Guiones</h1>
+          <div class="page-sub">IArcanIA y Void Stoic</div>
+        </div>
+        <button class="btn-add" onclick="openNewScript()">+ Nuevo guión</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem">
+        <button id="gf-all" onclick="filterScripts('all',this)" style="padding:7px 14px;font-size:12px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid var(--border);border-radius:6px;background:#161616;color:var(--gold);cursor:pointer">Todos</button>
+        <button id="gf-iarcania" onclick="filterScripts('iarcania',this)" style="padding:7px 14px;font-size:12px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer">IArcanIA</button>
+        <button id="gf-voidstoic" onclick="filterScripts('voidstoic',this)" style="padding:7px 14px;font-size:12px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer">Void Stoic</button>
+      </div>
+      <div id="scripts-list" style="display:flex;flex-direction:column;gap:8px">
+        <div class="loading"><div class="spinner"></div><br>Cargando guiones...</div>
+      </div>
+    </div>
+
     <!-- CLIENTES -->
     <div class="section" id="section-clientes">
       <div class="page-header">
@@ -837,6 +902,51 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-book">
+  <div class="modal">
+    <h3>Nuevo libro</h3>
+    <div class="field"><label>Título</label><input type="text" id="bk-title" placeholder="Título del libro"/></div>
+    <div class="field"><label>Autor</label><input type="text" id="bk-author" placeholder="Nombre del autor"/></div>
+    <div class="field"><label>Estado</label>
+      <select id="bk-status" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="leyendo">Leyendo</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="terminado">Terminado</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('book')">Cancelar</button>
+      <button class="btn-save" onclick="saveBook()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-script">
+  <div class="modal">
+    <h3>Nuevo guión</h3>
+    <div class="field"><label>Título</label><input type="text" id="sc-title" placeholder="Título del guión"/></div>
+    <div class="form-row">
+      <div class="field"><label>Canal</label>
+        <select id="sc-canal" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="iarcania">IArcanIA</option>
+          <option value="voidstoic">Void Stoic</option>
+        </select>
+      </div>
+      <div class="field"><label>Estado</label>
+        <select id="sc-status" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="borrador">Borrador</option>
+          <option value="grabando">Grabando</option>
+          <option value="publicado">Publicado</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('script')">Cancelar</button>
+      <button class="btn-save" onclick="saveNewScript()">Crear</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -865,6 +975,12 @@ let USER_ID = null
 let allTasks = []
 let allBirthdays = []
 let allClients = []
+let allBooks = []
+let allScripts = []
+let activeBookId = null
+let activeBookTab = 'notas'
+let activeScriptId = null
+let scriptsFilter = 'all'
 
 // --- AUTH ---
 async function doLogin(){
@@ -930,7 +1046,7 @@ async function initApp(){
   setInterval(updateClock, 1000)
   checkDateReset()
   setInterval(checkDateReset, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts()])
 }
 
 function setDate(){
@@ -966,6 +1082,8 @@ function showSection(id, btn){
   document.getElementById('section-'+id).classList.add('active')
   btn.classList.add('active')
   if(id === 'agenda') renderAgenda()
+  if(id === 'libros') loadBooks()
+  if(id === 'guiones') loadScripts()
   if(window.innerWidth <= 768) closeSidebar()
 }
 
@@ -2233,6 +2351,339 @@ function toggleShowAll(){
   showInactive = !showInactive
   document.getElementById('btn-show-all').textContent = showInactive ? 'Ocultar inactivos' : 'Ver inactivos'
   renderHabitos()
+}
+
+// --- BOOKS ---
+async function loadBooks(){
+  const { data } = await SB_I.from('books').select('*').order('created_at',{ascending:false})
+  allBooks = data || []
+  renderBooks()
+}
+
+function renderBooks(){
+  const el = document.getElementById('books-list')
+  if(!el) return
+  if(!allBooks.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div>Sin libros todavía — agrega tu primera lectura</div>'
+    return
+  }
+  const STATUS_MAP = {
+    leyendo:  { label:'Leyendo',   color:'var(--gold)' },
+    terminado:{ label:'Terminado', color:'#5DCAA5' },
+    pendiente:{ label:'Pendiente', color:'var(--text-muted)' },
+  }
+  el.innerHTML = allBooks.map(b => {
+    const st = STATUS_MAP[b.status] || STATUS_MAP.pendiente
+    const isActive = b.id === activeBookId
+    return `<div class="book-card${isActive?' active':''}" onclick="openBookDetail('${b.id}')">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--text)">${b.title}</div>
+        ${b.author ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${b.author}</div>` : ''}
+      </div>
+      <span style="font-size:11px;padding:3px 8px;border-radius:12px;background:${st.color}22;color:${st.color};border:1px solid ${st.color}44;white-space:nowrap">${st.label}</span>
+    </div>`
+  }).join('')
+}
+
+async function openBookDetail(bookId){
+  activeBookId = bookId === activeBookId ? null : bookId
+  renderBooks()
+  const panel = document.getElementById('book-detail-panel')
+  if(!activeBookId){ panel.style.display='none'; return }
+  const book = allBooks.find(b => b.id === bookId)
+  document.getElementById('book-detail-title').textContent = book.title + (book.author ? ` — ${book.author}` : '')
+  panel.style.display = 'block'
+  switchBookTab(activeBookTab)
+}
+
+function closeBookDetail(){
+  activeBookId = null
+  activeBookTab = 'notas'
+  document.getElementById('book-detail-panel').style.display = 'none'
+  renderBooks()
+}
+
+function switchBookTab(tab){
+  activeBookTab = tab
+  ;['notas','personajes','escenarios'].forEach(t => {
+    const btn = document.getElementById('btab-'+t)
+    if(btn) btn.classList.toggle('active', t === tab)
+  })
+  renderBookTab()
+}
+
+async function renderBookTab(){
+  const el = document.getElementById('book-tab-content')
+  if(!el || !activeBookId) return
+  const book = allBooks.find(b => b.id === activeBookId)
+  if(!book) return
+
+  if(activeBookTab === 'notas'){
+    el.innerHTML = `
+      <textarea id="book-notes-ta" class="script-editor-field" style="min-height:140px" placeholder="Escribe tus notas sobre el libro...">${book.notes||''}</textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-save" onclick="saveBookNotes('${book.id}')">Guardar notas</button>
+        <button onclick="deleteBook('${book.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar libro</button>
+      </div>`
+
+  } else if(activeBookTab === 'personajes'){
+    const { data } = await SB_I.from('book_characters').select('*').eq('book_id', activeBookId).order('name')
+    const chars = data || []
+    el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+        ${chars.length ? chars.map(c => `
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <span style="font-size:13px;font-weight:600;color:var(--text)">${c.name}</span>
+                ${c.role ? `<span style="font-size:11px;color:var(--purple);margin-left:8px;background:rgba(155,114,240,0.1);padding:2px 7px;border-radius:10px">${c.role}</span>` : ''}
+                ${c.description ? `<div style="font-size:12px;color:var(--text-dim);margin-top:4px">${c.description}</div>` : ''}
+              </div>
+              <button onclick="deleteChar('${c.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
+            </div>
+          </div>`).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">Sin personajes todavía</div>'}
+      </div>
+      <div style="background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">+ Agregar personaje</div>
+        <div class="form-row">
+          <div class="field"><input type="text" id="char-name" placeholder="Nombre"/></div>
+          <div class="field"><input type="text" id="char-role" placeholder="Rol (ej. protagonista)"/></div>
+        </div>
+        <div class="field" style="margin-top:6px"><input type="text" id="char-desc" placeholder="Descripción breve"/></div>
+        <button class="btn-save" style="margin-top:10px" onclick="saveChar('${activeBookId}')">+ Agregar</button>
+      </div>`
+
+  } else if(activeBookTab === 'escenarios'){
+    const { data } = await SB_I.from('book_scenarios').select('*').eq('book_id', activeBookId).order('title')
+    const scens = data || []
+    el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+        ${scens.length ? scens.map(s => `
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text)">${s.title}</div>
+                ${s.description ? `<div style="font-size:12px;color:var(--text-dim);margin-top:3px">${s.description}</div>` : ''}
+                ${s.notes ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-style:italic">${s.notes}</div>` : ''}
+              </div>
+              <button onclick="deleteScenario('${s.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
+            </div>
+          </div>`).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">Sin escenarios todavía</div>'}
+      </div>
+      <div style="background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">+ Agregar escenario</div>
+        <div class="field"><input type="text" id="scen-title" placeholder="Título del escenario"/></div>
+        <div class="field" style="margin-top:6px"><input type="text" id="scen-desc" placeholder="Descripción"/></div>
+        <div class="field" style="margin-top:6px"><input type="text" id="scen-notes" placeholder="Notas adicionales"/></div>
+        <button class="btn-save" style="margin-top:10px" onclick="saveScenario('${activeBookId}')">+ Agregar</button>
+      </div>`
+  }
+}
+
+function openNewBook(){
+  document.getElementById('bk-title').value = ''
+  document.getElementById('bk-author').value = ''
+  document.getElementById('bk-status').value = 'leyendo'
+  openModal('book')
+}
+
+async function saveBook(){
+  const title = document.getElementById('bk-title').value.trim()
+  if(!title) return
+  const id = 'bk_'+Date.now()
+  await SB_I.from('books').insert({
+    id, title,
+    author: document.getElementById('bk-author').value.trim()||null,
+    status: document.getElementById('bk-status').value
+  })
+  closeModal('book')
+  await loadBooks()
+  activeBookId = id
+  renderBooks()
+  const book = allBooks.find(b => b.id === id)
+  if(book){
+    document.getElementById('book-detail-title').textContent = book.title + (book.author ? ` — ${book.author}` : '')
+    document.getElementById('book-detail-panel').style.display = 'block'
+    switchBookTab('notas')
+  }
+}
+
+async function saveBookNotes(bookId){
+  const notes = document.getElementById('book-notes-ta').value
+  await SB_I.from('books').update({ notes }).eq('id', bookId)
+  allBooks = allBooks.map(b => b.id === bookId ? {...b, notes} : b)
+  showToast('✅ Notas guardadas')
+}
+
+async function deleteBook(bookId){
+  if(!confirm('¿Eliminar este libro, sus personajes y escenarios?')) return
+  await SB_I.from('book_characters').delete().eq('book_id', bookId)
+  await SB_I.from('book_scenarios').delete().eq('book_id', bookId)
+  await SB_I.from('books').delete().eq('id', bookId)
+  closeBookDetail()
+  await loadBooks()
+  showToast('🗑️ Libro eliminado')
+}
+
+async function saveChar(bookId){
+  const name = document.getElementById('char-name').value.trim()
+  if(!name) return
+  await SB_I.from('book_characters').insert({
+    id: 'chr_'+Date.now(), book_id: bookId, name,
+    role: document.getElementById('char-role').value.trim()||null,
+    description: document.getElementById('char-desc').value.trim()||null
+  })
+  switchBookTab('personajes')
+}
+
+async function deleteChar(charId){
+  await SB_I.from('book_characters').delete().eq('id', charId)
+  switchBookTab('personajes')
+}
+
+async function saveScenario(bookId){
+  const title = document.getElementById('scen-title').value.trim()
+  if(!title) return
+  await SB_I.from('book_scenarios').insert({
+    id: 'scn_'+Date.now(), book_id: bookId, title,
+    description: document.getElementById('scen-desc').value.trim()||null,
+    notes: document.getElementById('scen-notes').value.trim()||null
+  })
+  switchBookTab('escenarios')
+}
+
+async function deleteScenario(scenId){
+  await SB_I.from('book_scenarios').delete().eq('id', scenId)
+  switchBookTab('escenarios')
+}
+
+// --- SCRIPTS ---
+async function loadScripts(){
+  const { data } = await SB_I.from('scripts').select('*').order('created_at',{ascending:false})
+  allScripts = data || []
+  renderScripts()
+}
+
+function renderScripts(){
+  const el = document.getElementById('scripts-list')
+  if(!el) return
+  const filtered = scriptsFilter === 'all' ? allScripts : allScripts.filter(s => s.canal === scriptsFilter)
+  if(!filtered.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎬</div>Sin guiones todavía</div>'
+    return
+  }
+  const CANAL_COLORS = { iarcania:'#E24B4A', voidstoic:'#8B6CF6' }
+  const CANAL_LABELS = { iarcania:'IArcanIA', voidstoic:'Void Stoic' }
+  const STATUS_COLORS = { borrador:'var(--text-muted)', grabando:'var(--gold)', publicado:'#5DCAA5', archivado:'#555' }
+  const STATUS_LABELS = { borrador:'Borrador', grabando:'Grabando', publicado:'Publicado', archivado:'Archivado' }
+  el.innerHTML = filtered.map(s => {
+    const cColor = CANAL_COLORS[s.canal] || '#8B6CF6'
+    const cLabel = CANAL_LABELS[s.canal] || s.canal
+    const stColor = STATUS_COLORS[s.status] || STATUS_COLORS.borrador
+    const stLabel = STATUS_LABELS[s.status] || 'Borrador'
+    const isActive = s.id === activeScriptId
+    return `<div class="script-card${isActive?' active':''}" style="border-left-color:${cColor}">
+      <div onclick="openScriptDetail('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${s.title}</div>
+          <div style="font-size:11px;margin-top:4px;display:flex;gap:10px;align-items:center">
+            <span style="color:${cColor};font-weight:600">${cLabel}</span>
+            <span style="color:${stColor}">${stLabel}</span>
+          </div>
+        </div>
+        <span style="color:var(--text-muted);font-size:18px;line-height:1;display:inline-block;transition:transform .2s;${isActive?'transform:rotate(180deg)':''}">⌄</span>
+      </div>
+      ${isActive ? `<div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:14px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Hook</div>
+          <textarea id="se-hook-${s.id}" class="script-editor-field" placeholder="Gancho inicial — primera oración que engancha al espectador">${s.hook||''}</textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Desarrollo</div>
+          <textarea id="se-body-${s.id}" class="script-editor-field" style="min-height:160px" placeholder="Cuerpo del guión">${s.body||''}</textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">CTA</div>
+          <textarea id="se-cta-${s.id}" class="script-editor-field" placeholder="Llamada a acción final">${s.cta||''}</textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Notas</div>
+          <textarea id="se-notes-${s.id}" class="script-editor-field" placeholder="Notas, referencias, ideas">${s.notes||''}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <select id="se-status-${s.id}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+            <option value="borrador" ${s.status==='borrador'?'selected':''}>Borrador</option>
+            <option value="grabando" ${s.status==='grabando'?'selected':''}>Grabando</option>
+            <option value="publicado" ${s.status==='publicado'?'selected':''}>Publicado</option>
+            <option value="archivado" ${s.status==='archivado'?'selected':''}>Archivado</option>
+          </select>
+          <button class="btn-save" onclick="saveScript('${s.id}')">Guardar</button>
+          <button onclick="deleteScript('${s.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
+        </div>
+      </div>` : ''}
+    </div>`
+  }).join('')
+}
+
+function openScriptDetail(scriptId){
+  activeScriptId = scriptId === activeScriptId ? null : scriptId
+  renderScripts()
+}
+
+function filterScripts(filter, btn){
+  scriptsFilter = filter
+  document.querySelectorAll('#gf-all,#gf-iarcania,#gf-voidstoic').forEach(b => {
+    b.style.background = 'transparent'
+    b.style.color = 'var(--text-muted)'
+  })
+  btn.style.background = '#161616'
+  btn.style.color = 'var(--gold)'
+  renderScripts()
+}
+
+async function saveScript(scriptId){
+  const data = {
+    hook:   document.getElementById('se-hook-'+scriptId).value,
+    body:   document.getElementById('se-body-'+scriptId).value,
+    cta:    document.getElementById('se-cta-'+scriptId).value,
+    notes:  document.getElementById('se-notes-'+scriptId).value,
+    status: document.getElementById('se-status-'+scriptId).value
+  }
+  await SB_I.from('scripts').update(data).eq('id', scriptId)
+  allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
+  showToast('✅ Guión guardado')
+  renderScripts()
+}
+
+async function deleteScript(scriptId){
+  if(!confirm('¿Eliminar este guión?')) return
+  await SB_I.from('scripts').delete().eq('id', scriptId)
+  allScripts = allScripts.filter(s => s.id !== scriptId)
+  activeScriptId = null
+  renderScripts()
+  showToast('🗑️ Guión eliminado')
+}
+
+function openNewScript(){
+  document.getElementById('sc-title').value = ''
+  document.getElementById('sc-canal').value = 'iarcania'
+  document.getElementById('sc-status').value = 'borrador'
+  openModal('script')
+}
+
+async function saveNewScript(){
+  const title = document.getElementById('sc-title').value.trim()
+  if(!title) return
+  const id = 'scr_'+Date.now()
+  await SB_I.from('scripts').insert({
+    id, title,
+    canal: document.getElementById('sc-canal').value,
+    status: document.getElementById('sc-status').value
+  })
+  closeModal('script')
+  await loadScripts()
+  activeScriptId = id
+  renderScripts()
 }
 
 // --- CLIENTS ---
