@@ -972,6 +972,7 @@ const CATS = {
 }
 
 let USER_ID = null
+let USER_PASSWORD = null
 let allTasks = []
 let allBirthdays = []
 let allClients = []
@@ -996,6 +997,8 @@ async function doLogin(){
     const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
     if(error){ throw new Error(error.message) }
     USER_ID = data.user.id
+    USER_PASSWORD = pass
+    sessionStorage.setItem('_up', btoa(pass))
     document.getElementById('auth-screen').style.display = 'none'
     document.getElementById('app').style.display = 'block'
     document.getElementById('user-name').textContent = email.split('@')[0]
@@ -2353,6 +2356,18 @@ function toggleShowAll(){
   renderHabitos()
 }
 
+// --- SB_I AUTH HELPER ---
+async function ensureSBI(){
+  const { data } = await SB_I.auth.getSession()
+  if(data.session) return true
+  const { data: pd } = await SB_P.auth.getSession()
+  const email = pd?.session?.user?.email
+  const pass  = USER_PASSWORD || (sessionStorage.getItem('_up') ? atob(sessionStorage.getItem('_up')) : null)
+  if(!email || !pass) return false
+  const { error } = await SB_I.auth.signInWithPassword({ email, password: pass })
+  return !error
+}
+
 // --- BOOKS ---
 async function loadBooks(){
   const { data } = await SB_I.from('books').select('*').order('created_at',{ascending:false})
@@ -2490,12 +2505,14 @@ function openNewBook(){
 async function saveBook(){
   const title = document.getElementById('bk-title').value.trim()
   if(!title) return
+  await ensureSBI()
   const id = 'bk_'+Date.now()
-  await SB_I.from('books').insert({
+  const { error } = await SB_I.from('books').insert({
     id, title,
     author: document.getElementById('bk-author').value.trim()||null,
     status: document.getElementById('bk-status').value
   })
+  if(error){ showToast('❌ Error: ' + error.message); return }
   closeModal('book')
   await loadBooks()
   activeBookId = id
@@ -2509,17 +2526,21 @@ async function saveBook(){
 }
 
 async function saveBookNotes(bookId){
+  await ensureSBI()
   const notes = document.getElementById('book-notes-ta').value
-  await SB_I.from('books').update({ notes }).eq('id', bookId)
+  const { error } = await SB_I.from('books').update({ notes }).eq('id', bookId)
+  if(error){ showToast('❌ Error: ' + error.message); return }
   allBooks = allBooks.map(b => b.id === bookId ? {...b, notes} : b)
   showToast('✅ Notas guardadas')
 }
 
 async function deleteBook(bookId){
   if(!confirm('¿Eliminar este libro, sus personajes y escenarios?')) return
+  await ensureSBI()
   await SB_I.from('book_characters').delete().eq('book_id', bookId)
   await SB_I.from('book_scenarios').delete().eq('book_id', bookId)
-  await SB_I.from('books').delete().eq('id', bookId)
+  const { error } = await SB_I.from('books').delete().eq('id', bookId)
+  if(error){ showToast('❌ Error: ' + error.message); return }
   closeBookDetail()
   await loadBooks()
   showToast('🗑️ Libro eliminado')
@@ -2528,15 +2549,18 @@ async function deleteBook(bookId){
 async function saveChar(bookId){
   const name = document.getElementById('char-name').value.trim()
   if(!name) return
-  await SB_I.from('book_characters').insert({
+  await ensureSBI()
+  const { error } = await SB_I.from('book_characters').insert({
     id: 'chr_'+Date.now(), book_id: bookId, name,
     role: document.getElementById('char-role').value.trim()||null,
     description: document.getElementById('char-desc').value.trim()||null
   })
+  if(error){ showToast('❌ Error: ' + error.message); return }
   switchBookTab('personajes')
 }
 
 async function deleteChar(charId){
+  await ensureSBI()
   await SB_I.from('book_characters').delete().eq('id', charId)
   switchBookTab('personajes')
 }
@@ -2544,15 +2568,18 @@ async function deleteChar(charId){
 async function saveScenario(bookId){
   const title = document.getElementById('scen-title').value.trim()
   if(!title) return
-  await SB_I.from('book_scenarios').insert({
+  await ensureSBI()
+  const { error } = await SB_I.from('book_scenarios').insert({
     id: 'scn_'+Date.now(), book_id: bookId, title,
     description: document.getElementById('scen-desc').value.trim()||null,
     notes: document.getElementById('scen-notes').value.trim()||null
   })
+  if(error){ showToast('❌ Error: ' + error.message); return }
   switchBookTab('escenarios')
 }
 
 async function deleteScenario(scenId){
+  await ensureSBI()
   await SB_I.from('book_scenarios').delete().eq('id', scenId)
   switchBookTab('escenarios')
 }
@@ -2642,6 +2669,7 @@ function filterScripts(filter, btn){
 }
 
 async function saveScript(scriptId){
+  await ensureSBI()
   const data = {
     hook:   document.getElementById('se-hook-'+scriptId).value,
     body:   document.getElementById('se-body-'+scriptId).value,
@@ -2649,7 +2677,8 @@ async function saveScript(scriptId){
     notes:  document.getElementById('se-notes-'+scriptId).value,
     status: document.getElementById('se-status-'+scriptId).value
   }
-  await SB_I.from('scripts').update(data).eq('id', scriptId)
+  const { error } = await SB_I.from('scripts').update(data).eq('id', scriptId)
+  if(error){ showToast('❌ Error: ' + error.message); return }
   allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
   showToast('✅ Guión guardado')
   renderScripts()
@@ -2657,7 +2686,9 @@ async function saveScript(scriptId){
 
 async function deleteScript(scriptId){
   if(!confirm('¿Eliminar este guión?')) return
-  await SB_I.from('scripts').delete().eq('id', scriptId)
+  await ensureSBI()
+  const { error } = await SB_I.from('scripts').delete().eq('id', scriptId)
+  if(error){ showToast('❌ Error: ' + error.message); return }
   allScripts = allScripts.filter(s => s.id !== scriptId)
   activeScriptId = null
   renderScripts()
@@ -2674,12 +2705,14 @@ function openNewScript(){
 async function saveNewScript(){
   const title = document.getElementById('sc-title').value.trim()
   if(!title) return
+  await ensureSBI()
   const id = 'scr_'+Date.now()
-  await SB_I.from('scripts').insert({
+  const { error } = await SB_I.from('scripts').insert({
     id, title,
     canal: document.getElementById('sc-canal').value,
     status: document.getElementById('sc-status').value
   })
+  if(error){ showToast('❌ Error: ' + error.message); return }
   closeModal('script')
   await loadScripts()
   activeScriptId = id
@@ -2835,13 +2868,15 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
   const { data } = await SB_P.auth.getSession()
   if(data.session){
     USER_ID = data.session.user.id
+    const stored = sessionStorage.getItem('_up')
+    if(stored) USER_PASSWORD = atob(stored)
     document.getElementById('auth-screen').style.display='none'
     document.getElementById('app').style.display='block'
     document.getElementById('user-name').textContent = data.session.user.email.split('@')[0]
-    await SB_I.auth.signInWithPassword({
-      email: data.session.user.email,
-      password: ''
-    }).catch(()=>{})
+    const sbiSess = await SB_I.auth.getSession()
+    if(!sbiSess.data.session && USER_PASSWORD){
+      await SB_I.auth.signInWithPassword({ email: data.session.user.email, password: USER_PASSWORD }).catch(()=>{})
+    }
     initApp()
   }
 })()
