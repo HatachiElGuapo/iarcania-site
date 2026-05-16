@@ -1749,7 +1749,7 @@ function renderBirthdays(bds){
 }
 
 function crearTareaDesdefecha(bdId){
-  const b = allBirthdays.find(x => x.id === bdId)
+  const b = allBirthdays.find(x => String(x.id) === String(bdId))
   if(!b) return
   const tipo = b.type || b.relationship_type || 'evento'
   const TITLES = {
