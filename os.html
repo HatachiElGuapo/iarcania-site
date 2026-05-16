@@ -301,6 +301,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('actividades',this)">
         <span class="nav-icon">◎</span>Tareas
       </button>
+      <button class="nav-item" onclick="showSection('vencidas',this)">
+        <span class="nav-icon">⚠</span>Vencidas
+        <span class="nav-badge" id="badge-overdue" style="display:none;background:var(--red)">0</span>
+      </button>
       <button class="nav-item" onclick="showSection('agenda',this)">
         <span class="nav-icon">◷</span>Agenda
       </button>
@@ -477,6 +481,20 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <div class="task-list" id="overdue-tasks"></div>
       </div>
       <div class="task-list" id="all-tasks">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
+    <!-- VENCIDAS -->
+    <div class="section" id="section-vencidas">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title" style="color:var(--red)">⚠️ Tareas vencidas</h1>
+          <div class="page-sub" id="vencidas-sub">Tareas con fecha pasada sin completar</div>
+        </div>
+        <button class="btn-add" onclick="openBulkReassign()" style="background:rgba(226,75,74,0.1);border-color:rgba(226,75,74,0.3);color:var(--red)">↻ Reasignar todas</button>
+      </div>
+      <div id="vencidas-list">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
       </div>
     </div>
@@ -798,6 +816,20 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-bulk-reassign">
+  <div class="modal">
+    <h3>↻ Reasignar todas las vencidas</h3>
+    <div class="field">
+      <label>Nueva fecha para todas las tareas vencidas</label>
+      <input type="date" id="bulk-new-date" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+    <div class="btn-row" style="margin-top:1.25rem">
+      <button class="btn-cancel" onclick="closeModal('bulk-reassign')">Cancelar</button>
+      <button class="btn-save" onclick="saveBulkReassign()">↻ Reasignar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -958,6 +990,9 @@ function renderTasks(){
   const overdueIds = new Set(overdue.map(t => t.id))
   renderTaskList('all-tasks', allTasks.filter(t => !overdueIds.has(t.id)))
   renderOverdueTasks(overdue)
+  renderVencidas(overdue)
+  const badgeOv = document.getElementById('badge-overdue')
+  if(badgeOv){ badgeOv.textContent = overdue.length; badgeOv.style.display = overdue.length ? 'inline-flex' : 'none' }
   renderAgenda()
   renderCatLegend()
   update2020Widget()
@@ -1353,6 +1388,61 @@ function renderOverdueTasks(tasks){
 function reasignarTarea(id){
   openEditTask(id)
   setTimeout(() => { document.getElementById('t-due').value = '' }, 50)
+}
+
+// --- SECCIÓN VENCIDAS ---
+function renderVencidas(tasks){
+  const el = document.getElementById('vencidas-list')
+  if(!el) return
+  const sub = document.getElementById('vencidas-sub')
+  if(sub) sub.textContent = tasks.length
+    ? `${tasks.length} tarea${tasks.length !== 1 ? 's' : ''} vencida${tasks.length !== 1 ? 's' : ''}`
+    : 'Sin tareas vencidas'
+  if(!tasks.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">✓</div>Sin tareas vencidas — ¡Bien hecho!</div>'
+    return
+  }
+  el.innerHTML = tasks.map(t => {
+    const cat = CATS[t.category] || CATS.habitos
+    return `<div class="task-item" style="border-left-color:var(--red)">
+      <div class="task-check" style="border-color:rgba(226,75,74,0.4)"></div>
+      <div class="task-text">
+        <div>${t.title}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:3px">
+          <span style="font-size:11px;color:${cat.color}">${cat.label}</span>
+          <span style="font-size:11px;color:var(--red)">⚠️ ${t.due_date}</span>
+        </div>
+      </div>
+      <button class="habito-toggle" onclick="reasignarTarea('${t.id}')" style="font-size:10px;padding:3px 8px;color:var(--amber);border-color:rgba(239,159,39,.3)">↻ Reasignar</button>
+      <button class="habito-toggle" onclick="completarTareaVencida('${t.id}')" style="font-size:10px;padding:3px 8px;color:var(--green);border-color:rgba(93,202,165,.3)">✓ Completar</button>
+    </div>`
+  }).join('')
+}
+
+async function completarTareaVencida(id){
+  await SB_P.from('tasks').update({ status: 'completada' }).eq('id', id)
+  const t = allTasks.find(t => t.id === id)
+  if(t) t.status = 'completada'
+  showToast('✓ Tarea completada')
+  renderTasks()
+}
+
+function openBulkReassign(){
+  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy')
+  if(!overdue.length){ showToast('No hay tareas vencidas'); return }
+  document.getElementById('bulk-new-date').value = ''
+  openModal('bulk-reassign')
+}
+
+async function saveBulkReassign(){
+  const newDate = document.getElementById('bulk-new-date').value
+  if(!newDate){ showToast('Elige una fecha'); return }
+  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy')
+  await Promise.all(overdue.map(t => SB_P.from('tasks').update({ due_date: newDate }).eq('id', t.id)))
+  overdue.forEach(t => { t.due_date = newDate })
+  closeModal('bulk-reassign')
+  showToast(`↻ ${overdue.length} tarea${overdue.length!==1?'s':''} reasignada${overdue.length!==1?'s':''} a ${newDate}`)
+  renderTasks()
 }
 
 function alertarTareasIncompletas(){
