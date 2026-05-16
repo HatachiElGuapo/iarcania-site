@@ -2764,8 +2764,7 @@ async function saveScenario(bookId){
   await ensureSBI()
   const { error } = await SB_P.from('book_scenarios').insert({
     id: 'scn_'+Date.now(), book_id: bookId, title,
-    description: document.getElementById('scen-desc').value.trim()||null,
-    notes: document.getElementById('scen-notes').value.trim()||null
+    description: document.getElementById('scen-desc').value.trim()||null
   })
   if(error){ showToast('❌ Error: ' + error.message); return }
   switchBookTab('escenarios')
