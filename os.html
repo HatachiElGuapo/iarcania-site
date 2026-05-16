@@ -2373,7 +2373,7 @@ async function ensureSBI(){
 
 // --- BOOKS ---
 async function loadBooks(){
-  const { data } = await SB_I.from('books').select('*').order('created_at',{ascending:false})
+  const { data } = await SB_P.from('books').select('*').order('created_at',{ascending:false})
   allBooks = data || []
   renderBooks()
 }
@@ -2438,7 +2438,7 @@ async function renderBookTab(){
   if(!book) return
 
   if(activeBookTab === 'capitulos'){
-    const { data } = await SB_I.from('book_chapters').select('*').eq('book_id', activeBookId).order('number', { ascending: true })
+    const { data } = await SB_P.from('book_chapters').select('*').eq('book_id', activeBookId).order('number', { ascending: true })
     const chaps = data || []
     el.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
@@ -2475,7 +2475,7 @@ async function renderBookTab(){
       </div>`
 
   } else if(activeBookTab === 'personajes'){
-    const { data } = await SB_I.from('book_characters').select('*').eq('book_id', activeBookId).order('name')
+    const { data } = await SB_P.from('book_characters').select('*').eq('book_id', activeBookId).order('name')
     const chars = data || []
     el.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
@@ -2515,7 +2515,7 @@ async function renderBookTab(){
       </div>`
 
   } else if(activeBookTab === 'escenarios'){
-    const { data } = await SB_I.from('book_scenarios').select('*').eq('book_id', activeBookId).order('title')
+    const { data } = await SB_P.from('book_scenarios').select('*').eq('book_id', activeBookId).order('title')
     const scens = data || []
     el.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
@@ -2549,7 +2549,7 @@ async function renderBookTab(){
 
   } else if(activeBookTab === 'notas'){
     await ensureSBI()
-    const { data: bookNotes } = await SB_I.from('book_notes').select('*').eq('book_id', activeBookId).order('created_at', { ascending: false })
+    const { data: bookNotes } = await SB_P.from('book_notes').select('*').eq('book_id', activeBookId).order('created_at', { ascending: false })
     const notes = bookNotes || []
     const showForm = !!expandedChapters['note_form']
     el.innerHTML = `
@@ -2613,7 +2613,7 @@ async function saveBook(){
   if(!title) return
   await ensureSBI()
   const id = 'bk_'+Date.now()
-  const { error } = await SB_I.from('books').insert({
+  const { error } = await SB_P.from('books').insert({
     id, title,
     author: document.getElementById('bk-author').value.trim()||null,
     status: document.getElementById('bk-status').value
@@ -2646,7 +2646,7 @@ async function saveBookNote(bookId){
   if(!content) return
   await ensureSBI()
   const id = 'bn_'+Date.now()
-  const { error } = await SB_I.from('book_notes').insert({
+  const { error } = await SB_P.from('book_notes').insert({
     id, book_id: bookId,
     title: document.getElementById('new-note-title').value.trim() || null,
     content
@@ -2659,7 +2659,7 @@ async function saveBookNote(bookId){
 
 async function deleteBookNote(noteId){
   await ensureSBI()
-  await SB_I.from('book_notes').delete().eq('id', noteId)
+  await SB_P.from('book_notes').delete().eq('id', noteId)
   delete expandedChapters['note_'+noteId]
   switchBookTab('notas')
 }
@@ -2668,24 +2668,24 @@ async function autoSaveNoteTitle(noteId){
   const el = document.getElementById('note-title-'+noteId)
   if(!el) return
   await ensureSBI()
-  await SB_I.from('book_notes').update({ title: el.value.trim() || null }).eq('id', noteId)
+  await SB_P.from('book_notes').update({ title: el.value.trim() || null }).eq('id', noteId)
 }
 
 async function autoSaveNoteContent(noteId){
   const el = document.getElementById('note-content-'+noteId)
   if(!el) return
   await ensureSBI()
-  await SB_I.from('book_notes').update({ content: el.value }).eq('id', noteId)
+  await SB_P.from('book_notes').update({ content: el.value }).eq('id', noteId)
 }
 
 async function deleteBook(bookId){
   if(!confirm('¿Eliminar este libro, sus capítulos, notas, personajes y escenarios?')) return
   await ensureSBI()
-  await SB_I.from('book_chapters').delete().eq('book_id', bookId)
-  await SB_I.from('book_notes').delete().eq('book_id', bookId)
-  await SB_I.from('book_characters').delete().eq('book_id', bookId)
-  await SB_I.from('book_scenarios').delete().eq('book_id', bookId)
-  const { error } = await SB_I.from('books').delete().eq('id', bookId)
+  await SB_P.from('book_chapters').delete().eq('book_id', bookId)
+  await SB_P.from('book_notes').delete().eq('book_id', bookId)
+  await SB_P.from('book_characters').delete().eq('book_id', bookId)
+  await SB_P.from('book_scenarios').delete().eq('book_id', bookId)
+  const { error } = await SB_P.from('books').delete().eq('id', bookId)
   if(error){ showToast('❌ Error: ' + error.message); return }
   closeBookDetail()
   await loadBooks()
@@ -2706,7 +2706,7 @@ async function saveChapter(bookId){
   const num = parseInt(document.getElementById('chap-num').value)
   if(!num) return
   await ensureSBI()
-  const { error } = await SB_I.from('book_chapters').insert({
+  const { error } = await SB_P.from('book_chapters').insert({
     id: 'chp_'+Date.now(), book_id: bookId,
     number: num,
     title:   document.getElementById('chap-title').value.trim()||null,
@@ -2719,7 +2719,7 @@ async function saveChapter(bookId){
 
 async function deleteChapter(chapId){
   await ensureSBI()
-  await SB_I.from('book_chapters').delete().eq('id', chapId)
+  await SB_P.from('book_chapters').delete().eq('id', chapId)
   delete expandedChapters[chapId]
   switchBookTab('capitulos')
 }
@@ -2728,7 +2728,7 @@ async function autoSaveChapterNotes(chapId){
   const el = document.getElementById('chapnotes-'+chapId)
   if(!el) return
   await ensureSBI()
-  await SB_I.from('book_chapters').update({ notes: el.value }).eq('id', chapId)
+  await SB_P.from('book_chapters').update({ notes: el.value }).eq('id', chapId)
 }
 
 async function autoSaveScenField(scenId, field){
@@ -2736,14 +2736,14 @@ async function autoSaveScenField(scenId, field){
   const el = document.getElementById(elId)
   if(!el) return
   await ensureSBI()
-  await SB_I.from('book_scenarios').update({ [field]: el.value }).eq('id', scenId)
+  await SB_P.from('book_scenarios').update({ [field]: el.value }).eq('id', scenId)
 }
 
 async function saveChar(bookId){
   const name = document.getElementById('char-name').value.trim()
   if(!name) return
   await ensureSBI()
-  const { error } = await SB_I.from('book_characters').insert({
+  const { error } = await SB_P.from('book_characters').insert({
     id: 'chr_'+Date.now(), book_id: bookId, name,
     role: document.getElementById('char-role').value.trim()||null,
     description: document.getElementById('char-desc').value.trim()||null
@@ -2754,7 +2754,7 @@ async function saveChar(bookId){
 
 async function deleteChar(charId){
   await ensureSBI()
-  await SB_I.from('book_characters').delete().eq('id', charId)
+  await SB_P.from('book_characters').delete().eq('id', charId)
   switchBookTab('personajes')
 }
 
@@ -2762,7 +2762,7 @@ async function saveScenario(bookId){
   const title = document.getElementById('scen-title').value.trim()
   if(!title) return
   await ensureSBI()
-  const { error } = await SB_I.from('book_scenarios').insert({
+  const { error } = await SB_P.from('book_scenarios').insert({
     id: 'scn_'+Date.now(), book_id: bookId, title,
     description: document.getElementById('scen-desc').value.trim()||null,
     notes: document.getElementById('scen-notes').value.trim()||null
@@ -2773,13 +2773,13 @@ async function saveScenario(bookId){
 
 async function deleteScenario(scenId){
   await ensureSBI()
-  await SB_I.from('book_scenarios').delete().eq('id', scenId)
+  await SB_P.from('book_scenarios').delete().eq('id', scenId)
   switchBookTab('escenarios')
 }
 
 // --- SCRIPTS ---
 async function loadScripts(){
-  const { data } = await SB_I.from('scripts').select('*').order('created_at',{ascending:false})
+  const { data } = await SB_P.from('scripts').select('*').order('created_at',{ascending:false})
   allScripts = data || []
   renderScripts()
 }
@@ -2870,7 +2870,7 @@ async function saveScript(scriptId){
     notes:  document.getElementById('se-notes-'+scriptId).value,
     status: document.getElementById('se-status-'+scriptId).value
   }
-  const { error } = await SB_I.from('scripts').update(data).eq('id', scriptId)
+  const { error } = await SB_P.from('scripts').update(data).eq('id', scriptId)
   if(error){ showToast('❌ Error: ' + error.message); return }
   allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
   showToast('✅ Guión guardado')
@@ -2880,7 +2880,7 @@ async function saveScript(scriptId){
 async function deleteScript(scriptId){
   if(!confirm('¿Eliminar este guión?')) return
   await ensureSBI()
-  const { error } = await SB_I.from('scripts').delete().eq('id', scriptId)
+  const { error } = await SB_P.from('scripts').delete().eq('id', scriptId)
   if(error){ showToast('❌ Error: ' + error.message); return }
   allScripts = allScripts.filter(s => s.id !== scriptId)
   activeScriptId = null
@@ -2900,7 +2900,7 @@ async function saveNewScript(){
   if(!title) return
   await ensureSBI()
   const id = 'scr_'+Date.now()
-  const { error } = await SB_I.from('scripts').insert({
+  const { error } = await SB_P.from('scripts').insert({
     id, title,
     canal: document.getElementById('sc-canal').value,
     status: document.getElementById('sc-status').value
