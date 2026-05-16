@@ -400,7 +400,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
             </div>
 
-            <!-- Mis 5 tareas de hoy colapsable — 3º (expandido por defecto) -->
+            <!-- Mis 5 tareas de hoy colapsable — 3º -->
             <div class="dash-section">
               <div class="dash-section-hdr" onclick="toggleDashSection('today')">
                 <span style="font-size:13px;font-weight:600;color:var(--text-dim)">📋 Mis 5 tareas de hoy</span>
@@ -408,13 +408,40 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
               <div class="dash-section-body" id="dash-today-body">
                 <div id="dashboard-tasks-wrap">
-                  <div class="task-list" id="dashboard-tasks">
-                    <div class="loading"><div class="spinner"></div><br>Cargando...</div>
-                  </div>
+                  <div class="task-list" id="dashboard-tasks"></div>
+                </div>
+                <div style="padding:6px 0 2px">
+                  <input type="text" id="search-hoy" placeholder="🔍 Buscar tarea para agregar..." oninput="searchDashTask('hoy',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+                  <div id="sugg-hoy" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
                 </div>
               </div>
             </div>
 
+            <!-- Rutina nocturna colapsable — 4º -->
+            <div class="dash-section" style="border-color:rgba(55,138,221,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('noche')">
+                <span style="font-size:13px;font-weight:600;color:#378ADD">🌙 Rutina nocturna</span>
+                <span class="dash-arrow" id="dash-noche-arrow">▼</span>
+              </div>
+              <div class="dash-section-body collapsed" id="dash-noche-body">
+                <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
+              </div>
+            </div>
+
+            <!-- Tareas extra colapsable — 5º -->
+            <div class="dash-section" style="border-color:rgba(139,108,246,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('extra')">
+                <span style="font-size:13px;font-weight:600;color:#8B6CF6">⚡ Tareas extra</span>
+                <span class="dash-arrow" id="dash-extra-arrow">▼</span>
+              </div>
+              <div class="dash-section-body collapsed" id="dash-extra-body">
+                <div class="task-list" id="extra-tasks"></div>
+                <div style="padding:6px 0 2px">
+                  <input type="text" id="search-extra" placeholder="🔍 Buscar tarea para agregar..." oninput="searchDashTask('extra',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+                  <div id="sugg-extra" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
+                </div>
+              </div>
+            </div>
 
           </div>
         </div>
@@ -441,6 +468,13 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <div class="page-sub">Toca para marcar como completada</div>
         </div>
         <button class="btn-add" onclick="openNewTask()">+ Nueva tarea</button>
+      </div>
+      <div id="overdue-wrap" style="display:none;margin-bottom:1rem">
+        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+          ⚠️ Vencidas
+          <div style="flex:1;height:1px;background:rgba(226,75,74,0.2)"></div>
+        </div>
+        <div class="task-list" id="overdue-tasks"></div>
       </div>
       <div class="task-list" id="all-tasks">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
@@ -513,6 +547,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="freq-tab" onclick="filterFreq('semanal',this)">📆 Semanal</button>
         <button class="freq-tab" onclick="filterFreq('mensual',this)">🗓️ Mensual</button>
         <button class="freq-tab" onclick="filterFreq('unica',this)">⭐ Único</button>
+        <button class="freq-tab" onclick="filterFreq('recurrente',this)">🔗 Recurrente</button>
       </div>
 
       <!-- Category filter (solo en diario) -->
@@ -636,6 +671,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <option value="semanal">📆 Semanal</option>
           <option value="mensual">🗓️ Mensual</option>
           <option value="unica">⭐ Única (una vez)</option>
+          <option value="recurrente">🔗 Recurrente (sin fecha fija)</option>
         </select>
       </div>
       <div class="field"><label>Categoría</label>
@@ -907,14 +943,18 @@ function renderTasks(){
   document.getElementById('stat-pending').textContent = pending.length
   document.getElementById('stat-done').textContent    = done.length
   document.getElementById('badge-pending').textContent = pending.length
-  // Dashboard: top 5 tareas pendientes de hoy (due_date === hoy o sin fecha), por prioridad
-  const PRIO = { alta: 0, media: 1, baja: 2 }
-  const todayTasks = allTasks
-    .filter(t => t.status !== 'completada' && (!t.due_date || t.due_date === TODAY))
-    .sort((a, b) => (PRIO[a.priority] ?? 1) - (PRIO[b.priority] ?? 1))
-    .slice(0, 5)
-  renderTaskList('dashboard-tasks', todayTasks)
+  // Dashboard: Mis 5 tareas (manual desde localStorage)
+  const hoyIds   = getDashList('hoy')
+  const hoyTasks = hoyIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
+  renderDashTasksSection('dashboard-tasks', hoyTasks, 'hoy')
+  // Dashboard: Tareas extra (manual desde localStorage)
+  const extraIds   = getDashList('extra')
+  const extraTasks = extraIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
+  renderDashTasksSection('extra-tasks', extraTasks, 'extra')
+  // Sección Tareas: lista completa + vencidas
   renderTaskList('all-tasks', allTasks)
+  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada')
+  renderOverdueTasks(overdue)
   renderAgenda()
   renderCatLegend()
   update2020Widget()
@@ -1127,6 +1167,7 @@ function update2020Widget(){
     wrap.classList.toggle('tasks-locked', !trioCompleto)
   }
   renderDespertarDash()
+  renderRutinaNocturnaDash()
 }
 
 async function toggleHabitoFromDash(activityId){
@@ -1197,6 +1238,141 @@ function renderDespertarDash(){
       <span class="ritual-label">${a.name}</span>
     </div>`
   }).join('')
+}
+
+function renderRutinaNocturnaDash(){
+  const el = document.getElementById('dash-noche-body')
+  if(!el) return
+  const acts = allActivities.filter(a => a.category === 'rutina_nocturna' && a.is_active && (a.frequency||'diaria') === 'diaria')
+  if(!acts.length){
+    el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades de rutina nocturna configuradas</div>'
+    return
+  }
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+    </div>`
+  }).join('')
+}
+
+// --- DASHBOARD TASK LISTS (manual, localStorage) ---
+function getDashList(list){ return JSON.parse(localStorage.getItem('tareas_'+list+'_ids') || '[]') }
+function setDashList(list, ids){ localStorage.setItem('tareas_'+list+'_ids', JSON.stringify(ids)) }
+
+function renderDashTasksSection(elId, tasks, listKey){
+  const el = document.getElementById(elId)
+  if(!el) return
+  if(!tasks.length){
+    el.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--text-muted)">Ninguna tarea seleccionada. Usa el buscador de abajo.</div>'
+    return
+  }
+  el.innerHTML = tasks.map(t => {
+    const cat = CATS[t.category] || CATS.habitos
+    const done = t.status === 'completada'
+    const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
+    const fecha = t.due_date || null
+    return `<div class="task-item${done?' done':''}" style="border-left-color:${done?'var(--border)':cat.color}">
+      <div class="task-check" onclick="toggleTask('${t.id}')" style="${done?`background:${cat.color};border-color:${cat.color}`:''}cursor:pointer">${done?'✓':''}</div>
+      <div class="task-text" onclick="toggleTask('${t.id}')" style="cursor:pointer">
+        <div>${t.title}</div>
+        ${(hora||fecha)?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${fecha?'📅 '+fecha:''}${hora?' 🕐'+hora:''}</div>`:''}
+      </div>
+      <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
+      <button class="habito-toggle" onclick="removeDashTask('${listKey}','${t.id}')" title="Quitar" style="font-size:15px;color:var(--text-muted)">×</button>
+    </div>`
+  }).join('')
+}
+
+function addDashTask(list, id){
+  const ids = getDashList(list)
+  if(list === 'hoy' && ids.length >= 5){ showToast('Máximo 5 tareas en "Mis 5 tareas"'); return }
+  if(!ids.includes(id)) ids.push(id)
+  setDashList(list, ids)
+  const inp = document.getElementById('search-'+list)
+  const sugg = document.getElementById('sugg-'+list)
+  if(inp) inp.value = ''
+  if(sugg){ sugg.innerHTML = ''; sugg.style.display = 'none' }
+  renderTasks()
+}
+
+function removeDashTask(list, id){
+  setDashList(list, getDashList(list).filter(i => i !== id))
+  renderTasks()
+}
+
+function searchDashTask(list, query){
+  const sugg = document.getElementById('sugg-'+list)
+  if(!sugg) return
+  if(!query.trim()){ sugg.innerHTML = ''; sugg.style.display = 'none'; return }
+  const ids = getDashList(list)
+  const matches = allTasks
+    .filter(t => t.status !== 'completada' && !ids.includes(t.id) && t.title.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 6)
+  if(!matches.length){ sugg.innerHTML = ''; sugg.style.display = 'none'; return }
+  sugg.style.display = 'block'
+  sugg.innerHTML = matches.map(t => {
+    const cat = CATS[t.category] || CATS.habitos
+    return `<div onclick="addDashTask('${list}','${t.id}')" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px">
+      <span style="color:${cat.color};font-size:8px">●</span>
+      <span style="flex:1">${t.title}</span>
+      <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
+    </div>`
+  }).join('')
+}
+
+// --- TAREAS VENCIDAS ---
+function renderOverdueTasks(tasks){
+  const wrap = document.getElementById('overdue-wrap')
+  const el   = document.getElementById('overdue-tasks')
+  if(!wrap || !el) return
+  wrap.style.display = tasks.length ? 'block' : 'none'
+  if(!tasks.length) return
+  el.innerHTML = tasks.map(t => {
+    const cat = CATS[t.category] || CATS.habitos
+    return `<div class="task-item" style="border-left-color:var(--red)">
+      <div class="task-check" style="border-color:rgba(226,75,74,0.4)"></div>
+      <div class="task-text">
+        <div>${t.title}</div>
+        <div style="font-size:10px;color:var(--red);margin-top:2px">⚠️ Vencida: ${t.due_date}</div>
+      </div>
+      <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
+      <button class="habito-toggle" onclick="reasignarTarea('${t.id}')" style="font-size:10px;padding:3px 7px;color:var(--amber);border-color:rgba(239,159,39,.3)">↻ Reasignar</button>
+    </div>`
+  }).join('')
+}
+
+function reasignarTarea(id){
+  openEditTask(id)
+  setTimeout(() => { document.getElementById('t-due').value = '' }, 50)
+}
+
+// --- HÁBITOS RECURRENTES ---
+function habitoRecurrenteHTML(a){
+  const color = CAT_COLORS[a.category] || '#555'
+  return `<div class="habito-item" style="border-left-color:${color}">
+    <div style="flex:1">
+      <div class="habito-name">${a.name}</div>
+      <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
+    </div>
+    <button class="btn-add" onclick="convertirEnTarea('${a.id}')" style="font-size:11px;padding:5px 10px;color:#9b72f0;border-color:rgba(155,114,240,0.3)">→ Crear tarea</button>
+    <button class="habito-toggle" onclick="openActivityModal('${a.id}')">✏️</button>
+  </div>`
+}
+
+function convertirEnTarea(activityId){
+  const act = allActivities.find(a => a.id === activityId)
+  if(!act) return
+  document.getElementById('modal-task-title').textContent = 'Nueva tarea'
+  document.getElementById('t-id').value = ''
+  document.getElementById('t-title').value = act.name
+  document.getElementById('t-cat').value = 'personal'
+  document.getElementById('t-priority').value = 'alta'
+  document.getElementById('t-due').value = ''
+  document.getElementById('t-time').value = ''
+  document.getElementById('task-delete-btn').style.display = 'none'
+  openModal('task')
 }
 
 async function deleteTask(){
@@ -1537,7 +1713,7 @@ function renderHabitos(){
   progressWrap.style.display = isDaily ? 'block' : 'none'
 
   // Botón agregar por pestaña
-  const FREQ_LABELS = { diaria:'Diario', semanal:'Semanal', mensual:'Mensual', unica:'Único' }
+  const FREQ_LABELS = { diaria:'Diario', semanal:'Semanal', mensual:'Mensual', unica:'Único', recurrente:'Recurrente' }
   const addWrap = document.getElementById('habitos-add-btn-wrap')
   if(addWrap) addWrap.innerHTML = `<button class="btn-add" onclick="openActivityModal()" style="width:100%;justify-content:center;padding:10px 14px;color:var(--gold);border-color:var(--border-gold)">+ Agregar hábito ${FREQ_LABELS[currentFreqFilter]||''}</button>`
 
@@ -1573,6 +1749,13 @@ function renderHabitos(){
 
   if(currentFreqFilter === 'unica'){
     el.innerHTML = toShow.map(a => habitoUnicoHTML(a)).join('')
+    return
+  }
+
+  if(currentFreqFilter === 'recurrente'){
+    el.innerHTML = toShow.length
+      ? toShow.map(a => habitoRecurrenteHTML(a)).join('')
+      : '<div class="empty-state"><div class="empty-icon">🔗</div>No hay hábitos recurrentes. Agrega con "+ Nueva" y elige frecuencia Recurrente.</div>'
     return
   }
 
