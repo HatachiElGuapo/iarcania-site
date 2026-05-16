@@ -640,9 +640,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             <button onclick="closeBookDetail()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px 8px">✕</button>
           </div>
           <div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-            <button class="book-tab-btn active" id="btab-notas" onclick="switchBookTab('notas')">📝 Notas</button>
-            <button class="book-tab-btn" id="btab-personajes" onclick="switchBookTab('personajes')">👤 Personajes</button>
-            <button class="book-tab-btn" id="btab-escenarios" onclick="switchBookTab('escenarios')">🗺️ Escenarios</button>
+            <button class="book-tab-btn active" id="btab-capitulos"  onclick="switchBookTab('capitulos')">📖 Capítulos</button>
+            <button class="book-tab-btn"        id="btab-personajes" onclick="switchBookTab('personajes')">👥 Personajes</button>
+            <button class="book-tab-btn"        id="btab-escenarios" onclick="switchBookTab('escenarios')">🎬 Escenarios</button>
+            <button class="book-tab-btn"        id="btab-notas"      onclick="switchBookTab('notas')">📝 Notas</button>
           </div>
         </div>
         <div id="book-tab-content" style="padding:16px"></div>
@@ -979,7 +980,9 @@ let allClients = []
 let allBooks = []
 let allScripts = []
 let activeBookId = null
-let activeBookTab = 'notas'
+let activeBookTab = 'capitulos'
+let expandedChapters = {}
+const CHAR_ROLE_COLORS = { protagonista:'#c9a84c', antagonista:'#E24B4A', secundario:'#8B6CF6', otro:'#8a86b0' }
 let activeScriptId = null
 let scriptsFilter = 'all'
 
@@ -2413,14 +2416,15 @@ async function openBookDetail(bookId){
 
 function closeBookDetail(){
   activeBookId = null
-  activeBookTab = 'notas'
+  activeBookTab = 'capitulos'
+  expandedChapters = {}
   document.getElementById('book-detail-panel').style.display = 'none'
   renderBooks()
 }
 
 function switchBookTab(tab){
   activeBookTab = tab
-  ;['notas','personajes','escenarios'].forEach(t => {
+  ;['capitulos','personajes','escenarios','notas'].forEach(t => {
     const btn = document.getElementById('btab-'+t)
     if(btn) btn.classList.toggle('active', t === tab)
   })
@@ -2433,12 +2437,41 @@ async function renderBookTab(){
   const book = allBooks.find(b => b.id === activeBookId)
   if(!book) return
 
-  if(activeBookTab === 'notas'){
+  if(activeBookTab === 'capitulos'){
+    const { data } = await SB_I.from('book_chapters').select('*').eq('book_id', activeBookId).order('number', { ascending: true })
+    const chaps = data || []
     el.innerHTML = `
-      <textarea id="book-notes-ta" class="script-editor-field" style="min-height:140px" placeholder="Escribe tus notas sobre el libro...">${book.notes||''}</textarea>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn-save" onclick="saveBookNotes('${book.id}')">Guardar notas</button>
-        <button onclick="deleteBook('${book.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar libro</button>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        ${chaps.length ? chaps.map(c => {
+          const open = !!expandedChapters[c.id]
+          return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <div onclick="toggleChapter('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer">
+              <span style="font-size:11px;font-weight:700;color:var(--text-muted);min-width:22px">C${c.number}</span>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:600;color:var(--text)">${c.title||'Sin título'}</div>
+                ${c.summary&&!open ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px">${c.summary}</div>` : ''}
+              </div>
+              <button onclick="event.stopPropagation();deleteChapter('${c.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:4px">✕</button>
+              <span style="color:var(--text-muted);font-size:14px;transition:transform .2s;${open?'transform:rotate(180deg)':''}">⌄</span>
+            </div>
+            ${open ? `<div style="padding:0 12px 12px;border-top:1px solid var(--border)">
+              ${c.summary ? `<div style="font-size:12px;color:var(--text-dim);margin:10px 0 8px;font-style:italic">${c.summary}</div>` : ''}
+              <textarea id="chapnotes-${c.id}" class="script-editor-field" style="min-height:90px;margin-top:8px"
+                onblur="autoSaveChapterNotes('${c.id}')"
+                placeholder="Notas del capítulo...">${c.notes||''}</textarea>
+            </div>` : ''}
+          </div>`
+        }).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">Sin capítulos todavía</div>'}
+      </div>
+      <div style="background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">+ Agregar capítulo</div>
+        <div class="form-row">
+          <div class="field" style="flex:0 0 80px"><input type="number" id="chap-num" placeholder="Nº" min="1"/></div>
+          <div class="field"><input type="text" id="chap-title" placeholder="Título del capítulo"/></div>
+        </div>
+        <div class="field" style="margin-top:6px"><input type="text" id="chap-summary" placeholder="Resumen breve"/></div>
+        <textarea id="chap-notes" class="script-editor-field" style="margin-top:6px;min-height:60px" placeholder="Notas del capítulo (opcional)"></textarea>
+        <button class="btn-save" style="margin-top:10px" onclick="saveChapter('${activeBookId}')">+ Agregar</button>
       </div>`
 
   } else if(activeBookTab === 'personajes'){
@@ -2446,25 +2479,38 @@ async function renderBookTab(){
     const chars = data || []
     el.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-        ${chars.length ? chars.map(c => `
-          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+        ${chars.length ? chars.map(c => {
+          const roleColor = CHAR_ROLE_COLORS[c.role] || CHAR_ROLE_COLORS.otro
+          const roleLabel = c.role ? c.role.charAt(0).toUpperCase() + c.role.slice(1) : ''
+          return `<div style="background:var(--bg);border:1px solid var(--border);border-left:3px solid ${roleColor};border-radius:8px;padding:10px 12px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
-              <div>
-                <span style="font-size:13px;font-weight:600;color:var(--text)">${c.name}</span>
-                ${c.role ? `<span style="font-size:11px;color:var(--purple);margin-left:8px;background:rgba(155,114,240,0.1);padding:2px 7px;border-radius:10px">${c.role}</span>` : ''}
-                ${c.description ? `<div style="font-size:12px;color:var(--text-dim);margin-top:4px">${c.description}</div>` : ''}
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                  <span style="font-size:13px;font-weight:600;color:var(--text)">${c.name}</span>
+                  ${roleLabel ? `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${roleColor}22;color:${roleColor};border:1px solid ${roleColor}44">${roleLabel}</span>` : ''}
+                </div>
+                ${c.description ? `<div style="font-size:12px;color:var(--text-dim)">${c.description}</div>` : ''}
               </div>
-              <button onclick="deleteChar('${c.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
+              <button onclick="deleteChar('${c.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px;margin-left:8px">✕</button>
             </div>
-          </div>`).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">Sin personajes todavía</div>'}
+          </div>`
+        }).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">Sin personajes todavía</div>'}
       </div>
       <div style="background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:14px">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">+ Agregar personaje</div>
         <div class="form-row">
           <div class="field"><input type="text" id="char-name" placeholder="Nombre"/></div>
-          <div class="field"><input type="text" id="char-role" placeholder="Rol (ej. protagonista)"/></div>
+          <div class="field"><label style="display:none"></label>
+            <select id="char-role" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+              <option value="">Rol...</option>
+              <option value="protagonista">Protagonista</option>
+              <option value="antagonista">Antagonista</option>
+              <option value="secundario">Secundario</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
         </div>
-        <div class="field" style="margin-top:6px"><input type="text" id="char-desc" placeholder="Descripción breve"/></div>
+        <div class="field" style="margin-top:6px"><input type="text" id="char-desc" placeholder="Descripción del personaje"/></div>
         <button class="btn-save" style="margin-top:10px" onclick="saveChar('${activeBookId}')">+ Agregar</button>
       </div>`
 
@@ -2472,25 +2518,43 @@ async function renderBookTab(){
     const { data } = await SB_I.from('book_scenarios').select('*').eq('book_id', activeBookId).order('title')
     const scens = data || []
     el.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-        ${scens.length ? scens.map(s => `
-          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--text)">${s.title}</div>
-                ${s.description ? `<div style="font-size:12px;color:var(--text-dim);margin-top:3px">${s.description}</div>` : ''}
-                ${s.notes ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-style:italic">${s.notes}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        ${scens.length ? scens.map(s => {
+          const open = !!expandedChapters['scen_'+s.id]
+          return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <div onclick="toggleScenario('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer">
+              <div style="font-size:13px;font-weight:600;color:var(--text)">${s.title}</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button onclick="event.stopPropagation();deleteScenario('${s.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:4px">✕</button>
+                <span style="color:var(--text-muted);font-size:14px;transition:transform .2s;${open?'transform:rotate(180deg)':''}">⌄</span>
               </div>
-              <button onclick="deleteScenario('${s.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
             </div>
-          </div>`).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">Sin escenarios todavía</div>'}
+            ${open ? `<div style="padding:0 12px 12px;border-top:1px solid var(--border)">
+              <textarea id="scendesc-${s.id}" class="script-editor-field" style="margin-top:10px;min-height:70px"
+                onblur="autoSaveScenField('${s.id}','description')"
+                placeholder="Descripción del escenario...">${s.description||''}</textarea>
+              <textarea id="scennotes-${s.id}" class="script-editor-field" style="margin-top:6px;min-height:60px"
+                onblur="autoSaveScenField('${s.id}','notes')"
+                placeholder="Notas adicionales...">${s.notes||''}</textarea>
+            </div>` : `${s.description ? `<div style="font-size:12px;color:var(--text-dim);padding:0 12px 10px">${s.description}</div>` : ''}`}
+          </div>`
+        }).join('') : '<div style="color:var(--text-muted);font-size:13px;padding:4px 0">Sin escenarios todavía</div>'}
       </div>
       <div style="background:var(--bg);border:1px dashed var(--border);border-radius:8px;padding:14px">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">+ Agregar escenario</div>
         <div class="field"><input type="text" id="scen-title" placeholder="Título del escenario"/></div>
-        <div class="field" style="margin-top:6px"><input type="text" id="scen-desc" placeholder="Descripción"/></div>
-        <div class="field" style="margin-top:6px"><input type="text" id="scen-notes" placeholder="Notas adicionales"/></div>
+        <div class="field" style="margin-top:6px"><input type="text" id="scen-desc" placeholder="Descripción breve"/></div>
         <button class="btn-save" style="margin-top:10px" onclick="saveScenario('${activeBookId}')">+ Agregar</button>
+      </div>`
+
+  } else if(activeBookTab === 'notas'){
+    el.innerHTML = `
+      <textarea id="book-notes-ta" class="script-editor-field" style="min-height:180px"
+        onblur="saveBookNotes('${book.id}')"
+        placeholder="Notas generales del libro...">${book.notes||''}</textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-save" onclick="saveBookNotes('${book.id}')">Guardar</button>
+        <button onclick="deleteBook('${book.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar libro</button>
       </div>`
   }
 }
@@ -2521,7 +2585,7 @@ async function saveBook(){
   if(book){
     document.getElementById('book-detail-title').textContent = book.title + (book.author ? ` — ${book.author}` : '')
     document.getElementById('book-detail-panel').style.display = 'block'
-    switchBookTab('notas')
+    switchBookTab('capitulos')
   }
 }
 
@@ -2535,8 +2599,9 @@ async function saveBookNotes(bookId){
 }
 
 async function deleteBook(bookId){
-  if(!confirm('¿Eliminar este libro, sus personajes y escenarios?')) return
+  if(!confirm('¿Eliminar este libro, sus capítulos, personajes y escenarios?')) return
   await ensureSBI()
+  await SB_I.from('book_chapters').delete().eq('book_id', bookId)
   await SB_I.from('book_characters').delete().eq('book_id', bookId)
   await SB_I.from('book_scenarios').delete().eq('book_id', bookId)
   const { error } = await SB_I.from('books').delete().eq('id', bookId)
@@ -2544,6 +2609,53 @@ async function deleteBook(bookId){
   closeBookDetail()
   await loadBooks()
   showToast('🗑️ Libro eliminado')
+}
+
+function toggleChapter(chapId){
+  expandedChapters[chapId] = !expandedChapters[chapId]
+  renderBookTab()
+}
+
+function toggleScenario(scenId){
+  expandedChapters['scen_'+scenId] = !expandedChapters['scen_'+scenId]
+  renderBookTab()
+}
+
+async function saveChapter(bookId){
+  const num = parseInt(document.getElementById('chap-num').value)
+  if(!num) return
+  await ensureSBI()
+  const { error } = await SB_I.from('book_chapters').insert({
+    id: 'chp_'+Date.now(), book_id: bookId,
+    number: num,
+    title:   document.getElementById('chap-title').value.trim()||null,
+    summary: document.getElementById('chap-summary').value.trim()||null,
+    notes:   document.getElementById('chap-notes').value.trim()||null
+  })
+  if(error){ showToast('❌ Error: ' + error.message); return }
+  switchBookTab('capitulos')
+}
+
+async function deleteChapter(chapId){
+  await ensureSBI()
+  await SB_I.from('book_chapters').delete().eq('id', chapId)
+  delete expandedChapters[chapId]
+  switchBookTab('capitulos')
+}
+
+async function autoSaveChapterNotes(chapId){
+  const el = document.getElementById('chapnotes-'+chapId)
+  if(!el) return
+  await ensureSBI()
+  await SB_I.from('book_chapters').update({ notes: el.value }).eq('id', chapId)
+}
+
+async function autoSaveScenField(scenId, field){
+  const elId = field === 'description' ? 'scendesc-'+scenId : 'scennotes-'+scenId
+  const el = document.getElementById(elId)
+  if(!el) return
+  await ensureSBI()
+  await SB_I.from('book_scenarios').update({ [field]: el.value }).eq('id', scenId)
 }
 
 async function saveChar(bookId){
