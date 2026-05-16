@@ -6,6 +6,14 @@
   <title>IArcanIA — Planificador de Contenido</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet"/>
   <script>if(localStorage.getItem('isAdmin')!=='true'){location.replace('login-admin.html');}</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const { createClient: sbCreate } = supabase;
+    const SB_P = sbCreate(
+      'https://gpfidxxawcwsbuzsbeob.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZmlkeHhhd2N3c2J1enNiZW9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjgxOTksImV4cCI6MjA4ODMwNDE5OX0.i96CvvseJCPSvEveUCx2FWECNKEuWHj51EP_3b2mCkc'
+    );
+  </script>
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
@@ -128,6 +136,33 @@ const STATUS = {
 const FORMATS = ['Video largo','Short','Reel','Carrusel','Live','Podcast'];
 const FORMAT_ICONS = { 'Video largo':'▶','Short':'⚡','Reel':'◎','Carrusel':'⊞','Live':'●','Podcast':'◉' };
 const PROD_STEPS = ['Guión','Grabación','Edición','Thumbnail','Programar','Publicar'];
+
+/* ─── Supabase sync helpers ─── */
+function itemToRow(item){
+  const g=item.guion||[];
+  return {
+    id:String(item.id),
+    title:item.titulo,
+    canal:item.canal||'iarcania',
+    status:item.estado||'idea',
+    hook:g[0]?.texto||null,
+    body:g[1]?.texto||null,
+    cta:g[g.length-1]?.texto||null,
+    notes:JSON.stringify({fechaGrab:item.fechaGrab,horaGrab:item.horaGrab,horaPub:item.horaPub,formato:item.formato,plataformaOrigen:item.plataformaOrigen,steps:item.steps,derivados:item.derivados,guion:item.guion})
+  };
+}
+function rowToItem(row){
+  let ex={};
+  try{ex=JSON.parse(row.notes||'{}');}catch(e){}
+  const defSteps=PROD_STEPS.reduce((a,s)=>({...a,[s]:false}),{});
+  const guion=ex.guion&&ex.guion.length?ex.guion:[
+    {id:1,nombre:'Intro / Hook',duracion:30,texto:row.hook||''},
+    {id:2,nombre:'Desarrollo principal',duracion:180,texto:row.body||''},
+    {id:3,nombre:'Ejemplos / Demo',duracion:120,texto:''},
+    {id:4,nombre:'CTA & Cierre',duracion:30,texto:row.cta||''}
+  ];
+  return {id:row.id,titulo:row.title,canal:row.canal||'iarcania',estado:row.status||'idea',formato:ex.formato||'Video largo',plataformaOrigen:ex.plataformaOrigen||'YouTube',fechaGrab:ex.fechaGrab||'',horaGrab:ex.horaGrab||'',horaPub:ex.horaPub||'',steps:ex.steps||defSteps,derivados:ex.derivados||[],guion};
+}
 const PLATFORMS = ['YouTube','TikTok','Instagram'];
 const PLAT_COLORS = {YouTube:'#ff4444',TikTok:'#ee1d52',Instagram:'#bc1888'};
 const DERIVADO_FORMATS = ['Short','Reel','Carrusel','Clip','Post'];
@@ -1271,16 +1306,91 @@ const SAMPLE_ITEMS=[
 function App(){
   const [tweaks, setTweak]=useTweaks(TWEAK_DEFAULTS);
   const [nav,setNav]=useState('contenido');
-  const [items,setItems]=useState(SAMPLE_ITEMS);
+  const [items,setItems]=useState([]);
   const [guionItem,setGuionItem]=useState(null);
   const [detailItem,setDetailItem]=useState(null);
   const [activePlatforms,setActivePlatforms]=useState(['YouTube','TikTok','Instagram']);
+  const [sbReady,setSbReady]=useState(false);
+  const [showConnect,setShowConnect]=useState(false);
+  const [connectEmail,setConnectEmail]=useState('');
+  const [connectPass,setConnectPass]=useState('');
+  const [connectErr,setConnectErr]=useState('');
+  const prevItemsRef=useRef(null);
   const isMobile=useMobile();
 
   useEffect(()=>{
     const el=document.getElementById('rain');
     if(el) el.style.display=tweaks.showRainBg?'block':'none';
   },[tweaks.showRainBg]);
+
+  useEffect(()=>{loadFromSB();},[]);
+
+  /* Sync items → Supabase on every change (diff-based) */
+  useEffect(()=>{
+    if(!sbReady||prevItemsRef.current===null)return;
+    const prev=prevItemsRef.current;
+    const prevMap=new Map(prev.map(i=>[String(i.id),i]));
+    const currMap=new Map(items.map(i=>[String(i.id),i]));
+    prev.filter(i=>!currMap.has(String(i.id))).forEach(i=>{
+      SB_P.from('scripts').delete().eq('id',String(i.id));
+    });
+    items.filter(i=>!prevMap.has(String(i.id))).forEach(i=>{
+      SB_P.from('scripts').upsert(itemToRow(i));
+    });
+    items.filter(i=>prevMap.has(String(i.id))).forEach(i=>{
+      const old=prevMap.get(String(i.id));
+      if(JSON.stringify(old)!==JSON.stringify(i))
+        SB_P.from('scripts').update(itemToRow(i)).eq('id',String(i.id));
+    });
+    prevItemsRef.current=items;
+  },[items,sbReady]);
+
+  async function loadFromSB(){
+    const {data:{session}}=await SB_P.auth.getSession();
+    if(session){
+      setSbReady(true);
+      const {data}=await SB_P.from('scripts').select('*').order('created_at',{ascending:false});
+      const loaded=data&&data.length?data.map(rowToItem):SAMPLE_ITEMS;
+      prevItemsRef.current=loaded;
+      setItems(loaded);
+    }else{
+      setItems(SAMPLE_ITEMS);
+      setShowConnect(true);
+    }
+  }
+
+  async function handleConnect(){
+    setConnectErr('');
+    const {error}=await SB_P.auth.signInWithPassword({email:connectEmail,password:connectPass});
+    if(error){setConnectErr(error.message);return;}
+    setShowConnect(false);
+    loadFromSB();
+  }
+
+  const ConnectModal=showConnect&&(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{background:'#0e0e12',border:'1px solid rgba(155,114,240,0.35)',borderRadius:16,padding:'28px 32px',width:320,fontFamily:'Inter,sans-serif'}}>
+        <div style={{fontSize:16,fontWeight:700,color:'#f0eeff',marginBottom:4}}>Conectar a Supabase</div>
+        <div style={{fontSize:12,color:'#8a86b0',marginBottom:20}}>Usa las mismas credenciales del OS</div>
+        <input value={connectEmail} onChange={e=>setConnectEmail(e.target.value)}
+          placeholder="Email" type="email"
+          style={{width:'100%',background:'#060609',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'10px 12px',color:'#f0eeff',fontFamily:'Inter,sans-serif',fontSize:13,outline:'none',marginBottom:10,boxSizing:'border-box'}}/>
+        <input value={connectPass} onChange={e=>setConnectPass(e.target.value)}
+          placeholder="Contraseña" type="password"
+          onKeyDown={e=>e.key==='Enter'&&handleConnect()}
+          style={{width:'100%',background:'#060609',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'10px 12px',color:'#f0eeff',fontFamily:'Inter,sans-serif',fontSize:13,outline:'none',marginBottom:10,boxSizing:'border-box'}}/>
+        {connectErr&&<div style={{fontSize:11,color:'#ef4444',marginBottom:8}}>{connectErr}</div>}
+        <button onClick={handleConnect}
+          style={{width:'100%',padding:'11px',borderRadius:8,background:'rgba(155,114,240,0.2)',border:'1px solid rgba(155,114,240,0.4)',color:'#c4b5fd',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+          Conectar
+        </button>
+        <button onClick={()=>setShowConnect(false)}
+          style={{width:'100%',padding:'8px',marginTop:8,borderRadius:8,background:'transparent',border:'none',color:'#8a86b0',fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+          Continuar sin guardar
+        </button>
+      </div>
+    </div>
+  );
 
   function updateItem(updated){setItems(prev=>prev.map(i=>i.id===updated.id?updated:i));}
   function deleteItem(id){setItems(prev=>prev.filter(i=>i.id!==id));}
@@ -1309,6 +1419,7 @@ function App(){
   if(guionItem){
     return(
       <div style={{width:'100vw',height:'100vh',display:'flex',overflow:'hidden',position:'relative',zIndex:1}}>
+        {ConnectModal}
         {DetailModal}
         {!isMobile&&<Sidebar active={nav} onNav={n=>{setGuionItem(null);setNav(n);}} isMobile={false}/>}
         <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
@@ -1320,6 +1431,7 @@ function App(){
 
   return(
     <div style={{width:'100vw',height:'100vh',display:'flex',overflow:'hidden',position:'relative',zIndex:1}}>
+      {ConnectModal}
       {DetailModal}
       {!isMobile&&<Sidebar active={nav} onNav={setNav} isMobile={false}/>}
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',paddingBottom:isMobile?56:0}}>
