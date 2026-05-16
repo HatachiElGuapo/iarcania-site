@@ -349,7 +349,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             <div class="stat-label">completadas</div>
           </div>
           <div class="stat-box">
-            <div class="stat-num" id="dashboard-clock" style="font-size:18px;font-variant-numeric:tabular-nums">—</div>
+            <div class="stat-num" id="dashboard-clock" style="font-size:18px;font-variant-numeric:tabular-nums;color:var(--text)">—</div>
             <div class="stat-label">hora</div>
           </div>
         </div>
@@ -826,17 +826,19 @@ async function doLogout(){
 document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin() })
 
 // --- MIDNIGHT RESET ---
-function checkDateReset(){
+async function checkDateReset(){
   const now = new Date().toISOString().split('T')[0]
   const saved = localStorage.getItem('last_date')
   if(saved && saved !== now){
-    // El día cambió: recargar hábitos y tareas sin borrar datos de Supabase
+    await SB_P.from('activity_logs').delete().eq('user_id', USER_ID).eq('date', saved)
     habitLogs = {}
+    localStorage.setItem('last_date', now)
     loadHabitos()
     loadTasks()
     showToast('☀️ Nuevo día — hábitos reiniciados')
+  } else {
+    localStorage.setItem('last_date', now)
   }
-  localStorage.setItem('last_date', now)
 }
 
 // --- INIT ---
@@ -871,6 +873,7 @@ function updateClock(){
   const m = d.getMinutes().toString().padStart(2, '0')
   const ampm = h >= 12 ? 'PM' : 'AM'
   const h12 = (h % 12) || 12
+  console.log('clock:', h12, ampm)
   el.textContent = h12 + ':' + m + ' ' + ampm
 }
 
@@ -1956,6 +1959,7 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
   }
 })()
 
+setDate()
 updateClock()
 setInterval(updateClock, 1000)
 </script>
