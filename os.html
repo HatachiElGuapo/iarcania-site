@@ -356,7 +356,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
       </div>
       <div class="alert-bar alert-red" id="bd-alert" style="display:none">
-        <span class="alert-label">🎂 CUMPLEAÑOS</span>
+        <span class="alert-label">📅 PRÓXIMAS</span>
         <div id="bd-pills"></div>
       </div>
       <div class="grid-2">
@@ -743,11 +743,11 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="field"><label>Tipo</label>
         <select id="bd-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
           <option value="cumpleanos">🎂 Cumpleaños</option>
-          <option value="aniversario">💍 Aniversario</option>
-          <option value="pago">💸 Pago recurrente</option>
-          <option value="cita">🏥 Cita médica</option>
-          <option value="evento">📅 Evento</option>
-          <option value="otro">⭐ Otro</option>
+          <option value="especial">⭐ Especial</option>
+          <option value="aniversario">💜 Aniversario</option>
+          <option value="cita">🏥 Cita</option>
+          <option value="pago">💰 Pago</option>
+          <option value="evento">🎉 Evento</option>
         </select>
       </div>
       <div class="field"><label>Relación / Detalle</label><input type="text" id="bd-rel" placeholder="ej. Abuela, Tío, Amigo"/></div>
@@ -1662,49 +1662,85 @@ function daysUntil(day, month){
 }
 
 const FECHA_TIPOS = {
-  cumpleanos: { label:'🎂 Cumpleaños', color:'#f472b6' },
-  aniversario: { label:'💍 Aniversario', color:'#c9a84c' },
-  pago:        { label:'💸 Pago',        color:'#4ade80' },
-  cita:        { label:'🏥 Cita',        color:'#60a5fa' },
-  evento:      { label:'📅 Evento',      color:'#a78bfa' },
-  otro:        { label:'⭐ Otro',         color:'#7a788f' },
+  cumpleanos:  { label:'🎂 Cumpleaños',  color:'#C4A35A' },
+  especial:    { label:'⭐ Especial',    color:'#8B6CF6' },
+  aniversario: { label:'💜 Aniversario', color:'#F472B6' },
+  cita:        { label:'🏥 Cita',        color:'#EF9F27' },
+  pago:        { label:'💰 Pago',        color:'#5DCAA5' },
+  evento:      { label:'🎉 Evento',      color:'#378ADD' },
+  otro:        { label:'📌 Otro',        color:'#7a788f' },
+}
+
+function bdCardHTML(b){
+  const days = daysUntil(b.day, b.month)
+  const cls   = days === 0 ? 'pill-hot' : days <= 3 ? 'pill-hot' : days <= 7 ? 'pill-warm' : 'pill-cool'
+  const label = days === 0 ? '¡Hoy!' : days === 1 ? 'Mañana' : `${days} días`
+  const tipo  = FECHA_TIPOS[b.type || b.relationship_type] || FECHA_TIPOS.otro
+  const extra = [b.time ? `⏰ ${b.time}` : '', b.location ? `📍 ${b.location}` : ''].filter(Boolean).join(' · ')
+  const autoTaskBtn = days === 0
+    ? `<button onclick="createTaskFromFecha('${b.name}','${b.type||'evento'}')" style="margin-top:8px;width:100%;padding:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ Crear tarea para hoy</button>`
+    : ''
+  return `<div class="bd-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="bd-name">${b.name}</div>
+      <span class="fecha-cat-badge" style="background:${tipo.color}22;color:${tipo.color};border:1px solid ${tipo.color}44">${tipo.label}</span>
+    </div>
+    <div class="bd-date">${b.relationship || b.relationship_type || ''} · ${b.day}/${b.month}</div>
+    ${extra ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${extra}</div>` : ''}
+    ${b.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;font-style:italic">${b.notes}</div>` : ''}
+    <span class="bd-days pill ${cls}" style="margin-top:6px;display:inline-block">${label}</span>
+    ${autoTaskBtn}
+  </div>`
 }
 
 function renderBirthdays(bds){
   const grid = document.getElementById('bd-grid')
-  if(!bds.length){ grid.innerHTML='<div class="empty-state"><div class="empty-icon">◉</div>No hay fechas guardadas</div>'; return }
-  grid.innerHTML = bds.map(b => {
-    const days = daysUntil(b.day, b.month)
-    const cls = days===0?'pill-hot':days<=3?'pill-hot':days<=7?'pill-warm':'pill-cool'
-    const label = days===0?'¡Hoy!':days===1?'Mañana':`${days} días`
-    const tipo = FECHA_TIPOS[b.type||b.relationship_type] || FECHA_TIPOS.otro
-    const autoTaskBtn = days===0 ? `<button onclick="createTaskFromFecha('${b.name}','${b.type||'evento'}')" style="margin-top:8px;width:100%;padding:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ Crear tarea para hoy</button>` : ''
-    const extra = [b.time ? `⏰ ${b.time}` : '', b.location ? `📍 ${b.location}` : ''].filter(Boolean).join(' · ')
-    return `<div class="bd-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div class="bd-name">${b.name}</div>
-        <span class="fecha-cat-badge" style="background:${tipo.color}22;color:${tipo.color};border:1px solid ${tipo.color}44">${tipo.label}</span>
+  if(!bds.length){
+    grid.style.cssText = ''
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">◉</div>No hay fechas guardadas</div>'
+    return
+  }
+
+  // Agrupar por tipo, ordenar internamente por días hasta la fecha
+  const TYPE_ORDER = ['cumpleanos','especial','aniversario','cita','pago','evento']
+  const grouped = {}
+  bds.forEach(b => {
+    const t = b.type || b.relationship_type || 'evento'
+    if(!grouped[t]) grouped[t] = []
+    grouped[t].push(b)
+  })
+  Object.values(grouped).forEach(arr => arr.sort((a, b) => daysUntil(a.day, a.month) - daysUntil(b.day, b.month)))
+  const hasOther = Object.keys(grouped).filter(t => !TYPE_ORDER.includes(t))
+  const orderedTypes = [...TYPE_ORDER, ...hasOther].filter(t => grouped[t]?.length)
+
+  grid.style.cssText = 'display:flex;flex-direction:column;gap:1.5rem'
+  grid.innerHTML = orderedTypes.map(t => {
+    const tipo = FECHA_TIPOS[t] || FECHA_TIPOS.otro
+    return `<div>
+      <div style="font-size:12px;font-weight:600;color:${tipo.color};margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        ${tipo.label}
+        <div style="flex:1;height:1px;background:${tipo.color}33"></div>
       </div>
-      <div class="bd-date">${b.relationship||b.relationship_type||''} · ${b.day}/${b.month}</div>
-      ${extra ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${extra}</div>` : ''}
-      ${b.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;font-style:italic">${b.notes}</div>` : ''}
-      <span class="bd-days pill ${cls}" style="margin-top:6px;display:inline-block">${label}</span>
-      ${autoTaskBtn}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+        ${grouped[t].map(b => bdCardHTML(b)).join('')}
+      </div>
     </div>`
   }).join('')
 
-  const urgent = bds.filter(b => daysUntil(b.day,b.month)<=7)
+  // Alert dashboard: todas las fechas dentro de reminder_days_before (o 7 por defecto)
+  const urgent = bds.filter(b => daysUntil(b.day, b.month) <= (b.reminder_days_before || 7))
   const alertBar = document.getElementById('bd-alert')
   if(urgent.length){
-    alertBar.style.display='flex'
-    document.getElementById('bd-pills').innerHTML = urgent.map(b=>{
-      const days=daysUntil(b.day,b.month)
-      const cls=days===0?'pill-hot':days<=3?'pill-hot':'pill-warm'
-      const label=days===0?'¡Hoy!':days===1?'Mañana':`en ${days} días`
-      return `<span class="pill ${cls}">${b.name} — ${label}</span>`
+    alertBar.style.display = 'flex'
+    document.getElementById('bd-pills').innerHTML = urgent.map(b => {
+      const days  = daysUntil(b.day, b.month)
+      const cls   = days === 0 ? 'pill-hot' : days <= 3 ? 'pill-hot' : 'pill-warm'
+      const label = days === 0 ? '¡Hoy!' : days === 1 ? 'Mañana' : `en ${days} días`
+      const tipo  = FECHA_TIPOS[b.type || b.relationship_type] || FECHA_TIPOS.otro
+      return `<span class="pill ${cls}">${tipo.label.split(' ')[0]} ${b.name} — ${label}</span>`
     }).join(' ')
   } else {
-    alertBar.style.display='none'
+    alertBar.style.display = 'none'
   }
 }
 
