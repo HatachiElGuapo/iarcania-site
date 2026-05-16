@@ -829,16 +829,20 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 async function checkDateReset(){
   const now = new Date().toISOString().split('T')[0]
   const saved = localStorage.getItem('last_date')
-  if(saved && saved !== now){
-    await SB_P.from('activity_logs').delete().eq('user_id', USER_ID).eq('date', saved)
+  console.log('last_date:', saved, 'TODAY:', now)
+  const changed = saved && saved !== now
+  const firstRun = !saved
+  if(changed || firstRun){
+    const ayer = new Date(); ayer.setDate(ayer.getDate()-1)
+    const ayerStr = ayer.toISOString().split('T')[0]
+    const deleteDate = changed ? saved : ayerStr
+    await SB_P.from('activity_logs').delete().eq('user_id', USER_ID).eq('date', deleteDate)
     habitLogs = {}
-    localStorage.setItem('last_date', now)
     loadHabitos()
     loadTasks()
     showToast('☀️ Nuevo día — hábitos reiniciados')
-  } else {
-    localStorage.setItem('last_date', now)
   }
+  localStorage.setItem('last_date', now)
 }
 
 // --- INIT ---
