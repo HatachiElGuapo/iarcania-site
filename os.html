@@ -447,7 +447,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
             </div>
 
-            <!-- Tareas extra colapsable — 5º -->
+            <!-- Guión del día colapsable — 5º -->
+            <div class="dash-section" style="border-color:rgba(239,159,39,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('guion')">
+                <span style="font-size:13px;font-weight:600;color:#EF9F27">🎬 Guión del día</span>
+                <span class="dash-arrow" id="dash-guion-arrow">▼</span>
+              </div>
+              <div class="dash-section-body collapsed" id="dash-guion-body">
+                <div id="dash-guion-content"><div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div></div>
+              </div>
+            </div>
+
+            <!-- Tareas extra colapsable — 6º -->
             <div class="dash-section" style="border-color:rgba(139,108,246,0.2)">
               <div class="dash-section-hdr" onclick="toggleDashSection('extra')">
                 <span style="font-size:13px;font-weight:600;color:#8B6CF6">⚡ Tareas extra</span>
@@ -936,7 +947,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="field"><label>Estado</label>
         <select id="sc-status" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
           <option value="borrador">Borrador</option>
-          <option value="grabando">Grabando</option>
+          <option value="en_progreso">En progreso</option>
+          <option value="listo_grabar">Listo para grabar</option>
+          <option value="grabado">Grabado</option>
           <option value="publicado">Publicado</option>
         </select>
       </div>
@@ -944,6 +957,20 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('script')">Cancelar</button>
       <button class="btn-save" onclick="saveNewScript()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-grabar">
+  <div class="modal">
+    <h3>¿Qué grabaste hoy?</h3>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Selecciona el guión que grabaste para marcarlo como grabado.</p>
+    <div class="field">
+      <select id="grabar-script-select" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"></select>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('grabar')">Omitir</button>
+      <button class="btn-save" onclick="confirmarGrabacion()">Marcar como grabado</button>
     </div>
   </div>
 </div>
@@ -1053,6 +1080,7 @@ async function initApp(){
   checkDateReset()
   setInterval(checkDateReset, 60000)
   await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts()])
+  loadGuionDelDia()
 }
 
 function setDate(){
@@ -2318,6 +2346,10 @@ async function toggleHabito(activityId){
     const log = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
     await SB_P.from('activity_logs').insert(log)
     habitLogs[activityId] = log
+    if(activityId === 'a68'){
+      const listos = allScripts.filter(s => s.status === 'listo_grabar')
+      if(listos.length) showGrabarDialog(listos)
+    }
   }
 
   const trio = ['a35','a14','a02']
@@ -2783,6 +2815,49 @@ async function loadScripts(){
   renderScripts()
 }
 
+async function loadGuionDelDia(){
+  const { data } = await SB_P.from('scripts').select('*').in('status', ['borrador','en_progreso','listo_grabar']).order('created_at',{ascending:false}).limit(5)
+  renderGuionDelDia(data || [])
+}
+
+function renderGuionDelDia(scripts){
+  const el = document.getElementById('dash-guion-content')
+  if(!el) return
+  const STATUS_COLORS = { borrador:'var(--text-muted)', en_progreso:'#EF9F27', listo_grabar:'#5DCAA5', grabado:'#378ADD', publicado:'#8B6CF6' }
+  const STATUS_LABELS = { borrador:'Borrador', en_progreso:'En progreso', listo_grabar:'Listo para grabar', grabado:'Grabado', publicado:'Publicado' }
+  if(!scripts.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">No hay guiones pendientes</div>'
+    return
+  }
+  el.innerHTML = scripts.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 2px;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.title}</div>
+        <span style="font-size:11px;color:${STATUS_COLORS[s.status]||'var(--text-muted)'}">${STATUS_LABELS[s.status]||s.status}</span>
+      </div>
+      <button onclick="navigateTo('guiones')" style="margin-left:10px;font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">Ver →</button>
+    </div>
+  `).join('')
+}
+
+function showGrabarDialog(scripts){
+  const sel = document.getElementById('grabar-script-select')
+  sel.innerHTML = scripts.map(s => `<option value="${s.id}">${s.title}</option>`).join('')
+  openModal('grabar')
+}
+
+async function confirmarGrabacion(){
+  const scriptId = document.getElementById('grabar-script-select').value
+  if(!scriptId) return
+  const { error } = await SB_P.from('scripts').update({ status: 'grabado' }).eq('id', scriptId)
+  if(error){ showToast('❌ Error: ' + error.message); return }
+  allScripts = allScripts.map(s => s.id === scriptId ? {...s, status:'grabado'} : s)
+  closeModal('grabar')
+  renderScripts()
+  loadGuionDelDia()
+  showToast('🎬 ¡Grabación registrada!')
+}
+
 function renderScripts(){
   const el = document.getElementById('scripts-list')
   if(!el) return
@@ -2793,21 +2868,23 @@ function renderScripts(){
   }
   const CANAL_COLORS = { iarcania:'#E24B4A', voidstoic:'#8B6CF6' }
   const CANAL_LABELS = { iarcania:'IArcanIA', voidstoic:'Void Stoic' }
-  const STATUS_COLORS = { borrador:'var(--text-muted)', grabando:'var(--gold)', publicado:'#5DCAA5', archivado:'#555' }
-  const STATUS_LABELS = { borrador:'Borrador', grabando:'Grabando', publicado:'Publicado', archivado:'Archivado' }
+  const STATUS_COLORS = { borrador:'var(--text-muted)', en_progreso:'#EF9F27', listo_grabar:'#5DCAA5', grabado:'#378ADD', publicado:'#8B6CF6' }
+  const STATUS_LABELS = { borrador:'Borrador', en_progreso:'En progreso', listo_grabar:'Listo para grabar', grabado:'Grabado', publicado:'Publicado' }
   el.innerHTML = filtered.map(s => {
     const cColor = CANAL_COLORS[s.canal] || '#8B6CF6'
     const cLabel = CANAL_LABELS[s.canal] || s.canal
     const stColor = STATUS_COLORS[s.status] || STATUS_COLORS.borrador
     const stLabel = STATUS_LABELS[s.status] || 'Borrador'
     const isActive = s.id === activeScriptId
+    const grabacion = s.fecha_grabacion ? `<span style="color:var(--text-muted)">📅 ${s.fecha_grabacion}</span>` : ''
     return `<div class="script-card${isActive?' active':''}" style="border-left-color:${cColor}">
       <div onclick="openScriptDetail('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
         <div>
           <div style="font-size:14px;font-weight:600;color:var(--text)">${s.title}</div>
-          <div style="font-size:11px;margin-top:4px;display:flex;gap:10px;align-items:center">
+          <div style="font-size:11px;margin-top:4px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span style="color:${cColor};font-weight:600">${cLabel}</span>
             <span style="color:${stColor}">${stLabel}</span>
+            ${grabacion}
           </div>
         </div>
         <span style="color:var(--text-muted);font-size:18px;line-height:1;display:inline-block;transition:transform .2s;${isActive?'transform:rotate(180deg)':''}">⌄</span>
@@ -2829,13 +2906,15 @@ function renderScripts(){
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Notas</div>
           <textarea id="se-notes-${s.id}" class="script-editor-field" placeholder="Notas, referencias, ideas">${s.notes||''}</textarea>
         </div>
-        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;align-items:center">
           <select id="se-status-${s.id}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
             <option value="borrador" ${s.status==='borrador'?'selected':''}>Borrador</option>
-            <option value="grabando" ${s.status==='grabando'?'selected':''}>Grabando</option>
+            <option value="en_progreso" ${s.status==='en_progreso'?'selected':''}>En progreso</option>
+            <option value="listo_grabar" ${s.status==='listo_grabar'?'selected':''}>Listo para grabar</option>
+            <option value="grabado" ${s.status==='grabado'?'selected':''}>Grabado</option>
             <option value="publicado" ${s.status==='publicado'?'selected':''}>Publicado</option>
-            <option value="archivado" ${s.status==='archivado'?'selected':''}>Archivado</option>
           </select>
+          <input type="date" id="se-fecha-${s.id}" value="${s.fecha_grabacion||''}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none" title="Fecha de grabación">
           <button class="btn-save" onclick="saveScript('${s.id}')">Guardar</button>
           <button onclick="deleteScript('${s.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
         </div>
@@ -2862,18 +2941,21 @@ function filterScripts(filter, btn){
 
 async function saveScript(scriptId){
   await ensureSBI()
+  const fechaVal = document.getElementById('se-fecha-'+scriptId).value
   const data = {
-    hook:   document.getElementById('se-hook-'+scriptId).value,
-    body:   document.getElementById('se-body-'+scriptId).value,
-    cta:    document.getElementById('se-cta-'+scriptId).value,
-    notes:  document.getElementById('se-notes-'+scriptId).value,
-    status: document.getElementById('se-status-'+scriptId).value
+    hook:            document.getElementById('se-hook-'+scriptId).value,
+    body:            document.getElementById('se-body-'+scriptId).value,
+    cta:             document.getElementById('se-cta-'+scriptId).value,
+    notes:           document.getElementById('se-notes-'+scriptId).value,
+    status:          document.getElementById('se-status-'+scriptId).value,
+    fecha_grabacion: fechaVal || null
   }
   const { error } = await SB_P.from('scripts').update(data).eq('id', scriptId)
   if(error){ showToast('❌ Error: ' + error.message); return }
   allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
   showToast('✅ Guión guardado')
   renderScripts()
+  loadGuionDelDia()
 }
 
 async function deleteScript(scriptId){
