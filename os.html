@@ -827,14 +827,14 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 
 // --- MIDNIGHT RESET ---
 async function checkDateReset(){
-  const now = new Date().toISOString().split('T')[0]
+  const now = new Date().toLocaleDateString('en-CA')
   const saved = localStorage.getItem('last_date')
   console.log('last_date:', saved, 'TODAY:', now)
   const changed = saved && saved !== now
   const firstRun = !saved
   if(changed || firstRun){
     const ayer = new Date(); ayer.setDate(ayer.getDate()-1)
-    const ayerStr = ayer.toISOString().split('T')[0]
+    const ayerStr = ayer.toLocaleDateString('en-CA')
     const deleteDate = changed ? saved : ayerStr
     await SB_P.from('activity_logs').delete().eq('user_id', USER_ID).eq('date', deleteDate)
     habitLogs = {}
@@ -928,7 +928,8 @@ function renderTaskList(elId, tasks){
   el.innerHTML = ordered.map(t => {
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
-    const timeStr = t.scheduled_time ? t.scheduled_time.slice(0,5) : ''
+    const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
+    const fecha = t.due_date || null
     return `<div class="task-item${done?' done':''}"
       data-id="${t.id}"
       onclick="toggleTask('${t.id}')"
@@ -943,8 +944,8 @@ function renderTaskList(elId, tasks){
         ${done?'✓':''}
       </div>
       <div class="task-text">
-        ${timeStr ? `<span style="font-size:10px;font-weight:600;color:var(--gold);margin-right:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);border-radius:4px;padding:1px 5px">${timeStr}</span>` : ''}
-        ${t.title}
+        <div>${t.title}</div>
+        ${(hora||fecha) ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${fecha?'📅 '+fecha:''}${hora?' 🕐'+hora:''}</div>` : ''}
       </div>
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
       <button class="habito-toggle" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
@@ -1482,7 +1483,7 @@ let monthlyLogs = {}
 let showInactive = false
 let currentCatFilter = 'all'
 let currentFreqFilter = 'diaria'
-const TODAY = new Date().toISOString().split('T')[0]
+const TODAY = new Date().toLocaleDateString('en-CA')
 
 async function loadHabitos(){
   const { data: acts } = await SB_P.from('activities').select('*').order('sort_order').order('name')
