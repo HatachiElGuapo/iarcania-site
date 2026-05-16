@@ -259,6 +259,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .agenda-task-row.auto{border-style:dashed}
 .agenda-add-btn{font-size:11px;color:var(--text-muted);background:transparent;border:1px dashed var(--border);border-radius:6px;padding:3px 10px;cursor:pointer;align-self:flex-start;font-family:'Outfit',sans-serif;transition:all .15s}
 .agenda-add-btn:hover{color:var(--gold);border-color:rgba(201,168,76,0.4)}
+.agenda-fixed-label{font-size:12px;color:var(--text-dim);padding:2px 0 4px;font-weight:500}
+.agenda-fixed-label.now{color:var(--gold);font-weight:600}
 </style>
 </head>
 <body>
@@ -1057,17 +1059,17 @@ function removeAgendaSlot(hour, taskId){
   renderAgenda()
 }
 
-function openAgendaSearch(hour){
+function openAgendaSearch(key, domId){
   document.querySelectorAll('.agenda-search-panel').forEach(p => p.style.display = 'none')
-  const panel = document.getElementById('asp-' + hour)
+  const panel = document.getElementById('asp-' + domId)
   if(panel){ panel.style.display = 'block'; panel.querySelector('input').focus() }
 }
 
-function searchAgendaSlot(hour, query){
-  const sugg = document.getElementById('asugg-' + hour)
+function searchAgendaSlot(key, domId, query){
+  const sugg = document.getElementById('asugg-' + domId)
   if(!sugg) return
   if(!query.trim()){ sugg.innerHTML = ''; sugg.style.display = 'none'; return }
-  const pinned = getAgendaData()[hour] || []
+  const pinned = getAgendaData()[key] || []
   const matches = allTasks
     .filter(t => t.status !== 'completada' && !pinned.includes(t.id) && t.title.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 5)
@@ -1075,7 +1077,7 @@ function searchAgendaSlot(hour, query){
   sugg.style.display = 'block'
   sugg.innerHTML = matches.map(t => {
     const cat = CATS[t.category] || CATS.habitos
-    return `<div onclick="assignAgendaSlot('${hour}','${t.id}')" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px">
+    return `<div onclick="assignAgendaSlot('${key}','${t.id}')" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px">
       <span style="color:${cat.color};font-size:8px">●</span>
       <span style="flex:1">${t.title}</span>
       <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
@@ -1087,46 +1089,83 @@ function renderAgenda(){
   const el = document.getElementById('agenda-timeline')
   if(!el) return
   const data = getAgendaData()
-  const nowHour = new Date().getHours()
 
-  // Tareas con due_date === TODAY y notas HH:MM → auto
-  const autoByHour = {}
+  const SCHEDULE = [
+    { time:'03:40', label:'Despertar, cama y agua' },
+    { time:'04:00', label:'Entrenamiento matutino' },
+    { time:'04:40', label:'Baño frío' },
+    { time:'05:00', label:'Meditar' },
+    { time:'05:20', label:'Escritura' },
+    { time:'05:40', label:'Planificación' },
+    { time:'06:00', label:'Autoridad / Sistemas / Ingresos' },
+    { time:'10:00', label:'Tomar sol' },
+    { time:'10:15', label:'Llamar a familiar' },
+    { time:'10:30', label:'Tareas ligeras / administrativas' },
+    { time:'12:00', label:'Almuerzo' },
+    { time:'13:00', label:'Estudio / Desarrollo de ideas / Optimización' },
+    { time:'15:00', label:'Apoyo estratégico a mamá' },
+    { time:'17:00', label:'Limpieza' },
+    { time:'17:30', label:'Descanso' },
+    { time:'18:00', label:'Entrenamiento nocturno' },
+    { time:'18:40', label:'Cenar / estirar cuello' },
+    { time:'19:00', label:'Cenar' },
+    { time:'19:20', label:'Escritura + lista hábitos' },
+    { time:'19:40', label:'Pieza, ropa y skincare' },
+    { time:'20:00', label:'Dormir' },
+  ]
+
+  const now = new Date()
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const toMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m }
+
+  // Slot actual: último cuyo tiempo ≤ ahora
+  let currentSlot = null
+  for(const s of SCHEDULE){
+    if(toMin(s.time) <= nowMin) currentSlot = s.time
+    else break
+  }
+
+  // Auto-tareas: due_date === TODAY, notes HH:MM → slot más cercano ≤ hora de la tarea
+  const autoBySlot = {}
   allTasks.forEach(t => {
     if(t.due_date === TODAY && t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim())){
-      const h = t.notes.trim().split(':')[0]
-      if(!autoByHour[h]) autoByHour[h] = []
-      autoByHour[h].push(t)
+      const tMin = toMin(t.notes.trim())
+      let assignTo = null
+      for(const s of SCHEDULE){ if(toMin(s.time) <= tMin) assignTo = s.time; else break }
+      if(assignTo){ if(!autoBySlot[assignTo]) autoBySlot[assignTo] = []; autoBySlot[assignTo].push(t) }
     }
   })
 
+  const fmtTime = s => {
+    const [hh, mm] = s.split(':').map(Number)
+    const h12 = hh > 12 ? hh - 12 : (hh === 0 ? 12 : hh)
+    return h12.toString().padStart(2,'0') + ':' + mm.toString().padStart(2,'0') + ' ' + (hh >= 12 ? 'PM' : 'AM')
+  }
+
+  const mkCheck = (t, cat) => {
+    const done = t.status === 'completada'
+    return `<div onclick="toggleTask('${t.id}')" style="cursor:pointer;width:14px;height:14px;border-radius:50%;border:1.5px solid ${done?cat.color:cat.color+'44'};display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;${done?`background:${cat.color};color:#000`:''}">${done?'✓':''}</div>`
+  }
+
   const label = document.getElementById('agenda-date-label')
-  if(label) label.textContent = new Date().toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })
+  if(label) label.textContent = now.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })
 
   let html = ''
-  for(let h = 6; h <= 23; h++){
-    const hStr = h.toString().padStart(2, '0')
-    const h12  = h > 12 ? h - 12 : (h === 0 ? 12 : h)
-    const ampm = h >= 12 ? 'PM' : 'AM'
-    const timeLabel = h12.toString().padStart(2, '0') + ':00 ' + ampm
-    const isNow = h === nowHour
+  SCHEDULE.forEach(slot => {
+    const key   = slot.time
+    const domId = slot.time.replace(':', '_')
+    const isNow = slot.time === currentSlot
 
-    const autoTasks  = autoByHour[hStr] || []
-    const autoIds    = new Set(autoTasks.map(t => t.id))
-    const pinnedIds  = data[hStr] || []
+    const autoTasks   = autoBySlot[key] || []
+    const autoIds     = new Set(autoTasks.map(t => t.id))
+    const pinnedIds   = data[key] || []
     const pinnedTasks = pinnedIds.map(id => allTasks.find(t => t.id === id)).filter(t => t && !autoIds.has(t.id))
 
-    const mkCheck = (t, cat, isAuto) => {
-      const done = t.status === 'completada'
-      return `<div onclick="toggleTask('${t.id}')" style="cursor:pointer;width:14px;height:14px;border-radius:50%;border:1.5px solid ${done?cat.color:cat.color+'44'};display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;${done?`background:${cat.color};color:#000`:''}">
-        ${done ? '✓' : ''}
-      </div>`
-    }
-
     const autoHTML = autoTasks.map(t => {
-      const cat  = CATS[t.category] || CATS.habitos
+      const cat = CATS[t.category] || CATS.habitos
       const done = t.status === 'completada'
       return `<div class="agenda-task-row auto" style="border-color:${cat.color}44">
-        ${mkCheck(t, cat, true)}
+        ${mkCheck(t, cat)}
         <span style="flex:1;font-size:12px${done?';text-decoration:line-through;color:var(--text-muted)':''}">${t.title}</span>
         <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
         <span style="font-size:9px;color:var(--text-muted);margin-left:4px">auto</span>
@@ -1134,28 +1173,29 @@ function renderAgenda(){
     }).join('')
 
     const pinnedHTML = pinnedTasks.map(t => {
-      const cat  = CATS[t.category] || CATS.habitos
+      const cat = CATS[t.category] || CATS.habitos
       const done = t.status === 'completada'
       return `<div class="agenda-task-row" style="border-color:${cat.color}44">
-        ${mkCheck(t, cat, false)}
+        ${mkCheck(t, cat)}
         <span style="flex:1;font-size:12px${done?';text-decoration:line-through;color:var(--text-muted)':''}">${t.title}</span>
         <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
-        <button onclick="removeAgendaSlot('${hStr}','${t.id}')" style="font-size:14px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1" title="Quitar">×</button>
+        <button onclick="removeAgendaSlot('${key}','${t.id}')" style="font-size:14px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1" title="Quitar">×</button>
       </div>`
     }).join('')
 
-    html += `<div class="agenda-slot${isNow?' is-now':''}">
-      <div class="agenda-time-col">${timeLabel}</div>
+    html += `<div class="agenda-slot${isNow?' is-now':''}" id="aslot-${domId}">
+      <div class="agenda-time-col">${fmtTime(key)}</div>
       <div class="agenda-body">
+        <div class="agenda-fixed-label${isNow?' now':''}">${slot.label}</div>
         ${autoHTML}${pinnedHTML}
-        <button class="agenda-add-btn" onclick="openAgendaSearch('${hStr}')">+ agregar</button>
-        <div class="agenda-search-panel" id="asp-${hStr}" style="display:none">
-          <input type="text" placeholder="🔍 Buscar tarea..." oninput="searchAgendaSlot('${hStr}',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px 7px 0 0;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
-          <div id="asugg-${hStr}" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
+        <button class="agenda-add-btn" onclick="openAgendaSearch('${key}','${domId}')">+ agregar</button>
+        <div class="agenda-search-panel" id="asp-${domId}" style="display:none">
+          <input type="text" placeholder="🔍 Buscar tarea..." oninput="searchAgendaSlot('${key}','${domId}',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px 7px 0 0;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+          <div id="asugg-${domId}" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
         </div>
       </div>
     </div>`
-  }
+  })
 
   el.innerHTML = html
   const nowSlot = el.querySelector('.agenda-slot.is-now')
