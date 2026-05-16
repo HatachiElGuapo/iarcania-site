@@ -869,6 +869,8 @@ async function checkDateReset(){
   const changed = saved && saved !== now
   const firstRun = !saved
   if(changed || firstRun){
+    // Guardar IDs de tareas de ayer para la alerta post-20/20/20
+    localStorage.setItem('tareas_hoy_ayer', localStorage.getItem('tareas_hoy_ids') || '[]')
     const ayer = new Date(); ayer.setDate(ayer.getDate()-1)
     const ayerStr = ayer.toLocaleDateString('en-CA')
     const deleteDate = changed ? saved : ayerStr
@@ -951,9 +953,10 @@ function renderTasks(){
   const extraIds   = getDashList('extra')
   const extraTasks = extraIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
   renderDashTasksSection('extra-tasks', extraTasks, 'extra')
-  // Sección Tareas: lista completa + vencidas
-  renderTaskList('all-tasks', allTasks)
-  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada')
+  // Sección Tareas: lista sin vencidas + grupo vencidas al final
+  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy')
+  const overdueIds = new Set(overdue.map(t => t.id))
+  renderTaskList('all-tasks', allTasks.filter(t => !overdueIds.has(t.id)))
   renderOverdueTasks(overdue)
   renderAgenda()
   renderCatLegend()
@@ -1186,6 +1189,7 @@ async function toggleHabitoFromDash(activityId){
     await SB_P.from('activity_logs').insert(log70)
     habitLogs['a70'] = log70
     showToast('🔥 ¡20/20/20 completado! Cuerpo y mente listos. A trabajar.')
+    alertarTareasIncompletas()
   } else if(!trioCompleto && habitLogs['a70']){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
     delete habitLogs['a70']
@@ -1271,15 +1275,18 @@ function renderDashTasksSection(elId, tasks, listKey){
   el.innerHTML = tasks.map(t => {
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
+    const isOverdue = t.due_date && t.due_date < TODAY && !done
     const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
     const fecha = t.due_date || null
-    return `<div class="task-item${done?' done':''}" style="border-left-color:${done?'var(--border)':cat.color}">
+    return `<div class="task-item${done?' done':''}" style="border-left-color:${done?'var(--border)':isOverdue?'var(--red)':cat.color}">
       <div class="task-check" onclick="toggleTask('${t.id}')" style="${done?`background:${cat.color};border-color:${cat.color}`:''}cursor:pointer">${done?'✓':''}</div>
       <div class="task-text" onclick="toggleTask('${t.id}')" style="cursor:pointer">
         <div>${t.title}</div>
-        ${(hora||fecha)?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${fecha?'📅 '+fecha:''}${hora?' 🕐'+hora:''}</div>`:''}
+        ${isOverdue?`<div style="font-size:10px;color:var(--red);margin-top:2px">⚠️ Vencida: ${fecha}</div>`:
+          (hora||fecha)?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${fecha?'📅 '+fecha:''}${hora?' 🕐'+hora:''}</div>`:''}
       </div>
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
+      ${isOverdue?`<button class="habito-toggle" onclick="event.stopPropagation();reasignarTarea('${t.id}')" title="Reasignar" style="color:var(--amber);border-color:rgba(239,159,39,.3)">↻</button>`:''}
       <button class="habito-toggle" onclick="removeDashTask('${listKey}','${t.id}')" title="Quitar" style="font-size:15px;color:var(--text-muted)">×</button>
     </div>`
   }).join('')
@@ -1346,6 +1353,18 @@ function renderOverdueTasks(tasks){
 function reasignarTarea(id){
   openEditTask(id)
   setTimeout(() => { document.getElementById('t-due').value = '' }, 50)
+}
+
+function alertarTareasIncompletas(){
+  const ayerIds = JSON.parse(localStorage.getItem('tareas_hoy_ayer') || '[]')
+  if(!ayerIds.length) return
+  const incompletas = ayerIds.filter(id => {
+    const t = allTasks.find(t => t.id === id)
+    return t && t.status !== 'completada'
+  })
+  if(incompletas.length){
+    setTimeout(() => showToast(`⚠️ Quedaron ${incompletas.length} tareas sin completar ayer. Revisa Tareas Vencidas.`, 6000), 4000)
+  }
 }
 
 // --- HÁBITOS RECURRENTES ---
@@ -1957,6 +1976,7 @@ async function toggleHabito(activityId){
     await SB_P.from('activity_logs').insert(log70)
     habitLogs['a70'] = log70
     showToast('🔥 ¡20/20/20 completado! Cuerpo y mente listos. A trabajar.')
+    alertarTareasIncompletas()
   } else if(!trioCompleto && habitLogs['a70']){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
     delete habitLogs['a70']
