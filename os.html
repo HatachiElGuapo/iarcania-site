@@ -176,22 +176,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .habito-toggle{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0}
 .habito-toggle:hover{border-color:var(--gold-dim);color:var(--gold)}
 .habito-group{margin-bottom:1.25rem}
-/* Timeline agenda */
-.timeline{display:flex;flex-direction:column;gap:0;position:relative}
-.timeline::before{content:'';position:absolute;left:52px;top:0;bottom:0;width:1px;background:var(--border);z-index:0}
-.tl-slot{display:flex;gap:0;align-items:flex-start;min-height:44px;position:relative}
-.tl-slot.has-task{min-height:auto}
-.tl-time{width:52px;flex-shrink:0;font-size:11px;font-weight:600;color:var(--text-muted);padding:10px 10px 0 0;text-align:right;line-height:1}
-.tl-time.now{color:var(--gold)}
-.tl-dot{width:10px;height:10px;border-radius:50%;background:var(--border);border:2px solid var(--bg);flex-shrink:0;margin-top:13px;z-index:1;position:relative}
-.tl-dot.has-task{background:var(--purple)}
-.tl-dot.now{background:var(--gold);box-shadow:0 0 6px rgba(201,168,76,0.5)}
-.tl-content{flex:1;padding:6px 0 6px 12px;display:flex;flex-direction:column;gap:5px}
-.tl-fixed{font-size:12px;color:var(--text-muted);padding:8px 0 2px}
-.tl-task{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .15s}
-.tl-task:hover{border-color:rgba(155,114,240,0.3)}
-.tl-task.done{opacity:.4}
-.tl-task.done .tl-task-name{text-decoration:line-through}
 .tl-task-name{font-size:13px;flex:1;color:var(--text)}
 .tl-task-check{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px}
 .tl-add-btn{font-size:11px;color:var(--text-muted);background:transparent;border:1px dashed var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;width:100%;text-align:left;margin-top:2px}
@@ -304,9 +288,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('vencidas',this)">
         <span class="nav-icon">⚠</span>Vencidas
         <span class="nav-badge" id="badge-overdue" style="display:none;background:var(--red)">0</span>
-      </button>
-      <button class="nav-item" onclick="showSection('agenda',this)">
-        <span class="nav-icon">◷</span>Agenda
       </button>
       <button class="nav-item" onclick="showSection('ideas',this)">
         <span class="nav-icon">◇</span>Ideas
@@ -471,7 +452,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Tareas</h1>
           <div class="page-sub">Toca para marcar como completada</div>
         </div>
-        <button class="btn-add" onclick="openNewTask()">+ Nueva tarea</button>
+        <div style="position:relative">
+          <input type="text" id="search-tareas-act" placeholder="🔍 Buscar tarea..." oninput="searchTareasSection(this.value)" style="background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;width:180px">
+          <div id="sugg-tareas-act" style="position:absolute;right:0;top:calc(100% + 2px);width:280px;background:#111;border:1px solid var(--border);border-radius:7px;overflow:hidden;display:none;z-index:50"></div>
+        </div>
+      </div>
+      <!-- Tareas con fecha asignada -->
+      <div id="tareas-con-fecha-wrap" style="display:none;margin-bottom:1.5rem">
+        <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+          📅 Con fecha asignada
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+        <div id="tareas-con-fecha" class="task-list"></div>
       </div>
       <div id="overdue-wrap" style="display:none;margin-bottom:1rem">
         <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:8px">
@@ -495,20 +487,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="btn-add" onclick="openBulkReassign()" style="background:rgba(226,75,74,0.1);border-color:rgba(226,75,74,0.3);color:var(--red)">↻ Reasignar todas</button>
       </div>
       <div id="vencidas-list">
-        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
-      </div>
-    </div>
-
-    <!-- AGENDA -->
-    <div class="section" id="section-agenda">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Agenda</h1>
-          <div class="page-sub" id="agenda-sub">Timeline del día</div>
-        </div>
-        <button class="btn-add" onclick="openNewTask()">+ Nueva tarea</button>
-      </div>
-      <div id="agenda-timeline">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
       </div>
     </div>
@@ -957,7 +935,6 @@ function showSection(id, btn){
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'))
   document.getElementById('section-'+id).classList.add('active')
   btn.classList.add('active')
-  if(id === 'agenda') renderAgenda()
   if(window.innerWidth <= 768) closeSidebar()
 }
 
@@ -985,15 +962,15 @@ function renderTasks(){
   const extraIds   = getDashList('extra')
   const extraTasks = extraIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
   renderDashTasksSection('extra-tasks', extraTasks, 'extra')
-  // Sección Tareas: lista sin vencidas + grupo vencidas al final
+  // Sección Tareas: lista sin vencidas + grupos especiales
   const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy')
   const overdueIds = new Set(overdue.map(t => t.id))
   renderTaskList('all-tasks', allTasks.filter(t => !overdueIds.has(t.id)))
   renderOverdueTasks(overdue)
+  renderTareasConFecha(allTasks)
   renderVencidas(overdue)
   const badgeOv = document.getElementById('badge-overdue')
   if(badgeOv){ badgeOv.textContent = overdue.length; badgeOv.style.display = overdue.length ? 'inline-flex' : 'none' }
-  renderAgenda()
   renderCatLegend()
   update2020Widget()
 }
@@ -1029,151 +1006,6 @@ function renderTaskList(elId, tasks){
       <button class="habito-toggle" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
     </div>`
   }).join('')
-}
-
-function renderAgenda(){
-  const el = document.getElementById('agenda-timeline')
-  if(!el) return
-
-  // Bloques fijos del horario 2026
-  const SCHEDULE = [
-    { time:'03:40', label:'Despertar, cama y agua' },
-    { time:'04:00', label:'Entrenamiento matutino' },
-    { time:'04:40', label:'Baño frío' },
-    { time:'05:00', label:'Meditar' },
-    { time:'05:20', label:'Escritura' },
-    { time:'05:40', label:'Planificación' },
-    { time:'06:00', label:'Trabajo profundo — Autoridad / Sistemas / Ingresos' },
-    { time:'10:00', label:'Tomar sol' },
-    { time:'10:15', label:'Llamar a familiar' },
-    { time:'10:30', label:'Tareas ligeras / administrativas' },
-    { time:'12:00', label:'Almuerzo' },
-    { time:'13:00', label:'Estudio — Desarrollo de ideas / Optimización' },
-    { time:'15:00', label:'Apoyo estratégico a Diana' },
-    { time:'17:00', label:'Limpieza' },
-    { time:'17:30', label:'Descanso' },
-    { time:'18:00', label:'Entrenamiento nocturno' },
-    { time:'18:40', label:'Cenar / estirar cuello' },
-    { time:'19:00', label:'Cenar' },
-    { time:'19:20', label:'Escritura + lista de hábitos' },
-    { time:'19:40', label:'Pieza, ropa y skincare' },
-    { time:'20:00', label:'Dormir' },
-  ]
-
-  // Hora actual
-  const now = new Date()
-  const nowMin = now.getHours()*60 + now.getMinutes()
-  const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m }
-
-  // Tareas del día con hora
-  const todayTasks = allTasks.filter(t => (!t.due_date || t.due_date === TODAY) && t.scheduled_time)
-  const noTimeTasks = allTasks.filter(t => (!t.due_date || t.due_date === TODAY) && !t.scheduled_time && t.status !== 'completada')
-
-  // Agrupar tareas por slot de horario
-  function getSlotForTask(task){
-    const taskMin = toMin(task.scheduled_time.slice(0,5))
-    let slot = SCHEDULE[0].time
-    for(let i = 0; i < SCHEDULE.length; i++){
-      if(toMin(SCHEDULE[i].time) <= taskMin){
-        slot = SCHEDULE[i].time
-      } else { break }
-    }
-    return slot
-  }
-
-  const tasksBySlot = {}
-  todayTasks.forEach(t => {
-    const slot = getSlotForTask(t)
-    if(!tasksBySlot[slot]) tasksBySlot[slot] = []
-    tasksBySlot[slot].push(t)
-  })
-
-  // También agrupar tareas con hora exacta fuera del schedule
-  const standaloneByTime = {}
-  todayTasks.forEach(t => {
-    const tMin = toMin(t.scheduled_time.slice(0,5))
-    const inSchedule = SCHEDULE.some(s => toMin(s.time) === tMin)
-    if(!inSchedule){
-      const key = t.scheduled_time.slice(0,5)
-      if(!standaloneByTime[key]) standaloneByTime[key] = []
-      standaloneByTime[key].push(t)
-    }
-  })
-
-  // Construir todos los slots (schedule + standalone task times)
-  const allSlotTimes = [...new Set([
-    ...SCHEDULE.map(s => s.time),
-    ...Object.keys(standaloneByTime)
-  ])].sort()
-
-  const scheduleMap = {}
-  SCHEDULE.forEach(s => { scheduleMap[s.time] = s.label })
-
-  let html = '<div class="timeline">'
-
-  allSlotTimes.forEach(time => {
-    const slotMin = toMin(time)
-    const isNow = nowMin >= slotMin && nowMin < slotMin + 60
-    const isPast = nowMin > slotMin + 60
-    const tasks = [...(tasksBySlot[time]||[]), ...(standaloneByTime[time]||[])]
-    const hasTask = tasks.length > 0
-    const fixedLabel = scheduleMap[time]
-
-    html += `<div class="tl-slot${hasTask?' has-task':''}">
-      ${isNow ? '<div class="tl-now-line"></div>' : ''}
-      <div class="tl-time${isNow?' now':''}">${time}</div>
-      <div class="tl-dot${hasTask?' has-task':''}${isNow?' now':''}"></div>
-      <div class="tl-content">
-        ${fixedLabel ? `<div class="tl-fixed" style="color:${isPast?'var(--text-muted)':isNow?'var(--gold)':'var(--text-dim)'}">${fixedLabel}</div>` : ''}
-        ${tasks.map(t => {
-          const cat = CATS[t.category] || CATS.habitos
-          const done = t.status === 'completada'
-          return `<div class="tl-task${done?' done':''}" onclick="toggleTask('${t.id}')">
-            <div class="tl-task-check" style="${done?`background:${cat.color};border-color:${cat.color};color:#000`:`border-color:${cat.color}44`}">${done?'✓':''}</div>
-            <span class="tl-task-name">${t.title}</span>
-            <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
-            <button class="habito-toggle" style="font-size:12px" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
-          </div>`
-        }).join('')}
-        <button class="tl-add-btn" onclick="openNewTaskAtTime('${time}')">+ agregar tarea aquí</button>
-      </div>
-    </div>`
-  })
-
-  html += '</div>'
-
-  // Tareas sin hora
-  if(noTimeTasks.length){
-    html += `<div class="no-time-section">
-      <div class="no-time-title">Sin hora asignada</div>
-      <div style="display:flex;flex-direction:column;gap:5px">
-        ${noTimeTasks.map(t => {
-          const cat = CATS[t.category] || CATS.habitos
-          const done = t.status === 'completada'
-          return `<div class="tl-task${done?' done':''}" onclick="toggleTask('${t.id}')">
-            <div class="tl-task-check" style="${done?`background:${cat.color};border-color:${cat.color};color:#000`:`border-color:${cat.color}44`}">${done?'✓':''}</div>
-            <span class="tl-task-name">${t.title}</span>
-            <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
-            <button class="habito-toggle" style="font-size:12px" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
-          </div>`
-        }).join('')}
-      </div>
-    </div>`
-  }
-
-  el.innerHTML = html
-
-  // Scroll al momento actual
-  const nowSlot = el.querySelector('.tl-dot.now')
-  if(nowSlot) setTimeout(() => nowSlot.scrollIntoView({ behavior:'smooth', block:'center' }), 300)
-}
-
-function openNewTaskAtTime(time){
-  openModal('task')
-  setTimeout(() => {
-    document.getElementById('t-due').value = TODAY
-    document.getElementById('t-hora').value = time
-  }, 50)
 }
 
 function showToast(msg, duration=3500){
@@ -1388,6 +1220,60 @@ function renderOverdueTasks(tasks){
 function reasignarTarea(id){
   openEditTask(id)
   setTimeout(() => { document.getElementById('t-due').value = '' }, 50)
+}
+
+// --- TAREAS CON FECHA (sección en Actividades) ---
+function renderTareasConFecha(tasks){
+  const wrap = document.getElementById('tareas-con-fecha-wrap')
+  const el   = document.getElementById('tareas-con-fecha')
+  if(!wrap || !el) return
+  const withDate = tasks
+    .filter(t => t.due_date && t.status !== 'completada')
+    .sort((a, b) => {
+      if(a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date)
+      const aH = a.notes && /^\d{2}:\d{2}$/.test(a.notes.trim()) ? a.notes.trim() : '99:99'
+      const bH = b.notes && /^\d{2}:\d{2}$/.test(b.notes.trim()) ? b.notes.trim() : '99:99'
+      return aH.localeCompare(bH)
+    })
+  wrap.style.display = withDate.length ? 'block' : 'none'
+  if(!withDate.length) return
+  el.innerHTML = withDate.map(t => {
+    const cat = CATS[t.category] || CATS.habitos
+    const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
+    const isOverdue = t.due_date < TODAY
+    return `<div class="task-item" style="border-left-color:${isOverdue?'var(--red)':cat.color}">
+      <div class="task-check" onclick="toggleTask('${t.id}')" style="cursor:pointer"></div>
+      <div class="task-text" onclick="toggleTask('${t.id}')" style="cursor:pointer">
+        <div>${t.title}</div>
+        <div style="font-size:10px;margin-top:2px;display:flex;gap:8px;align-items:center">
+          <span style="color:${isOverdue?'var(--red)':'var(--text-muted)'}">📅 ${t.due_date}</span>
+          ${hora?`<span style="color:var(--text-muted)">🕐 ${hora}</span>`:''}
+          <span style="color:${cat.color}">${cat.label}</span>
+        </div>
+      </div>
+      <button class="habito-toggle" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
+    </div>`
+  }).join('')
+}
+
+function searchTareasSection(query){
+  const sugg = document.getElementById('sugg-tareas-act')
+  if(!sugg) return
+  if(!query.trim()){ sugg.innerHTML=''; sugg.style.display='none'; return }
+  const matches = allTasks
+    .filter(t => t.status !== 'completada' && t.title.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 6)
+  if(!matches.length){ sugg.innerHTML=''; sugg.style.display='none'; return }
+  sugg.style.display = 'block'
+  sugg.innerHTML = matches.map(t => {
+    const cat = CATS[t.category] || CATS.habitos
+    return `<div onclick="openEditTask('${t.id}');document.getElementById('search-tareas-act').value='';document.getElementById('sugg-tareas-act').style.display='none'"
+      style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px">
+      <span style="color:${cat.color};font-size:8px">●</span>
+      <span style="flex:1">${t.title}</span>
+      <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
+    </div>`
+  }).join('')
 }
 
 // --- SECCIÓN VENCIDAS ---
