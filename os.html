@@ -655,6 +655,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <option value="contenido">Contenido</option>
           <option value="proyectos">Proyectos</option>
           <option value="personal">Personal</option>
+          <option value="familia">Familia</option>
           <option value="infra">Infraestructura</option>
           <option value="habitos">Hábitos</option>
         </select>
@@ -762,6 +763,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     </div>
     <div class="field"><label>Lugar (opcional)</label><input type="text" id="bd-location" placeholder="ej. Casa de mamá, Hospital Central"/></div>
     <div class="field"><label>Notas (opcional)</label><input type="text" id="bd-notes" placeholder="ej. Llevar regalo, confirmar asistencia"/></div>
+    <div class="field"><label>Fecha de celebración (opcional)</label><input type="date" id="bd-celeb-date" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('birthday')">Cancelar</button>
       <button class="btn-save" onclick="saveBirthday()">Guardar</button>
@@ -861,6 +863,7 @@ const CATS = {
 
 let USER_ID = null
 let allTasks = []
+let allBirthdays = []
 let allClients = []
 
 // --- AUTH ---
@@ -1651,7 +1654,8 @@ async function loadEventos(){
 // --- BIRTHDAYS ---
 async function loadBirthdays(){
   const { data } = await SB_P.from('birthdays').select('*').order('month').order('day')
-  renderBirthdays(data||[])
+  allBirthdays = data || []
+  renderBirthdays(allBirthdays)
 }
 
 function daysUntil(day, month){
@@ -1677,9 +1681,8 @@ function bdCardHTML(b){
   const label = days === 0 ? '¡Hoy!' : days === 1 ? 'Mañana' : `${days} días`
   const tipo  = FECHA_TIPOS[b.type || b.relationship_type] || FECHA_TIPOS.otro
   const extra = [b.time ? `⏰ ${b.time}` : '', b.location ? `📍 ${b.location}` : ''].filter(Boolean).join(' · ')
-  const autoTaskBtn = days === 0
-    ? `<button onclick="createTaskFromFecha('${b.name}','${b.type||'evento'}')" style="margin-top:8px;width:100%;padding:6px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ Crear tarea para hoy</button>`
-    : ''
+  const celebLine = b.celeb_date ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">🗓 Celebración: ${b.celeb_date}</div>` : ''
+  const taskBtn = `<button onclick="crearTareaDesdefecha('${b.id}')" style="margin-top:8px;width:100%;padding:6px;background:rgba(155,114,240,0.1);border:1px solid rgba(155,114,240,0.3);border-radius:6px;color:var(--purple);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">📋 Crear tarea</button>`
   return `<div class="bd-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <div class="bd-name">${b.name}</div>
@@ -1688,8 +1691,9 @@ function bdCardHTML(b){
     <div class="bd-date">${b.relationship || b.relationship_type || ''} · ${b.day}/${b.month}</div>
     ${extra ? `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${extra}</div>` : ''}
     ${b.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;font-style:italic">${b.notes}</div>` : ''}
+    ${celebLine}
     <span class="bd-days pill ${cls}" style="margin-top:6px;display:inline-block">${label}</span>
-    ${autoTaskBtn}
+    ${taskBtn}
   </div>`
 }
 
@@ -1744,16 +1748,33 @@ function renderBirthdays(bds){
   }
 }
 
-async function createTaskFromFecha(nombre, tipo){
-  const title = `${FECHA_TIPOS[tipo]?.label||'📅'} ${nombre}`
-  const id = 'task_'+Date.now()
-  await SB_P.from('tasks').insert({
-    id, title, category:'familia', color:'#f472b6',
-    priority:'alta', due_date: TODAY,
-    assigned_to: USER_ID, created_by: USER_ID, status:'pendiente'
-  })
-  showToast(`✅ Tarea creada: ${title}`)
-  await loadTasks()
+function crearTareaDesdefecha(bdId){
+  const b = allBirthdays.find(x => x.id === bdId)
+  if(!b) return
+  const tipo = b.type || b.relationship_type || 'evento'
+  const TITLES = {
+    cumpleanos:  `🎂 Cumpleaños de ${b.name}`,
+    especial:    `⭐ Celebración de ${b.name}`,
+    aniversario: `💜 Aniversario de ${b.name}`,
+    cita:        `🏥 Cita con ${b.name}`,
+    pago:        `💰 Pago: ${b.name}`,
+    evento:      `🎉 Evento: ${b.name}`,
+  }
+  const CATS_BY_TYPE = {
+    cumpleanos: 'familia', aniversario: 'familia', especial: 'personal',
+    cita: 'personal', pago: 'iarcania', evento: 'personal',
+  }
+  const title = TITLES[tipo] || `📅 ${b.name}`
+  const cat   = CATS_BY_TYPE[tipo] || 'personal'
+  document.getElementById('modal-task-title').textContent = 'Nueva tarea'
+  document.getElementById('t-id').value = ''
+  document.getElementById('t-title').value = title
+  document.getElementById('t-cat').value = cat
+  document.getElementById('t-priority').value = 'alta'
+  document.getElementById('t-due').value = ''
+  document.getElementById('t-time').value = ''
+  document.getElementById('task-delete-btn').style.display = 'none'
+  openModal('task')
 }
 
 async function saveBirthday(){
@@ -1771,10 +1792,11 @@ async function saveBirthday(){
     time: document.getElementById('bd-time').value || null,
     location: document.getElementById('bd-location').value.trim() || null,
     notes: document.getElementById('bd-notes').value.trim() || null,
+    celeb_date: document.getElementById('bd-celeb-date').value || null,
     reminder_days_before: parseInt(document.getElementById('bd-reminder').value)||3
   })
   closeModal('birthday')
-  ;['bd-name','bd-rel','bd-time','bd-location','bd-notes'].forEach(id => { document.getElementById(id).value = '' })
+  ;['bd-name','bd-rel','bd-time','bd-location','bd-notes','bd-celeb-date'].forEach(id => { document.getElementById(id).value = '' })
   document.getElementById('bd-reminder').value = '3'
   await loadBirthdays()
 }
