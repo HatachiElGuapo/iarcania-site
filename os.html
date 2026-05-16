@@ -2596,7 +2596,7 @@ function renderScripts(){
   if(!el) return
   const filtered = scriptsFilter === 'all' ? allScripts : allScripts.filter(s => s.canal === scriptsFilter)
   if(!filtered.length){
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎬</div>Sin guiones todavía</div>'
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎬</div>No hay guiones todavía — crea el primero</div>'
     return
   }
   const CANAL_COLORS = { iarcania:'#E24B4A', voidstoic:'#8B6CF6' }
