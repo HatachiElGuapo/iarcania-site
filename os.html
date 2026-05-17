@@ -436,7 +436,19 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
             </div>
 
-            <!-- Rutina nocturna colapsable — 4º -->
+            <!-- Trabajo colapsable — 4º -->
+            <div class="dash-section" style="border-color:rgba(201,168,76,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('trabajo')">
+                <span style="font-size:13px;font-weight:600;color:var(--gold)">💼 Trabajo</span>
+                <span class="dash-arrow" id="dash-trabajo-arrow">▼</span>
+              </div>
+              <div class="dash-section-body" id="dash-trabajo-body">
+                <div id="dash-trabajo-items"><div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div></div>
+                <div style="font-size:11px;color:var(--text-muted);padding:6px 2px 2px;font-style:italic">No negociable entre semana</div>
+              </div>
+            </div>
+
+            <!-- Rutina nocturna colapsable — 5º -->
             <div class="dash-section" style="border-color:rgba(55,138,221,0.2)">
               <div class="dash-section-hdr" onclick="toggleDashSection('noche')">
                 <span style="font-size:13px;font-weight:600;color:#378ADD">🌙 Rutina nocturna</span>
@@ -444,17 +456,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
               <div class="dash-section-body collapsed" id="dash-noche-body">
                 <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
-              </div>
-            </div>
-
-            <!-- Guión del día colapsable — 5º -->
-            <div class="dash-section" style="border-color:rgba(239,159,39,0.2)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('guion')">
-                <span style="font-size:13px;font-weight:600;color:#EF9F27">🎬 Guión del día</span>
-                <span class="dash-arrow" id="dash-guion-arrow">▼</span>
-              </div>
-              <div class="dash-section-body collapsed" id="dash-guion-body">
-                <div id="dash-guion-content"><div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div></div>
               </div>
             </div>
 
@@ -1146,7 +1147,6 @@ async function initApp(){
   checkDateReset()
   setInterval(checkDateReset, 60000)
   await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts()])
-  loadGuionDelDia()
 }
 
 function setDate(){
@@ -1452,6 +1452,7 @@ function update2020Widget(){
     wrap.classList.toggle('tasks-locked', !trioCompleto)
   }
   renderDespertarDash()
+  renderTrabajoDash()
   renderRutinaNocturnaDash()
 }
 
@@ -1521,6 +1522,24 @@ function renderDespertarDash(){
     const done = !!habitLogs[a.id]
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#FFD166;border-color:#FFD166;color:#000':'border-color:rgba(255,209,102,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+    </div>`
+  }).join('')
+}
+
+function renderTrabajoDash(){
+  const el = document.getElementById('dash-trabajo-items')
+  if(!el) return
+  const ids = ['a68', 'a72']
+  const acts = allActivities.filter(a => ids.includes(a.id) && a.is_active)
+  if(!acts.length){
+    el.innerHTML = '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades de trabajo configuradas</div>'
+    return
+  }
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
     </div>`
   }).join('')
@@ -2478,6 +2497,7 @@ async function toggleHabito(activityId){
   renderHabitos()
   update2020Widget()
   renderDespertarDash()
+  renderTrabajoDash()
 }
 
 async function toggleActive(activityId, currentState){
