@@ -795,12 +795,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="page-header">
         <div>
           <h1 class="page-title">💸 Gastos</h1>
-          <div class="page-sub">Gastos personales del mes</div>
         </div>
         <button class="btn-add" onclick="openModalGasto()">+ Nuevo gasto</button>
       </div>
-      <div id="gastos-resumen" style="margin-bottom:1.2rem"></div>
-      <div id="gastos-list">
+      <div id="gastos-content">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
       </div>
     </div>
@@ -1133,12 +1131,14 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     </div>
     <div class="field"><label>Categoría</label>
       <select id="g-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
-        <option value="comida">🍽️ Comida</option>
-        <option value="transporte">🚌 Transporte</option>
-        <option value="servicios">💡 Servicios</option>
-        <option value="salud">🏥 Salud</option>
-        <option value="ocio">🎮 Ocio</option>
-        <option value="otro">📦 Otro</option>
+        <option value="mercado">🛒 Mercado</option>
+        <option value="restaurantes">🍽️ Restaurantes</option>
+        <option value="transporte">🚗 Transporte</option>
+        <option value="servicios">⚡ Servicios</option>
+        <option value="salud">💊 Salud</option>
+        <option value="tecnologia">💻 Tecnología</option>
+        <option value="hogar">🏠 Hogar</option>
+        <option value="otros">📦 Otros</option>
       </select>
     </div>
     <div class="field"><label>Descripción</label><input type="text" id="g-desc" placeholder="¿En qué gastaste?"/></div>
@@ -3829,13 +3829,17 @@ setInterval(updateClock, 1000)
 
 // --- GASTOS ---
 let allExpenses = []
+let _gastoFiltro = 'mes'
+
 const GASTO_CATS = {
-  comida:      { label:'Comida',      icon:'🍽️' },
-  transporte:  { label:'Transporte',  icon:'🚌' },
-  servicios:   { label:'Servicios',   icon:'💡' },
-  salud:       { label:'Salud',       icon:'🏥' },
-  ocio:        { label:'Ocio',        icon:'🎮' },
-  otro:        { label:'Otro',        icon:'📦' },
+  mercado:      { label:'Mercado',      icon:'🛒' },
+  restaurantes: { label:'Restaurantes', icon:'🍽️' },
+  transporte:   { label:'Transporte',   icon:'🚗' },
+  servicios:    { label:'Servicios',    icon:'⚡' },
+  salud:        { label:'Salud',        icon:'💊' },
+  tecnologia:   { label:'Tecnología',   icon:'💻' },
+  hogar:        { label:'Hogar',        icon:'🏠' },
+  otros:        { label:'Otros',        icon:'📦' },
 }
 
 async function loadExpenses(){
@@ -3844,65 +3848,148 @@ async function loadExpenses(){
   renderExpenses()
 }
 
+function setGastoFiltro(f){ _gastoFiltro = f; renderExpenses() }
+
+function getGastoRange(){
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth()
+  if(_gastoFiltro === 'mes')     return { start: new Date(y,m,1).toISOString().slice(0,10),   end: new Date(y,m+1,0).toISOString().slice(0,10) }
+  if(_gastoFiltro === 'mes_ant') return { start: new Date(y,m-1,1).toISOString().slice(0,10), end: new Date(y,m,0).toISOString().slice(0,10) }
+  if(_gastoFiltro === '3meses')  return { start: new Date(y,m-2,1).toISOString().slice(0,10), end: new Date(y,m+1,0).toISOString().slice(0,10) }
+  return { start: null, end: null }
+}
+
+function filteredExpenses(){
+  const { start, end } = getGastoRange()
+  if(!start) return allExpenses
+  return allExpenses.filter(e => e.date && e.date >= start && e.date <= end)
+}
+
 function renderExpenses(){
-  const resumenEl = document.getElementById('gastos-resumen')
-  const listEl    = document.getElementById('gastos-list')
-  if(!resumenEl || !listEl) return
+  const el = document.getElementById('gastos-content')
+  if(!el) return
+  const fmt = n => '$' + Number(n).toLocaleString('es-CO')
+  const filtered = filteredExpenses()
 
-  const now = new Date()
-  const mesActual = now.toISOString().slice(0,7)
-  const delMes = allExpenses.filter(e => (e.date||'').startsWith(mesActual))
+  // TABS
+  const TABS = [{id:'mes',label:'Este mes'},{id:'mes_ant',label:'Mes anterior'},{id:'3meses',label:'Últimos 3 meses'},{id:'todo',label:'Todo'}]
+  const tabsHtml = `<div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
+    ${TABS.map(t => {
+      const a = _gastoFiltro === t.id
+      return `<button onclick="setGastoFiltro('${t.id}')" style="flex:1;padding:8px 4px;border:none;border-right:1px solid var(--border);background:${a?'#161616':'transparent'};color:${a?'var(--gold)':'var(--text-muted)'};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:${a?'600':'400'}">${t.label}</button>`
+    }).join('')}
+  </div>`
 
-  const total = delMes.reduce((s, e) => s + Number(e.amount||0), 0)
-  const fmt = n => '$'+Number(n).toLocaleString('es-CO')
-
-  // Resumen por categoría
+  // RESUMEN
+  const total = filtered.reduce((s,e) => s + Number(e.amount||0), 0)
+  const { start, end } = getGastoRange()
+  const fmtShort = d => new Date(d+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'})
+  const periodoLabel = start ? `${fmtShort(start)} — ${fmtShort(end)}` : 'Todos los gastos'
   const porCat = {}
-  delMes.forEach(e => {
-    const c = e.category || 'otro'
-    porCat[c] = (porCat[c]||0) + Number(e.amount||0)
-  })
-  const catBadges = Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([c,t]) => {
+  filtered.forEach(e => { const c = e.category||'otros'; porCat[c] = (porCat[c]||0) + Number(e.amount||0) })
+  const catEntries = Object.entries(porCat).sort((a,b) => b[1]-a[1])
+  const catGrid = catEntries.map(([c,t]) => {
     const {label,icon} = GASTO_CATS[c] || {label:c,icon:'📦'}
-    return `<div style="background:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px">
-      <div style="color:var(--text-muted)">${icon} ${label}</div>
-      <div style="color:var(--red);font-weight:700;font-size:14px;margin-top:2px">${fmt(t)}</div>
+    const pct = total > 0 ? Math.round(t/total*100) : 0
+    return `<div style="background:#0E0E0E;border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:12px;color:var(--text-muted)">${icon} ${label}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${pct}%</span>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:6px">${fmt(t)}</div>
+      <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px">
+        <div style="height:100%;width:${pct}%;background:var(--red);border-radius:2px"></div>
+      </div>
+    </div>`
+  }).join('')
+  const resumenHtml = `<div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px${catGrid?';margin-bottom:14px':''}">
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">${periodoLabel}</div>
+        <div style="font-size:34px;font-weight:700;color:var(--red);font-family:'Playfair Display',serif;line-height:1">${fmt(total)}</div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)">${filtered.length} gasto${filtered.length!==1?'s':''}</div>
+    </div>
+    ${catGrid ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${catGrid}</div>` : ''}
+  </div>`
+
+  // CHART — últimos 6 meses (visible en 'todo' y '3meses')
+  let chartHtml = ''
+  if(_gastoFiltro === 'todo' || _gastoFiltro === '3meses'){
+    const numM = _gastoFiltro === '3meses' ? 3 : 6
+    const now = new Date()
+    const months = Array.from({length:numM},(_,i) => {
+      const d = new Date(now.getFullYear(), now.getMonth()-(numM-1-i), 1)
+      const key = d.toISOString().slice(0,7)
+      const label = d.toLocaleDateString('es-CO',{month:'short'})
+      const sum = allExpenses.filter(e => (e.date||'').startsWith(key)).reduce((s,e) => s+Number(e.amount||0), 0)
+      return { key, label, sum }
+    })
+    const maxSum = Math.max(...months.map(m => m.sum), 1)
+    const bars = months.map(m => {
+      const pct = Math.max(Math.round(m.sum/maxSum*100), m.sum>0?3:0)
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
+        <div style="font-size:9px;color:var(--text-muted);height:20px;display:flex;align-items:flex-end;text-align:center">${m.sum>0?fmt(m.sum).replace('$',''):'—'}</div>
+        <div style="width:100%;height:70px;display:flex;align-items:flex-end">
+          <div style="width:100%;height:${pct}%;background:${m.sum>0?'var(--red)':'rgba(255,255,255,0.05)'};border-radius:3px 3px 0 0;min-height:${m.sum>0?'3px':'0'}"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:capitalize">${m.label}</div>
+      </div>`
+    }).join('')
+    chartHtml = `<div class="card" style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Gasto por mes</div>
+      <div style="display:flex;gap:6px;align-items:flex-end">${bars}</div>
+    </div>`
+  }
+
+  // LIST agrupada por semana
+  if(!filtered.length){
+    el.innerHTML = tabsHtml + resumenHtml + chartHtml +
+      `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Sin gastos en este período.</div>`
+    return
+  }
+  const weekMap = {}
+  filtered.forEach(e => {
+    if(!e.date) return
+    const d = new Date(e.date+'T12:00:00')
+    const day = d.getDay()
+    const mon = new Date(d); mon.setDate(d.getDate() + (day===0?-6:1-day))
+    const key = mon.toISOString().slice(0,10)
+    if(!weekMap[key]) weekMap[key] = { mon, items:[] }
+    weekMap[key].items.push(e)
+  })
+  const fmtLong = d => d.toLocaleDateString('es-CO',{day:'numeric',month:'long'})
+  const listHtml = Object.entries(weekMap).sort((a,b) => b[0].localeCompare(a[0])).map(([,w]) => {
+    const sun = new Date(w.mon); sun.setDate(w.mon.getDate()+6)
+    const weekTotal = w.items.reduce((s,e) => s+Number(e.amount||0), 0)
+    const rows = w.items.map(e => {
+      const {icon,label} = GASTO_CATS[e.category] || {icon:'📦',label:'Otros'}
+      const fecha = new Date(e.date+'T12:00:00').toLocaleDateString('es-CO',{weekday:'short',day:'2-digit',month:'short'})
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <span style="font-size:16px;width:20px;text-align:center">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.description||label}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${fecha} · ${label}</div>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--red);white-space:nowrap">${fmt(e.amount)}</div>
+        <button onclick="deleteGasto('${e.id}')" style="background:transparent;border:none;color:rgba(255,255,255,0.18);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='rgba(255,255,255,0.18)'">🗑️</button>
+      </div>`
+    }).join('')
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;padding:5px 2px;margin-bottom:4px">
+        <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Semana del ${fmtLong(w.mon)} al ${fmtLong(sun)}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--red)">${fmt(weekTotal)}</span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">${rows}</div>
     </div>`
   }).join('')
 
-  resumenEl.innerHTML = `
-    <div class="card" style="margin-bottom:0">
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Total este mes</div>
-      <div style="font-size:32px;font-weight:700;color:var(--red);font-family:'Playfair Display',serif">${fmt(total)}</div>
-      ${catBadges ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">${catBadges}</div>` : ''}
-    </div>`
-
-  if(!allExpenses.length){
-    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px 0">Sin gastos registrados.</div>'
-    return
-  }
-
-  listEl.innerHTML = `<div class="card" style="padding:0;overflow:hidden">` +
-    allExpenses.map(e => {
-      const {icon} = GASTO_CATS[e.category] || {icon:'📦'}
-      const fecha = e.date ? new Date(e.date+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '—'
-      const esMes = (e.date||'').startsWith(mesActual)
-      return `<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">
-        <span style="font-size:18px">${icon}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.description||'—'}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${fecha} · ${(GASTO_CATS[e.category]?.label||'Otro')}</div>
-        </div>
-        <div style="font-size:14px;font-weight:700;color:${esMes?'var(--red)':'var(--text-muted)'};white-space:nowrap">${fmt(e.amount)}</div>
-        <button onclick="deleteGasto('${e.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;line-height:1">🗑️</button>
-      </div>`
-    }).join('') + '</div>'
+  el.innerHTML = tabsHtml + resumenHtml + chartHtml + listHtml
 }
 
 function openModalGasto(){
   document.getElementById('g-amount').value = ''
   document.getElementById('g-desc').value = ''
-  document.getElementById('g-cat').value = 'comida'
+  document.getElementById('g-cat').value = 'mercado'
   document.getElementById('g-date').value = TODAY
   document.getElementById('modal-gasto').classList.add('open')
 }
