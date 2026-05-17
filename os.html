@@ -380,97 +380,150 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="grid-2">
         <div>
           <div class="card">
-            <div class="card-title">Actividades de hoy</div>
-
-            <!-- Despertar colapsable — 1º -->
-            <div class="dash-section" style="border-color:rgba(255,209,102,0.2)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('despertar')">
-                <span style="font-size:13px;font-weight:600;color:#FFD166">🌅 Despertar</span>
-                <span class="dash-arrow" id="dash-despertar-arrow">▼</span>
-              </div>
-              <div class="dash-section-body" id="dash-despertar-body">
-                <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
-              </div>
+            <!-- Selector de vista -->
+            <div style="display:flex;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+              <button id="dash-btn-rutinas" onclick="switchDashView('rutinas')" style="flex:1;padding:9px 0;background:#161616;color:var(--gold);border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer">🌅 Rutinas</button>
+              <button id="dash-btn-trabajo" onclick="switchDashView('trabajo')" style="flex:1;padding:9px 0;background:transparent;color:var(--text-muted);border:none;border-left:1px solid var(--border);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer">💼 Trabajo</button>
             </div>
 
-            <!-- 20/20/20 colapsable — 2º -->
-            <div class="dash-section" style="border-color:rgba(0,194,255,0.25)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('2020')" style="background:linear-gradient(135deg,rgba(0,194,255,0.08),rgba(0,194,255,0.02))">
-                <span class="ritual-badge" id="ritual-badge">🔄 20/20/20</span>
-                <span style="font-size:11px;color:var(--text-muted);flex:1">Completa las 3 para desbloquear</span>
-                <span class="dash-arrow" id="dash-2020-arrow">▼</span>
-              </div>
-              <div class="dash-section-body" id="dash-2020-body" style="background:rgba(0,194,255,0.02)">
-                <div class="ritual-item" id="r-a35" onclick="toggleHabitoFromDash('a35')">
-                  <div class="ritual-check" id="rc-a35"></div>
-                  <span class="ritual-label">1000 saltos</span>
-                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+            <!-- ══ VISTA RUTINAS ══ -->
+            <div id="dash-view-rutinas">
+
+              <!-- 1. Despertar -->
+              <div class="dash-section" style="border-color:rgba(255,209,102,0.2)">
+                <div class="dash-section-hdr" onclick="toggleDashSection('despertar')">
+                  <span style="font-size:13px;font-weight:600;color:#FFD166">🌅 Despertar</span>
+                  <span class="dash-arrow" id="dash-despertar-arrow">▼</span>
                 </div>
-                <div class="ritual-item" id="r-a14" onclick="toggleHabitoFromDash('a14')">
-                  <div class="ritual-check" id="rc-a14"></div>
-                  <span class="ritual-label">Baño frío</span>
-                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
-                </div>
-                <div class="ritual-item" id="r-a02" onclick="toggleHabitoFromDash('a02')">
-                  <div class="ritual-check" id="rc-a02"></div>
-                  <span class="ritual-label">Meditar</span>
-                  <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                <div class="dash-section-body" id="dash-despertar-body">
+                  <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
                 </div>
               </div>
-            </div>
 
-            <!-- Mis 5 tareas de hoy colapsable — 3º -->
-            <div class="dash-section">
-              <div class="dash-section-hdr" onclick="toggleDashSection('today')">
-                <span style="font-size:13px;font-weight:600;color:var(--text-dim)">📋 Mis 5 tareas de hoy</span>
-                <span class="dash-arrow" id="dash-today-arrow">▼</span>
-              </div>
-              <div class="dash-section-body" id="dash-today-body">
-                <div id="dashboard-tasks-wrap">
-                  <div class="task-list" id="dashboard-tasks"></div>
+              <!-- 2. 20/20/20 (Rutinas) — bloqueado hasta completar Despertar -->
+              <div class="dash-section" style="border-color:rgba(0,194,255,0.25);position:relative">
+                <div class="dash-section-hdr" onclick="toggleDashSection('2020')" style="background:linear-gradient(135deg,rgba(0,194,255,0.08),rgba(0,194,255,0.02))">
+                  <span class="ritual-badge" id="ritual-badge">🔄 20/20/20</span>
+                  <span style="font-size:11px;color:var(--text-muted);flex:1">Completa las 3 para desbloquear tareas</span>
+                  <span class="dash-arrow" id="dash-2020-arrow">▼</span>
                 </div>
-                <div style="padding:6px 0 2px">
-                  <input type="text" id="search-hoy" placeholder="🔍 Buscar tarea para agregar..." oninput="searchDashTask('hoy',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
-                  <div id="sugg-hoy" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
+                <div class="dash-section-body" id="dash-2020-body" style="background:rgba(0,194,255,0.02)">
+                  <div class="ritual-item" id="r-a35" onclick="toggleHabitoFromDash('a35')">
+                    <div class="ritual-check" id="rc-a35"></div>
+                    <span class="ritual-label">1000 saltos</span>
+                    <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                  </div>
+                  <div class="ritual-item" id="r-a14" onclick="toggleHabitoFromDash('a14')">
+                    <div class="ritual-check" id="rc-a14"></div>
+                    <span class="ritual-label">Baño frío</span>
+                    <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                  </div>
+                  <div class="ritual-item" id="r-a02" onclick="toggleHabitoFromDash('a02')">
+                    <div class="ritual-check" id="rc-a02"></div>
+                    <span class="ritual-label">Meditar</span>
+                    <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                  </div>
+                </div>
+                <div id="overlay-2020-r" style="display:none;position:absolute;inset:0;background:rgba(6,6,9,0.88);border-radius:10px;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);z-index:2;pointer-events:auto;text-align:center;padding:12px">⚠️ Completa Despertar primero</div>
+              </div>
+
+              <!-- 3. Rutina matutina -->
+              <div class="dash-section" style="border-color:rgba(201,168,76,0.15)">
+                <div class="dash-section-hdr" onclick="toggleDashSection('matutina')">
+                  <span style="font-size:13px;font-weight:600;color:#C4A35A">☀️ Rutina matutina</span>
+                  <span class="dash-arrow" id="dash-matutina-arrow">▼</span>
+                </div>
+                <div class="dash-section-body" id="dash-matutina-body">
+                  <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
                 </div>
               </div>
-            </div>
 
-            <!-- Trabajo colapsable — 4º -->
-            <div class="dash-section" style="border-color:rgba(201,168,76,0.2)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('trabajo')">
-                <span style="font-size:13px;font-weight:600;color:var(--gold)">💼 Trabajo</span>
-                <span class="dash-arrow" id="dash-trabajo-arrow">▼</span>
+              <!-- 4. Alimentación -->
+              <div class="dash-section" style="border-color:rgba(93,202,165,0.2)">
+                <div class="dash-section-hdr" onclick="toggleDashSection('comida')">
+                  <span style="font-size:13px;font-weight:600;color:#5DCAA5">🍽️ Alimentación</span>
+                  <span class="dash-arrow" id="dash-comida-arrow">▼</span>
+                </div>
+                <div class="dash-section-body collapsed" id="dash-comida-body">
+                  <div id="dash-comida-content"></div>
+                </div>
               </div>
-              <div class="dash-section-body" id="dash-trabajo-body">
-                <div id="dash-trabajo-items"><div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div></div>
-                <div style="font-size:11px;color:var(--text-muted);padding:6px 2px 2px;font-style:italic">No negociable entre semana</div>
-              </div>
-            </div>
 
-            <!-- Alimentación colapsable — 5º -->
-            <div class="dash-section" style="border-color:rgba(93,202,165,0.2)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('comida')">
-                <span style="font-size:13px;font-weight:600;color:#5DCAA5">🍽️ Alimentación</span>
-                <span class="dash-arrow" id="dash-comida-arrow">▼</span>
+              <!-- 5. Rutina nocturna -->
+              <div class="dash-section" style="border-color:rgba(55,138,221,0.2)">
+                <div class="dash-section-hdr" onclick="toggleDashSection('noche')">
+                  <span style="font-size:13px;font-weight:600;color:#378ADD">🌙 Rutina nocturna</span>
+                  <span class="dash-arrow" id="dash-noche-arrow">▼</span>
+                </div>
+                <div class="dash-section-body collapsed" id="dash-noche-body">
+                  <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
+                </div>
               </div>
-              <div class="dash-section-body collapsed" id="dash-comida-body">
-                <div id="dash-comida-content"></div>
-              </div>
-            </div>
 
-            <!-- Rutina nocturna colapsable — 6º -->
-            <div class="dash-section" style="border-color:rgba(55,138,221,0.2)">
-              <div class="dash-section-hdr" onclick="toggleDashSection('noche')">
-                <span style="font-size:13px;font-weight:600;color:#378ADD">🌙 Rutina nocturna</span>
-                <span class="dash-arrow" id="dash-noche-arrow">▼</span>
-              </div>
-              <div class="dash-section-body collapsed" id="dash-noche-body">
-                <div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div>
-              </div>
-            </div>
+            </div><!-- /dash-view-rutinas -->
 
-            <!-- Tareas extra colapsable — 6º -->
+            <!-- ══ VISTA TRABAJO ══ -->
+            <div id="dash-view-trabajo" style="display:none">
+
+              <!-- 1. 20/20/20 (Trabajo) — bloqueado hasta completar Despertar -->
+              <div class="dash-section" style="border-color:rgba(0,194,255,0.25);position:relative">
+                <div class="dash-section-hdr" onclick="toggleDashSection('2020t')" style="background:linear-gradient(135deg,rgba(0,194,255,0.08),rgba(0,194,255,0.02))">
+                  <span class="ritual-badge" id="ritual-badge-t">🔄 20/20/20</span>
+                  <span style="font-size:11px;color:var(--text-muted);flex:1">Completa las 3 para desbloquear tareas</span>
+                  <span class="dash-arrow" id="dash-2020t-arrow">▼</span>
+                </div>
+                <div class="dash-section-body" id="dash-2020t-body" style="background:rgba(0,194,255,0.02)">
+                  <div class="ritual-item" id="rt-a35" onclick="toggleHabitoFromDash('a35')">
+                    <div class="ritual-check" id="rct-a35"></div>
+                    <span class="ritual-label">1000 saltos</span>
+                    <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                  </div>
+                  <div class="ritual-item" id="rt-a14" onclick="toggleHabitoFromDash('a14')">
+                    <div class="ritual-check" id="rct-a14"></div>
+                    <span class="ritual-label">Baño frío</span>
+                    <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                  </div>
+                  <div class="ritual-item" id="rt-a02" onclick="toggleHabitoFromDash('a02')">
+                    <div class="ritual-check" id="rct-a02"></div>
+                    <span class="ritual-label">Meditar</span>
+                    <span style="font-size:10px;color:var(--text-muted)">20 min</span>
+                  </div>
+                </div>
+                <div id="overlay-2020-t" style="display:none;position:absolute;inset:0;background:rgba(6,6,9,0.88);border-radius:10px;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);z-index:2;pointer-events:auto;text-align:center;padding:12px">⚠️ Completa Despertar primero</div>
+              </div>
+
+              <!-- 2. Mis 5 tareas de hoy -->
+              <div class="dash-section">
+                <div class="dash-section-hdr" onclick="toggleDashSection('today')">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-dim)">📋 Mis 5 tareas de hoy</span>
+                  <span class="dash-arrow" id="dash-today-arrow">▼</span>
+                </div>
+                <div class="dash-section-body" id="dash-today-body">
+                  <div id="dashboard-tasks-wrap">
+                    <div class="task-list" id="dashboard-tasks"></div>
+                  </div>
+                  <div style="padding:6px 0 2px">
+                    <input type="text" id="search-hoy" placeholder="🔍 Buscar tarea para agregar..." oninput="searchDashTask('hoy',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+                    <div id="sugg-hoy" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Trabajo -->
+              <div class="dash-section" style="border-color:rgba(201,168,76,0.2)">
+                <div class="dash-section-hdr" onclick="toggleDashSection('trabajo')">
+                  <span style="font-size:13px;font-weight:600;color:var(--gold)">💼 Trabajo</span>
+                  <span class="dash-arrow" id="dash-trabajo-arrow">▼</span>
+                </div>
+                <div class="dash-section-body" id="dash-trabajo-body">
+                  <div id="dash-trabajo-items"><div class="loading" style="padding:6px 0"><div class="spinner" style="width:14px;height:14px;border-width:1.5px;margin-bottom:0"></div></div></div>
+                  <div style="font-size:11px;color:var(--text-muted);padding:6px 2px 2px;font-style:italic">No negociable entre semana</div>
+                </div>
+              </div>
+
+            </div><!-- /dash-view-trabajo -->
+
+            <!-- ══ SIEMPRE VISIBLE ══ -->
             <div class="dash-section" style="border-color:rgba(139,108,246,0.2)">
               <div class="dash-section-hdr" onclick="toggleDashSection('extra')">
                 <span style="font-size:13px;font-weight:600;color:#8B6CF6">⚡ Tareas extra</span>
@@ -1157,6 +1210,7 @@ async function initApp(){
   setInterval(updateClock, 1000)
   checkDateReset()
   setInterval(checkDateReset, 60000)
+  switchDashView(localStorage.getItem('dashboard_view') || 'rutinas')
   await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts()])
 }
 
@@ -1443,26 +1497,34 @@ function showToast(msg, duration=3500){
 
 function update2020Widget(){
   const trio = ['a35','a14','a02']
-  trio.forEach(id => {
-    const done = !!habitLogs[id]
-    const item = document.getElementById('r-'+id)
-    const check = document.getElementById('rc-'+id)
-    if(!item) return
-    item.classList.toggle('done', done)
-    check.classList.toggle('done', done)
-    check.textContent = done ? '✓' : ''
-  })
   const trioCompleto = trio.every(id => !!habitLogs[id])
-  const badge = document.getElementById('ritual-badge')
-  if(badge){
-    badge.classList.toggle('done', trioCompleto)
-    badge.textContent = trioCompleto ? '✅ 20/20/20 Completado' : '🔄 20/20/20'
-  }
+  const despertarCompleto = ['a09','a13','a07'].every(id => !!habitLogs[id])
+
+  // Update both 20/20/20 blocks (Rutinas + Trabajo)
+  ;[{pfx:'r-', cpfx:'rc-', badge:'ritual-badge', overlay:'overlay-2020-r'},
+    {pfx:'rt-',cpfx:'rct-',badge:'ritual-badge-t',overlay:'overlay-2020-t'}].forEach(({pfx,cpfx,badge:badgeId,overlay:ovId}) => {
+    trio.forEach(id => {
+      const done = !!habitLogs[id]
+      const item  = document.getElementById(pfx+id)
+      const check = document.getElementById(cpfx+id)
+      if(!item) return
+      item.classList.toggle('done', done)
+      check.classList.toggle('done', done)
+      check.textContent = done ? '✓' : ''
+    })
+    const badge = document.getElementById(badgeId)
+    if(badge){
+      badge.classList.toggle('done', trioCompleto)
+      badge.textContent = trioCompleto ? '✅ 20/20/20 Completado' : '🔄 20/20/20'
+    }
+    const ov = document.getElementById(ovId)
+    if(ov){ ov.style.display = despertarCompleto ? 'none' : 'flex' }
+  })
+
   const wrap = document.getElementById('dashboard-tasks-wrap')
-  if(wrap){
-    wrap.classList.toggle('tasks-locked', !trioCompleto)
-  }
+  if(wrap) wrap.classList.toggle('tasks-locked', !trioCompleto)
   renderDespertarDash()
+  renderMatutinaDash()
   renderTrabajoDash()
   renderRutinaNocturnaDash()
 }
@@ -1519,6 +1581,36 @@ function toggleDashSection(id){
   if(!body) return
   body.classList.toggle('collapsed')
   arrow.classList.toggle('up')
+}
+
+function switchDashView(view){
+  localStorage.setItem('dashboard_view', view)
+  document.getElementById('dash-view-rutinas').style.display = view === 'rutinas' ? 'block' : 'none'
+  document.getElementById('dash-view-trabajo').style.display = view === 'trabajo' ? 'block' : 'none'
+  const btnR = document.getElementById('dash-btn-rutinas')
+  const btnT = document.getElementById('dash-btn-trabajo')
+  if(btnR){ btnR.style.background = view==='rutinas'?'#161616':'transparent'; btnR.style.color = view==='rutinas'?'var(--gold)':'var(--text-muted)' }
+  if(btnT){ btnT.style.background = view==='trabajo'?'#161616':'transparent'; btnT.style.color = view==='trabajo'?'var(--gold)':'var(--text-muted)' }
+}
+
+function renderMatutinaDash(){
+  const el = document.getElementById('dash-matutina-body')
+  if(!el) return
+  const MATUTINA_IDS = ['a07']
+  const byId = allActivities.filter(a => MATUTINA_IDS.includes(a.id) && a.is_active)
+  const byCategory = allActivities.filter(a => a.category === 'secundarios_manana' && a.is_active && (a.frequency||'diaria') === 'diaria' && !MATUTINA_IDS.includes(a.id))
+  const acts = [...byId, ...byCategory]
+  if(!acts.length){
+    el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades matutinas configuradas</div>'
+    return
+  }
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+    </div>`
+  }).join('')
 }
 
 function renderDespertarDash(){
@@ -2637,8 +2729,6 @@ async function toggleHabito(activityId){
 
   renderHabitos()
   update2020Widget()
-  renderDespertarDash()
-  renderTrabajoDash()
 }
 
 async function toggleActive(activityId, currentState){
