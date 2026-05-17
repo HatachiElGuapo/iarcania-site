@@ -2314,10 +2314,28 @@ function renderHabitos(){
 }
 
 function habitoHTML(a){
-  const isDone = !!habitLogs[a.id]
   const isActive = a.is_active
   const color = CAT_COLORS[a.category] || '#555'
   const is2020 = a.id === 'a70'
+
+  if(a.multi){
+    const val = habitLogs[a.id]?.value || 0
+    const isDone = val >= 1
+    const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
+    const btnBase = `font-size:15px;width:26px;height:26px;border-radius:6px;border:1px solid ${color}44;background:transparent;color:${color};cursor:pointer;font-family:'Outfit',sans-serif;line-height:1;flex-shrink:0`
+    return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+      <div class="habito-check" style="${checkStyle};cursor:default">${val>0?val:''}</div>
+      <div style="flex:1">
+        <div class="habito-name">${a.name}${val>0?` <span style="font-size:11px;color:${color}">(${val}x)</span>`:''}</div>
+      </div>
+      <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:4px">${CAT_LABELS[a.category]||''}</span>
+      <button onclick="decrementHabito('${a.id}')" style="${btnBase}" ${val===0?'disabled':''}">−</button>
+      <button onclick="incrementHabito('${a.id}')" style="${btnBase}" ${val>=3?'disabled':''}">+</button>
+      <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
+    </div>`
+  }
+
+  const isDone = !!habitLogs[a.id]
   const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
   const onclick = is2020 ? '' : `onclick="toggleHabito('${a.id}')"`
   return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
@@ -2457,6 +2475,36 @@ async function deleteActivity(){
   allActivities = allActivities.filter(a => a.id !== id)
   closeModal('activity')
   showToast('🗑️ Actividad eliminada')
+  renderHabitos()
+}
+
+async function incrementHabito(activityId){
+  const log = habitLogs[activityId]
+  const curVal = log?.value || 0
+  if(curVal >= 3) return
+  const newVal = curVal + 1
+  if(log){
+    await SB_P.from('activity_logs').update({ value: newVal }).eq('id', log.id)
+    habitLogs[activityId] = { ...log, value: newVal }
+  } else {
+    const newLog = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: newVal, date: TODAY }
+    await SB_P.from('activity_logs').insert(newLog)
+    habitLogs[activityId] = newLog
+  }
+  renderHabitos()
+}
+
+async function decrementHabito(activityId){
+  const log = habitLogs[activityId]
+  if(!log) return
+  const newVal = (log.value || 0) - 1
+  if(newVal <= 0){
+    await SB_P.from('activity_logs').delete().eq('id', log.id)
+    delete habitLogs[activityId]
+  } else {
+    await SB_P.from('activity_logs').update({ value: newVal }).eq('id', log.id)
+    habitLogs[activityId] = { ...log, value: newVal }
+  }
   renderHabitos()
 }
 
