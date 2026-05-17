@@ -668,7 +668,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Guiones</h1>
           <div class="page-sub">IArcanIA y Void Stoic</div>
         </div>
-        <button class="btn-add" onclick="openNewScript()">+ Nuevo guión</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-add" style="border-color:rgba(201,168,76,0.4);color:var(--gold)" onclick="openAIScriptModal()">✨ Crear con IA</button>
+          <button class="btn-add" onclick="openNewScript()">+ Nuevo guión</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:1rem">
         <button id="gf-all" onclick="filterScripts('all',this)" style="padding:7px 14px;font-size:12px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid var(--border);border-radius:6px;background:#161616;color:var(--gold);cursor:pointer">Todos</button>
@@ -975,6 +978,36 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-ai-script">
+  <div class="modal">
+    <h3>✨ Crear guión con IA</h3>
+    <div class="field">
+      <label>💡 Tu idea</label>
+      <textarea id="ai-idea" placeholder="Describe en pocas palabras el tema del video..." style="min-height:90px;resize:vertical;width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Canal</label>
+        <select id="ai-canal" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="iarcania">IArcanIA</option>
+          <option value="voidstoic">Void Stoic</option>
+        </select>
+      </div>
+      <div class="field"><label>Formato</label>
+        <select id="ai-formato" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="Short (60s)">Short (60s)</option>
+          <option value="Video largo">Video largo</option>
+          <option value="Post">Post</option>
+        </select>
+      </div>
+    </div>
+    <div id="ai-loading" style="display:none;text-align:center;padding:10px 0;color:var(--gold);font-size:13px;font-family:'Outfit',sans-serif">✨ Generando guión...</div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('ai-script')">Cancelar</button>
+      <button class="btn-save" id="ai-generate-btn" onclick="generateScriptWithAI()">Generar guión con IA</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -998,6 +1031,8 @@ const CATS = {
   infra:     { label:'Infraestructura', color:'#EF9F27' },
   habitos:   { label:'Hábitos',   color:'#555050' },
 }
+
+const CLAUDE_API_KEY = ''  // Pegar aquí tu API key de Anthropic
 
 let USER_ID = null
 let USER_PASSWORD = null
@@ -2991,6 +3026,76 @@ async function saveNewScript(){
   await loadScripts()
   activeScriptId = id
   renderScripts()
+}
+
+function openAIScriptModal(){
+  document.getElementById('ai-idea').value = ''
+  document.getElementById('ai-canal').value = 'iarcania'
+  document.getElementById('ai-formato').value = 'Video largo'
+  document.getElementById('ai-loading').style.display = 'none'
+  document.getElementById('ai-generate-btn').disabled = false
+  openModal('ai-script')
+}
+
+async function generateScriptWithAI(){
+  const idea = document.getElementById('ai-idea').value.trim()
+  if(!idea){ showToast('❌ Escribe una idea primero'); return }
+  const canal = document.getElementById('ai-canal').value
+  const formato = document.getElementById('ai-formato').value
+  const canalLabel = canal === 'iarcania' ? 'IArcanIA' : 'Void Stoic'
+  const canalDesc  = canal === 'iarcania' ? 'automatización IA para PYMEs' : 'filosofía y productividad'
+
+  document.getElementById('ai-loading').style.display = 'block'
+  document.getElementById('ai-generate-btn').disabled = true
+
+  let result = null
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: `Eres un experto en creación de contenido para redes sociales B2B. Creas guiones que desafían creencias existentes de la audiencia y generan conversación. El canal ${canalLabel} habla sobre ${canalDesc}. Responde SOLO en JSON con este formato exacto: {"titulo":"título del video","hook":"gancho inicial impactante (primeros 3 segundos)","body":"desarrollo del contenido","cta":"llamada a acción final","notas":"tips de producción y grabación"}`,
+        messages: [{ role: 'user', content: `Crea un guión de ${formato} sobre: ${idea}` }]
+      })
+    })
+    const d = await res.json()
+    const text = d.content?.[0]?.text || ''
+    const match = text.match(/\{[\s\S]*\}/)
+    if(match) result = JSON.parse(match[0])
+  } catch(e) {
+    showToast('❌ Error al generar: ' + (e.message || 'Error desconocido'))
+  }
+
+  document.getElementById('ai-loading').style.display = 'none'
+  document.getElementById('ai-generate-btn').disabled = false
+
+  if(!result){ return }
+
+  closeModal('ai-script')
+  const id = 'scr_'+Date.now()
+  const { error } = await SB_P.from('scripts').insert({
+    id,
+    title:  result.titulo || idea,
+    canal,
+    status: 'borrador',
+    hook:   result.hook  || '',
+    body:   result.body  || '',
+    cta:    result.cta   || '',
+    notes:  result.notas || ''
+  })
+  if(error){ showToast('❌ Error al guardar: ' + error.message); return }
+  await loadScripts()
+  activeScriptId = id
+  renderScripts()
+  showSection('guiones', document.querySelector('.nav-item[onclick*="guiones"]'))
+  showToast('✨ Guión generado y listo para revisar')
 }
 
 // --- CLIENTS ---
