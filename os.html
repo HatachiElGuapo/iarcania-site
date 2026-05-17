@@ -1015,6 +1015,32 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-edit-idea">
+  <div class="modal">
+    <h3>Editar idea</h3>
+    <input type="hidden" id="edit-idea-id">
+    <div class="field">
+      <label>Contenido</label>
+      <textarea id="edit-idea-raw" style="min-height:100px;resize:vertical;width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div class="field"><label>Categoría</label>
+      <select id="edit-idea-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="">Sin categoría</option>
+        <option value="iarcania">IArcanIA</option>
+        <option value="contenido">Contenido</option>
+        <option value="proyectos">Proyectos</option>
+        <option value="personal">Personal</option>
+        <option value="infra">Infraestructura</option>
+        <option value="habitos">Hábitos</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('edit-idea')">Cancelar</button>
+      <button class="btn-save" onclick="saveEditIdea()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1798,6 +1824,26 @@ function openEditTask(id){
   openModal('task')
 }
 
+function openEditIdea(id){
+  const idea = (window._allIdeas || []).find(i => i.id === id)
+  if(!idea) return
+  document.getElementById('edit-idea-id').value  = id
+  document.getElementById('edit-idea-raw').value = idea.raw_content || ''
+  document.getElementById('edit-idea-cat').value = idea.category   || ''
+  openModal('edit-idea')
+}
+
+async function saveEditIdea(){
+  const id  = document.getElementById('edit-idea-id').value
+  const raw = document.getElementById('edit-idea-raw').value.trim()
+  if(!raw) return
+  const category = document.getElementById('edit-idea-cat').value || null
+  const { error } = await SB_P.from('ideas').update({ raw_content: raw, category }).eq('id', id)
+  if(error){ showToast('❌ Error: ' + error.message); return }
+  closeModal('edit-idea')
+  await loadIdeas()
+}
+
 async function deleteIdea(id){
   if(!confirm('¿Eliminar esta idea?')) return
   await SB_P.from('ideas').delete().eq('id', id)
@@ -2016,7 +2062,8 @@ async function saveBirthday(){
 // --- IDEAS ---
 async function loadIdeas(){
   const { data } = await SB_P.from('ideas').select('*').order('created_at',{ascending:false})
-  renderIdeas(data||[])
+  window._allIdeas = data || []
+  renderIdeas(window._allIdeas)
 }
 
 function renderIdeas(ideas){
@@ -2027,15 +2074,15 @@ function renderIdeas(ideas){
     const catBadge = cat ? `<span style="color:${cat.color};font-size:11px;font-weight:600">${cat.label}</span>` : ''
     const ideaTitle = (i.processed_content || i.raw_content || '').substring(0, 200).replace(/"/g, '&quot;')
     const ideaCat = i.category || 'personal'
-    return `<div class="idea-card">
+    return `<div class="idea-card" onclick="openEditIdea('${i.id}')" style="cursor:pointer">
       <div class="idea-raw">${i.raw_content||''}</div>
       ${i.processed_content?`<div class="idea-processed">${i.processed_content}</div>`:''}
       <div class="idea-meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="idea-status ${i.status==='procesada'?'status-procesada':'status-nueva'}">${i.status||'nueva'}</span>
         ${catBadge}
         <span style="color:var(--text-muted)">· ${new Date(i.created_at).toLocaleDateString('es-CO')}</span>
-        <button onclick="createTaskFromIdea(this)" data-title="${ideaTitle}" data-cat="${ideaCat}" style="margin-left:auto;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">→ Crear tarea</button>
-        <button onclick="deleteIdea('${i.id}')" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
+        <button onclick="event.stopPropagation();createTaskFromIdea(this)" data-title="${ideaTitle}" data-cat="${ideaCat}" style="margin-left:auto;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">→ Crear tarea</button>
+        <button onclick="event.stopPropagation();deleteIdea('${i.id}')" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
       </div>
     </div>`
   }).join('')
