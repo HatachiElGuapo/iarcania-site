@@ -1594,12 +1594,122 @@ function renderMatutinaDash(){
     return
   }
   el.innerHTML = acts.map(a => {
+    if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
     const done = !!habitLogs[a.id]
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
     </div>`
   }).join('')
+  if(_slotEditing){
+    const actId = _slotEditing.split('|')[0]
+    const inp = document.getElementById('slot-edit-'+actId)
+    if(inp){ inp.value = _slotEditText; inp.focus() }
+  }
+}
+
+function renderSlotHabito(actId, name){
+  const slots = SLOT_HABITS[actId]
+  const color = '#C4A35A'
+  const slotMap = slotLogs[actId] || {}
+  const btnStyle = (border,bg,col) => `padding:5px 8px;border-radius:7px;border:1px solid ${border};background:${bg};color:${col};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;flex:1;text-align:center`
+  const buttons = slots.map(s => {
+    const log = slotMap[s.id]
+    const done = !!log
+    const menuKey = actId+'|'+s.id
+    const isMenu = _slotMenu === menuKey
+    if(done && isMenu){
+      return `<div style="flex:1;border:1px solid ${color};border-radius:7px;overflow:hidden">
+        <div style="padding:3px 6px;font-size:10px;color:${color};background:rgba(196,163,90,0.12);text-align:center">${s.icon} ${s.label} ✓</div>
+        <div style="display:flex">
+          <button onclick="editarSlot('${actId}','${s.id}')" style="flex:1;padding:3px 0;border:none;border-top:1px solid rgba(196,163,90,0.3);background:transparent;color:var(--text-muted);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">✏️</button>
+          <button onclick="eliminarSlot('${actId}','${s.id}')" style="flex:1;padding:3px 0;border:none;border-top:1px solid rgba(196,163,90,0.3);border-left:1px solid rgba(196,163,90,0.3);background:transparent;color:var(--red);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">🗑️</button>
+        </div>
+      </div>`
+    }
+    const border = done ? color : 'var(--border)'
+    const bg     = done ? 'rgba(196,163,90,0.12)' : 'transparent'
+    const col    = done ? color : 'var(--text-muted)'
+    const fn     = done ? `abrirMenuSlot('${actId}','${s.id}')` : `marcarSlot('${actId}','${s.id}')`
+    return `<button onclick="${fn}" style="${btnStyle(border,bg,col)}">${s.icon} ${s.label}${done?' ✓':''}</button>`
+  }).join('')
+  const editingSlotId = _slotEditing?.startsWith(actId+'|') ? _slotEditing.split('|')[1] : null
+  const editSlotConf  = editingSlotId ? slots.find(s => s.id === editingSlotId) : null
+  const inputArea = editSlotConf ? `
+    <div style="margin-top:5px">
+      <input type="text" id="slot-edit-${actId}" placeholder="Nota opcional (${editSlotConf.icon} ${editSlotConf.label})..." style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+      <div style="display:flex;gap:5px;margin-top:4px">
+        <button onclick="cancelarSlotEdit()" style="flex:1;padding:4px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px">Cancelar</button>
+        <button onclick="guardarSlotEdit('${actId}','${editingSlotId}')" style="flex:1;padding:4px;border-radius:6px;border:1px solid ${color};background:rgba(196,163,90,0.1);color:${color};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px">Guardar ✓</button>
+      </div>
+    </div>` : ''
+  return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">${name}</div>
+    <div style="display:flex;gap:5px">${buttons}</div>
+    ${inputArea}
+  </div>`
+}
+
+async function marcarSlot(actId, slotId){
+  const id = 'log_'+Date.now()
+  const { error } = await SB_P.from('activity_logs').insert({
+    id, user_id: USER_ID, activity_id: actId, value: 1, date: TODAY,
+    notes: slotId, created_at: new Date().toISOString()
+  })
+  if(error){ showToast('❌ Error: '+error.message); return }
+  if(!slotLogs[actId]) slotLogs[actId] = {}
+  slotLogs[actId][slotId] = { id, notes: slotId, created_at: new Date().toISOString() }
+  habitLogs[actId] = slotLogs[actId][slotId]
+  renderMatutinaDash()
+  update2020Widget()
+}
+
+function abrirMenuSlot(actId, slotId){
+  const key = actId+'|'+slotId
+  _slotMenu = _slotMenu === key ? null : key
+  renderMatutinaDash()
+}
+
+function editarSlot(actId, slotId){
+  const log = slotLogs[actId]?.[slotId]
+  if(!log) return
+  _slotEditing = actId+'|'+slotId
+  _slotEditText = (log.notes||'').split('|')[1] || ''
+  _slotMenu = null
+  renderMatutinaDash()
+}
+
+function cancelarSlotEdit(){
+  _slotEditing = null
+  _slotEditText = ''
+  renderMatutinaDash()
+}
+
+async function guardarSlotEdit(actId, slotId){
+  const log = slotLogs[actId]?.[slotId]
+  if(!log) return
+  const text = document.getElementById('slot-edit-'+actId)?.value.trim() || ''
+  const notes = slotId + (text ? '|'+text : '')
+  const { error } = await SB_P.from('activity_logs').update({ notes }).eq('id', log.id)
+  if(error){ showToast('❌ Error: '+error.message); return }
+  slotLogs[actId][slotId] = { ...log, notes }
+  _slotEditing = null
+  _slotEditText = ''
+  renderMatutinaDash()
+}
+
+async function eliminarSlot(actId, slotId){
+  const slotLabel = SLOT_HABITS[actId]?.find(s => s.id === slotId)?.label || slotId
+  if(!confirm(`¿Eliminar ${slotLabel}?`)) return
+  const log = slotLogs[actId]?.[slotId]
+  if(!log) return
+  await SB_P.from('activity_logs').delete().eq('id', log.id)
+  delete slotLogs[actId][slotId]
+  _slotMenu = null
+  const remaining = Object.values(slotLogs[actId])
+  habitLogs[actId] = remaining[0] || null
+  renderMatutinaDash()
+  update2020Widget()
 }
 
 function renderDespertarDash(){
@@ -2428,6 +2538,14 @@ let _currentMeal = null
 let _mealMenu = null
 let _editingLogId = null
 let _editInitText = ''
+let slotLogs = {}
+let _slotMenu = null
+let _slotEditing = null
+let _slotEditText = ''
+const SLOT_HABITS = {
+  a12: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'tarde',label:'Tarde',icon:'☀️'},{id:'noche',label:'Noche',icon:'🌙'}],
+  a07: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'noche',label:'Noche',icon:'🌙'}]
+}
 const MEALS = [
   { id:'desayuno', label:'Desayuno', icon:'☕' },
   { id:'almuerzo', label:'Almuerzo', icon:'🍽️' },
@@ -2451,12 +2569,19 @@ async function loadHabitos(){
   habitLogs = {}
   foodLogs = {}
   extraLogs = []
+  slotLogs = {}
+  Object.keys(SLOT_HABITS).forEach(id => { slotLogs[id] = {} })
   ;(logs||[]).forEach(l => {
     habitLogs[l.activity_id] = l
     if(l.activity_id === 'a15'){
       const meal = (l.notes||'').split('|')[0]
       if(meal === 'extra') extraLogs.push(l)
       else if(meal) foodLogs[meal] = l
+    }
+    if(SLOT_HABITS[l.activity_id]){
+      const slot = (l.notes||'').split('|')[0]
+      if(slot && SLOT_HABITS[l.activity_id].find(s => s.id === slot))
+        slotLogs[l.activity_id][slot] = l
     }
   })
 
