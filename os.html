@@ -1800,6 +1800,12 @@ function openEditTask(id){
   openModal('task')
 }
 
+async function deleteIdea(id){
+  if(!confirm('¿Eliminar esta idea?')) return
+  await SB_P.from('ideas').delete().eq('id', id)
+  await loadIdeas()
+}
+
 function createTaskFromIdea(btn){
   const title = btn.dataset.title
   const cat   = btn.dataset.cat
@@ -2031,6 +2037,7 @@ function renderIdeas(ideas){
         ${catBadge}
         <span style="color:var(--text-muted)">· ${new Date(i.created_at).toLocaleDateString('es-CO')}</span>
         <button onclick="createTaskFromIdea(this)" data-title="${ideaTitle}" data-cat="${ideaCat}" style="margin-left:auto;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">→ Crear tarea</button>
+        <button onclick="deleteIdea('${i.id}')" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
       </div>
     </div>`
   }).join('')
