@@ -3044,16 +3044,15 @@ async function generateScriptWithAI(){
   document.getElementById('ai-loading').style.display = 'block'
   document.getElementById('ai-generate-btn').disabled = true
 
-  let result = null
+  let guion = null
   try {
-    const res = await fetch('/api/generate-script', {
+    const response = await fetch('/api/generate-script', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idea, canal, formato })
     })
-    const d = await res.json()
-    if(!res.ok) throw new Error(d.error || 'Error del servidor')
-    result = d
+    guion = await response.json()
+    if(!response.ok) throw new Error(guion.error || 'Error del servidor')
   } catch(e) {
     showToast('❌ Error al generar: ' + (e.message || 'Error desconocido'))
   }
@@ -3061,19 +3060,19 @@ async function generateScriptWithAI(){
   document.getElementById('ai-loading').style.display = 'none'
   document.getElementById('ai-generate-btn').disabled = false
 
-  if(!result){ return }
+  if(!guion){ return }
 
   closeModal('ai-script')
   const id = 'scr_'+Date.now()
   const { error } = await SB_P.from('scripts').insert({
     id,
-    title:  result.titulo || idea,
+    title:  guion.titulo || idea,
     canal,
     status: 'borrador',
-    hook:   result.hook  || '',
-    body:   result.body  || '',
-    cta:    result.cta   || '',
-    notes:  result.notas || ''
+    hook:   guion.hook  || '',
+    body:   guion.body  || '',
+    cta:    guion.cta   || '',
+    notes:  guion.notas || ''
   })
   if(error){ showToast('❌ Error al guardar: ' + error.message); return }
   await loadScripts()
