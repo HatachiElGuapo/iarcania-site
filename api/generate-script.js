@@ -5,8 +5,38 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
 
-  const { idea, canal, formato } = req.body || {}
-  if (!idea) { res.status(400).json({ error: 'Falta el campo idea' }); return }
+  const { raw, idea, canal, formato } = req.body || {}
+
+  // --- Modo idea: estructurar texto en 2 oraciones ---
+  if (raw) {
+    try {
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 300,
+          messages: [{ role: 'user', content: `Estructura esta idea en máximo 2 oraciones claras y accionables. Sin preámbulos, solo el resultado:\n\n"${raw}"` }]
+        })
+      })
+      const data = await anthropicRes.json()
+      if (!anthropicRes.ok) {
+        res.status(anthropicRes.status).json({ error: data.error?.message || 'Error de Anthropic' })
+        return
+      }
+      res.status(200).json({ text: data.content?.[0]?.text || null })
+    } catch (e) {
+      res.status(500).json({ error: e.message || 'Error interno' })
+    }
+    return
+  }
+
+  // --- Modo guión: generar guión estructurado en JSON ---
+  if (!idea) { res.status(400).json({ error: 'Falta el campo idea o raw' }); return }
 
   const canalLabel = canal === 'iarcania' ? 'IArcanIA' : 'Void Stoic'
   const canalDesc  = canal === 'iarcania'

@@ -2016,17 +2016,13 @@ async function _saveIdea(inputId, procId){
   const id = 'idea_'+Date.now()
   let processed = null
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:300,
-        messages:[{role:'user',content:`Estructura esta idea en máximo 2 oraciones claras y accionables. Sin preámbulos, solo el resultado:\n\n"${raw}"`}]
-      })
+    const res = await fetch('/api/generate-script', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw })
     })
     const d = await res.json()
-    processed = d.content?.[0]?.text || null
+    processed = d.text || null
   } catch(e){ processed = null }
   await SB_P.from('ideas').insert({
     id, user_id: USER_ID, raw_content: raw,
