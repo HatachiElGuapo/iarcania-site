@@ -1622,14 +1622,23 @@ function renderDespertarDash(){
 function renderAlimentacionDash(){
   const el = document.getElementById('dash-comida-content')
   if(!el) return
+  const btnStyle = (border,bg,color) => `padding:7px 10px;border-radius:8px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;flex:1;text-align:left`
   const buttons = MEALS.map(m => {
-    const done = !!foodLogs[m.id]
+    if(m.id === 'extra'){
+      const count = extraLogs.length
+      const active = _currentMeal === 'extra'
+      const border = active ? 'var(--gold)' : count > 0 ? '#5DCAA5' : 'var(--border)'
+      const bg     = active ? 'rgba(201,168,76,0.08)' : count > 0 ? 'rgba(93,202,165,0.06)' : 'transparent'
+      const color  = active ? 'var(--gold)' : count > 0 ? '#5DCAA5' : 'var(--text-muted)'
+      return `<button onclick="abrirComida('extra')" style="${btnStyle(border,bg,color)}">${m.icon} ${m.label}${count>0?` (${count})`:''} +</button>`
+    }
+    const done   = !!foodLogs[m.id]
     const active = _currentMeal === m.id
     const border = done ? '#5DCAA5' : active ? 'var(--gold)' : 'var(--border)'
     const bg     = done ? 'rgba(93,202,165,0.12)' : active ? 'rgba(201,168,76,0.08)' : 'transparent'
     const color  = done ? '#5DCAA5' : active ? 'var(--gold)' : 'var(--text-muted)'
-    const fn = done ? `toggleComida('${m.id}')` : `abrirComida('${m.id}')`
-    return `<button onclick="${fn}" style="padding:7px 10px;border-radius:8px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;flex:1;text-align:left">${m.icon} ${m.label}${done?' ✓':''}</button>`
+    const fn     = done ? `toggleComida('${m.id}')` : `abrirComida('${m.id}')`
+    return `<button onclick="${fn}" style="${btnStyle(border,bg,color)}">${m.icon} ${m.label}${done?' ✓':''}</button>`
   }).join('')
   const inputArea = _currentMeal ? `
     <div style="margin-bottom:8px">
@@ -1639,12 +1648,18 @@ function renderAlimentacionDash(){
         <button onclick="guardarComida()" style="flex:1;padding:6px;border-radius:6px;border:1px solid #5DCAA5;background:rgba(93,202,165,0.1);color:#5DCAA5;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">Guardar ✓</button>
       </div>
     </div>` : ''
-  const registros = MEALS.filter(m => foodLogs[m.id]).map(m => {
+  const regsMeals = MEALS.filter(m => m.id !== 'extra' && foodLogs[m.id]).map(m => {
     const log = foodLogs[m.id]
     const desc = (log.notes||'').split('|')[1] || ''
     const hora = log.created_at ? new Date(log.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''
     return `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">${m.icon} <strong style="color:var(--text)">${m.label}</strong>${desc?' — '+desc:''}${hora?' · '+hora:''}</div>`
-  }).join('')
+  })
+  const regsExtra = extraLogs.map((log, i) => {
+    const desc = (log.notes||'').split('|')[1] || ''
+    const hora = log.created_at ? new Date(log.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''
+    return `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">🍎 <strong style="color:var(--text)">Extra ${i+1}</strong>${desc?' — '+desc:''}${hora?' · '+hora:''}</div>`
+  })
+  const registros = [...regsMeals, ...regsExtra].join('')
   el.innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${buttons}</div>
     ${inputArea}
@@ -1672,7 +1687,9 @@ async function guardarComida(){
     created_at: new Date().toISOString()
   })
   if(error){ showToast('❌ Error: '+error.message); return }
-  foodLogs[_currentMeal] = { id, notes, created_at: new Date().toISOString() }
+  const newLog = { id, notes, created_at: new Date().toISOString() }
+  if(_currentMeal === 'extra') extraLogs.push(newLog)
+  else foodLogs[_currentMeal] = newLog
   _currentMeal = null
   renderAlimentacionDash()
 }
@@ -2334,6 +2351,7 @@ const CAT_ORDER = [
 let allActivities = []
 let habitLogs = {}
 let foodLogs = {}
+let extraLogs = []
 let _currentMeal = null
 const MEALS = [
   { id:'desayuno', label:'Desayuno', icon:'☕' },
@@ -2357,11 +2375,13 @@ async function loadHabitos(){
     .select('*').eq('user_id', USER_ID).eq('date', TODAY)
   habitLogs = {}
   foodLogs = {}
+  extraLogs = []
   ;(logs||[]).forEach(l => {
     habitLogs[l.activity_id] = l
     if(l.activity_id === 'a15'){
       const meal = (l.notes||'').split('|')[0]
-      if(meal) foodLogs[meal] = l
+      if(meal === 'extra') extraLogs.push(l)
+      else if(meal) foodLogs[meal] = l
     }
   })
 
