@@ -1623,6 +1623,7 @@ function renderAlimentacionDash(){
   const el = document.getElementById('dash-comida-content')
   if(!el) return
   const btnStyle = (border,bg,color) => `padding:7px 10px;border-radius:8px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;flex:1;text-align:left`
+  const miniBtn = (onclick,color,label) => `<button onclick="${onclick}" style="flex:1;padding:5px 0;border:none;border-top:1px solid rgba(93,202,165,0.3);background:transparent;color:${color};cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">${label}</button>`
   const buttons = MEALS.map(m => {
     if(m.id === 'extra'){
       const count = extraLogs.length
@@ -1634,10 +1635,20 @@ function renderAlimentacionDash(){
     }
     const done   = !!foodLogs[m.id]
     const active = _currentMeal === m.id
+    const isMenu = _mealMenu === m.id
+    if(done && isMenu){
+      return `<div style="flex:1;border:1px solid #5DCAA5;border-radius:8px;overflow:hidden">
+        <div style="padding:5px 10px;font-size:12px;color:#5DCAA5;background:rgba(93,202,165,0.12)">${m.icon} ${m.label} ✓</div>
+        <div style="display:flex">
+          ${miniBtn(`editarComida('${m.id}')`, 'var(--text-muted)', '✏️ Editar')}
+          <button onclick="eliminarComida('${m.id}')" style="flex:1;padding:5px 0;border:none;border-top:1px solid rgba(93,202,165,0.3);border-left:1px solid rgba(93,202,165,0.3);background:transparent;color:var(--red);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">🗑️ Eliminar</button>
+        </div>
+      </div>`
+    }
     const border = done ? '#5DCAA5' : active ? 'var(--gold)' : 'var(--border)'
     const bg     = done ? 'rgba(93,202,165,0.12)' : active ? 'rgba(201,168,76,0.08)' : 'transparent'
     const color  = done ? '#5DCAA5' : active ? 'var(--gold)' : 'var(--text-muted)'
-    const fn     = done ? `toggleComida('${m.id}')` : `abrirComida('${m.id}')`
+    const fn     = done ? `abrirMenuComida('${m.id}')` : `abrirComida('${m.id}')`
     return `<button onclick="${fn}" style="${btnStyle(border,bg,color)}">${m.icon} ${m.label}${done?' ✓':''}</button>`
   }).join('')
   const inputArea = _currentMeal ? `
@@ -1657,23 +1668,79 @@ function renderAlimentacionDash(){
   const regsExtra = extraLogs.map((log, i) => {
     const desc = (log.notes||'').split('|')[1] || ''
     const hora = log.created_at ? new Date(log.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''
-    return `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">🍎 <strong style="color:var(--text)">Extra ${i+1}</strong>${desc?' — '+desc:''}${hora?' · '+hora:''}</div>`
+    const microBtn = (fn,lbl) => `<button onclick="${fn}" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:2px 3px;line-height:1">${lbl}</button>`
+    return `<div style="font-size:11px;color:var(--text-muted);padding:3px 0;display:flex;align-items:center;gap:4px">
+      <span style="flex:1">🍎 <strong style="color:var(--text)">Extra ${i+1}</strong>${desc?' — '+desc:''}${hora?' · '+hora:''}</span>
+      ${microBtn(`editarExtra(${i})`, '✏️')}${microBtn(`eliminarExtra(${i})`, '🗑️')}
+    </div>`
   })
   const registros = [...regsMeals, ...regsExtra].join('')
   el.innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${buttons}</div>
     ${inputArea}
     ${registros ? `<div style="border-top:1px solid var(--border);padding-top:6px">${registros}</div>` : ''}`
-  if(_currentMeal) document.getElementById('comida-input-text')?.focus()
+  if(_currentMeal){
+    const inp = document.getElementById('comida-input-text')
+    if(inp){ inp.value = _editInitText; inp.focus() }
+  }
+}
+
+function abrirMenuComida(meal){
+  _mealMenu = _mealMenu === meal ? null : meal
+  renderAlimentacionDash()
 }
 
 function abrirComida(meal){
+  _editingLogId = null
+  _editInitText = ''
+  _mealMenu = null
   _currentMeal = meal
+  renderAlimentacionDash()
+}
+
+function editarComida(meal){
+  const log = foodLogs[meal]
+  if(!log) return
+  _editingLogId = log.id
+  _editInitText = (log.notes||'').split('|')[1] || ''
+  _mealMenu = null
+  _currentMeal = meal
+  renderAlimentacionDash()
+}
+
+async function eliminarComida(meal){
+  if(!confirm(`¿Eliminar el registro de ${meal}?`)) return
+  const log = foodLogs[meal]
+  if(!log) return
+  await SB_P.from('activity_logs').delete().eq('id', log.id)
+  delete foodLogs[meal]
+  _mealMenu = null
+  renderAlimentacionDash()
+}
+
+function editarExtra(idx){
+  const log = extraLogs[idx]
+  if(!log) return
+  _editingLogId = log.id
+  _editInitText = (log.notes||'').split('|')[1] || ''
+  _currentMeal = 'extra'
+  renderAlimentacionDash()
+}
+
+async function eliminarExtra(idx){
+  const log = extraLogs[idx]
+  if(!log) return
+  if(!confirm(`¿Eliminar Extra ${idx+1}?`)) return
+  await SB_P.from('activity_logs').delete().eq('id', log.id)
+  extraLogs.splice(idx, 1)
   renderAlimentacionDash()
 }
 
 function cerrarComida(){
   _currentMeal = null
+  _editingLogId = null
+  _editInitText = ''
+  _mealMenu = null
   renderAlimentacionDash()
 }
 
@@ -1681,24 +1748,29 @@ async function guardarComida(){
   if(!_currentMeal) return
   const text = document.getElementById('comida-input-text')?.value.trim() || ''
   const notes = _currentMeal + (text ? '|'+text : '')
-  const id = 'log_'+Date.now()
-  const { error } = await SB_P.from('activity_logs').insert({
-    id, user_id: USER_ID, activity_id: 'a15', value: 1, date: TODAY, notes,
-    created_at: new Date().toISOString()
-  })
-  if(error){ showToast('❌ Error: '+error.message); return }
-  const newLog = { id, notes, created_at: new Date().toISOString() }
-  if(_currentMeal === 'extra') extraLogs.push(newLog)
-  else foodLogs[_currentMeal] = newLog
+  if(_editingLogId){
+    const { error } = await SB_P.from('activity_logs').update({ notes }).eq('id', _editingLogId)
+    if(error){ showToast('❌ Error: '+error.message); return }
+    if(_currentMeal === 'extra'){
+      const idx = extraLogs.findIndex(l => l.id === _editingLogId)
+      if(idx !== -1) extraLogs[idx] = { ...extraLogs[idx], notes }
+    } else {
+      foodLogs[_currentMeal] = { ...foodLogs[_currentMeal], notes }
+    }
+  } else {
+    const id = 'log_'+Date.now()
+    const { error } = await SB_P.from('activity_logs').insert({
+      id, user_id: USER_ID, activity_id: 'a15', value: 1, date: TODAY, notes,
+      created_at: new Date().toISOString()
+    })
+    if(error){ showToast('❌ Error: '+error.message); return }
+    const newLog = { id, notes, created_at: new Date().toISOString() }
+    if(_currentMeal === 'extra') extraLogs.push(newLog)
+    else foodLogs[_currentMeal] = newLog
+  }
+  _editingLogId = null
+  _editInitText = ''
   _currentMeal = null
-  renderAlimentacionDash()
-}
-
-async function toggleComida(meal){
-  const log = foodLogs[meal]
-  if(!log) return
-  await SB_P.from('activity_logs').delete().eq('id', log.id)
-  delete foodLogs[meal]
   renderAlimentacionDash()
 }
 
@@ -2353,6 +2425,9 @@ let habitLogs = {}
 let foodLogs = {}
 let extraLogs = []
 let _currentMeal = null
+let _mealMenu = null
+let _editingLogId = null
+let _editInitText = ''
 const MEALS = [
   { id:'desayuno', label:'Desayuno', icon:'☕' },
   { id:'almuerzo', label:'Almuerzo', icon:'🍽️' },
