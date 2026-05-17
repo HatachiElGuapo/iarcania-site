@@ -344,6 +344,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('gastos',this)">
         <span class="nav-icon">💸</span>Gastos
       </button>
+      <button class="nav-item" onclick="showSection('finanzas',this)">
+        <span class="nav-icon">💳</span>Finanzas
+      </button>
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-user">
@@ -758,6 +761,19 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
     </div>
 
+    <!-- FINANZAS -->
+    <div class="section" id="section-finanzas">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">💳 Finanzas</h1>
+          <div class="page-sub">Saldo en tus cuentas</div>
+        </div>
+      </div>
+      <div id="finanzas-content">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
     <!-- CLIENTES -->
     <div class="section" id="section-clientes">
       <div class="page-header">
@@ -1122,6 +1138,21 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-movimiento">
+  <div class="modal">
+    <h3 id="mov-title">Movimiento</h3>
+    <input type="hidden" id="mov-account-id">
+    <input type="hidden" id="mov-tipo">
+    <div class="field"><label>Monto (COP)</label><input type="number" id="mov-amount" placeholder="0" min="0"/></div>
+    <div class="field"><label>Descripción</label><input type="text" id="mov-desc" placeholder="¿Para qué?"/></div>
+    <div class="field"><label>Fecha</label><input type="date" id="mov-date"/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('movimiento')">Cancelar</button>
+      <button class="btn-save" id="mov-btn-save" onclick="saveMovimiento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-gasto">
   <div class="modal">
     <h3>Nuevo gasto</h3>
@@ -1253,7 +1284,7 @@ async function initApp(){
   setInterval(updateClock, 1000)
   checkDateReset()
   setInterval(checkDateReset, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses(), loadFinanzas()])
 }
 
 function setDate(){
@@ -3826,6 +3857,106 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
 setDate()
 updateClock()
 setInterval(updateClock, 1000)
+
+// --- FINANZAS ---
+const ACCOUNTS_DEF = [
+  { id:'acc_bolsillo',    name:'Bolsillo',    icon:'💵', color:'#5DCAA5' },
+  { id:'acc_nequi',       name:'Nequi',       icon:'📱', color:'#E040FB' },
+  { id:'acc_bancolombia', name:'Bancolombia', icon:'🏦', color:'#FFD700' },
+]
+let allAccounts = []
+
+async function loadFinanzas(){
+  const { data } = await SB_P.from('accounts').select('*').eq('user_id', USER_ID)
+  allAccounts = data || []
+  renderFinanzas()
+}
+
+function renderFinanzas(){
+  const el = document.getElementById('finanzas-content')
+  if(!el) return
+  const fmt = n => '$' + Number(n).toLocaleString('es-CO')
+
+  const getAcc = id => allAccounts.find(a => a.id === id)
+
+  const totalSaldo = allAccounts.reduce((s, a) => s + Number(a.balance||0), 0)
+
+  const cards = ACCOUNTS_DEF.map(def => {
+    const acc = getAcc(def.id)
+    const saldo = acc ? Number(acc.balance||0) : 0
+    const color = def.color
+    return `<div style="background:#0E0E0E;border:1px solid var(--border);border-radius:12px;padding:18px 20px;flex:1;min-width:200px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:22px">${def.icon}</span>
+        <span style="font-size:14px;font-weight:600;color:var(--text)">${def.name}</span>
+      </div>
+      <div style="font-size:28px;font-weight:700;color:${color};font-family:'Playfair Display',serif;line-height:1;margin-bottom:16px">${fmt(saldo)}</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="abrirMovimiento('${def.id}','ingreso')" style="flex:1;padding:7px 0;border-radius:7px;border:1px solid ${color}44;background:${color}11;color:${color};cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600">+ Ingreso</button>
+        <button onclick="abrirMovimiento('${def.id}','gasto')" style="flex:1;padding:7px 0;border-radius:7px;border:1px solid rgba(226,75,74,0.3);background:rgba(226,75,74,0.08);color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600">− Gasto</button>
+      </div>
+    </div>`
+  }).join('')
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:20px;text-align:center">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Total en todas las cuentas</div>
+      <div style="font-size:38px;font-weight:700;color:var(--text);font-family:'Playfair Display',serif">${fmt(totalSaldo)}</div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px">${cards}</div>`
+}
+
+function abrirMovimiento(accountId, tipo){
+  const def = ACCOUNTS_DEF.find(d => d.id === accountId)
+  document.getElementById('mov-account-id').value = accountId
+  document.getElementById('mov-tipo').value = tipo
+  document.getElementById('mov-amount').value = ''
+  document.getElementById('mov-desc').value = ''
+  document.getElementById('mov-date').value = TODAY
+  document.getElementById('mov-title').textContent = tipo === 'ingreso'
+    ? `+ Ingreso — ${def?.name||''}`
+    : `− Gasto — ${def?.name||''}`
+  const btn = document.getElementById('mov-btn-save')
+  btn.style.background = tipo === 'ingreso' ? 'rgba(93,202,165,0.15)' : 'rgba(226,75,74,0.15)'
+  btn.style.color = tipo === 'ingreso' ? '#5DCAA5' : 'var(--red)'
+  btn.style.borderColor = tipo === 'ingreso' ? '#5DCAA5' : 'var(--red)'
+  document.getElementById('modal-movimiento').classList.add('open')
+}
+
+async function saveMovimiento(){
+  const accountId  = document.getElementById('mov-account-id').value
+  const tipo       = document.getElementById('mov-tipo').value
+  const amount     = Number(document.getElementById('mov-amount').value)
+  const description = document.getElementById('mov-desc').value.trim()
+  const date       = document.getElementById('mov-date').value || TODAY
+  if(!amount){ showToast('❌ Ingresa un monto'); return }
+
+  const acc = allAccounts.find(a => a.id === accountId)
+  if(!acc){ showToast('❌ Cuenta no encontrada'); return }
+  const newBalance = Number(acc.balance||0) + (tipo === 'ingreso' ? amount : -amount)
+
+  // Actualizar saldo
+  const { error: errAcc } = await SB_P.from('accounts')
+    .update({ balance: newBalance, updated_at: new Date().toISOString() })
+    .eq('id', accountId)
+  if(errAcc){ showToast('❌ Error: '+errAcc.message); return }
+
+  // Registrar movimiento en expenses o income
+  const tabla = tipo === 'gasto' ? 'expenses' : 'income'
+  const def = ACCOUNTS_DEF.find(d => d.id === accountId)
+  const baseRecord = { id: tipo[0]+'_'+Date.now(), user_id: USER_ID, amount, description, date, created_at: new Date().toISOString() }
+  if(tipo === 'gasto'){
+    await SB_P.from('expenses').insert({ ...baseRecord, category: 'otros', notes: `cuenta:${def?.name||accountId}` })
+  } else {
+    await SB_P.from('income').insert({ ...baseRecord, source: def?.name||accountId })
+  }
+
+  // Actualizar memoria local
+  acc.balance = newBalance
+  closeModal('movimiento')
+  showToast(tipo === 'ingreso' ? '✅ Ingreso registrado' : '✅ Gasto registrado')
+  renderFinanzas()
+}
 
 // --- GASTOS ---
 let allExpenses = []
