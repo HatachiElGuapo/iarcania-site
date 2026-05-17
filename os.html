@@ -341,6 +341,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('cobros',this)">
         <span class="nav-icon">💰</span>Cobros
       </button>
+      <button class="nav-item" onclick="showSection('gastos',this)">
+        <span class="nav-icon">💸</span>Gastos
+      </button>
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-user">
@@ -787,6 +790,21 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
     </div>
 
+    <!-- GASTOS -->
+    <div class="section" id="section-gastos">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">💸 Gastos</h1>
+          <div class="page-sub">Gastos personales del mes</div>
+        </div>
+        <button class="btn-add" onclick="openModalGasto()">+ Nuevo gasto</button>
+      </div>
+      <div id="gastos-resumen" style="margin-bottom:1.2rem"></div>
+      <div id="gastos-list">
+        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1106,6 +1124,31 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-gasto">
+  <div class="modal">
+    <h3>Nuevo gasto</h3>
+    <div class="form-row">
+      <div class="field"><label>Monto (COP)</label><input type="number" id="g-amount" placeholder="0" min="0"/></div>
+      <div class="field"><label>Fecha</label><input type="date" id="g-date"/></div>
+    </div>
+    <div class="field"><label>Categoría</label>
+      <select id="g-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="comida">🍽️ Comida</option>
+        <option value="transporte">🚌 Transporte</option>
+        <option value="servicios">💡 Servicios</option>
+        <option value="salud">🏥 Salud</option>
+        <option value="ocio">🎮 Ocio</option>
+        <option value="otro">📦 Otro</option>
+      </select>
+    </div>
+    <div class="field"><label>Descripción</label><input type="text" id="g-desc" placeholder="¿En qué gastaste?"/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('gasto')">Cancelar</button>
+      <button class="btn-save" onclick="saveGasto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1210,7 +1253,7 @@ async function initApp(){
   setInterval(updateClock, 1000)
   checkDateReset()
   setInterval(checkDateReset, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses()])
 }
 
 function setDate(){
@@ -3783,6 +3826,110 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
 setDate()
 updateClock()
 setInterval(updateClock, 1000)
+
+// --- GASTOS ---
+let allExpenses = []
+const GASTO_CATS = {
+  comida:      { label:'Comida',      icon:'🍽️' },
+  transporte:  { label:'Transporte',  icon:'🚌' },
+  servicios:   { label:'Servicios',   icon:'💡' },
+  salud:       { label:'Salud',       icon:'🏥' },
+  ocio:        { label:'Ocio',        icon:'🎮' },
+  otro:        { label:'Otro',        icon:'📦' },
+}
+
+async function loadExpenses(){
+  const { data } = await SB_P.from('expenses').select('*').order('date',{ascending:false})
+  allExpenses = data || []
+  renderExpenses()
+}
+
+function renderExpenses(){
+  const resumenEl = document.getElementById('gastos-resumen')
+  const listEl    = document.getElementById('gastos-list')
+  if(!resumenEl || !listEl) return
+
+  const now = new Date()
+  const mesActual = now.toISOString().slice(0,7)
+  const delMes = allExpenses.filter(e => (e.date||'').startsWith(mesActual))
+
+  const total = delMes.reduce((s, e) => s + Number(e.amount||0), 0)
+  const fmt = n => '$'+Number(n).toLocaleString('es-CO')
+
+  // Resumen por categoría
+  const porCat = {}
+  delMes.forEach(e => {
+    const c = e.category || 'otro'
+    porCat[c] = (porCat[c]||0) + Number(e.amount||0)
+  })
+  const catBadges = Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([c,t]) => {
+    const {label,icon} = GASTO_CATS[c] || {label:c,icon:'📦'}
+    return `<div style="background:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px">
+      <div style="color:var(--text-muted)">${icon} ${label}</div>
+      <div style="color:var(--red);font-weight:700;font-size:14px;margin-top:2px">${fmt(t)}</div>
+    </div>`
+  }).join('')
+
+  resumenEl.innerHTML = `
+    <div class="card" style="margin-bottom:0">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Total este mes</div>
+      <div style="font-size:32px;font-weight:700;color:var(--red);font-family:'Playfair Display',serif">${fmt(total)}</div>
+      ${catBadges ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">${catBadges}</div>` : ''}
+    </div>`
+
+  if(!allExpenses.length){
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px 0">Sin gastos registrados.</div>'
+    return
+  }
+
+  listEl.innerHTML = `<div class="card" style="padding:0;overflow:hidden">` +
+    allExpenses.map(e => {
+      const {icon} = GASTO_CATS[e.category] || {icon:'📦'}
+      const fecha = e.date ? new Date(e.date+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '—'
+      const esMes = (e.date||'').startsWith(mesActual)
+      return `<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">
+        <span style="font-size:18px">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.description||'—'}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${fecha} · ${(GASTO_CATS[e.category]?.label||'Otro')}</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:${esMes?'var(--red)':'var(--text-muted)'};white-space:nowrap">${fmt(e.amount)}</div>
+        <button onclick="deleteGasto('${e.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;line-height:1">🗑️</button>
+      </div>`
+    }).join('') + '</div>'
+}
+
+function openModalGasto(){
+  document.getElementById('g-amount').value = ''
+  document.getElementById('g-desc').value = ''
+  document.getElementById('g-cat').value = 'comida'
+  document.getElementById('g-date').value = TODAY
+  document.getElementById('modal-gasto').classList.add('open')
+}
+
+async function saveGasto(){
+  const amount = Number(document.getElementById('g-amount').value)
+  const category = document.getElementById('g-cat').value
+  const description = document.getElementById('g-desc').value.trim()
+  const date = document.getElementById('g-date').value || TODAY
+  if(!amount){ showToast('❌ Ingresa un monto'); return }
+  const id = 'exp_'+Date.now()
+  const { error } = await SB_P.from('expenses').insert({
+    id, user_id: USER_ID, amount, category, description, date,
+    created_at: new Date().toISOString()
+  })
+  if(error){ showToast('❌ Error: '+error.message); return }
+  closeModal('gasto')
+  showToast('✅ Gasto guardado')
+  await loadExpenses()
+}
+
+async function deleteGasto(id){
+  if(!confirm('¿Eliminar este gasto?')) return
+  await SB_P.from('expenses').delete().eq('id', id)
+  allExpenses = allExpenses.filter(e => e.id !== id)
+  renderExpenses()
+}
 </script>
 </body>
 </html>
