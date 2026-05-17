@@ -448,7 +448,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               </div>
             </div>
 
-            <!-- Rutina nocturna colapsable — 5º -->
+            <!-- Alimentación colapsable — 5º -->
+            <div class="dash-section" style="border-color:rgba(93,202,165,0.2)">
+              <div class="dash-section-hdr" onclick="toggleDashSection('comida')">
+                <span style="font-size:13px;font-weight:600;color:#5DCAA5">🍽️ Alimentación</span>
+                <span class="dash-arrow" id="dash-comida-arrow">▼</span>
+              </div>
+              <div class="dash-section-body collapsed" id="dash-comida-body">
+                <div id="dash-comida-content"></div>
+              </div>
+            </div>
+
+            <!-- Rutina nocturna colapsable — 6º -->
             <div class="dash-section" style="border-color:rgba(55,138,221,0.2)">
               <div class="dash-section-hdr" onclick="toggleDashSection('noche')">
                 <span style="font-size:13px;font-weight:600;color:#378ADD">🌙 Rutina nocturna</span>
@@ -1527,6 +1538,72 @@ function renderDespertarDash(){
   }).join('')
 }
 
+function renderAlimentacionDash(){
+  const el = document.getElementById('dash-comida-content')
+  if(!el) return
+  const buttons = MEALS.map(m => {
+    const done = !!foodLogs[m.id]
+    const active = _currentMeal === m.id
+    const border = done ? '#5DCAA5' : active ? 'var(--gold)' : 'var(--border)'
+    const bg     = done ? 'rgba(93,202,165,0.12)' : active ? 'rgba(201,168,76,0.08)' : 'transparent'
+    const color  = done ? '#5DCAA5' : active ? 'var(--gold)' : 'var(--text-muted)'
+    const fn = done ? `toggleComida('${m.id}')` : `abrirComida('${m.id}')`
+    return `<button onclick="${fn}" style="padding:7px 10px;border-radius:8px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;flex:1;text-align:left">${m.icon} ${m.label}${done?' ✓':''}</button>`
+  }).join('')
+  const inputArea = _currentMeal ? `
+    <div style="margin-bottom:8px">
+      <input type="text" id="comida-input-text" placeholder="¿Qué comiste? (opcional)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button onclick="cerrarComida()" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">Cancelar</button>
+        <button onclick="guardarComida()" style="flex:1;padding:6px;border-radius:6px;border:1px solid #5DCAA5;background:rgba(93,202,165,0.1);color:#5DCAA5;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">Guardar ✓</button>
+      </div>
+    </div>` : ''
+  const registros = MEALS.filter(m => foodLogs[m.id]).map(m => {
+    const log = foodLogs[m.id]
+    const desc = (log.notes||'').split('|')[1] || ''
+    const hora = log.created_at ? new Date(log.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''
+    return `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">${m.icon} <strong style="color:var(--text)">${m.label}</strong>${desc?' — '+desc:''}${hora?' · '+hora:''}</div>`
+  }).join('')
+  el.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${buttons}</div>
+    ${inputArea}
+    ${registros ? `<div style="border-top:1px solid var(--border);padding-top:6px">${registros}</div>` : ''}`
+  if(_currentMeal) document.getElementById('comida-input-text')?.focus()
+}
+
+function abrirComida(meal){
+  _currentMeal = meal
+  renderAlimentacionDash()
+}
+
+function cerrarComida(){
+  _currentMeal = null
+  renderAlimentacionDash()
+}
+
+async function guardarComida(){
+  if(!_currentMeal) return
+  const text = document.getElementById('comida-input-text')?.value.trim() || ''
+  const notes = _currentMeal + (text ? '|'+text : '')
+  const id = 'log_'+Date.now()
+  const { error } = await SB_P.from('activity_logs').insert({
+    id, user_id: USER_ID, activity_id: 'a15', value: 1, date: TODAY, notes,
+    created_at: new Date().toISOString()
+  })
+  if(error){ showToast('❌ Error: '+error.message); return }
+  foodLogs[_currentMeal] = { id, notes, created_at: new Date().toISOString() }
+  _currentMeal = null
+  renderAlimentacionDash()
+}
+
+async function toggleComida(meal){
+  const log = foodLogs[meal]
+  if(!log) return
+  await SB_P.from('activity_logs').delete().eq('id', log.id)
+  delete foodLogs[meal]
+  renderAlimentacionDash()
+}
+
 function renderTrabajoDash(){
   const el = document.getElementById('dash-trabajo-items')
   if(!el) return
@@ -2175,6 +2252,14 @@ const CAT_ORDER = [
 
 let allActivities = []
 let habitLogs = {}
+let foodLogs = {}
+let _currentMeal = null
+const MEALS = [
+  { id:'desayuno', label:'Desayuno', icon:'☕' },
+  { id:'almuerzo', label:'Almuerzo', icon:'🍽️' },
+  { id:'cena',     label:'Cena',     icon:'🌙' },
+  { id:'extra',    label:'Extra',    icon:'🍎' }
+]
 let weeklyLogs = {}
 let monthlyLogs = {}
 let showInactive = false
@@ -2190,7 +2275,14 @@ async function loadHabitos(){
   const { data: logs } = await SB_P.from('activity_logs')
     .select('*').eq('user_id', USER_ID).eq('date', TODAY)
   habitLogs = {}
-  ;(logs||[]).forEach(l => { habitLogs[l.activity_id] = l })
+  foodLogs = {}
+  ;(logs||[]).forEach(l => {
+    habitLogs[l.activity_id] = l
+    if(l.activity_id === 'a15'){
+      const meal = (l.notes||'').split('|')[0]
+      if(meal) foodLogs[meal] = l
+    }
+  })
 
   // Weekly logs (Monday to Sunday of current week)
   const now = new Date()
@@ -2221,6 +2313,7 @@ async function loadHabitos(){
 
   renderHabitos()
   update2020Widget()
+  renderAlimentacionDash()
 }
 
 function renderHabitos(){
