@@ -480,8 +480,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             <div class="card-title">Capturar idea rápida</div>
             <textarea class="idea-input" id="quick-idea" placeholder="Escribe una idea..."></textarea>
             <button class="btn-gold" onclick="saveQuickIdea()">Guardar + procesar con IA →</button>
-            <div class="processing" id="quick-processing">Procesando con IA...</div>
-          </div>
+              </div>
           <div class="card">
             <div class="card-title">Categorías</div>
             <div class="cat-legend" id="cat-legend"></div>
@@ -568,7 +567,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <option value="habitos">Hábitos</option>
         </select>
         <button class="btn-gold" onclick="saveIdea()">Guardar + procesar con IA →</button>
-        <div class="processing" id="idea-processing">Procesando con IA...</div>
       </div>
       <div class="ideas-list" id="ideas-list">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
@@ -2043,36 +2041,24 @@ function renderIdeas(ideas){
   }).join('')
 }
 
-async function saveIdea(){ await _saveIdea('new-idea','idea-processing') }
-async function saveQuickIdea(){ await _saveIdea('quick-idea','quick-processing') }
+async function saveIdea(){ await _saveIdea('new-idea') }
+async function saveQuickIdea(){ await _saveIdea('quick-idea') }
 
-async function _saveIdea(inputId, procId){
+async function _saveIdea(inputId){
   const raw = document.getElementById(inputId).value.trim()
   if(!raw) return
-  document.getElementById(procId).style.display='block'
   const id = 'idea_'+Date.now()
-  let processed = null
-  try {
-    const res = await fetch('/api/generate-script', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ raw })
-    })
-    const d = await res.json()
-    processed = d.text || null
-  } catch(e){ processed = null }
   const catEl = document.getElementById('idea-cat')
   const category = (catEl && inputId === 'new-idea') ? (catEl.value || null) : null
   await SB_P.from('ideas').insert({
     id, user_id: USER_ID, raw_content: raw,
-    processed_content: processed,
-    source: 'text', status: processed?'procesada':'nueva',
+    processed_content: null,
+    source: 'text', status: 'nueva',
     category,
     created_at: new Date().toISOString()
   })
   document.getElementById(inputId).value = ''
   if(catEl && inputId === 'new-idea') catEl.value = ''
-  document.getElementById(procId).style.display='none'
   await loadIdeas()
 }
 
