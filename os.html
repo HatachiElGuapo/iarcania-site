@@ -1032,8 +1032,6 @@ const CATS = {
   habitos:   { label:'Hábitos',   color:'#555050' },
 }
 
-const CLAUDE_API_KEY = ''  // Pegar aquí tu API key de Anthropic
-
 let USER_ID = null
 let USER_PASSWORD = null
 let allTasks = []
@@ -3054,8 +3052,6 @@ async function generateScriptWithAI(){
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-calls': 'true'
       },
       body: JSON.stringify({
