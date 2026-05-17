@@ -2446,8 +2446,14 @@ async function toggleHabito(activityId){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs[activityId].id)
     delete habitLogs[activityId]
   } else {
-    const log = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
-    await SB_P.from('activity_logs').insert(log)
+    const { data: existing } = await SB_P.from('activity_logs')
+      .select('id')
+      .eq('activity_id', activityId)
+      .eq('date', TODAY)
+      .eq('user_id', USER_ID)
+      .single()
+    const log = existing || { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
+    if(!existing) await SB_P.from('activity_logs').insert(log)
     habitLogs[activityId] = log
     if(activityId === 'a68'){
       const listos = allScripts.filter(s => s.status === 'listo_grabar')
