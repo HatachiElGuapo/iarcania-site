@@ -558,6 +558,15 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="card" style="margin-bottom:1rem">
         <div class="card-title">Nueva idea</div>
         <textarea class="idea-input" id="new-idea" placeholder="Escribe tu idea aquí..."></textarea>
+        <select id="idea-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;margin-bottom:10px">
+          <option value="">Sin categoría</option>
+          <option value="iarcania">IArcanIA</option>
+          <option value="contenido">Contenido</option>
+          <option value="proyectos">Proyectos</option>
+          <option value="personal">Personal</option>
+          <option value="infra">Infraestructura</option>
+          <option value="habitos">Hábitos</option>
+        </select>
         <button class="btn-gold" onclick="saveIdea()">Guardar + procesar con IA →</button>
         <div class="processing" id="idea-processing">Procesando con IA...</div>
       </div>
@@ -1791,6 +1800,20 @@ function openEditTask(id){
   openModal('task')
 }
 
+function createTaskFromIdea(btn){
+  const title = btn.dataset.title
+  const cat   = btn.dataset.cat
+  document.getElementById('modal-task-title').textContent = 'Nueva tarea'
+  document.getElementById('t-id').value    = ''
+  document.getElementById('t-title').value = title
+  document.getElementById('t-cat').value   = CATS[cat] ? cat : 'personal'
+  document.getElementById('t-priority').value = 'alta'
+  document.getElementById('t-due').value   = ''
+  document.getElementById('t-time').value  = ''
+  document.getElementById('task-delete-btn').style.display = 'none'
+  openModal('task')
+}
+
 async function saveTask(){
   const title = document.getElementById('t-title').value.trim()
   if(!title) return
@@ -1995,15 +2018,22 @@ async function loadIdeas(){
 function renderIdeas(ideas){
   const el = document.getElementById('ideas-list')
   if(!ideas.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">◇</div>No hay ideas todavía</div>'; return }
-  el.innerHTML = ideas.map(i => `
-    <div class="idea-card">
+  el.innerHTML = ideas.map(i => {
+    const cat = i.category && CATS[i.category]
+    const catBadge = cat ? `<span style="color:${cat.color};font-size:11px;font-weight:600">${cat.label}</span>` : ''
+    const ideaTitle = (i.processed_content || i.raw_content || '').substring(0, 200).replace(/"/g, '&quot;')
+    const ideaCat = i.category || 'personal'
+    return `<div class="idea-card">
       <div class="idea-raw">${i.raw_content||''}</div>
       ${i.processed_content?`<div class="idea-processed">${i.processed_content}</div>`:''}
-      <div class="idea-meta">
+      <div class="idea-meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="idea-status ${i.status==='procesada'?'status-procesada':'status-nueva'}">${i.status||'nueva'}</span>
-        · ${new Date(i.created_at).toLocaleDateString('es-CO')}
+        ${catBadge}
+        <span style="color:var(--text-muted)">· ${new Date(i.created_at).toLocaleDateString('es-CO')}</span>
+        <button onclick="createTaskFromIdea(this)" data-title="${ideaTitle}" data-cat="${ideaCat}" style="margin-left:auto;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">→ Crear tarea</button>
       </div>
-    </div>`).join('')
+    </div>`
+  }).join('')
 }
 
 async function saveIdea(){ await _saveIdea('new-idea','idea-processing') }
@@ -2024,13 +2054,17 @@ async function _saveIdea(inputId, procId){
     const d = await res.json()
     processed = d.text || null
   } catch(e){ processed = null }
+  const catEl = document.getElementById('idea-cat')
+  const category = (catEl && inputId === 'new-idea') ? (catEl.value || null) : null
   await SB_P.from('ideas').insert({
     id, user_id: USER_ID, raw_content: raw,
     processed_content: processed,
     source: 'text', status: processed?'procesada':'nueva',
+    category,
     created_at: new Date().toISOString()
   })
   document.getElementById(inputId).value = ''
+  if(catEl && inputId === 'new-idea') catEl.value = ''
   document.getElementById(procId).style.display='none'
   await loadIdeas()
 }
