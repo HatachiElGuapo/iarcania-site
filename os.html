@@ -3040,31 +3040,20 @@ async function generateScriptWithAI(){
   if(!idea){ showToast('❌ Escribe una idea primero'); return }
   const canal = document.getElementById('ai-canal').value
   const formato = document.getElementById('ai-formato').value
-  const canalLabel = canal === 'iarcania' ? 'IArcanIA' : 'Void Stoic'
-  const canalDesc  = canal === 'iarcania' ? 'automatización IA para PYMEs' : 'filosofía y productividad'
 
   document.getElementById('ai-loading').style.display = 'block'
   document.getElementById('ai-generate-btn').disabled = true
 
   let result = null
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/generate-script', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-dangerous-direct-browser-calls': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        system: `Eres un experto en creación de contenido para redes sociales B2B. Creas guiones que desafían creencias existentes de la audiencia y generan conversación. El canal ${canalLabel} habla sobre ${canalDesc}. Responde SOLO en JSON con este formato exacto: {"titulo":"título del video","hook":"gancho inicial impactante (primeros 3 segundos)","body":"desarrollo del contenido","cta":"llamada a acción final","notas":"tips de producción y grabación"}`,
-        messages: [{ role: 'user', content: `Crea un guión de ${formato} sobre: ${idea}` }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idea, canal, formato })
     })
     const d = await res.json()
-    const text = d.content?.[0]?.text || ''
-    const match = text.match(/\{[\s\S]*\}/)
-    if(match) result = JSON.parse(match[0])
+    if(!res.ok) throw new Error(d.error || 'Error del servidor')
+    result = d
   } catch(e) {
     showToast('❌ Error al generar: ' + (e.message || 'Error desconocido'))
   }
