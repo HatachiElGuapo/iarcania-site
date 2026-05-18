@@ -323,6 +323,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('ideas',this)">
         <span class="nav-icon">💡</span>Ideas
       </button>
+      <button class="nav-item" onclick="showSection('citas',this)">
+        <span class="nav-icon">🏥</span>Citas
+      </button>
       <button class="nav-item" onclick="showSection('fechas',this)">
         <span class="nav-icon">🎂</span>Fechas
       </button>
@@ -398,6 +401,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="alert-bar alert-red" id="facturas-alert" style="display:none">
         <span class="alert-label">🧾 FACTURAS</span>
         <span id="facturas-alert-text"></span>
+      </div>
+      <div class="alert-bar alert-amber" id="citas-alert" style="display:none">
+        <span class="alert-label">🏥 CITAS</span>
+        <span id="citas-alert-text"></span>
       </div>
       <div class="grid-2">
         <div>
@@ -670,6 +677,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="ideas-list" id="ideas-list">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
       </div>
+    </div>
+
+    <!-- CITAS -->
+    <div class="section" id="section-citas">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Citas</h1>
+          <div class="page-sub">Médicas, odontológicas y reuniones</div>
+        </div>
+        <button class="btn-add" onclick="openModal('nueva-cita')">+ Nueva cita</button>
+      </div>
+      <div id="citas-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
     </div>
 
     <!-- FECHAS -->
@@ -1287,6 +1306,32 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-nueva-cita">
+  <div class="modal" style="max-width:440px">
+    <h3>Nueva cita</h3>
+    <div class="field"><label>Título *</label><input type="text" id="nc-title" placeholder="Ej: Revisión anual"/></div>
+    <div class="field"><label>Tipo</label>
+      <select id="nc-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="medica">🏥 Médica</option>
+        <option value="odontologica">🦷 Odontológica</option>
+        <option value="reunion">🤝 Reunión</option>
+        <option value="otro">📋 Otro</option>
+      </select>
+    </div>
+    <div class="field"><label>Fecha y hora *</label><input type="datetime-local" id="nc-datetime" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    <div class="field"><label>Lugar (opcional)</label><input type="text" id="nc-lugar" placeholder="Clínica, dirección..."/></div>
+    <div class="field"><label>Doctor / persona (opcional)</label><input type="text" id="nc-doctor" placeholder="Dr. García..."/></div>
+    <div class="form-row">
+      <div class="field"><label>Recordatorio 1 (h antes)</label><input type="number" id="nc-r1" value="3" min="0" placeholder="3"/></div>
+      <div class="field"><label>Recordatorio 2 (h antes)</label><input type="number" id="nc-r2" value="1" min="0" placeholder="1"/></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('nueva-cita')">Cancelar</button>
+      <button class="btn-save" onclick="guardarNuevaCita()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1391,7 +1436,7 @@ async function initApp(){
   setInterval(updateClock, 1000)
   checkDateReset()
   setInterval(checkDateReset, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses(), loadFinanzas(), loadFacturas()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses(), loadFinanzas(), loadFacturas(), loadCitas()])
   loadTimerFromStorage()
 }
 
@@ -1435,6 +1480,7 @@ function showSection(id, btn){
   if(id === 'vicios') renderVicios()
   if(id === 'hogar') loadHogar()
   if(id === 'facturas') loadFacturas()
+  if(id === 'citas') loadCitas()
   if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
@@ -4567,6 +4613,7 @@ function onTaskDrop(e, targetId, elId){
 
 // --- FACTURAS ---
 let allBills = []
+let allCitas = []
 let allBillPayments = []
 let _pagarBillId = null
 
@@ -5031,6 +5078,152 @@ async function deleteGasto(id){
   await SB_P.from('expenses').delete().eq('id', id)
   allExpenses = allExpenses.filter(e => e.id !== id)
   renderExpenses()
+}
+
+// --- CITAS ---
+const CITA_ICONS = { medica:'🏥', odontologica:'🦷', reunion:'🤝', otro:'📋' }
+const CITA_STATUS_COLOR = { pendiente:'#EF9F27', completada:'#5DCAA5', cancelada:'var(--text-muted)' }
+const CITA_STATUS_LABEL = { pendiente:'Pendiente', completada:'Completada', cancelada:'Cancelada' }
+
+async function loadCitas(){
+  const { data } = await SB_P.from('appointments')
+    .select('*').order('datetime',{ascending:true})
+  allCitas = data || []
+  renderCitas()
+  renderCitasAlert()
+}
+
+function renderCitasAlert(){
+  const el  = document.getElementById('citas-alert')
+  const txt = document.getElementById('citas-alert-text')
+  if(!el) return
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1)
+  const tmrStr = tomorrow.toLocaleDateString('en-CA')
+  const proximas = allCitas.filter(c => {
+    if(c.status !== 'pendiente') return false
+    const d = c.datetime.slice(0,10)
+    return d === TODAY || d === tmrStr
+  })
+  if(!proximas.length){ el.style.display='none'; return }
+  el.style.display = 'flex'
+  txt.textContent = proximas.map(c => {
+    const d   = new Date(c.datetime)
+    const h   = d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
+    const dia = c.datetime.slice(0,10) === TODAY ? 'Hoy' : 'Mañana'
+    return `${dia} ${h} — ${c.title}`
+  }).join(' · ')
+}
+
+function renderCitas(){
+  const el = document.getElementById('citas-list')
+  if(!el) return
+  const now = new Date()
+  const proximas = allCitas.filter(c => c.status === 'pendiente' && new Date(c.datetime) >= now)
+  const pasadas  = allCitas.filter(c => c.status !== 'pendiente' || new Date(c.datetime) < now)
+
+  function citaCard(c){
+    const d     = new Date(c.datetime)
+    const fecha = d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    const hora  = d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
+    const stC   = CITA_STATUS_COLOR[c.status] || 'var(--text-muted)'
+    const stL   = CITA_STATUS_LABEL[c.status] || c.status
+    const icon  = CITA_ICONS[c.type] || '📋'
+    const isPendiente = c.status === 'pendiente'
+    const lugar  = c.lugar  ? `<span>📍 ${c.lugar}</span>`   : ''
+    const doctor = c.doctor ? `<span>👨‍⚕️ ${c.doctor}</span>` : ''
+    return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px${c.status==='cancelada'?';opacity:.5':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary)">${icon} ${c.title}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:5px;display:flex;flex-wrap:wrap;gap:8px">
+            <span>📅 ${fecha.charAt(0).toUpperCase()+fecha.slice(1)}, ${hora}</span>
+            ${lugar}${doctor}
+          </div>
+        </div>
+        <span style="font-size:11px;color:${stC};font-weight:600;white-space:nowrap;flex-shrink:0">${stL}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${isPendiente ? `
+        <button onclick="completarCita('${c.id}')" style="padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid rgba(93,202,165,0.4);background:transparent;color:#5DCAA5;cursor:pointer;font-family:'Outfit',sans-serif">✓ Completar</button>
+        <button onclick="cancelarCita('${c.id}')" style="padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid rgba(239,159,39,0.3);background:transparent;color:#EF9F27;cursor:pointer;font-family:'Outfit',sans-serif">✗ Cancelar</button>` : ''}
+        <button onclick="eliminarCita('${c.id}')" style="padding:5px 10px;font-size:12px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif">🗑️</button>
+      </div>
+    </div>`
+  }
+
+  if(!proximas.length && !pasadas.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏥</div>No hay citas registradas</div>'
+    return
+  }
+  let html = ''
+  if(proximas.length){
+    html += `<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Próximas</div>`
+    html += proximas.map(citaCard).join('')
+  }
+  if(pasadas.length){
+    html += `<details style="margin-top:${proximas.length?'14':'0'}px">
+      <summary style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;cursor:pointer;list-style:none;margin-bottom:8px">Pasadas / completadas (${pasadas.length})</summary>
+      <div style="margin-top:8px">${pasadas.map(citaCard).join('')}</div>
+    </details>`
+  }
+  el.innerHTML = html
+}
+
+async function completarCita(id){
+  const { error } = await SB_P.from('appointments').update({status:'completada'}).eq('id',id)
+  if(error){ showToast('❌ '+error.message); return }
+  allCitas = allCitas.map(c => c.id===id ? {...c,status:'completada'} : c)
+  renderCitas(); renderCitasAlert()
+  showToast('✅ Cita completada')
+}
+
+async function cancelarCita(id){
+  const { error } = await SB_P.from('appointments').update({status:'cancelada'}).eq('id',id)
+  if(error){ showToast('❌ '+error.message); return }
+  allCitas = allCitas.map(c => c.id===id ? {...c,status:'cancelada'} : c)
+  renderCitas(); renderCitasAlert()
+  showToast('✗ Cita cancelada')
+}
+
+async function eliminarCita(id){
+  const { error } = await SB_P.from('appointments').delete().eq('id',id)
+  if(error){ showToast('❌ '+error.message); return }
+  allCitas = allCitas.filter(c => c.id!==id)
+  renderCitas(); renderCitasAlert()
+  showToast('🗑️ Cita eliminada')
+}
+
+async function guardarNuevaCita(){
+  const title = document.getElementById('nc-title').value.trim()
+  const dt    = document.getElementById('nc-datetime').value
+  if(!title || !dt){ showToast('⚠️ Título y fecha son requeridos'); return }
+  const dtMs = new Date(dt).getTime()
+  const r1h  = parseFloat(document.getElementById('nc-r1').value) || 0
+  const r2h  = parseFloat(document.getElementById('nc-r2').value) || 0
+  const rec  = {
+    id:         'apt_'+Date.now(),
+    user_id:    USER_ID,
+    title,
+    type:       document.getElementById('nc-type').value,
+    datetime:   new Date(dt).toISOString(),
+    lugar:      document.getElementById('nc-lugar').value.trim() || null,
+    doctor:     document.getElementById('nc-doctor').value.trim() || null,
+    reminder_1: r1h > 0 ? new Date(dtMs - r1h*3600000).toISOString() : null,
+    reminder_2: r2h > 0 ? new Date(dtMs - r2h*3600000).toISOString() : null,
+    status:     'pendiente'
+  }
+  const { error } = await SB_P.from('appointments').insert(rec)
+  if(error){ showToast('❌ '+error.message); return }
+  allCitas = [...allCitas, rec].sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
+  closeModal('nueva-cita')
+  document.getElementById('nc-title').value = ''
+  document.getElementById('nc-datetime').value = ''
+  document.getElementById('nc-lugar').value = ''
+  document.getElementById('nc-doctor').value = ''
+  document.getElementById('nc-r1').value = '3'
+  document.getElementById('nc-r2').value = '1'
+  renderCitas(); renderCitasAlert()
+  showToast('✅ Cita guardada')
 }
 </script>
 </body>
