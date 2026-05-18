@@ -3944,28 +3944,14 @@ function renderProyectoDia(scripts){
   const el = document.getElementById('dash-guion-content')
   if(!el) return
 
-  const isIA    = _guionesDashCanal === 'iarcania'
-  const color   = isIA ? '#E24B4A' : 'var(--purple)'
-  const subHdr  = label => `<div style="font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--border)">${label}</div>`
-
-  // — Hábitos —
-  const habitIds = isIA ? ['a72','a73'] : ['a68','a71']
-  const habitosHtml = habitIds.map(id => {
-    const act = allActivities.find(a => a.id === id)
-    const done = !!habitLogs[id]
-    const name = act?.name || id
-    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer" onclick="toggleHabito('${id}')">
-      <div style="width:16px;height:16px;border-radius:4px;border:1px solid ${done?color:'rgba(255,255,255,0.15)'};background:${done?color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        ${done?`<span style="color:#000;font-size:9px;font-weight:800">✓</span>`:''}
-      </div>
-      <span style="font-size:12px;color:${done?'var(--text-muted)':'var(--text)'}${done?';text-decoration:line-through':''}">${name}</span>
-    </div>`
-  }).join('')
+  const isIA   = _guionesDashCanal === 'iarcania'
+  const color  = isIA ? '#E24B4A' : 'var(--purple)'
+  const subHdr = label => `<div style="font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--border)">${label}</div>`
 
   // — Tareas —
-  const taskCat  = isIA ? 'iarcania' : 'contenido'
-  const PRIO     = { alta:0, media:1, baja:2 }
-  const tareas   = allTasks
+  const taskCat = isIA ? 'iarcania' : 'contenido'
+  const PRIO    = { alta:0, media:1, baja:2 }
+  const tareas  = allTasks
     .filter(t => t.category === taskCat && t.status !== 'completada')
     .sort((a,b) => (PRIO[a.priority]??3) - (PRIO[b.priority]??3))
     .slice(0, 3)
@@ -3977,19 +3963,25 @@ function renderProyectoDia(scripts){
     : `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">Sin tareas pendientes</div>`
 
   // — Guiones —
-  const S_COLOR  = { borrador:'var(--text-muted)', en_progreso:'#EF9F27', listo_grabar:'#5DCAA5' }
-  const S_LABEL  = { borrador:'Borrador', en_progreso:'En progreso', listo_grabar:'Listo para grabar' }
+  const S_COLOR = { borrador:'var(--text-muted)', en_progreso:'#EF9F27', listo_grabar:'#5DCAA5' }
+  const S_LABEL = { borrador:'Borrador', en_progreso:'En progreso', listo_grabar:'Listo para grabar' }
   const guionesHtml = scripts.length
-    ? scripts.map(s => `<div style="padding:4px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.title}</div>
-        <span style="font-size:10px;color:${S_COLOR[s.status]||'var(--text-muted)'}">${S_LABEL[s.status]||s.status}</span>
+    ? scripts.map(s => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.title}</div>
+          <span style="font-size:10px;color:${S_COLOR[s.status]||'var(--text-muted)'}">${S_LABEL[s.status]||s.status}</span>
+        </div>
+        <button onclick="goToScript('${s.id}')" style="flex-shrink:0;padding:3px 8px;font-size:11px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">✏️ Editar</button>
       </div>`).join('')
     : `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">Sin guiones pendientes</div>`
 
-  el.innerHTML =
-    subHdr('Hábitos') + habitosHtml +
-    subHdr('Tareas')  + tareasHtml  +
-    subHdr('Guiones') + guionesHtml
+  el.innerHTML = subHdr('Tareas') + tareasHtml + subHdr('Guiones') + guionesHtml
+}
+
+function goToScript(scriptId){
+  activeScriptId = scriptId
+  const btn = document.querySelector('.nav-item[onclick*="guiones"]')
+  showSection('guiones', btn)
 }
 
 function showGrabarDialog(scripts){
