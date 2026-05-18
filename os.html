@@ -602,9 +602,12 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Tareas</h1>
           <div class="page-sub">Toca para marcar como completada</div>
         </div>
-        <div style="position:relative">
-          <input type="text" id="search-tareas-act" placeholder="🔍 Buscar tarea..." oninput="searchTareasSection(this.value)" style="background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;width:180px">
-          <div id="sugg-tareas-act" style="position:absolute;right:0;top:calc(100% + 2px);width:280px;background:#111;border:1px solid var(--border);border-radius:7px;overflow:hidden;display:none;z-index:50"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="position:relative">
+            <input type="text" id="search-tareas-act" placeholder="🔍 Buscar tarea..." oninput="searchTareasSection(this.value)" style="background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;width:180px">
+            <div id="sugg-tareas-act" style="position:absolute;right:0;top:calc(100% + 2px);width:280px;background:#111;border:1px solid var(--border);border-radius:7px;overflow:hidden;display:none;z-index:50"></div>
+          </div>
+          <button class="btn-add" onclick="openNuevaTareaModal()">+ Nueva tarea</button>
         </div>
       </div>
       <!-- Tareas con fecha asignada -->
@@ -1302,6 +1305,59 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('nueva-factura')">Cancelar</button>
       <button class="btn-save" onclick="guardarNuevaFactura()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-selector-tarea">
+  <div class="modal" style="max-width:500px">
+    <h3 id="st-modal-title">Nueva tarea</h3>
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px">
+      <button id="st-tab-existente" onclick="switchSelectorTab('existente')" style="flex:1;padding:9px 0;background:transparent;border:none;border-bottom:2px solid var(--gold);color:var(--gold);font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer;transition:all .15s">Seleccionar existente</button>
+      <button id="st-tab-nueva" onclick="switchSelectorTab('nueva')" style="flex:1;padding:9px 0;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer;transition:all .15s">Crear nueva</button>
+    </div>
+    <!-- Panel: Seleccionar existente -->
+    <div id="st-panel-existente">
+      <input id="st-search" type="text" placeholder="🔍 Buscar tarea..." oninput="filterSelectorTareas(this.value)" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;margin-bottom:10px">
+      <div id="st-lista" style="max-height:320px;overflow-y:auto;padding-right:4px"></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;padding-bottom:4px" id="st-sel-count">0 seleccionadas</div>
+      <div class="btn-row">
+        <button class="btn-cancel" onclick="closeModal('selector-tarea')">Cancelar</button>
+        <button class="btn-save" onclick="confirmarSeleccionTareas()">Agregar a Hoy →</button>
+      </div>
+    </div>
+    <!-- Panel: Crear nueva -->
+    <div id="st-panel-nueva" style="display:none">
+      <div class="field"><label>Título</label><input type="text" id="st-title" placeholder="¿Qué hay que hacer?"/></div>
+      <div class="form-row">
+        <div class="field"><label>Categoría</label>
+          <select id="st-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+            <option value="iarcania">IArcanIA</option>
+            <option value="contenido">Contenido</option>
+            <option value="proyectos">Proyectos</option>
+            <option value="personal">Personal</option>
+            <option value="familia">Familia</option>
+            <option value="infra">Infraestructura</option>
+            <option value="habitos">Hábitos</option>
+          </select>
+        </div>
+        <div class="field"><label>Prioridad</label>
+          <select id="st-priority" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="st-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+        <div class="field"><label>Hora (opcional)</label><input type="time" id="st-time" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-cancel" onclick="closeModal('selector-tarea')">Cancelar</button>
+        <button class="btn-save" onclick="saveNuevaTareaFromSelector()">Guardar tarea</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5224,6 +5280,126 @@ async function guardarNuevaCita(){
   document.getElementById('nc-r2').value = '1'
   renderCitas(); renderCitasAlert()
   showToast('✅ Cita guardada')
+}
+
+// --- SELECTOR DE TAREAS ---
+let _selectorTab = 'existente'
+let _selectorSelected = new Set()
+
+function openNuevaTareaModal(){
+  _selectorSelected = new Set()
+  document.getElementById('st-search').value = ''
+  document.getElementById('st-title').value = ''
+  document.getElementById('st-due').value = ''
+  document.getElementById('st-time').value = ''
+  document.getElementById('st-cat').value = 'iarcania'
+  document.getElementById('st-priority').value = 'alta'
+  switchSelectorTab('existente')
+  renderSelectorTareas('')
+  openModal('selector-tarea')
+}
+
+function switchSelectorTab(tab){
+  _selectorTab = tab
+  document.getElementById('st-panel-existente').style.display = tab === 'existente' ? 'block' : 'none'
+  document.getElementById('st-panel-nueva').style.display     = tab === 'nueva'     ? 'block' : 'none'
+  ;['existente','nueva'].forEach(t => {
+    const btn = document.getElementById('st-tab-'+t)
+    btn.style.borderBottomColor = t === tab ? 'var(--gold)' : 'transparent'
+    btn.style.color = t === tab ? 'var(--gold)' : 'var(--text-muted)'
+  })
+}
+
+function filterSelectorTareas(q){
+  renderSelectorTareas(q.toLowerCase())
+}
+
+function renderSelectorTareas(q){
+  const el = document.getElementById('st-lista')
+  if(!el) return
+  const pending  = allTasks.filter(t => t.status !== 'completada')
+  const filtered = q ? pending.filter(t => t.title.toLowerCase().includes(q)) : pending
+
+  if(!filtered.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Sin resultados</div>'
+    updateSelectorCount()
+    return
+  }
+
+  const groups = {}
+  filtered.forEach(t => {
+    const k = t.category || 'personal'
+    if(!groups[k]) groups[k] = []
+    groups[k].push(t)
+  })
+
+  const CAT_FALLBACK = { label:'Otros', color:'#888888' }
+  el.innerHTML = Object.entries(groups).map(([catKey, tasks]) => {
+    const cat = CATS[catKey] || CAT_FALLBACK
+    const rows = tasks.map(t => {
+      const checked = _selectorSelected.has(t.id) ? 'checked' : ''
+      const dateStr = t.due_date ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${t.due_date}</span>` : ''
+      return `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;background:transparent" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+        <input type="checkbox" ${checked} onchange="toggleSelectorTask('${t.id}',this.checked)" style="width:15px;height:15px;accent-color:${cat.color};cursor:pointer;flex-shrink:0">
+        <span style="font-size:13px;color:var(--text-primary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</span>
+        ${dateStr}
+      </label>`
+    }).join('')
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;color:${cat.color};text-transform:uppercase;letter-spacing:.07em;padding:0 8px;margin-bottom:2px">${cat.label}</div>
+      ${rows}
+    </div>`
+  }).join('')
+  updateSelectorCount()
+}
+
+function toggleSelectorTask(id, checked){
+  if(checked) _selectorSelected.add(id)
+  else _selectorSelected.delete(id)
+  updateSelectorCount()
+}
+
+function updateSelectorCount(){
+  const el = document.getElementById('st-sel-count')
+  if(el) el.textContent = `${_selectorSelected.size} seleccionada${_selectorSelected.size !== 1 ? 's' : ''}`
+}
+
+function confirmarSeleccionTareas(){
+  if(!_selectorSelected.size){ showToast('⚠️ Selecciona al menos una tarea'); return }
+  const ids = getDashList('hoy')
+  let added = 0
+  _selectorSelected.forEach(id => {
+    if(ids.length >= 5) return
+    if(!ids.includes(id)){ ids.push(id); added++ }
+  })
+  setDashList('hoy', ids)
+  closeModal('selector-tarea')
+  renderTasks()
+  showToast(added > 0 ? `✅ ${added} tarea${added > 1 ? 's' : ''} agregada${added > 1 ? 's' : ''} a Hoy` : '⚠️ Límite de 5 tareas alcanzado o ya estaban en la lista')
+}
+
+async function saveNuevaTareaFromSelector(){
+  const title = document.getElementById('st-title').value.trim()
+  if(!title){ showToast('⚠️ Escribe un título'); return }
+  const catKey = document.getElementById('st-cat').value
+  const cat    = CATS[catKey] || CATS.habitos
+  const taskData = {
+    id:          'task_'+Date.now(),
+    title,
+    category:    catKey,
+    color:       cat.color,
+    priority:    document.getElementById('st-priority').value,
+    due_date:    document.getElementById('st-due').value  || null,
+    notes:       document.getElementById('st-time').value || null,
+    assigned_to: USER_ID,
+    created_by:  USER_ID,
+    status:      'pendiente'
+  }
+  const { error } = await SB_P.from('tasks').insert(taskData)
+  if(error){ showToast('❌ '+error.message); return }
+  closeModal('selector-tarea')
+  await loadTasks()
+  showToast('✅ Tarea creada')
 }
 </script>
 </body>
