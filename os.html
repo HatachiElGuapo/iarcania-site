@@ -4203,19 +4203,34 @@ function renderScripts(){
     const stLabel = STATUS_LABELS[s.status] || 'Borrador'
     const isActive = s.id === activeScriptId
     const grabacion = s.fecha_grabacion ? `<span style="color:var(--text-muted)">📅 ${s.fecha_grabacion}</span>` : ''
+    const cl = getChecklist(s)
+    const clDone = checklistDone(cl)
+    const clKeys = ['guion','imagenes','grabado','editado','thumbnail','publicado']
+    const clLabels = {guion:'Guión listo',imagenes:'Imágenes / recursos listos',grabado:'Grabado',editado:'Editado',thumbnail:'Thumbnail',publicado:'Publicado'}
+    const clBarC = clDone === 0 ? 'var(--text-muted)' : clDone < 6 ? '#EF9F27' : '#5DCAA5'
     return `<div class="script-card${isActive?' active':''}" style="border-left-color:${cColor}">
       <div onclick="openScriptDetail('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
-        <div>
+        <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;color:var(--text)">${s.title}</div>
           <div style="font-size:11px;margin-top:4px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span style="color:${cColor};font-weight:600">${cLabel}</span>
             <span style="color:${stColor}">${stLabel}</span>
             ${grabacion}
           </div>
+          ${renderChecklistBar(cl)}
         </div>
-        <span style="color:var(--text-muted);font-size:18px;line-height:1;display:inline-block;transition:transform .2s;${isActive?'transform:rotate(180deg)':''}">⌄</span>
+        <span style="color:var(--text-muted);font-size:18px;line-height:1;display:inline-block;transition:transform .2s;flex-shrink:0;margin-left:10px;${isActive?'transform:rotate(180deg)':''}">⌄</span>
       </div>
       ${isActive ? `<div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:14px">
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📋 Producción</div>
+          <div style="display:flex;gap:2px;border-radius:3px;overflow:hidden;margin-bottom:10px">${clKeys.map(k=>`<div style="flex:1;height:4px;background:${cl[k]?clBarC:'var(--border)'}"></div>`).join('')}</div>
+          <div style="display:flex;flex-direction:column;gap:4px">${clKeys.map(k=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0">
+            <input type="checkbox" ${cl[k]?'checked':''} onchange="toggleChecklist('${s.id}','${k}',this.checked)" style="width:15px;height:15px;accent-color:${clBarC};cursor:pointer;flex-shrink:0">
+            <span style="font-size:13px;color:${cl[k]?'var(--text-primary)':'var(--text-muted)'}">${clLabels[k]}</span>
+          </label>`).join('')}</div>
+          <div style="font-size:11px;color:${clBarC};margin-top:8px">${clDone}/6 completados</div>
+        </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Hook</div>
           <textarea id="se-hook-${s.id}" class="script-editor-field" placeholder="Gancho inicial — primera oración que engancha al espectador">${s.hook||''}</textarea>
@@ -4280,6 +4295,44 @@ async function saveScript(scriptId){
   if(error){ showToast('❌ Error: ' + error.message); return }
   allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
   showToast('✅ Guión guardado')
+  renderScripts()
+  loadProyectoDia()
+}
+
+function getChecklist(s){
+  const def = {guion:false,imagenes:false,grabado:false,editado:false,thumbnail:false,publicado:false}
+  if(!s.checklist) return def
+  return {...def, ...s.checklist}
+}
+
+function checklistDone(cl){
+  return ['guion','imagenes','grabado','editado','thumbnail','publicado'].filter(k => cl[k]).length
+}
+
+function renderChecklistBar(cl){
+  const done  = checklistDone(cl)
+  const keys  = ['guion','imagenes','grabado','editado','thumbnail','publicado']
+  const barC  = done === 0 ? 'var(--text-muted)' : done < 6 ? '#EF9F27' : '#5DCAA5'
+  const segs  = keys.map(k => cl[k] ? '██' : '░░').join('')
+  return `<div style="margin-top:5px;font-size:10px;color:${barC};font-family:monospace;letter-spacing:0">${done}/6 ${segs}</div>`
+}
+
+async function toggleChecklist(scriptId, key, value){
+  const script = allScripts.find(s => s.id === scriptId)
+  if(!script) return
+  const cl = getChecklist(script)
+  cl[key] = value
+  const updates = { checklist: cl }
+  const ORDER = ['borrador','en_progreso','listo_grabar','grabado','publicado']
+  const autoMap = { guion:'en_progreso', grabado:'grabado', publicado:'publicado' }
+  if(value && autoMap[key]){
+    const curIdx = ORDER.indexOf(script.status || 'borrador')
+    const newIdx = ORDER.indexOf(autoMap[key])
+    if(newIdx > curIdx) updates.status = autoMap[key]
+  }
+  const { error } = await SB_P.from('scripts').update(updates).eq('id', scriptId)
+  if(error){ showToast('❌ ' + error.message); return }
+  allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...updates} : s)
   renderScripts()
   loadProyectoDia()
 }
