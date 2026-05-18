@@ -2659,12 +2659,13 @@ let choreHistory = []
 let _choreInput = null
 let _choreInputText = ''
 const CHORES_DEF = [
-  { id:'cocinar', label:'Cocinar', icon:'🍳' },
-  { id:'loza',    label:'Loza',    icon:'🍽️' },
-  { id:'barrer',  label:'Barrer',  icon:'🧹' },
-  { id:'ropa',    label:'Ropa',    icon:'🧺' },
-  { id:'basura',  label:'Basura',  icon:'🗑️' },
-  { id:'bano',    label:'Baño',    icon:'🧽' }
+  { id:'cocinar',    label:'Cocinar',     icon:'🍳', multiNote:true },
+  { id:'loza',       label:'Loza',        icon:'🍽️', multiNote:true },
+  { id:'barrer',     label:'Barrer',      icon:'🧹', multiNote:true },
+  { id:'lavar_ropa', label:'Lavar ropa',  icon:'🧺' },
+  { id:'colgar_ropa',label:'Colgar ropa', icon:'👕' },
+  { id:'basura',     label:'Basura',      icon:'🗑️' },
+  { id:'bano',       label:'Baño',        icon:'🧽' }
 ]
 const SLOT_HABITS = {
   a12: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'tarde',label:'Tarde',icon:'☀️'},{id:'noche',label:'Noche',icon:'🌙'}],
