@@ -350,6 +350,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('gastos',this)">
         <span class="nav-icon">💸</span>Gastos
       </button>
+      <button class="nav-item" onclick="showSection('facturas',this)">
+        <span class="nav-icon">🧾</span>Facturas
+      </button>
       <button class="nav-item" onclick="showSection('finanzas',this)">
         <span class="nav-icon">💳</span>Finanzas
       </button>
@@ -391,6 +394,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="alert-bar alert-red" id="bd-alert" style="display:none">
         <span class="alert-label">📅 PRÓXIMAS</span>
         <div id="bd-pills"></div>
+      </div>
+      <div class="alert-bar alert-red" id="facturas-alert" style="display:none">
+        <span class="alert-label">🧾 FACTURAS</span>
+        <span id="facturas-alert-text"></span>
       </div>
       <div class="grid-2">
         <div>
@@ -838,6 +845,20 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
     </div>
 
+    <!-- FACTURAS -->
+    <div class="section" id="section-facturas">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🧾 Facturas</h1>
+          <div class="page-sub" id="facturas-sub">Servicios recurrentes</div>
+        </div>
+        <button class="btn-add" onclick="openModal('nueva-factura')">+ Nueva factura</button>
+      </div>
+      <div id="facturas-list" style="display:flex;flex-direction:column;gap:8px">
+        <div class="loading"><div class="spinner"></div><br>Cargando facturas...</div>
+      </div>
+    </div>
+
     <!-- GASTOS -->
     <div class="section" id="section-gastos">
       <div class="page-header">
@@ -1212,6 +1233,45 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-pagar-factura">
+  <div class="modal">
+    <h3 id="pagar-factura-title">Marcar como pagada</h3>
+    <div class="form-row">
+      <div class="field"><label>Monto pagado (COP)</label><input type="number" id="pf-amount" placeholder="0" min="0"/></div>
+      <div class="field"><label>Fecha de pago</label><input type="date" id="pf-date"/></div>
+    </div>
+    <div class="field"><label>Notas (opcional)</label><input type="text" id="pf-notes" placeholder="Número de recibo, referencia..."/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('pagar-factura')">Cancelar</button>
+      <button class="btn-save" onclick="guardarPagoFactura()">✓ Marcar pagada</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-nueva-factura">
+  <div class="modal">
+    <h3>Nueva factura recurrente</h3>
+    <div class="field"><label>Nombre</label><input type="text" id="nf-name" placeholder="Ej: Netflix, Arriendo..."/></div>
+    <div class="form-row">
+      <div class="field"><label>Monto estimado (COP)</label><input type="number" id="nf-amount" placeholder="0" min="0"/></div>
+      <div class="field"><label>Día de vencimiento</label><input type="number" id="nf-day" placeholder="1–28" min="1" max="28"/></div>
+    </div>
+    <div class="field"><label>Categoría</label>
+      <select id="nf-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="servicios">⚡ Servicios</option>
+        <option value="tecnologia">💻 Tecnología</option>
+        <option value="hogar">🏠 Hogar</option>
+        <option value="salud">💊 Salud</option>
+        <option value="otros">📦 Otros</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('nueva-factura')">Cancelar</button>
+      <button class="btn-save" onclick="guardarNuevaFactura()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1316,7 +1376,7 @@ async function initApp(){
   setInterval(updateClock, 1000)
   checkDateReset()
   setInterval(checkDateReset, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses(), loadFinanzas()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses(), loadFinanzas(), loadFacturas()])
 }
 
 function setDate(){
@@ -1354,6 +1414,7 @@ function showSection(id, btn){
   if(id === 'agenda') renderAgenda()
   if(id === 'vicios') renderVicios()
   if(id === 'hogar') loadHogar()
+  if(id === 'facturas') loadFacturas()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(window.innerWidth <= 768) closeSidebar()
@@ -4209,6 +4270,150 @@ function onTaskDrop(e, targetId, elId){
   currentIds.splice(targetIdx, 0, dragTaskId)
   saveTaskOrder(currentIds)
   renderTasks()
+}
+
+// --- FACTURAS ---
+let allBills = []
+let allBillPayments = []
+let _pagarBillId = null
+
+async function loadFacturas(){
+  const { data: bills } = await SB_P.from('bills').select('*').eq('user_id', USER_ID).eq('is_active', true).order('due_day')
+  allBills = bills || []
+
+  const monthStart = TODAY.slice(0,7)+'-01'
+  const lastDay = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate()
+  const monthEnd = TODAY.slice(0,7)+'-'+String(lastDay).padStart(2,'0')
+  const { data: payments } = await SB_P.from('bill_payments').select('*').gte('paid_date', monthStart).lte('paid_date', monthEnd)
+  allBillPayments = payments || []
+
+  renderFacturasAlert()
+  renderFacturas()
+}
+
+function renderFacturasAlert(){
+  const el = document.getElementById('facturas-alert')
+  if(!el) return
+  const todayDay = parseInt(TODAY.split('-')[2])
+  const paidIds = new Set(allBillPayments.map(p => p.bill_id))
+  const overdue = allBills.filter(b => b.due_day < todayDay && !paidIds.has(b.id))
+  if(!overdue.length){ el.style.display = 'none'; return }
+  el.style.display = 'flex'
+  document.getElementById('facturas-alert-text').textContent =
+    `${overdue.length} factura${overdue.length!==1?'s':''} vencida${overdue.length!==1?'s':''}: ${overdue.map(b=>b.name).join(', ')}`
+}
+
+function renderFacturas(){
+  const el = document.getElementById('facturas-list')
+  if(!el) return
+
+  const todayDay  = parseInt(TODAY.split('-')[2])
+  const paidIds   = new Set(allBillPayments.map(p => p.bill_id))
+  const payMap    = {}
+  allBillPayments.forEach(p => { payMap[p.bill_id] = p })
+
+  const subEl = document.getElementById('facturas-sub')
+  if(subEl){
+    const total = allBills.reduce((s,b) => s+(b.estimated_amount||0), 0)
+    const paid  = allBills.filter(b => paidIds.has(b.id)).length
+    subEl.textContent = `${paid} / ${allBills.length} pagadas este mes · Estimado: $${total.toLocaleString('es-CO')}`
+  }
+
+  if(!allBills.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div>Sin facturas. Agrega con "+ Nueva factura"</div>'
+    return
+  }
+
+  const catIcon = { servicios:'⚡', tecnologia:'💻', hogar:'🏠', salud:'💊', otros:'📦' }
+  const sorted = [...allBills].sort((a,b) => {
+    const aOver = a.due_day < todayDay && !paidIds.has(a.id)
+    const bOver = b.due_day < todayDay && !paidIds.has(b.id)
+    if(aOver !== bOver) return aOver ? -1 : 1
+    return a.due_day - b.due_day
+  })
+
+  el.innerHTML = sorted.map(bill => {
+    const pay      = payMap[bill.id]
+    const isPaid   = !!pay
+    const isOverdue = !isPaid && bill.due_day < todayDay
+    const border   = isPaid ? '#5DCAA5' : isOverdue ? '#E24B4A' : 'var(--border)'
+    const bg       = isPaid ? 'rgba(93,202,165,0.06)' : isOverdue ? 'rgba(226,75,74,0.06)' : 'var(--bg-card)'
+    const icon     = catIcon[bill.category] || '📦'
+    const amt      = bill.estimated_amount ? `~$${bill.estimated_amount.toLocaleString('es-CO')}` : 'Sin monto'
+    const overdueTag = isOverdue
+      ? `<span style="font-size:10px;background:rgba(226,75,74,0.15);color:#E24B4A;padding:2px 6px;border-radius:4px;margin-left:6px">VENCIDA</span>`
+      : ''
+    const statusHtml = isPaid
+      ? `<div style="text-align:right;flex-shrink:0">
+          <div style="font-size:12px;color:#5DCAA5;font-weight:600">✓ Pagada</div>
+          <div style="font-size:11px;color:var(--text-muted)">$${(pay.amount||0).toLocaleString('es-CO')} · ${pay.paid_date}</div>
+        </div>`
+      : `<button onclick="abrirPagarFactura('${bill.id}')" style="flex-shrink:0;padding:7px 13px;border-radius:7px;border:1px solid ${isOverdue?'#E24B4A':'var(--purple)'};background:${isOverdue?'rgba(226,75,74,0.1)':'rgba(155,114,240,0.1)'};color:${isOverdue?'#E24B4A':'var(--purple)'};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Marcar pagada</button>`
+    return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${icon} ${bill.name}${overdueTag}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${amt} · Vence día ${bill.due_day}</div>
+      </div>
+      ${statusHtml}
+    </div>`
+  }).join('')
+}
+
+function abrirPagarFactura(billId){
+  _pagarBillId = billId
+  const bill = allBills.find(b => b.id === billId)
+  if(!bill) return
+  document.getElementById('pagar-factura-title').textContent = `Pagar: ${bill.name}`
+  document.getElementById('pf-amount').value = bill.estimated_amount || ''
+  document.getElementById('pf-date').value = TODAY
+  document.getElementById('pf-notes').value = ''
+  openModal('pagar-factura')
+}
+
+async function guardarPagoFactura(){
+  const bill = allBills.find(b => b.id === _pagarBillId)
+  if(!bill) return
+  const amount    = Number(document.getElementById('pf-amount').value)
+  const paid_date = document.getElementById('pf-date').value || TODAY
+  const notes     = document.getElementById('pf-notes').value.trim()
+  if(!amount){ showToast('❌ Ingresa el monto pagado'); return }
+
+  const payId = 'bp_'+Date.now()
+  const { error: e1 } = await SB_P.from('bill_payments').insert({
+    id: payId, bill_id: _pagarBillId, amount, paid_date, notes,
+    created_at: new Date().toISOString()
+  })
+  if(e1){ showToast('❌ '+e1.message); return }
+
+  const catMap = { servicios:'servicios', tecnologia:'tecnologia', hogar:'hogar', salud:'salud' }
+  await SB_P.from('expenses').insert({
+    id: 'exp_'+Date.now(), user_id: USER_ID, amount,
+    category: catMap[bill.category] || 'otros',
+    description: bill.name, date: paid_date,
+    created_at: new Date().toISOString()
+  })
+
+  closeModal('pagar-factura')
+  showToast(`✅ ${bill.name} marcada como pagada`)
+  await loadFacturas()
+}
+
+async function guardarNuevaFactura(){
+  const name             = document.getElementById('nf-name').value.trim()
+  const estimated_amount = Number(document.getElementById('nf-amount').value) || null
+  const due_day          = parseInt(document.getElementById('nf-day').value)
+  const category         = document.getElementById('nf-cat').value
+  if(!name){ showToast('❌ Ingresa el nombre de la factura'); return }
+  if(!due_day || due_day < 1 || due_day > 28){ showToast('❌ El día debe ser entre 1 y 28'); return }
+  const { error } = await SB_P.from('bills').insert({
+    id: 'bill_'+Date.now(), user_id: USER_ID, name, estimated_amount,
+    due_day, category, is_active: true,
+    created_at: new Date().toISOString()
+  })
+  if(error){ showToast('❌ '+error.message); return }
+  closeModal('nueva-factura')
+  showToast('✅ Factura agregada')
+  await loadFacturas()
 }
 
 // --- MODALS ---
