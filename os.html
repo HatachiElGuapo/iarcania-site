@@ -332,6 +332,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('vicios',this)">
         <span class="nav-icon">⚠️</span>Vicios
       </button>
+      <button class="nav-item" onclick="showSection('hogar',this)">
+        <span class="nav-icon">🏠</span>Hogar
+      </button>
       <button class="nav-item" onclick="showSection('libros',this)">
         <span class="nav-icon">📚</span>Libros
       </button>
@@ -723,6 +726,19 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
       <div id="vicios-list" style="display:flex;flex-direction:column;gap:10px">
         <div class="loading"><div class="spinner"></div><br>Cargando vicios...</div>
+      </div>
+    </div>
+
+    <!-- HOGAR -->
+    <div class="section" id="section-hogar">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🏠 Hogar</h1>
+          <div class="page-sub" id="hogar-sub">Tareas del hogar — hoy</div>
+        </div>
+      </div>
+      <div id="hogar-list" style="display:flex;flex-direction:column;gap:8px">
+        <div class="loading"><div class="spinner"></div><br>Cargando tareas del hogar...</div>
       </div>
     </div>
 
@@ -1337,6 +1353,7 @@ function showSection(id, btn){
   btn.classList.add('active')
   if(id === 'agenda') renderAgenda()
   if(id === 'vicios') renderVicios()
+  if(id === 'hogar') loadHogar()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(window.innerWidth <= 768) closeSidebar()
@@ -2637,6 +2654,18 @@ let vicioLogs = {}
 let _vicioAbierto = null
 let _vicioEditId = null
 let _vicioEditText = ''
+let choreToday = {}
+let choreHistory = []
+let _choreInput = null
+let _choreInputText = ''
+const CHORES_DEF = [
+  { id:'cocinar', label:'Cocinar', icon:'🍳' },
+  { id:'loza',    label:'Loza',    icon:'🍽️' },
+  { id:'barrer',  label:'Barrer',  icon:'🧹' },
+  { id:'ropa',    label:'Ropa',    icon:'🧺' },
+  { id:'basura',  label:'Basura',  icon:'🗑️' },
+  { id:'bano',    label:'Baño',    icon:'🧽' }
+]
 const SLOT_HABITS = {
   a12: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'tarde',label:'Tarde',icon:'☀️'},{id:'noche',label:'Noche',icon:'🌙'}],
   a07: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'noche',label:'Noche',icon:'🌙'}]
@@ -2858,6 +2887,166 @@ async function eliminarVicioLog(logId, actId){
     if(!vicioLogs[actId].length) delete habitLogs[actId]
   }
   renderVicios()
+}
+
+// --- HOGAR ---
+async function loadHogar(){
+  const el = document.getElementById('hogar-list')
+  if(!el) return
+  el.innerHTML = '<div class="loading"><div class="spinner"></div><br>Cargando...</div>'
+
+  const { data: today, error } = await SB_P.from('chores').select('*').eq('date', TODAY)
+  if(error){
+    el.innerHTML = `<div style="padding:1rem;font-size:13px;color:var(--text-muted)">Error: ${error.message}</div>`
+    return
+  }
+  choreToday = {}
+  ;(today||[]).forEach(c => { choreToday[c.name] = c })
+
+  const d7 = new Date(); d7.setDate(d7.getDate()-6)
+  const weekStart = d7.toISOString().split('T')[0]
+  const { data: hist } = await SB_P.from('chores').select('*').gte('date', weekStart).lte('date', TODAY).order('date',{ascending:false})
+  choreHistory = hist || []
+
+  renderHogar()
+}
+
+function renderHogar(){
+  const el = document.getElementById('hogar-list')
+  if(!el) return
+
+  const btnBase = 'padding:5px 10px;border-radius:6px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;border:1px solid'
+
+  const todayCards = CHORES_DEF.map(ch => {
+    const rec = choreToday[ch.id]
+    const byMiguel = rec?.done_by === 'miguel'
+    const byDiana  = rec?.done_by === 'diana'
+    const isOpen   = _choreInput === ch.id
+
+    const styleMiguel = byMiguel
+      ? `${btnBase} #378ADD;background:rgba(55,138,221,0.15);color:#378ADD`
+      : `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
+    const styleDiana = byDiana
+      ? `${btnBase} #f472b6;background:rgba(244,114,182,0.15);color:#f472b6`
+      : `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
+    const styleEdit = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
+
+    const statusBadge = byMiguel
+      ? `<span style="font-size:11px;color:#378ADD;flex-shrink:0">Yo ✓</span>`
+      : byDiana
+        ? `<span style="font-size:11px;color:#f472b6;flex-shrink:0">Mamá ✓</span>`
+        : ''
+
+    const notesArea = isOpen
+      ? `<div style="margin-top:8px">
+          <input type="text" id="chore-notes-${ch.id}" placeholder="¿Qué cocinaron? (opcional)"
+            style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box"
+            onkeydown="if(event.key==='Enter') guardarChoreNotes('${ch.id}')">
+          <div style="display:flex;gap:6px;margin-top:5px">
+            <button onclick="_choreInput=null;renderHogar()" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">Cancelar</button>
+            <button onclick="guardarChoreNotes('${ch.id}')" style="flex:1;padding:5px;border-radius:6px;border:1px solid #5DCAA5;background:rgba(93,202,165,0.1);color:#5DCAA5;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">Guardar</button>
+          </div>
+        </div>`
+      : rec?.notes
+        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:5px;padding-left:26px">📝 ${rec.notes}</div>`
+        : ''
+
+    return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px;flex-shrink:0">${ch.icon}</span>
+        <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${ch.label}</span>
+        ${statusBadge}
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <button onclick="toggleChore('${ch.id}','miguel')" style="${styleMiguel}">Yo</button>
+          <button onclick="toggleChore('${ch.id}','diana')" style="${styleDiana}">Mamá</button>
+          ${rec ? `<button onclick="abrirChoreNotes('${ch.id}')" style="${styleEdit}">✏️</button>` : ''}
+        </div>
+      </div>
+      ${notesArea}
+    </div>`
+  }).join('')
+
+  // 7-day history
+  const days = []
+  for(let i=6; i>=0; i--){
+    const d = new Date(); d.setDate(d.getDate()-i)
+    days.push({ date: d.toISOString().split('T')[0], label: i===0 ? 'Hoy' : d.toLocaleDateString('es-CO',{weekday:'short'}).replace('.','') })
+  }
+  const histByDate = {}
+  choreHistory.forEach(c => {
+    if(!histByDate[c.date]) histByDate[c.date] = {}
+    histByDate[c.date][c.name] = c
+  })
+  const thStyle = 'padding:5px 8px;font-size:11px;color:var(--text-muted);font-weight:500;text-align:center'
+  const headers = `<th style="${thStyle};text-align:left"></th>` + days.map(d => `<th style="${thStyle}">${d.label}</th>`).join('')
+  const rows = CHORES_DEF.map(ch => {
+    const cells = days.map(d => {
+      const rec = histByDate[d.date]?.[ch.id]
+      if(rec?.done_by === 'miguel') return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#378ADD;font-weight:500">Yo</td>`
+      if(rec?.done_by === 'diana')  return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#f472b6;font-weight:500">M</td>`
+      return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:var(--border)">·</td>`
+    }).join('')
+    return `<tr style="border-top:1px solid var(--border)">
+      <td style="padding:5px 10px;font-size:12px;color:var(--text-dim)">${ch.icon} ${ch.label}</td>
+      ${cells}
+    </tr>`
+  }).join('')
+
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1.25rem">${todayCards}</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-dim)">Últimos 7 días</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${headers}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`
+
+  if(_choreInput){
+    const inp = document.getElementById('chore-notes-'+_choreInput)
+    if(inp){ inp.value = _choreInputText; inp.focus() }
+  }
+}
+
+async function toggleChore(choreId, person){
+  const rec = choreToday[choreId]
+  if(rec && rec.done_by === person){
+    const { error } = await SB_P.from('chores').delete().eq('id', rec.id)
+    if(error){ showToast('❌ '+error.message); return }
+    delete choreToday[choreId]
+  } else if(rec){
+    const { error } = await SB_P.from('chores').update({ done_by: person }).eq('id', rec.id)
+    if(error){ showToast('❌ '+error.message); return }
+    choreToday[choreId] = { ...rec, done_by: person }
+  } else {
+    const id = 'ch_'+Date.now()
+    const { error } = await SB_P.from('chores').insert({ id, name: choreId, done_by: person, date: TODAY, created_at: new Date().toISOString() })
+    if(error){ showToast('❌ '+error.message); return }
+    choreToday[choreId] = { id, name: choreId, done_by: person, date: TODAY, notes: null }
+    if(choreId === 'cocinar'){ _choreInput = choreId; _choreInputText = '' }
+  }
+  renderHogar()
+}
+
+function abrirChoreNotes(choreId){
+  _choreInput = choreId
+  _choreInputText = choreToday[choreId]?.notes || ''
+  renderHogar()
+}
+
+async function guardarChoreNotes(choreId){
+  const inp = document.getElementById('chore-notes-'+choreId)
+  const notes = inp?.value.trim() || ''
+  const rec = choreToday[choreId]
+  if(!rec) return
+  const { error } = await SB_P.from('chores').update({ notes }).eq('id', rec.id)
+  if(error){ showToast('❌ '+error.message); return }
+  choreToday[choreId] = { ...rec, notes }
+  _choreInput = null
+  _choreInputText = ''
+  renderHogar()
 }
 
 function renderHabitos(){
