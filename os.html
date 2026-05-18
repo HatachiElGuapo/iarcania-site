@@ -329,6 +329,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('habitos',this)">
         <span class="nav-icon">🔥</span>Hábitos
       </button>
+      <button class="nav-item" onclick="showSection('vicios',this)">
+        <span class="nav-icon">⚠️</span>Vicios
+      </button>
       <button class="nav-item" onclick="showSection('libros',this)">
         <span class="nav-icon">📚</span>Libros
       </button>
@@ -707,6 +710,19 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div id="habitos-add-btn-wrap" style="margin-bottom:0.75rem"></div>
       <div id="habitos-list" style="display:flex;flex-direction:column;gap:6px">
         <div class="loading"><div class="spinner"></div><br>Cargando hábitos...</div>
+      </div>
+    </div>
+
+    <!-- VICIOS -->
+    <div class="section" id="section-vicios">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">⚠️ Vicios</h1>
+          <div class="page-sub" id="vicios-sub">Registros de hoy</div>
+        </div>
+      </div>
+      <div id="vicios-list" style="display:flex;flex-direction:column;gap:10px">
+        <div class="loading"><div class="spinner"></div><br>Cargando vicios...</div>
       </div>
     </div>
 
@@ -1320,6 +1336,7 @@ function showSection(id, btn){
   document.getElementById('section-'+id).classList.add('active')
   btn.classList.add('active')
   if(id === 'agenda') renderAgenda()
+  if(id === 'vicios') renderVicios()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(window.innerWidth <= 768) closeSidebar()
@@ -2616,6 +2633,10 @@ let slotLogs = {}
 let _slotMenu = null
 let _slotEditing = null
 let _slotEditText = ''
+let vicioLogs = {}
+let _vicioAbierto = null
+let _vicioEditId = null
+let _vicioEditText = ''
 const SLOT_HABITS = {
   a12: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'tarde',label:'Tarde',icon:'☀️'},{id:'noche',label:'Noche',icon:'🌙'}],
   a07: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'noche',label:'Noche',icon:'🌙'}]
@@ -2644,6 +2665,7 @@ async function loadHabitos(){
   foodLogs = {}
   extraLogs = []
   slotLogs = {}
+  vicioLogs = {}
   Object.keys(SLOT_HABITS).forEach(id => { slotLogs[id] = {} })
   ;(logs||[]).forEach(l => {
     habitLogs[l.activity_id] = l
@@ -2656,6 +2678,11 @@ async function loadHabitos(){
       const slot = (l.notes||'').split('|')[0]
       if(slot && SLOT_HABITS[l.activity_id].find(s => s.id === slot))
         slotLogs[l.activity_id][slot] = l
+    }
+    const actDef = allActivities.find(a => a.id === l.activity_id)
+    if(actDef && actDef.category === 'vicios'){
+      if(!vicioLogs[l.activity_id]) vicioLogs[l.activity_id] = []
+      vicioLogs[l.activity_id].push(l)
     }
   })
 
@@ -2687,8 +2714,150 @@ async function loadHabitos(){
   })
 
   renderHabitos()
+  renderVicios()
   update2020Widget()
   renderAlimentacionDash()
+}
+
+// --- VICIOS ---
+function renderVicios(){
+  const el = document.getElementById('vicios-list')
+  if(!el) return
+  const vicios = allActivities.filter(a => a.category === 'vicios' && a.is_active)
+  if(!vicios.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>No hay vicios registrados. Agrégalos desde Hábitos con categoría "vicios".</div>'
+    return
+  }
+  let totalCaidas = 0, viciosConCaidas = 0
+  vicios.forEach(a => {
+    const logs = vicioLogs[a.id] || []
+    if(logs.length){ totalCaidas += logs.length; viciosConCaidas++ }
+  })
+  const subEl = document.getElementById('vicios-sub')
+  if(subEl) subEl.textContent = totalCaidas === 0
+    ? '¡Sin caídas hoy! 💪'
+    : `Hoy: ${totalCaidas} caída${totalCaidas!==1?'s':''} en ${viciosConCaidas} vicio${viciosConCaidas!==1?'s':''}`
+  el.innerHTML = vicios.map(a => renderVicioWidget(a)).join('')
+  if(_vicioAbierto){
+    const inp = document.getElementById('vicio-input-text')
+    if(inp){ inp.value = _vicioEditText; inp.focus() }
+  }
+}
+
+function renderVicioWidget(a){
+  const logs = vicioLogs[a.id] || []
+  const count = logs.length
+  const isBinary = !a.unit
+  const isOpen = _vicioAbierto === a.id
+
+  let btnBorder, btnBg, btnColor, btnLabel
+  if(isBinary){
+    if(count === 0){
+      btnBorder = '#5DCAA5'; btnBg = 'rgba(93,202,165,0.08)'; btnColor = '#5DCAA5'
+      btnLabel = '✓ Sin caídas'
+    } else {
+      btnBorder = '#E24B4A'; btnBg = 'rgba(226,75,74,0.08)'; btnColor = '#E24B4A'
+      btnLabel = `⚠️ ${count} caída${count!==1?'s':''}`
+    }
+  } else {
+    const total = logs.reduce((s,l) => s+(parseFloat(l.value)||1), 0)
+    btnBorder = count===0 ? 'var(--border)' : '#c9a84c'
+    btnBg = count===0 ? 'transparent' : 'rgba(201,168,76,0.08)'
+    btnColor = count===0 ? 'var(--text-muted)' : 'var(--gold)'
+    btnLabel = count===0 ? `0 ${a.unit}s` : `${total} ${a.unit}${total!==1?'s':''} hoy`
+  }
+
+  const inputHtml = isOpen ? `
+    <div style="margin:8px 0">
+      <input type="text" id="vicio-input-text" placeholder="${isBinary?'¿Cómo fue? Ej: comí brownies':'Descripción (opcional)'}"
+        style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter') guardarVicio()">
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button onclick="cerrarVicio()" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">Cancelar</button>
+        <button onclick="guardarVicio()" style="flex:1;padding:6px;border-radius:6px;border:1px solid #E24B4A;background:rgba(226,75,74,0.1);color:#E24B4A;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">Guardar</button>
+      </div>
+    </div>` : ''
+
+  const logsList = logs.map((log,i) => {
+    const hora = log.created_at ? new Date(log.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''
+    const desc = log.notes || ''
+    const micro = (fn,lbl) => `<button onclick="${fn}" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:2px 3px;line-height:1;flex-shrink:0">${lbl}</button>`
+    return `<div style="font-size:11px;color:var(--text-muted);padding:3px 0;display:flex;align-items:center;gap:4px">
+      <span style="flex:1">${hora}${desc?' — '+desc:''}</span>
+      ${micro(`editarVicioLog('${log.id}','${a.id}')`, '✏️')}${micro(`eliminarVicioLog('${log.id}','${a.id}')`, '🗑️')}
+    </div>`
+  }).join('')
+
+  return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:${isOpen||count>0?'8px':'0'}">
+      <span style="font-size:13px;font-weight:600;color:var(--text)">${a.name}</span>
+      <button onclick="abrirVicio('${a.id}')" style="padding:6px 12px;border-radius:8px;border:1px solid ${btnBorder};background:${btnBg};color:${btnColor};cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;white-space:nowrap">${btnLabel} +</button>
+    </div>
+    ${inputHtml}
+    ${logsList ? `<div style="border-top:1px solid var(--border);padding-top:6px">${logsList}</div>` : ''}
+  </div>`
+}
+
+function abrirVicio(actId){
+  _vicioAbierto = _vicioAbierto === actId ? null : actId
+  _vicioEditId = null
+  _vicioEditText = ''
+  renderVicios()
+}
+
+function cerrarVicio(){
+  _vicioAbierto = null
+  _vicioEditId = null
+  _vicioEditText = ''
+  renderVicios()
+}
+
+async function guardarVicio(){
+  const actId = _vicioAbierto
+  if(!actId) return
+  const text = document.getElementById('vicio-input-text')?.value.trim() || ''
+  if(_vicioEditId){
+    const { error } = await SB_P.from('activity_logs').update({ notes: text }).eq('id', _vicioEditId)
+    if(error){ showToast('❌ '+error.message); return }
+    const arr = vicioLogs[actId] || []
+    const idx = arr.findIndex(l => l.id === _vicioEditId)
+    if(idx !== -1) arr[idx] = { ...arr[idx], notes: text }
+  } else {
+    const id = 'log_'+Date.now()
+    const { error } = await SB_P.from('activity_logs').insert({
+      id, user_id: USER_ID, activity_id: actId, value: 1, date: TODAY, notes: text,
+      created_at: new Date().toISOString()
+    })
+    if(error){ showToast('❌ '+error.message); return }
+    if(!vicioLogs[actId]) vicioLogs[actId] = []
+    vicioLogs[actId].push({ id, notes: text, created_at: new Date().toISOString() })
+    habitLogs[actId] = { id, notes: text, created_at: new Date().toISOString() }
+  }
+  _vicioAbierto = null
+  _vicioEditId = null
+  _vicioEditText = ''
+  renderVicios()
+}
+
+function editarVicioLog(logId, actId){
+  const arr = vicioLogs[actId] || []
+  const log = arr.find(l => l.id === logId)
+  if(!log) return
+  _vicioAbierto = actId
+  _vicioEditId = logId
+  _vicioEditText = log.notes || ''
+  renderVicios()
+}
+
+async function eliminarVicioLog(logId, actId){
+  if(!confirm('¿Eliminar este registro?')) return
+  const { error } = await SB_P.from('activity_logs').delete().eq('id', logId)
+  if(error){ showToast('❌ '+error.message); return }
+  if(vicioLogs[actId]){
+    vicioLogs[actId] = vicioLogs[actId].filter(l => l.id !== logId)
+    if(!vicioLogs[actId].length) delete habitLogs[actId]
+  }
+  renderVicios()
 }
 
 function renderHabitos(){
