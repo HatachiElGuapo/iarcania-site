@@ -2900,8 +2900,14 @@ async function loadHogar(){
     el.innerHTML = `<div style="padding:1rem;font-size:13px;color:var(--text-muted)">Error: ${error.message}</div>`
     return
   }
+  // State: { [choreId]: { miguel: rec|null, diana: rec|null, notes: [rec,...] } }
   choreToday = {}
-  ;(today||[]).forEach(c => { choreToday[c.name] = c })
+  ;(today||[]).forEach(c => {
+    if(!choreToday[c.name]) choreToday[c.name] = { miguel:null, diana:null, notes:[] }
+    if(c.notes) choreToday[c.name].notes.push(c)
+    else if(c.done_by === 'miguel') choreToday[c.name].miguel = c
+    else if(c.done_by === 'diana')  choreToday[c.name].diana  = c
+  })
 
   const d7 = new Date(); d7.setDate(d7.getDate()-6)
   const weekStart = d7.toISOString().split('T')[0]
@@ -2918,9 +2924,9 @@ function renderHogar(){
   const btnBase = 'padding:5px 10px;border-radius:6px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;border:1px solid'
 
   const todayCards = CHORES_DEF.map(ch => {
-    const rec = choreToday[ch.id]
-    const byMiguel = rec?.done_by === 'miguel'
-    const byDiana  = rec?.done_by === 'diana'
+    const state    = choreToday[ch.id] || { miguel:null, diana:null, notes:[] }
+    const byMiguel = !!state.miguel
+    const byDiana  = !!state.diana
     const isOpen   = _choreInput === ch.id
 
     const styleMiguel = byMiguel
@@ -2929,17 +2935,16 @@ function renderHogar(){
     const styleDiana = byDiana
       ? `${btnBase} #f472b6;background:rgba(244,114,182,0.15);color:#f472b6`
       : `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
-    const styleEdit = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
+    const styleNote = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
 
-    const statusBadge = byMiguel
-      ? `<span style="font-size:11px;color:#378ADD;flex-shrink:0">Yo ✓</span>`
-      : byDiana
-        ? `<span style="font-size:11px;color:#f472b6;flex-shrink:0">Mamá ✓</span>`
-        : ''
+    const badges = [
+      byMiguel ? `<span style="font-size:11px;color:#378ADD">Yo ✓</span>` : '',
+      byDiana  ? `<span style="font-size:11px;color:#f472b6">Mamá ✓</span>` : ''
+    ].filter(Boolean).join(' ')
 
-    const notesArea = isOpen
+    const inputArea = isOpen
       ? `<div style="margin-top:8px">
-          <input type="text" id="chore-notes-${ch.id}" placeholder="¿Qué cocinaron? (opcional)"
+          <input type="text" id="chore-notes-${ch.id}" placeholder="Nota (ej: arroz con pollo)"
             style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box"
             onkeydown="if(event.key==='Enter') guardarChoreNotes('${ch.id}')">
           <div style="display:flex;gap:6px;margin-top:5px">
@@ -2947,22 +2952,30 @@ function renderHogar(){
             <button onclick="guardarChoreNotes('${ch.id}')" style="flex:1;padding:5px;border-radius:6px;border:1px solid #5DCAA5;background:rgba(93,202,165,0.1);color:#5DCAA5;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">Guardar</button>
           </div>
         </div>`
-      : rec?.notes
-        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:5px;padding-left:26px">📝 ${rec.notes}</div>`
-        : ''
+      : ''
 
+    const notesList = state.notes.map(n => {
+      const hora = n.created_at ? new Date(n.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''
+      return `<div style="font-size:11px;color:var(--text-muted);padding:2px 0;display:flex;align-items:center;gap:4px">
+        <span style="flex:1">📝 ${n.notes}${hora?' · '+hora:''}</span>
+        <button onclick="eliminarChoreNote('${n.id}','${ch.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:2px 3px;line-height:1;flex-shrink:0">🗑️</button>
+      </div>`
+    }).join('')
+
+    const hasExtras = inputArea || notesList
     return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:18px;flex-shrink:0">${ch.icon}</span>
         <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${ch.label}</span>
-        ${statusBadge}
-        <div style="display:flex;gap:5px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          ${badges}
           <button onclick="toggleChore('${ch.id}','miguel')" style="${styleMiguel}">Yo</button>
           <button onclick="toggleChore('${ch.id}','diana')" style="${styleDiana}">Mamá</button>
-          ${rec ? `<button onclick="abrirChoreNotes('${ch.id}')" style="${styleEdit}">✏️</button>` : ''}
+          <button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>
         </div>
       </div>
-      ${notesArea}
+      ${notesList ? `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:6px">${notesList}</div>` : ''}
+      ${inputArea}
     </div>`
   }).join('')
 
@@ -2972,18 +2985,23 @@ function renderHogar(){
     const d = new Date(); d.setDate(d.getDate()-i)
     days.push({ date: d.toISOString().split('T')[0], label: i===0 ? 'Hoy' : d.toLocaleDateString('es-CO',{weekday:'short'}).replace('.','') })
   }
+  // Build history: { date: { choreId: { miguel:bool, diana:bool } } }
   const histByDate = {}
   choreHistory.forEach(c => {
+    if(!c.done_by || c.notes) return
     if(!histByDate[c.date]) histByDate[c.date] = {}
-    histByDate[c.date][c.name] = c
+    if(!histByDate[c.date][c.name]) histByDate[c.date][c.name] = { miguel:false, diana:false }
+    if(c.done_by === 'miguel') histByDate[c.date][c.name].miguel = true
+    if(c.done_by === 'diana')  histByDate[c.date][c.name].diana  = true
   })
   const thStyle = 'padding:5px 8px;font-size:11px;color:var(--text-muted);font-weight:500;text-align:center'
   const headers = `<th style="${thStyle};text-align:left"></th>` + days.map(d => `<th style="${thStyle}">${d.label}</th>`).join('')
   const rows = CHORES_DEF.map(ch => {
     const cells = days.map(d => {
-      const rec = histByDate[d.date]?.[ch.id]
-      if(rec?.done_by === 'miguel') return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#378ADD;font-weight:500">Yo</td>`
-      if(rec?.done_by === 'diana')  return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#f472b6;font-weight:500">M</td>`
+      const s = histByDate[d.date]?.[ch.id]
+      if(s?.miguel && s?.diana) return `<td style="text-align:center;padding:4px 6px;font-size:10px;color:var(--gold);font-weight:500">Yo+M</td>`
+      if(s?.miguel) return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#378ADD;font-weight:500">Yo</td>`
+      if(s?.diana)  return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#f472b6;font-weight:500">M</td>`
       return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:var(--border)">·</td>`
     }).join('')
     return `<tr style="border-top:1px solid var(--border)">
@@ -3011,41 +3029,46 @@ function renderHogar(){
 }
 
 async function toggleChore(choreId, person){
-  const rec = choreToday[choreId]
-  if(rec && rec.done_by === person){
+  if(!choreToday[choreId]) choreToday[choreId] = { miguel:null, diana:null, notes:[] }
+  const state = choreToday[choreId]
+  const rec = state[person]
+  if(rec){
     const { error } = await SB_P.from('chores').delete().eq('id', rec.id)
     if(error){ showToast('❌ '+error.message); return }
-    delete choreToday[choreId]
-  } else if(rec){
-    const { error } = await SB_P.from('chores').update({ done_by: person }).eq('id', rec.id)
-    if(error){ showToast('❌ '+error.message); return }
-    choreToday[choreId] = { ...rec, done_by: person }
+    state[person] = null
   } else {
     const id = 'ch_'+Date.now()
-    const { error } = await SB_P.from('chores').insert({ id, name: choreId, done_by: person, date: TODAY, created_at: new Date().toISOString() })
+    const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:person, notes:null, date:TODAY, created_at:new Date().toISOString() })
     if(error){ showToast('❌ '+error.message); return }
-    choreToday[choreId] = { id, name: choreId, done_by: person, date: TODAY, notes: null }
-    if(choreId === 'cocinar'){ _choreInput = choreId; _choreInputText = '' }
+    state[person] = { id, name:choreId, done_by:person, notes:null, date:TODAY }
   }
   renderHogar()
 }
 
 function abrirChoreNotes(choreId){
-  _choreInput = choreId
-  _choreInputText = choreToday[choreId]?.notes || ''
+  _choreInput = _choreInput === choreId ? null : choreId
+  _choreInputText = ''
   renderHogar()
 }
 
 async function guardarChoreNotes(choreId){
   const inp = document.getElementById('chore-notes-'+choreId)
   const notes = inp?.value.trim() || ''
-  const rec = choreToday[choreId]
-  if(!rec) return
-  const { error } = await SB_P.from('chores').update({ notes }).eq('id', rec.id)
+  if(!notes) return
+  const id = 'chn_'+Date.now()
+  const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:null, notes, date:TODAY, created_at:new Date().toISOString() })
   if(error){ showToast('❌ '+error.message); return }
-  choreToday[choreId] = { ...rec, notes }
+  if(!choreToday[choreId]) choreToday[choreId] = { miguel:null, diana:null, notes:[] }
+  choreToday[choreId].notes.push({ id, name:choreId, done_by:null, notes, date:TODAY, created_at:new Date().toISOString() })
   _choreInput = null
   _choreInputText = ''
+  renderHogar()
+}
+
+async function eliminarChoreNote(noteId, choreId){
+  const { error } = await SB_P.from('chores').delete().eq('id', noteId)
+  if(error){ showToast('❌ '+error.message); return }
+  if(choreToday[choreId]) choreToday[choreId].notes = choreToday[choreId].notes.filter(n => n.id !== noteId)
   renderHogar()
 }
 
