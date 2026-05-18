@@ -543,19 +543,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           </div>
         </div>
 
-        <!-- 3. Guiones por proyecto -->
+        <!-- 3. Proyecto del día -->
         <div class="dash-section" style="border-color:rgba(155,114,240,0.2)">
           <div class="dash-section-hdr" onclick="toggleDashSection('guionest')">
-            <span style="font-size:13px;font-weight:600;color:var(--purple)">🎬 Guiones</span>
+            <span style="font-size:13px;font-weight:600;color:var(--purple)">🎯 Proyecto del día</span>
             <span class="dash-arrow" id="dash-guionest-arrow">▼</span>
           </div>
           <div class="dash-section-body collapsed" id="dash-guionest-body">
-            <div style="display:flex;gap:6px;margin-bottom:8px">
+            <div style="display:flex;gap:6px;margin-bottom:10px">
               <button id="gft-iarcania" onclick="filterGuionesDash('iarcania',this)" style="padding:5px 12px;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid #E24B4A;border-radius:6px;background:rgba(226,75,74,0.12);color:#E24B4A;cursor:pointer">IArcanIA</button>
               <button id="gft-voidstoic" onclick="filterGuionesDash('voidstoic',this)" style="padding:5px 12px;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer">Void Stoic</button>
             </div>
             <div id="dash-guion-content"><div style="font-size:12px;color:var(--text-muted);padding:4px 0">Cargando...</div></div>
-            <button onclick="showSection('guiones',document.querySelector('.nav-item[onclick*=guiones]'))" style="margin-top:8px;font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">Ver todos →</button>
           </div>
         </div>
 
@@ -1431,7 +1430,7 @@ function showSection(id, btn){
   if(id === 'vicios') renderVicios()
   if(id === 'hogar') loadHogar()
   if(id === 'facturas') loadFacturas()
-  if(id === 'trabajo') loadGuionDelDia()
+  if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(window.innerWidth <= 768) closeSidebar()
@@ -3922,7 +3921,7 @@ function filterGuionesDash(canal, btn){
     b.style.borderColor = isActive ? (canal==='iarcania'?'#E24B4A':'var(--purple)') : 'var(--border)'
     b.style.color = isActive ? (canal==='iarcania'?'#E24B4A':'var(--purple)') : 'var(--text-muted)'
   })
-  loadGuionDelDia()
+  loadProyectoDia()
 }
 
 async function loadScripts(){
@@ -3931,32 +3930,66 @@ async function loadScripts(){
   renderScripts()
 }
 
-async function loadGuionDelDia(){
-  const { data } = await SB_P.from('scripts').select('*')
+async function loadGuionDelDia(){ await loadProyectoDia() }
+
+async function loadProyectoDia(){
+  const { data: scripts } = await SB_P.from('scripts').select('*')
     .eq('canal', _guionesDashCanal)
     .in('status', ['borrador','en_progreso','listo_grabar'])
-    .order('created_at',{ascending:false}).limit(5)
-  renderGuionDelDia(data || [])
+    .order('created_at',{ascending:false}).limit(2)
+  renderProyectoDia(scripts || [])
 }
 
-function renderGuionDelDia(scripts){
+function renderProyectoDia(scripts){
   const el = document.getElementById('dash-guion-content')
   if(!el) return
-  const STATUS_COLORS = { borrador:'var(--text-muted)', en_progreso:'#EF9F27', listo_grabar:'#5DCAA5', grabado:'#378ADD', publicado:'#8B6CF6' }
-  const STATUS_LABELS = { borrador:'Borrador', en_progreso:'En progreso', listo_grabar:'Listo para grabar', grabado:'Grabado', publicado:'Publicado' }
-  if(!scripts.length){
-    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">No hay guiones pendientes</div>'
-    return
-  }
-  el.innerHTML = scripts.map(s => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 2px;border-bottom:1px solid var(--border)">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.title}</div>
-        <span style="font-size:11px;color:${STATUS_COLORS[s.status]||'var(--text-muted)'}">${STATUS_LABELS[s.status]||s.status}</span>
+
+  const isIA    = _guionesDashCanal === 'iarcania'
+  const color   = isIA ? '#E24B4A' : 'var(--purple)'
+  const subHdr  = label => `<div style="font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid var(--border)">${label}</div>`
+
+  // — Hábitos —
+  const habitIds = isIA ? ['a72','a73'] : ['a68','a71']
+  const habitosHtml = habitIds.map(id => {
+    const act = allActivities.find(a => a.id === id)
+    const done = !!habitLogs[id]
+    const name = act?.name || id
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer" onclick="toggleHabito('${id}')">
+      <div style="width:16px;height:16px;border-radius:4px;border:1px solid ${done?color:'rgba(255,255,255,0.15)'};background:${done?color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        ${done?`<span style="color:#000;font-size:9px;font-weight:800">✓</span>`:''}
       </div>
-      <button onclick="navigateTo('guiones')" style="margin-left:10px;font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">Ver →</button>
-    </div>
-  `).join('')
+      <span style="font-size:12px;color:${done?'var(--text-muted)':'var(--text)'}${done?';text-decoration:line-through':''}">${name}</span>
+    </div>`
+  }).join('')
+
+  // — Tareas —
+  const taskCat  = isIA ? 'iarcania' : 'contenido'
+  const PRIO     = { alta:0, media:1, baja:2 }
+  const tareas   = allTasks
+    .filter(t => t.category === taskCat && t.status !== 'completada')
+    .sort((a,b) => (PRIO[a.priority]??3) - (PRIO[b.priority]??3))
+    .slice(0, 3)
+  const tareasHtml = tareas.length
+    ? tareas.map(t => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="width:5px;height:5px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span style="font-size:12px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</span>
+      </div>`).join('')
+    : `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">Sin tareas pendientes</div>`
+
+  // — Guiones —
+  const S_COLOR  = { borrador:'var(--text-muted)', en_progreso:'#EF9F27', listo_grabar:'#5DCAA5' }
+  const S_LABEL  = { borrador:'Borrador', en_progreso:'En progreso', listo_grabar:'Listo para grabar' }
+  const guionesHtml = scripts.length
+    ? scripts.map(s => `<div style="padding:4px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.title}</div>
+        <span style="font-size:10px;color:${S_COLOR[s.status]||'var(--text-muted)'}">${S_LABEL[s.status]||s.status}</span>
+      </div>`).join('')
+    : `<div style="font-size:11px;color:var(--text-muted);padding:3px 0">Sin guiones pendientes</div>`
+
+  el.innerHTML =
+    subHdr('Hábitos') + habitosHtml +
+    subHdr('Tareas')  + tareasHtml  +
+    subHdr('Guiones') + guionesHtml
 }
 
 function showGrabarDialog(scripts){
@@ -3973,7 +4006,7 @@ async function confirmarGrabacion(){
   allScripts = allScripts.map(s => s.id === scriptId ? {...s, status:'grabado'} : s)
   closeModal('grabar')
   renderScripts()
-  loadGuionDelDia()
+  loadProyectoDia()
   showToast('🎬 ¡Grabación registrada!')
 }
 
@@ -4074,7 +4107,7 @@ async function saveScript(scriptId){
   allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
   showToast('✅ Guión guardado')
   renderScripts()
-  loadGuionDelDia()
+  loadProyectoDia()
 }
 
 async function deleteScript(scriptId){
