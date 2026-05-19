@@ -1810,6 +1810,14 @@ function removeAgendaTask(slotKey, taskId){
   renderAgenda()
 }
 
+async function removeAutoAgendaTask(taskId){
+  const task = allTasks.find(t=>t.id===taskId)
+  if(!task) return
+  await SB_P.from('tasks').update({ notes: null }).eq('id', taskId)
+  task.notes = null
+  renderTasks()
+}
+
 function renderAgenda(){
   const el = document.getElementById('agenda-timeline')
   if(!el) return
@@ -1911,6 +1919,7 @@ function renderAgenda(){
         ${chipCheck(t,cat)}
         <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''}">${t.title}</span>
         <span style="color:${cat.color};font-size:9px;flex-shrink:0">auto</span>
+        <button onclick="removeAutoAgendaTask('${t.id}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>
       </div>`
     }).join('')
 
