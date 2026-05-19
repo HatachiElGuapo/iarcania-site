@@ -354,17 +354,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('clientes',this)">
         <span class="nav-icon">🤝</span>Clientes
       </button>
-      <button class="nav-item" onclick="showSection('cobros',this)">
-        <span class="nav-icon">💰</span>Cobros
-      </button>
-      <button class="nav-item" onclick="showSection('gastos',this)">
-        <span class="nav-icon">💸</span>Gastos
-      </button>
-      <button class="nav-item" onclick="showSection('facturas',this)">
-        <span class="nav-icon">🧾</span>Facturas
-      </button>
-      <button class="nav-item" onclick="showSection('finanzas',this)">
-        <span class="nav-icon">💳</span>Finanzas
+      <button class="nav-item" onclick="showSection('dinero',this)">
+        <span class="nav-icon">💰</span>Dinero
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -892,15 +883,44 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     </div>
 
     <!-- FINANZAS -->
-    <div class="section" id="section-finanzas">
+    <!-- DINERO -->
+    <div class="section" id="section-dinero">
       <div class="page-header">
-        <div>
-          <h1 class="page-title">💳 Finanzas</h1>
-          <div class="page-sub">Saldo en tus cuentas</div>
+        <div><h1 class="page-title">💰 Dinero</h1></div>
+        <div id="dinero-tab-actions"></div>
+      </div>
+      <div class="freq-tabs" style="margin-bottom:16px">
+        <button class="freq-tab active" id="dtab-cuentas"  onclick="switchDineroTab('cuentas')">💳 Cuentas</button>
+        <button class="freq-tab"        id="dtab-gastos"   onclick="switchDineroTab('gastos')">📊 Gastos</button>
+        <button class="freq-tab"        id="dtab-facturas" onclick="switchDineroTab('facturas')">🧾 Facturas</button>
+        <button class="freq-tab"        id="dtab-cobros"   onclick="switchDineroTab('cobros')">🤝 Cobros</button>
+      </div>
+      <!-- Cuentas -->
+      <div id="dinero-tab-cuentas">
+        <div id="finanzas-content"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
+      </div>
+      <!-- Gastos -->
+      <div id="dinero-tab-gastos" style="display:none">
+        <div id="gastos-content"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
+      </div>
+      <!-- Facturas -->
+      <div id="dinero-tab-facturas" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:12px;color:var(--text-muted)" id="facturas-sub">Servicios recurrentes</span>
+        </div>
+        <div id="facturas-list" style="display:flex;flex-direction:column;gap:8px">
+          <div class="loading"><div class="spinner"></div><br>Cargando facturas...</div>
         </div>
       </div>
-      <div id="finanzas-content">
-        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+      <!-- Cobros -->
+      <div id="dinero-tab-cobros" style="display:none">
+        <div class="alert-bar alert-amber" id="cobros-summary" style="display:none">
+          <span class="alert-label">💰 PENDIENTE</span>
+          <span id="cobros-total"></span>
+        </div>
+        <div class="payment-list" id="payment-list">
+          <div class="loading"><div class="spinner"></div><br>Cargando...</div>
+        </div>
       </div>
     </div>
 
@@ -918,50 +938,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
     </div>
 
-    <!-- COBROS -->
-    <div class="section" id="section-cobros">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Cobros</h1>
-          <div class="page-sub">Lo que has cobrado y lo que falta</div>
-        </div>
-        <button class="btn-add" onclick="openModal('payment')">+ Registrar cobro</button>
-      </div>
-      <div class="alert-bar alert-amber" id="cobros-summary" style="display:none">
-        <span class="alert-label">💰 PENDIENTE</span>
-        <span id="cobros-total"></span>
-      </div>
-      <div class="payment-list" id="payment-list">
-        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
-      </div>
-    </div>
-
-    <!-- FACTURAS -->
-    <div class="section" id="section-facturas">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">🧾 Facturas</h1>
-          <div class="page-sub" id="facturas-sub">Servicios recurrentes</div>
-        </div>
-        <button class="btn-add" onclick="openModal('nueva-factura')">+ Nueva factura</button>
-      </div>
-      <div id="facturas-list" style="display:flex;flex-direction:column;gap:8px">
-        <div class="loading"><div class="spinner"></div><br>Cargando facturas...</div>
-      </div>
-    </div>
-
-    <!-- GASTOS -->
-    <div class="section" id="section-gastos">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">💸 Gastos</h1>
-        </div>
-        <button class="btn-add" onclick="openModalGasto()">+ Nuevo gasto</button>
-      </div>
-      <div id="gastos-content">
-        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
-      </div>
-    </div>
 
   </main>
 </div>
@@ -1547,7 +1523,8 @@ async function initApp(){
   checkDateReset()
   setInterval(checkDateReset, 60000)
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadPayments(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadExpenses(), loadFinanzas(), loadFacturas(), loadCitas()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas()])
+  loadFacturas() // para facturas-alert en dashboard
   loadTimerFromStorage()
 }
 
@@ -1590,16 +1567,40 @@ function showSection(id, btn){
   if(id === 'agenda') renderAgenda()
   if(id === 'vicios') renderVicios()
   if(id === 'hogar') loadHogar()
-  if(id === 'facturas') loadFacturas()
   if(id === 'citas') loadCitas()
   if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
+  if(id === 'dinero') switchDineroTab(_dineroTab)
   if(window.innerWidth <= 768) closeSidebar()
 }
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open') }
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('open') }
+
+// --- SECCIÓN DINERO ---
+const DINERO_TABS = ['cuentas','gastos','facturas','cobros']
+let _dineroTab = 'cuentas'
+
+function switchDineroTab(tab){
+  _dineroTab = tab
+  DINERO_TABS.forEach(t => {
+    document.getElementById('dinero-tab-'+t).style.display = t === tab ? 'block' : 'none'
+    const btn = document.getElementById('dtab-'+t)
+    if(btn) btn.classList.toggle('active', t === tab)
+  })
+  const actions = document.getElementById('dinero-tab-actions')
+  if(actions){
+    if(tab === 'gastos')   actions.innerHTML = `<button class="btn-add" onclick="openModalGasto()">+ Nuevo gasto</button>`
+    else if(tab === 'facturas') actions.innerHTML = `<button class="btn-add" onclick="openModal('nueva-factura')">+ Nueva factura</button>`
+    else if(tab === 'cobros')   actions.innerHTML = `<button class="btn-add" onclick="openModal('payment')">+ Registrar cobro</button>`
+    else actions.innerHTML = ''
+  }
+  if(tab === 'cuentas')  loadFinanzas()
+  if(tab === 'gastos')   loadExpenses()
+  if(tab === 'facturas') loadFacturas()
+  if(tab === 'cobros')   loadPayments()
+}
 
 // --- TASKS ---
 async function loadTasks(){
