@@ -665,7 +665,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="page-header">
         <div>
           <h1 class="page-title">Agenda</h1>
-          <div class="page-sub" id="agenda-date-label">Horario del día</div>
+          <div id="agenda-date-nav" style="display:flex;align-items:center;gap:4px;margin-top:4px"></div>
         </div>
         <button class="btn-add" onclick="openAgendaModal()">＋ Agregar tarea</button>
       </div>
@@ -1693,7 +1693,18 @@ const AGENDA_SCHEDULE = [
   { time:'20:00', label:'Dormir' },
 ]
 
-function getAgendaKey(){ return 'agenda_' + TODAY }
+let _agendaDayOffset = 0
+
+function getAgendaDateStr(){
+  const d = new Date()
+  d.setDate(d.getDate() + _agendaDayOffset)
+  return d.toLocaleDateString('en-CA')
+}
+
+function getAgendaKey(){ return 'agenda_' + getAgendaDateStr() }
+
+function navAgenda(delta){ _agendaDayOffset += delta; renderAgenda() }
+function goAgendaToday(){ _agendaDayOffset = 0; renderAgenda() }
 function getAgendaData(){
   const raw = JSON.parse(localStorage.getItem(getAgendaKey()) || '{}')
   const out = {}
@@ -1931,10 +1942,11 @@ function renderAgenda(){
     })
   })
 
-  // Auto-tasks by block (due today with HH:MM in notes)
+  // Auto-tasks by block (due on agenda date with HH:MM in notes)
+  const agendaDateStr = getAgendaDateStr()
   const autoMap = {}
   allTasks.forEach(t => {
-    if(t.due_date===TODAY && t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim())){
+    if(t.due_date===agendaDateStr && t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim())){
       const bm = Math.floor(agendaToMin(t.notes.trim())/20)*20
       const bk = agendaFromMin(Math.min(bm, 23*60+40))
       if(!autoMap[bk]) autoMap[bk]=[]
@@ -1942,8 +1954,21 @@ function renderAgenda(){
     }
   })
 
-  const dateLbl = document.getElementById('agenda-date-label')
-  if(dateLbl) dateLbl.textContent = now.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})
+  // Date navigator
+  const dateNav = document.getElementById('agenda-date-nav')
+  if(dateNav){
+    const agendaDay = new Date()
+    agendaDay.setDate(agendaDay.getDate() + _agendaDayOffset)
+    const dateLabel = agendaDay.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+      .replace(/^\w/, c => c.toUpperCase())
+    const isToday = _agendaDayOffset === 0
+    const navBtn = s => `style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;border-radius:5px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'"`
+    dateNav.innerHTML = `<button onclick="navAgenda(-1)" ${navBtn()}>←</button>
+      <span style="font-size:12px;font-weight:600;color:${isToday?'var(--gold)':'var(--text-dim)'}">${dateLabel}</span>
+      <button onclick="navAgenda(1)" ${navBtn()}>→</button>
+      ${!isToday?`<button onclick="goAgendaToday()" style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--gold);border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:'Outfit',sans-serif;margin-left:2px">Hoy</button>`:''}
+    `
+  }
 
   const fmtDur = d => d>=60 ? `${Math.floor(d/60)}h${d%60?d%60+'m':''}` : `${d}min`
 
@@ -2031,9 +2056,11 @@ function renderAgenda(){
   html += '</div>'
   el.innerHTML = html
 
-  // Auto-scroll to current block
-  const nowBlock = document.getElementById('ablock-'+curBk.replace(':','_'))
-  if(nowBlock) setTimeout(() => nowBlock.scrollIntoView({behavior:'smooth', block:'center'}), 100)
+  // Auto-scroll to current block only when viewing today
+  if(_agendaDayOffset === 0){
+    const nowBlock = document.getElementById('ablock-'+curBk.replace(':','_'))
+    if(nowBlock) setTimeout(() => nowBlock.scrollIntoView({behavior:'smooth', block:'center'}), 100)
+  }
 }
 
 function showToast(msg, duration=3500){
