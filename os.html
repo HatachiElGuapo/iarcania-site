@@ -544,8 +544,17 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               <div class="task-list" id="dashboard-tasks"></div>
             </div>
             <div style="padding:6px 0 2px">
-              <input type="text" id="search-hoy" placeholder="🔍 Buscar tarea para agregar..." oninput="searchDashTask('hoy',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
-              <div id="sugg-hoy" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
+              <button id="btn-add-hoy" onclick="openTodayTaskPanel()" style="width:100%;background:transparent;border:1px dashed var(--border);border-radius:7px;padding:8px 10px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center">+ Agregar tarea de hoy</button>
+              <div id="panel-add-hoy" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
+                  <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Seleccionar tareas</span>
+                  <button onclick="closeTodayTaskPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
+                </div>
+                <div style="padding:8px 10px 4px">
+                  <input type="text" id="search-hoy-panel" placeholder="🔍 Filtrar tareas..." oninput="renderTodayTaskPanel(this.value)" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+                </div>
+                <div id="panel-hoy-list" style="max-height:280px;overflow-y:auto"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -2257,6 +2266,9 @@ function addDashTask(list, id){
 function removeDashTask(list, id){
   setDashList(list, getDashList(list).filter(i => i !== id))
   renderTasks()
+  if(list === 'hoy' && document.getElementById('panel-add-hoy')?.style.display !== 'none'){
+    renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+  }
 }
 
 function searchDashTask(list, query){
@@ -2277,6 +2289,81 @@ function searchDashTask(list, query){
       <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
     </div>`
   }).join('')
+}
+
+function openTodayTaskPanel(){
+  const panel = document.getElementById('panel-add-hoy')
+  const btn   = document.getElementById('btn-add-hoy')
+  const inp   = document.getElementById('search-hoy-panel')
+  if(!panel) return
+  panel.style.display = 'block'
+  if(btn) btn.style.display = 'none'
+  if(inp){ inp.value = ''; inp.focus() }
+  renderTodayTaskPanel('')
+}
+
+function closeTodayTaskPanel(){
+  const panel = document.getElementById('panel-add-hoy')
+  const btn   = document.getElementById('btn-add-hoy')
+  if(panel) panel.style.display = 'none'
+  if(btn) btn.style.display = ''
+}
+
+function renderTodayTaskPanel(query){
+  const el = document.getElementById('panel-hoy-list')
+  if(!el) return
+  const hoyIds = getDashList('hoy')
+  const q = (query||'').toLowerCase().trim()
+  const tasks = allTasks.filter(t => t.status !== 'completada' &&
+    (!q || t.title.toLowerCase().includes(q)))
+  if(!tasks.length){
+    el.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay tareas pendientes</div>'
+    return
+  }
+  const groups = {}
+  tasks.forEach(t => {
+    const k = t.category || 'habitos'
+    if(!groups[k]) groups[k] = []
+    groups[k].push(t)
+  })
+  const full = hoyIds.length >= 5
+  el.innerHTML = Object.entries(groups).map(([catKey, catTasks]) => {
+    const cat = CATS[catKey] || CATS.habitos
+    const pending = catTasks.filter(t => !hoyIds.includes(t.id)).length
+    return `<div>
+      <div style="padding:6px 10px;font-size:11px;font-weight:600;color:${cat.color};display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.25);position:sticky;top:0">
+        <span style="width:7px;height:7px;border-radius:50%;background:${cat.color};display:inline-block;flex-shrink:0"></span>
+        ${cat.label}
+        <span style="font-size:10px;color:var(--text-muted);font-weight:400">(${pending} pendientes)</span>
+      </div>
+      ${catTasks.map(t => {
+        const added = hoyIds.includes(t.id)
+        const disabled = !added && full
+        return `<div
+          onclick="${added || disabled ? '' : `addDashTaskFromPanel('${t.id}')`}"
+          style="display:flex;align-items:center;gap:8px;padding:7px 10px 7px 22px;cursor:${added||disabled?'default':'pointer'};opacity:${disabled?'0.35':'1'};border-bottom:1px solid rgba(255,255,255,0.04)"
+          ${!added&&!disabled?`onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background=''"`:''}>
+          <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?cat.color:'var(--border)'};background:${added?cat.color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':''}</div>
+          <span style="flex:1;font-size:12px;color:${added?'var(--text-muted)':'var(--text)'}${added?';text-decoration:line-through':''}">${t.title}</span>
+        </div>`
+      }).join('')}
+    </div>`
+  }).join('')
+}
+
+function addDashTaskFromPanel(id){
+  const ids = getDashList('hoy')
+  if(ids.length >= 5){ showToast('Máximo 5 tareas en "Mis 5 tareas"'); return }
+  if(!ids.includes(id)) ids.push(id)
+  setDashList('hoy', ids)
+  renderTasks()
+  const newIds = getDashList('hoy')
+  if(newIds.length >= 5){
+    closeTodayTaskPanel()
+    showToast('✅ 5 tareas seleccionadas para hoy')
+  } else {
+    renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+  }
 }
 
 // --- TAREAS VENCIDAS ---
