@@ -667,8 +667,41 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Agenda</h1>
           <div class="page-sub" id="agenda-date-label">Horario del día</div>
         </div>
+        <button class="btn-add" onclick="openAgendaModal()">＋ Agregar tarea</button>
       </div>
       <div id="agenda-timeline"></div>
+
+      <!-- Modal agregar tarea a la agenda -->
+      <div id="agenda-add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:flex-end;justify-content:center" onclick="if(event.target===this)closeAgendaModal()">
+        <div style="background:#111;border-radius:16px 16px 0 0;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;box-sizing:border-box;padding:20px 16px 28px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <span style="font-size:14px;font-weight:600;color:var(--text)">Agregar tarea a la agenda</span>
+            <button onclick="closeAgendaModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:0;line-height:1">✕</button>
+          </div>
+          <div style="margin-bottom:14px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">1 · Hora</div>
+            <select id="agenda-modal-slot" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box"></select>
+          </div>
+          <div style="margin-bottom:14px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">2 · Tarea</div>
+            <div id="agenda-modal-task-list" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto"></div>
+          </div>
+          <div style="margin-bottom:20px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">3 · Duración</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="agenda-modal-dur" onchange="document.getElementById('agenda-modal-dur-cust').style.display=this.value==='0'?'block':'none'" style="flex:1;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+                <option value="20">20 min</option>
+                <option value="40">40 min</option>
+                <option value="60">1 hora</option>
+                <option value="120">2 horas</option>
+                <option value="0">Personalizado</option>
+              </select>
+              <input id="agenda-modal-dur-cust" type="number" min="5" max="480" placeholder="min" style="display:none;width:80px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+            </div>
+          </div>
+          <button onclick="saveAgendaTask()" style="width:100%;background:var(--purple);border:none;border-radius:8px;padding:12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Guardar</button>
+        </div>
+      </div>
     </div>
 
     <!-- IDEAS -->
@@ -1678,75 +1711,94 @@ function setAgendaData(data){ localStorage.setItem(getAgendaKey(), JSON.stringif
 const agendaToMin = s => { const [h,m] = s.split(':').map(Number); return h*60+m }
 const agendaFromMin = m => `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`
 
-let _agendaOpenPanel = null
-let _agendaPendingTask = null
+let _agendaModalSelectedTask = null
 
-function openAgendaPanel(slotKey){
-  closeAgendaPanel(true)
-  _agendaOpenPanel = slotKey
-  const panel = document.getElementById('apanel-'+slotKey.replace(':','_'))
-  if(panel){ panel.style.display = 'flex'; panel.querySelector('input')?.focus() }
-}
-
-function closeAgendaPanel(silent){
-  if(_agendaOpenPanel){
-    const panel = document.getElementById('apanel-'+_agendaOpenPanel.replace(':','_'))
-    if(panel) panel.style.display = 'none'
+function openAgendaModal(){
+  _agendaModalSelectedTask = null
+  const modal = document.getElementById('agenda-add-modal')
+  if(!modal) return
+  modal.style.display = 'flex'
+  // Populate slot options
+  const sel = document.getElementById('agenda-modal-slot')
+  if(sel){
+    const blocks = []
+    for(let h=0; h<24; h++) for(let m of [0,20,40]) blocks.push(agendaFromMin(h*60+m))
+    const now = new Date()
+    const nowMin = now.getHours()*60+now.getMinutes()
+    const nextBm = Math.ceil(nowMin/20)*20
+    const defaultBk = agendaFromMin(Math.min(nextBm, 23*60+40))
+    sel.innerHTML = blocks.map(bk => {
+      const sched = AGENDA_SCHEDULE.find(s=>s.time===bk)
+      const label = sched ? `${bk}  —  ${sched.label}` : bk
+      return `<option value="${bk}"${bk===defaultBk?' selected':''}>${label}</option>`
+    }).join('')
   }
-  _agendaOpenPanel = null
-  _agendaPendingTask = null
-  if(!silent) document.querySelectorAll('.agenda-search-panel').forEach(p => p.style.display='none')
+  renderAgendaModalTasks()
 }
 
-function searchAgendaTask(slotKey, query){
-  const domId = slotKey.replace(':','_')
-  const sugg = document.getElementById('asugg-'+domId)
-  if(!sugg) return
-  if(!query.trim()){ sugg.innerHTML=''; sugg.style.display='none'; return }
+function closeAgendaModal(){
+  const modal = document.getElementById('agenda-add-modal')
+  if(modal) modal.style.display = 'none'
+  _agendaModalSelectedTask = null
+}
+
+function renderAgendaModalTasks(){
+  const el = document.getElementById('agenda-modal-task-list')
+  if(!el) return
   const data = getAgendaData()
   const usedIds = new Set(Object.values(data).flat().map(x=>x.id))
-  const matches = allTasks
-    .filter(t => t.status!=='completada' && !usedIds.has(t.id) && t.title.toLowerCase().includes(query.toLowerCase()))
-    .slice(0,6)
-  if(!matches.length){ sugg.innerHTML=''; sugg.style.display='none'; return }
-  sugg.style.display = 'flex'
-  sugg.innerHTML = matches.map(t => {
-    const cat = CATS[t.category]||CATS.habitos
-    return `<div class="asugg-row" onclick="pickAgendaTask('${slotKey}','${t.id}')">
-      <span style="color:${cat.color};font-size:8px">●</span>
-      <span style="flex:1">${t.title}</span>
-      <span style="font-size:10px;color:${cat.color}">${cat.label}</span>
+  const tasks = allTasks.filter(t => t.status!=='completada' && !usedIds.has(t.id))
+  if(!tasks.length){
+    el.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--text-muted);text-align:center">No hay tareas pendientes disponibles</div>'
+    return
+  }
+  const groups = {}
+  tasks.forEach(t => {
+    const k = t.category||'habitos'
+    if(!groups[k]) groups[k]=[]
+    groups[k].push(t)
+  })
+  el.innerHTML = Object.entries(groups).map(([catKey, catTasks]) => {
+    const cat = CATS[catKey]||CATS.habitos
+    return `<div>
+      <div style="padding:5px 10px;font-size:11px;font-weight:600;color:${cat.color};background:rgba(0,0,0,0.3);display:flex;align-items:center;gap:5px;position:sticky;top:0">
+        <span style="width:6px;height:6px;border-radius:50%;background:${cat.color};display:inline-block;flex-shrink:0"></span>
+        ${cat.label} <span style="font-size:10px;color:var(--text-muted);font-weight:400">(${catTasks.length})</span>
+      </div>
+      ${catTasks.map(t => {
+        const sel = _agendaModalSelectedTask===t.id
+        return `<div onclick="selectAgendaModalTask('${t.id}')"
+          style="display:flex;align-items:center;gap:8px;padding:7px 10px 7px 22px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);background:${sel?cat.color+'18':'transparent'}"
+          onmouseenter="if('${t.id}'!==_agendaModalSelectedTask)this.style.background='rgba(255,255,255,0.04)'"
+          onmouseleave="if('${t.id}'!==_agendaModalSelectedTask)this.style.background='${sel?cat.color+'18':'transparent'}'">
+          <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${sel?cat.color:'var(--border)'};background:${sel?cat.color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${sel?'✓':''}</div>
+          <span style="flex:1;font-size:12px;color:${sel?cat.color:'var(--text)'}">${t.title}</span>
+        </div>`
+      }).join('')}
     </div>`
   }).join('')
 }
 
-function pickAgendaTask(slotKey, taskId){
-  _agendaPendingTask = {slotKey, taskId}
-  const domId = slotKey.replace(':','_')
-  const sugg = document.getElementById('asugg-'+domId)
-  if(sugg){ sugg.innerHTML=''; sugg.style.display='none' }
-  const durWrap = document.getElementById('adur-'+domId)
-  if(durWrap) durWrap.style.display = 'flex'
-  const task = allTasks.find(t=>t.id===taskId)
-  const inp = document.getElementById('apanel-'+domId)?.querySelector('input')
-  if(inp && task) inp.value = task.title
+function selectAgendaModalTask(taskId){
+  _agendaModalSelectedTask = _agendaModalSelectedTask===taskId ? null : taskId
+  renderAgendaModalTasks()
 }
 
-function confirmAgendaDur(slotKey){
-  if(!_agendaPendingTask || _agendaPendingTask.slotKey!==slotKey) return
-  const domId = slotKey.replace(':','_')
-  const sel  = document.getElementById('adursel-'+domId)
-  const cust = document.getElementById('adurcust-'+domId)
+function saveAgendaTask(){
+  if(!_agendaModalSelectedTask){ showToast('⚠️ Selecciona una tarea'); return }
+  const slotKey = document.getElementById('agenda-modal-slot')?.value
+  if(!slotKey){ showToast('⚠️ Selecciona la hora'); return }
+  const sel  = document.getElementById('agenda-modal-dur')
+  const cust = document.getElementById('agenda-modal-dur-cust')
   let dur = parseInt(sel?.value||'20')
   if(dur===0) dur = parseInt(cust?.value||'20')||20
-  const {taskId} = _agendaPendingTask
   const data = getAgendaData()
-  if(!data[slotKey]) data[slotKey] = []
-  if(!data[slotKey].find(x=>x.id===taskId)) data[slotKey].push({id:taskId, dur})
+  if(!data[slotKey]) data[slotKey]=[]
+  if(!data[slotKey].find(x=>x.id===_agendaModalSelectedTask)) data[slotKey].push({id:_agendaModalSelectedTask, dur})
   setAgendaData(data)
-  _agendaPendingTask = null
-  _agendaOpenPanel = null
+  closeAgendaModal()
   renderAgenda()
+  showToast('✅ Tarea agregada a la agenda')
 }
 
 function removeAgendaTask(slotKey, taskId){
@@ -1859,30 +1911,6 @@ function renderAgenda(){
       </div>`
     }).join('')
 
-    const durPicker = `<div id="adur-${domId}" style="display:none;flex-direction:column;gap:4px">
-      <span style="font-size:11px;color:var(--text-muted)">Duración:</span>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <select id="adursel-${domId}" onchange="document.getElementById('adurcust-${domId}').style.display=this.value==='0'?'block':'none'" style="background:#0C0C0C;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:11px;font-family:'Outfit',sans-serif;outline:none">
-          <option value="20">20 min</option>
-          <option value="40">40 min</option>
-          <option value="60">1 hora</option>
-          <option value="120">2 horas</option>
-          <option value="0">Personalizado</option>
-        </select>
-        <input id="adurcust-${domId}" type="number" min="5" max="480" placeholder="min" style="display:none;width:68px;background:#0C0C0C;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:11px;font-family:'Outfit',sans-serif;outline:none">
-        <button onclick="confirmAgendaDur('${bk}')" style="background:var(--purple);border:none;border-radius:6px;padding:4px 10px;color:#fff;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✓ Agregar</button>
-        <button onclick="closeAgendaPanel()" style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
-      </div>
-    </div>`
-
-    const searchPanel = conts.length===0 ? `<div class="agenda-search-panel" id="apanel-${domId}" style="display:none;flex-direction:column;gap:6px">
-      <input type="text" placeholder="🔍 Buscar tarea..." oninput="searchAgendaTask('${bk}',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
-      <div id="asugg-${domId}" style="display:none;flex-direction:column;background:#111;border:1px solid var(--border);border-radius:6px;overflow:hidden"></div>
-      ${durPicker}
-    </div>` : ''
-
-    const addBtn = conts.length===0 ? `<button class="agenda-add-btn" onclick="openAgendaPanel('${bk}')">+ agregar</button>` : ''
-
     html += `<div class="agenda-block${isNow?' is-now':''}${isPast?' is-past':''}" id="ablock-${domId}" style="position:relative">
       ${nowLineHTML}
       <div class="agenda-time-lbl${isHour?' is-hour':''}">${bk}</div>
@@ -1890,26 +1918,12 @@ function renderAgenda(){
       <div class="agenda-block-content" style="min-height:${hasContent?48:32}px">
         ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}">${routine}</div>`:''}
         ${contHTML}${autoHTML}${pinnedHTML}
-        ${addBtn}${searchPanel}
       </div>
     </div>`
   })
 
   html += '</div>'
   el.innerHTML = html
-
-  // Restore open panel state after re-render
-  if(_agendaOpenPanel){
-    const panel = document.getElementById('apanel-'+_agendaOpenPanel.replace(':','_'))
-    if(panel) panel.style.display = 'flex'
-    if(_agendaPendingTask){
-      const did = _agendaPendingTask.slotKey.replace(':','_')
-      const dw  = document.getElementById('adur-'+did)
-      if(dw) dw.style.display = 'flex'
-      const task = allTasks.find(t=>t.id===_agendaPendingTask.taskId)
-      if(task && panel){ const inp=panel.querySelector('input'); if(inp) inp.value=task.title }
-    }
-  }
 
   // Auto-scroll to current block
   const nowBlock = document.getElementById('ablock-'+curBk.replace(':','_'))
