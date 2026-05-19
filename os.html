@@ -3471,34 +3471,65 @@ function habitoHTML(a){
   </div>`
 }
 
+function tareasDeHabito(name){
+  const q = name.toLowerCase()
+  const matching = allTasks.filter(t => t.title.toLowerCase().includes(q))
+  const pending = matching.filter(t => t.status !== 'completada')
+  const done    = matching.filter(t => t.status === 'completada').slice(0, 2)
+  return [...pending, ...done].slice(0, 5)
+}
+
+function tareasHabitoMiniHTML(tasks){
+  if(!tasks.length) return ''
+  return `<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">
+    ${tasks.map(t => {
+      const cat  = CATS[t.category] || CATS.habitos
+      const done = t.status === 'completada'
+      return `<div style="display:flex;align-items:center;gap:5px;font-size:11px">
+        <span style="color:${cat.color};font-size:7px;flex-shrink:0">●</span>
+        <span style="color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through;opacity:0.6':''};flex:1">${t.title}</span>
+        ${t.due_date ? `<span style="color:var(--text-muted);font-size:10px;flex-shrink:0">📅 ${t.due_date}</span>` : ''}
+        ${done ? `<span style="color:var(--text-muted);font-size:10px;flex-shrink:0">✓</span>` : ''}
+      </div>`
+    }).join('')}
+  </div>`
+}
+
 function habitoUnicoHTML(a){
   const isDone = !!habitLogs[a.id] || !a.is_active
   const color = CAT_COLORS[a.category] || '#555'
-  return `<div class="unica-item${isDone?' done-arch':''}">
+  if(isDone){
+    return `<div class="unica-item done-arch">
+      <div style="flex:1">
+        <div style="font-size:13px;color:var(--text-muted);text-decoration:line-through">${a.name}</div>
+        <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
+      </div>
+      <span class="freq-done-badge">Archivado</span>
+    </div>`
+  }
+  const relTasks = tareasDeHabito(a.name)
+  return `<div class="unica-item">
     <div style="flex:1">
-      <div style="font-size:13px;color:${isDone?'var(--text-muted)':'var(--text)'};${isDone?'text-decoration:line-through':''}">${a.name}</div>
+      <div style="font-size:13px;color:var(--text)">${a.name}</div>
       <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
+      ${tareasHabitoMiniHTML(relTasks)}
     </div>
-    ${!isDone ? `<button class="btn-edit-act" onclick="openActivityModal('${a.id}')">✏️</button>` : ''}
-    ${!isDone ? `<button class="btn-archive" onclick="archiveActivity('${a.id}')">✓ Hecho</button>` : '<span class="freq-done-badge">Archivado</span>'}
+    <button class="btn-add" onclick="convertirEnTarea('${a.id}')" style="font-size:11px;padding:5px 10px;color:#9b72f0;border-color:rgba(155,114,240,0.3)">→ Crear tarea</button>
+    <button class="btn-edit-act" onclick="openActivityModal('${a.id}')">✏️</button>
   </div>`
 }
 
 function habitoPeriodicoHTML(a, freq){
-  const logs = freq==='semanal' ? (weeklyLogs[a.id]||[]) : (monthlyLogs[a.id]||[])
-  const isDone = logs.length > 0
-  const color = CAT_COLORS[a.category] || '#555'
-  const period = freq==='semanal' ? 'esta semana' : 'este mes'
-  return `<div class="habito-item${isDone?' done':''}" style="border-left-color:${a.is_active?color:'var(--border)'}">
-    <div class="habito-check" onclick="toggleHabitoPeriodico('${a.id}','${freq}')" style="${isDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">
-      ${isDone?'✓':''}
-    </div>
+  const color    = CAT_COLORS[a.category] || '#555'
+  const relTasks = tareasDeHabito(a.name)
+  return `<div class="habito-item" style="border-left-color:${a.is_active?color:'var(--border)'}">
     <div style="flex:1">
       <div class="habito-name">${a.name}</div>
-      ${isDone ? `<div style="font-size:10px;color:var(--text-muted)">Completado ${period} · ${logs.length}x</div>` : ''}
+      <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
+      ${tareasHabitoMiniHTML(relTasks)}
     </div>
-    ${isDone ? '<span class="freq-done-badge">✓ '+period+'</span>' : ''}
-    <button class="btn-edit-act" onclick="openActivityModal('${a.id}')">✏️</button>
+    <button class="btn-add" onclick="convertirEnTarea('${a.id}')" style="font-size:11px;padding:5px 10px;color:#9b72f0;border-color:rgba(155,114,240,0.3)">→ Crear tarea</button>
+    <button class="habito-toggle" onclick="openActivityModal('${a.id}')">✏️</button>
   </div>`
 }
 
