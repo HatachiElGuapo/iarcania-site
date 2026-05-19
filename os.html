@@ -1933,6 +1933,8 @@ function renderAgenda(){
       if(type === 'habit'){
         const act = allActivities.find(a=>a.id===id)
         color = act ? (CAT_COLORS[act.category]||'#555') : '#555'
+      } else if(type === 'cita'){
+        color = x.color || '#EF9F27'
       } else {
         const task = allTasks.find(t=>t.id===id)
         color = task ? (CATS[task.category]||CATS.habitos).color : '#555'
@@ -2009,6 +2011,11 @@ function renderAgenda(){
         const color = CAT_COLORS[act.category]||'#555'
         return {id:x.id, title:act.name, color, dur:x.dur, isHabit:true}
       }
+      if(x.type === 'cita'){
+        const color = x.color || '#EF9F27'
+        const title = x.title || allCitas.find(c=>c.id===x.id)?.title || 'Cita'
+        return {id:x.id, title:'🏥 '+title, color, dur:x.dur, isHabit:false, isCita:true}
+      }
       const t = allTasks.find(t=>t.id===x.id)
       if(!t) return null
       const cat = CATS[t.category]||CATS.habitos
@@ -2036,9 +2043,9 @@ function renderAgenda(){
     }).join('')
 
     const pinnedHTML = pinnedItems.map(item => {
-      const {id, title, color, dur, isHabit, task} = item
-      const done = !isHabit && task?.status === 'completada'
-      const checkEl = isHabit
+      const {id, title, color, dur, isHabit, isCita, task} = item
+      const done = !isHabit && !isCita && task?.status === 'completada'
+      const checkEl = (isHabit || isCita)
         ? `<div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0;opacity:0.8"></div>`
         : chipCheck(task, {color})
       return `<div class="agenda-chip" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''}">
@@ -5672,6 +5679,19 @@ async function guardarNuevaCita(){
   const { error } = await SB_P.from('appointments').insert(rec)
   if(error){ showToast('❌ '+error.message); return }
   allCitas = [...allCitas, rec].sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
+  // Guardar en agenda si tiene fecha y hora
+  const dtObj = new Date(dt)
+  const dateKey = dtObj.toLocaleDateString('en-CA')
+  const hh = dtObj.getHours().toString().padStart(2,'0')
+  const mm = (Math.round(dtObj.getMinutes()/20)*20 % 60).toString().padStart(2,'0')
+  const slotKey = `${hh}:${mm}`
+  const agKey = 'agenda_' + dateKey
+  const agData = JSON.parse(localStorage.getItem(agKey) || '{}')
+  if(!agData[slotKey]) agData[slotKey] = []
+  if(!agData[slotKey].find(x => x.id === rec.id)){
+    agData[slotKey].push({ id: rec.id, dur: 20, type: 'cita', title: rec.title, color: '#EF9F27' })
+  }
+  localStorage.setItem(agKey, JSON.stringify(agData))
   closeModal('nueva-cita')
   document.getElementById('nc-title').value = ''
   document.getElementById('nc-datetime').value = ''
