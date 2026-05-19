@@ -201,6 +201,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 /* Toast celebración */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#111;border:1px solid var(--gold);border-radius:12px;padding:14px 22px;font-size:14px;color:var(--gold);font-weight:600;z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.action{pointer-events:auto;white-space:normal;max-width:320px;text-align:center;line-height:1.4}
 /* Widget 20/20/20 */
 .ritual-widget{background:linear-gradient(135deg,rgba(0,194,255,0.07),rgba(0,194,255,0.02));border:1px solid rgba(0,194,255,0.2);border-radius:12px;padding:14px 16px;margin-bottom:12px}
 .ritual-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -1617,7 +1618,13 @@ function renderTasks(){
   document.getElementById('badge-pending').textContent = pending.length
   // Dashboard: Mis 5 tareas (manual desde localStorage)
   const hoyIds   = getDashList('hoy')
-  const hoyTasks = hoyIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
+  const hoyTasks = hoyIds.map(id => {
+    const t = allTasks.find(t => t.id === id)
+    if(t) return t
+    const c = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === id)
+    if(c) return { id: c.id, title: c.title, category: null, status: c.status, _isCita: true }
+    return null
+  }).filter(Boolean)
   renderDashTasksSection('dashboard-tasks', hoyTasks, 'hoy')
   renderCitasEnDashboard()
   // Dashboard: Tareas extra (manual desde localStorage)
@@ -2083,9 +2090,40 @@ function renderAgenda(){
 
 function showToast(msg, duration=3500){
   const t = document.getElementById('toast')
+  t.classList.remove('action')
   t.textContent = msg
   t.classList.add('show')
   setTimeout(() => t.classList.remove('show'), duration)
+}
+
+let _toastActionTimer = null
+function showToastAction(msg, yesLabel, onYes){
+  clearTimeout(_toastActionTimer)
+  const t = document.getElementById('toast')
+  t.innerHTML = `<div style="margin-bottom:8px">${msg}</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button onclick="window._toastYes()" style="padding:5px 14px;border-radius:7px;border:1px solid #EF9F27;background:rgba(239,159,39,0.15);color:#EF9F27;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600">${yesLabel}</button>
+      <button onclick="window._toastNo()" style="padding:5px 14px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">No</button>
+    </div>`
+  t.classList.add('show', 'action')
+  window._toastYes = () => { onYes(); _dismissToastAction() }
+  window._toastNo  = () => { _dismissToastAction() }
+  _toastActionTimer = setTimeout(_dismissToastAction, 8000)
+}
+function _dismissToastAction(){
+  clearTimeout(_toastActionTimer)
+  const t = document.getElementById('toast')
+  t.classList.remove('show')
+  setTimeout(() => { t.classList.remove('action'); t.innerHTML = '' }, 400)
+}
+
+function addCitaToHoy(citaId){
+  const ids = getDashList('hoy')
+  if(ids.length >= 5){ showToast('Máximo 5 tareas en "Mis 5 tareas"'); return }
+  if(!ids.includes(citaId)) ids.push(citaId)
+  setDashList('hoy', ids)
+  renderTasks()
+  showToast('✅ Cita agregada a tus tareas de hoy')
 }
 
 function update2020Widget(){
@@ -2553,6 +2591,18 @@ function renderDashTasksSection(elId, tasks, listKey){
     return
   }
   el.innerHTML = tasks.map(t => {
+    if(t._isCita){
+      const citaColor = '#EF9F27'
+      return `<div class="task-item" style="border-left-color:${citaColor}">
+        <div class="task-check" style="border-color:${citaColor};color:${citaColor};font-size:14px;display:flex;align-items:center;justify-content:center">🏥</div>
+        <div class="task-text">
+          <div style="color:${citaColor};font-weight:500">${t.title}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Cita médica</div>
+        </div>
+        <div class="task-cat" style="color:${citaColor}">Cita</div>
+        <button class="habito-toggle" onclick="removeDashTask('${listKey}','${t.id}')" title="Quitar" style="font-size:15px;color:var(--text-muted)">×</button>
+      </div>`
+    }
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
     const isOverdue = t.due_date && t.due_date < TODAY && !done
@@ -5740,7 +5790,15 @@ async function guardarNuevaCita(){
   document.getElementById('nc-r1').value = '3'
   document.getElementById('nc-r2').value = '1'
   renderCitas(); renderCitasAlert()
-  showToast('✅ Cita guardada')
+  if(dateKey === TODAY){
+    showToastAction(
+      `🏥 Cita a las ${slotKey} — ¿Agregarla a tus tareas de hoy?`,
+      'Sí, agregar',
+      () => addCitaToHoy(rec.id)
+    )
+  } else {
+    showToast('✅ Cita guardada')
+  }
 }
 
 // --- SELECTOR DE TAREAS ---
