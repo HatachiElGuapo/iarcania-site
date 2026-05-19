@@ -1667,7 +1667,7 @@ function renderTaskList(elId, tasks){
 // --- AGENDA HORARIA ---
 const AGENDA_SCHEDULE = [
   { time:'03:40', label:'Despertar, cama y agua' },
-  { time:'04:00', label:'Entrenamiento matutino' },
+  { time:'04:00', label:'Entrenamiento matutino', dur: 40 },
   { time:'04:40', label:'Baño frío' },
   { time:'05:00', label:'Meditar' },
   { time:'05:20', label:'Escritura / Diario' },
@@ -1824,6 +1824,19 @@ function renderAgenda(){
   const schedMap = {}
   AGENDA_SCHEDULE.forEach(s => schedMap[s.time] = s.label)
 
+  // Continuation blocks for multi-block routine items
+  const routineContMap = {}
+  AGENDA_SCHEDULE.forEach(s => {
+    if(s.dur && s.dur > 20){
+      const n = Math.ceil(s.dur/20)
+      for(let i=1; i<n; i++){
+        const bm = agendaToMin(s.time)+i*20
+        if(bm >= 24*60) break
+        routineContMap[agendaFromMin(bm)] = s.label
+      }
+    }
+  })
+
   // Pre-compute continuation blocks from multi-block tasks
   const contMap = {}
   Object.entries(data).forEach(([sk, items]) => {
@@ -1873,7 +1886,8 @@ function renderAgenda(){
     const isNow   = bk === curBk
     const isPast  = bMin+20 <= nowMin
     const isHour  = bk.endsWith(':00')
-    const routine = schedMap[bk]
+    const routine     = schedMap[bk]
+    const routineCont = routineContMap[bk]
     const conts   = contMap[bk]||[]
     const autos   = autoMap[bk]||[]
     const items   = data[bk]||[]
@@ -1881,7 +1895,7 @@ function renderAgenda(){
     const pinned  = items.filter(x=>!autoIds.has(x.id))
     const pinnedTasks = pinned.map(x=>({t:allTasks.find(t=>t.id===x.id), dur:x.dur})).filter(x=>x.t)
     const domId   = bk.replace(':','_')
-    const hasContent = routine||conts.length||autos.length||pinnedTasks.length
+    const hasContent = routine||routineCont||conts.length||autos.length||pinnedTasks.length
 
     const nowLineY = Math.round(progressInBlock*(hasContent?52:36))
     const nowLineHTML = isNow ? `<div class="agenda-now-line" style="top:${nowLineY}px"></div>` : ''
@@ -1917,6 +1931,7 @@ function renderAgenda(){
       <div class="agenda-block-line"></div>
       <div class="agenda-block-content" style="min-height:${hasContent?48:32}px">
         ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}">${routine}</div>`:''}
+        ${routineCont?`<div style="font-size:10px;color:var(--text-muted);padding-left:4px;font-style:italic">↳ ${routineCont}</div>`:''}
         ${contHTML}${autoHTML}${pinnedHTML}
       </div>
     </div>`
