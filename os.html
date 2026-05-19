@@ -547,6 +547,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             <span class="dash-arrow" id="dash-today-arrow">▼</span>
           </div>
           <div class="dash-section-body" id="dash-today-body">
+            <div id="dash-citas-hoy"></div>
             <div id="dashboard-tasks-wrap">
               <div class="task-list" id="dashboard-tasks"></div>
             </div>
@@ -1617,6 +1618,7 @@ function renderTasks(){
   const hoyIds   = getDashList('hoy')
   const hoyTasks = hoyIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
   renderDashTasksSection('dashboard-tasks', hoyTasks, 'hoy')
+  renderCitasEnDashboard()
   // Dashboard: Tareas extra (manual desde localStorage)
   const extraIds   = getDashList('extra')
   const extraTasks = extraIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
@@ -2508,6 +2510,34 @@ function renderRutinaNocturnaDash(){
       <span class="ritual-label">${a.name}</span>
     </div>`
   }).join('')
+}
+
+// --- CITAS DEL DÍA (agenda localStorage) ---
+function getCitasHoy(){
+  const data = JSON.parse(localStorage.getItem('agenda_' + TODAY) || '{}')
+  const citas = []
+  Object.entries(data).forEach(([slot, items]) => {
+    items.forEach(x => { if(x.type === 'cita') citas.push({ slot, title: x.title || '?', id: x.id }) })
+  })
+  return citas.sort((a,b) => a.slot.localeCompare(b.slot))
+}
+
+function renderCitasEnDashboard(){
+  const el = document.getElementById('dash-citas-hoy')
+  if(!el) return
+  const citas = getCitasHoy()
+  if(!citas.length){ el.innerHTML = ''; return }
+  const collapsed = el.dataset.collapsed === '1'
+  const listHTML = citas.map(c =>
+    `<div style="font-size:11px;color:#EF9F27;padding:2px 0 2px 14px">⏰ ${c.slot} — ${c.title}</div>`
+  ).join('')
+  el.innerHTML = `<div style="background:rgba(239,159,39,0.08);border:1px solid rgba(239,159,39,0.3);border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer" onclick="this.parentElement.dataset.collapsed=this.parentElement.dataset.collapsed==='1'?'0':'1';renderCitasEnDashboard()">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;font-weight:600;color:#EF9F27">🏥 Tienes ${citas.length} cita${citas.length>1?'s':''} hoy</span>
+      <span style="font-size:11px;color:#EF9F27">${collapsed?'▶':'▼'}</span>
+    </div>
+    ${collapsed?'':listHTML}
+  </div>`
 }
 
 // --- DASHBOARD TASK LISTS (manual, localStorage) ---
@@ -4667,7 +4697,16 @@ function renderProyectoDia(scripts){
     <div id="work-notes-list">${renderWorkNotesHtml(_guionesDashCanal)}</div>
   </div>`
 
-  el.innerHTML = progressHtml + timerHtml + subHdr('Tareas') + tareasHtml + subHdr('Guiones') + guionesHtml + subHdr('Nota del día') + notaHtml
+  // — Citas del día —
+  const citasHoy = getCitasHoy()
+  const citasWidgetHtml = citasHoy.length
+    ? `<div style="background:rgba(239,159,39,0.08);border:1px solid rgba(239,159,39,0.3);border-radius:8px;padding:8px 10px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:#EF9F27;margin-bottom:4px">🏥 Citas hoy</div>
+        ${citasHoy.map(c=>`<div style="font-size:11px;color:#EF9F27;padding:1px 0">⏰ ${c.slot} — ${c.title}</div>`).join('')}
+      </div>`
+    : ''
+
+  el.innerHTML = citasWidgetHtml + progressHtml + timerHtml + subHdr('Tareas') + tareasHtml + subHdr('Guiones') + guionesHtml + subHdr('Nota del día') + notaHtml
 }
 
 function goToScript(scriptId){
