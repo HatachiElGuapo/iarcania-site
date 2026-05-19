@@ -683,8 +683,12 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             <select id="agenda-modal-slot" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box"></select>
           </div>
           <div style="margin-bottom:14px">
-            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">2 · Tarea</div>
-            <div id="agenda-modal-task-list" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto"></div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">2 · Selección</div>
+            <div style="display:flex;border-radius:8px 8px 0 0;overflow:hidden;border:1px solid var(--border);border-bottom:none">
+              <button id="agenda-tab-tasks" onclick="switchAgendaModalTab('tasks')" style="flex:1;padding:8px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;border:none;border-right:1px solid var(--border);background:rgba(155,114,240,0.15);color:var(--purple);font-weight:600">Tareas</button>
+              <button id="agenda-tab-habits" onclick="switchAgendaModalTab('habits')" style="flex:1;padding:8px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;border:none;background:transparent;color:var(--text-muted);font-weight:400">Hábitos</button>
+            </div>
+            <div id="agenda-modal-task-list" style="background:#0C0C0C;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto"></div>
           </div>
           <div style="margin-bottom:20px">
             <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">3 · Duración</div>
@@ -1712,9 +1716,11 @@ const agendaToMin = s => { const [h,m] = s.split(':').map(Number); return h*60+m
 const agendaFromMin = m => `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`
 
 let _agendaModalSelectedTask = null
+let _agendaModalTab = 'tasks'
 
 function openAgendaModal(){
   _agendaModalSelectedTask = null
+  _agendaModalTab = 'tasks'
   const modal = document.getElementById('agenda-add-modal')
   if(!modal) return
   modal.style.display = 'flex'
@@ -1733,7 +1739,7 @@ function openAgendaModal(){
       return `<option value="${bk}"${bk===defaultBk?' selected':''}>${label}</option>`
     }).join('')
   }
-  renderAgendaModalTasks()
+  switchAgendaModalTab('tasks')
 }
 
 function closeAgendaModal(){
@@ -1742,7 +1748,24 @@ function closeAgendaModal(){
   _agendaModalSelectedTask = null
 }
 
+function switchAgendaModalTab(tab){
+  _agendaModalTab = tab
+  _agendaModalSelectedTask = null
+  const tBtn = document.getElementById('agenda-tab-tasks')
+  const hBtn = document.getElementById('agenda-tab-habits')
+  if(!tBtn || !hBtn) return
+  if(tab === 'tasks'){
+    tBtn.style.background = 'rgba(155,114,240,0.15)'; tBtn.style.color = 'var(--purple)'; tBtn.style.fontWeight = '600'
+    hBtn.style.background = 'transparent'; hBtn.style.color = 'var(--text-muted)'; hBtn.style.fontWeight = '400'
+  } else {
+    hBtn.style.background = 'rgba(155,114,240,0.15)'; hBtn.style.color = 'var(--purple)'; hBtn.style.fontWeight = '600'
+    tBtn.style.background = 'transparent'; tBtn.style.color = 'var(--text-muted)'; tBtn.style.fontWeight = '400'
+  }
+  renderAgendaModalTasks()
+}
+
 function renderAgendaModalTasks(){
+  if(_agendaModalTab === 'habits'){ renderAgendaModalHabits(); return }
   const el = document.getElementById('agenda-modal-task-list')
   if(!el) return
   const data = getAgendaData()
@@ -1779,26 +1802,65 @@ function renderAgendaModalTasks(){
   }).join('')
 }
 
-function selectAgendaModalTask(taskId){
-  _agendaModalSelectedTask = _agendaModalSelectedTask===taskId ? null : taskId
+function renderAgendaModalHabits(){
+  const el = document.getElementById('agenda-modal-task-list')
+  if(!el) return
+  const data = getAgendaData()
+  const usedIds = new Set(Object.values(data).flat().map(x=>x.id))
+  const habits = allActivities.filter(a => a.is_active && !usedIds.has(a.id))
+  if(!habits.length){
+    el.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--text-muted);text-align:center">No hay hábitos activos disponibles</div>'
+    return
+  }
+  const groups = {}
+  habits.forEach(a => {
+    const k = a.category||'vida_practica'
+    if(!groups[k]) groups[k]=[]
+    groups[k].push(a)
+  })
+  el.innerHTML = Object.entries(groups).map(([catKey, catHabits]) => {
+    const color = CAT_COLORS[catKey]||'#555'
+    const label = CAT_LABELS[catKey]||catKey
+    return `<div>
+      <div style="padding:5px 10px;font-size:11px;font-weight:600;color:${color};background:rgba(0,0,0,0.3);display:flex;align-items:center;gap:5px;position:sticky;top:0">
+        <span style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+        ${label} <span style="font-size:10px;color:var(--text-muted);font-weight:400">(${catHabits.length})</span>
+      </div>
+      ${catHabits.map(a => {
+        const sel = _agendaModalSelectedTask===a.id
+        return `<div onclick="selectAgendaModalTask('${a.id}')"
+          style="display:flex;align-items:center;gap:8px;padding:7px 10px 7px 22px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);background:${sel?color+'18':'transparent'}"
+          onmouseenter="if('${a.id}'!==_agendaModalSelectedTask)this.style.background='rgba(255,255,255,0.04)'"
+          onmouseleave="if('${a.id}'!==_agendaModalSelectedTask)this.style.background='${sel?color+'18':'transparent'}'">
+          <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${sel?color:'var(--border)'};background:${sel?color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${sel?'✓':''}</div>
+          <span style="flex:1;font-size:12px;color:${sel?color:'var(--text)'}">${a.name}</span>
+        </div>`
+      }).join('')}
+    </div>`
+  }).join('')
+}
+
+function selectAgendaModalTask(id){
+  _agendaModalSelectedTask = _agendaModalSelectedTask===id ? null : id
   renderAgendaModalTasks()
 }
 
 function saveAgendaTask(){
-  if(!_agendaModalSelectedTask){ showToast('⚠️ Selecciona una tarea'); return }
+  if(!_agendaModalSelectedTask){ showToast('⚠️ Selecciona una tarea o hábito'); return }
   const slotKey = document.getElementById('agenda-modal-slot')?.value
   if(!slotKey){ showToast('⚠️ Selecciona la hora'); return }
   const sel  = document.getElementById('agenda-modal-dur')
   const cust = document.getElementById('agenda-modal-dur-cust')
   let dur = parseInt(sel?.value||'20')
   if(dur===0) dur = parseInt(cust?.value||'20')||20
+  const type = _agendaModalTab === 'habits' ? 'habit' : 'task'
   const data = getAgendaData()
   if(!data[slotKey]) data[slotKey]=[]
-  if(!data[slotKey].find(x=>x.id===_agendaModalSelectedTask)) data[slotKey].push({id:_agendaModalSelectedTask, dur})
+  if(!data[slotKey].find(x=>x.id===_agendaModalSelectedTask)) data[slotKey].push({id:_agendaModalSelectedTask, dur, type})
   setAgendaData(data)
   closeAgendaModal()
   renderAgenda()
-  showToast('✅ Tarea agregada a la agenda')
+  showToast('✅ Agregado a la agenda')
 }
 
 function removeAgendaTask(slotKey, taskId){
@@ -1845,20 +1907,26 @@ function renderAgenda(){
     }
   })
 
-  // Pre-compute continuation blocks from multi-block tasks
+  // Pre-compute continuation blocks from multi-block tasks/habits
   const contMap = {}
   Object.entries(data).forEach(([sk, items]) => {
-    items.forEach(({id, dur}) => {
-      const task = allTasks.find(t=>t.id===id)
-      if(!task) return
-      const cat = CATS[task.category]||CATS.habitos
+    items.forEach(x => {
+      const {id, dur, type} = x
+      let color
+      if(type === 'habit'){
+        const act = allActivities.find(a=>a.id===id)
+        color = act ? (CAT_COLORS[act.category]||'#555') : '#555'
+      } else {
+        const task = allTasks.find(t=>t.id===id)
+        color = task ? (CATS[task.category]||CATS.habitos).color : '#555'
+      }
       const n = Math.ceil(dur/20)
       for(let i=1; i<n; i++){
         const bm = agendaToMin(sk)+i*20
         if(bm>=24*60) break
         const bk = agendaFromMin(bm)
         if(!contMap[bk]) contMap[bk]=[]
-        contMap[bk].push({color:cat.color, taskId:id, startKey:sk})
+        contMap[bk].push({color, taskId:id, startKey:sk})
       }
     })
   })
@@ -1901,9 +1969,20 @@ function renderAgenda(){
     const items   = data[bk]||[]
     const autoIds = new Set(autos.map(t=>t.id))
     const pinned  = items.filter(x=>!autoIds.has(x.id))
-    const pinnedTasks = pinned.map(x=>({t:allTasks.find(t=>t.id===x.id), dur:x.dur})).filter(x=>x.t)
+    const pinnedItems = pinned.map(x => {
+      if(x.type === 'habit'){
+        const act = allActivities.find(a=>a.id===x.id)
+        if(!act) return null
+        const color = CAT_COLORS[act.category]||'#555'
+        return {id:x.id, title:act.name, color, dur:x.dur, isHabit:true}
+      }
+      const t = allTasks.find(t=>t.id===x.id)
+      if(!t) return null
+      const cat = CATS[t.category]||CATS.habitos
+      return {id:x.id, title:t.title, color:cat.color, dur:x.dur, task:t, isHabit:false}
+    }).filter(Boolean)
     const domId   = bk.replace(':','_')
-    const hasContent = routine||routineCont||conts.length||autos.length||pinnedTasks.length
+    const hasContent = routine||routineCont||conts.length||autos.length||pinnedItems.length
 
     const nowLineY = Math.round(progressInBlock*(hasContent?52:36))
     const nowLineHTML = isNow ? `<div class="agenda-now-line" style="top:${nowLineY}px"></div>` : ''
@@ -1923,14 +2002,17 @@ function renderAgenda(){
       </div>`
     }).join('')
 
-    const pinnedHTML = pinnedTasks.map(({t, dur}) => {
-      const cat = CATS[t.category]||CATS.habitos
-      const done = t.status==='completada'
-      return `<div class="agenda-chip" style="border-color:${cat.color}44;background:${cat.color}0D;${done?'opacity:0.5':''}">
-        ${chipCheck(t,cat)}
-        <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''};">${t.title}</span>
+    const pinnedHTML = pinnedItems.map(item => {
+      const {id, title, color, dur, isHabit, task} = item
+      const done = !isHabit && task?.status === 'completada'
+      const checkEl = isHabit
+        ? `<div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0;opacity:0.8"></div>`
+        : chipCheck(task, {color})
+      return `<div class="agenda-chip" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''}">
+        ${checkEl}
+        <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''};">${title}</span>
         <span style="color:var(--text-muted);font-size:9px;flex-shrink:0">(${fmtDur(dur)})</span>
-        <button onclick="removeAgendaTask('${bk}','${t.id}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>
+        <button onclick="removeAgendaTask('${bk}','${id}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>
       </div>`
     }).join('')
 
