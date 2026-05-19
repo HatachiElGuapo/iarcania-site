@@ -5684,7 +5684,7 @@ function renderCitas(){
     const icon  = CITA_ICONS[c.type] || '📋'
     const isPendiente = c.status === 'pendiente'
     const lugar  = c.lugar  ? `<span>📍 ${c.lugar}</span>`   : ''
-    const doctor = c.doctor ? `<span>👨‍⚕️ ${c.doctor}</span>` : ''
+    const doctor = c.doctor_name ? `<span>👨‍⚕️ ${c.doctor_name}</span>` : ''
     return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px${c.status==='cancelada'?';opacity:.5':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
@@ -5761,7 +5761,7 @@ async function guardarNuevaCita(){
     type:       document.getElementById('nc-type').value,
     datetime:   new Date(dt).toISOString(),
     lugar:      document.getElementById('nc-lugar').value.trim() || null,
-    doctor:     document.getElementById('nc-doctor').value.trim() || null,
+    doctor_name: document.getElementById('nc-doctor').value.trim() || null,
     reminder_1: r1h > 0 ? new Date(dtMs - r1h*3600000).toISOString() : null,
     reminder_2: r2h > 0 ? new Date(dtMs - r2h*3600000).toISOString() : null,
     status:     'pendiente'
