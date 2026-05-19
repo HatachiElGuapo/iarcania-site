@@ -1419,6 +1419,19 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-cita-hoy">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div style="font-size:32px;margin-bottom:10px">🏥</div>
+    <h3 style="margin-bottom:6px">Cita creada</h3>
+    <p id="modal-cita-hoy-msg" style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.5"></p>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">¿Agregarla a tus tareas de hoy?</p>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('cita-hoy')">✕ No</button>
+      <button class="btn-save" id="modal-cita-hoy-yes" onclick="">✓ Sí, agregar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -2593,11 +2606,15 @@ function renderDashTasksSection(elId, tasks, listKey){
   el.innerHTML = tasks.map(t => {
     if(t._isCita){
       const citaColor = '#EF9F27'
+      const citaObj = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === t.id)
+      const hora = citaObj?.datetime
+        ? new Date(citaObj.datetime).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false})
+        : null
       return `<div class="task-item" style="border-left-color:${citaColor}">
         <div class="task-check" style="border-color:${citaColor};color:${citaColor};font-size:14px;display:flex;align-items:center;justify-content:center">🏥</div>
         <div class="task-text">
           <div style="color:${citaColor};font-weight:500">${t.title}</div>
-          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Cita médica</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">📅 Hoy${hora?' · 🕐 '+hora:''}</div>
         </div>
         <div class="task-cat" style="color:${citaColor}">Cita</div>
         <button class="habito-toggle" onclick="removeDashTask('${listKey}','${t.id}')" title="Quitar" style="font-size:15px;color:var(--text-muted)">×</button>
@@ -2698,7 +2715,8 @@ function renderTodayTaskPanel(query){
     groups[k].push(t)
   })
   const full = hoyIds.length >= 5
-  el.innerHTML = Object.entries(groups).map(([catKey, catTasks]) => {
+
+  const taskGroupsHTML = Object.entries(groups).map(([catKey, catTasks]) => {
     const cat = CATS[catKey] || CATS.habitos
     const pending = catTasks.filter(t => !hoyIds.includes(t.id)).length
     return `<div>
@@ -2720,6 +2738,47 @@ function renderTodayTaskPanel(query){
       }).join('')}
     </div>`
   }).join('')
+
+  // Sección citas de hoy
+  const citasHoy = (typeof allCitas !== 'undefined' ? allCitas : [])
+    .filter(c => c.datetime && c.datetime.startsWith(TODAY) && c.status !== 'cancelada')
+  const citasHTML = citasHoy.length ? `<div>
+    <div style="padding:6px 10px;font-size:11px;font-weight:600;color:#EF9F27;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.25);position:sticky;top:0">
+      <span style="width:7px;height:7px;border-radius:50%;background:#EF9F27;display:inline-block;flex-shrink:0"></span>
+      Citas de hoy
+    </div>
+    ${citasHoy.map(c => {
+      const added = hoyIds.includes(c.id)
+      const disabled = !added && full
+      const hora = c.datetime ? new Date(c.datetime).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false}) : ''
+      return `<div
+        onclick="${added || disabled ? '' : `addCitaToHoyFromPanel('${c.id}')`}"
+        style="display:flex;align-items:center;gap:8px;padding:7px 10px 7px 22px;cursor:${added||disabled?'default':'pointer'};opacity:${disabled?'0.35':'1'};border-bottom:1px solid rgba(255,255,255,0.04)"
+        ${!added&&!disabled?`onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background=''"`:''}>
+        <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?'#EF9F27':'var(--border)'};background:${added?'#EF9F27':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':'🏥'}</div>
+        <span style="flex:1;font-size:12px;color:${added?'var(--text-muted)':'#EF9F27'}${added?';text-decoration:line-through':''}">${c.title}${hora?' · '+hora:''}</span>
+      </div>`
+    }).join('')}
+  </div>` : ''
+
+  el.innerHTML = taskGroupsHTML + citasHTML
+  if(!taskGroupsHTML && !citasHTML){
+    el.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay tareas ni citas pendientes</div>'
+  }
+}
+
+function addCitaToHoyFromPanel(citaId){
+  const ids = getDashList('hoy')
+  if(ids.length >= 5){ showToast('Máximo 5 tareas en "Mis 5 tareas"'); return }
+  if(!ids.includes(citaId)) ids.push(citaId)
+  setDashList('hoy', ids)
+  renderTasks()
+  if(getDashList('hoy').length >= 5){
+    closeTodayTaskPanel()
+    showToast('✅ 5 tareas seleccionadas para hoy')
+  } else {
+    renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+  }
 }
 
 function addDashTaskFromPanel(id){
@@ -5791,11 +5850,11 @@ async function guardarNuevaCita(){
   document.getElementById('nc-r2').value = '1'
   renderCitas(); renderCitasAlert()
   if(dateKey === TODAY){
-    showToastAction(
-      `🏥 Cita a las ${slotKey} — ¿Agregarla a tus tareas de hoy?`,
-      'Sí, agregar',
-      () => addCitaToHoy(rec.id)
-    )
+    const msgEl = document.getElementById('modal-cita-hoy-msg')
+    const yesBtn = document.getElementById('modal-cita-hoy-yes')
+    if(msgEl) msgEl.textContent = `${rec.title} — a las ${slotKey}`
+    if(yesBtn) yesBtn.onclick = () => { addCitaToHoy(rec.id); closeModal('cita-hoy') }
+    openModal('cita-hoy')
   } else {
     showToast('✅ Cita guardada')
   }
