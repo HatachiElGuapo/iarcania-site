@@ -1705,6 +1705,12 @@ function getAgendaKey(){ return 'agenda_' + getAgendaDateStr() }
 
 function navAgenda(delta){ _agendaDayOffset += delta; renderAgenda() }
 function goAgendaToday(){ _agendaDayOffset = 0; renderAgenda() }
+function jumpAgendaToDate(dateStr){
+  const today = new Date(); today.setHours(0,0,0,0)
+  const target = new Date(dateStr + 'T00:00:00')
+  _agendaDayOffset = Math.round((target - today) / 86400000)
+  renderAgenda()
+}
 function getAgendaData(){
   const raw = JSON.parse(localStorage.getItem(getAgendaKey()) || '{}')
   const out = {}
@@ -1963,8 +1969,10 @@ function renderAgenda(){
       .replace(/^\w/, c => c.toUpperCase())
     const isToday = _agendaDayOffset === 0
     const navBtn = s => `style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;border-radius:5px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'"`
+    const agendaDateVal = agendaDay.toLocaleDateString('en-CA')
     dateNav.innerHTML = `<button onclick="navAgenda(-1)" ${navBtn()}>←</button>
-      <span style="font-size:12px;font-weight:600;color:${isToday?'var(--gold)':'var(--text-dim)'}">${dateLabel}</span>
+      <span onclick="document.getElementById('agenda-date-picker').showPicker?document.getElementById('agenda-date-picker').showPicker():document.getElementById('agenda-date-picker').click()" style="font-size:12px;font-weight:600;color:${isToday?'var(--gold)':'var(--text-dim)'};cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="Saltar a fecha">${dateLabel}</span>
+      <input type="date" id="agenda-date-picker" value="${agendaDateVal}" onchange="jumpAgendaToDate(this.value)" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
       <button onclick="navAgenda(1)" ${navBtn()}>→</button>
       ${!isToday?`<button onclick="goAgendaToday()" style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--gold);border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:'Outfit',sans-serif;margin-left:2px">Hoy</button>`:''}
     `
