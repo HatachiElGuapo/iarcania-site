@@ -5795,8 +5795,45 @@ async function loadCitas(){
   const { data } = await SB_P.from('appointments')
     .select('*').order('datetime',{ascending:true})
   allCitas = data || []
+  allCitas.filter(c => c.status === 'pendiente' && c.datetime >= TODAY)
+    .forEach(syncCitaToAgenda)
   renderCitas()
   renderCitasAlert()
+}
+
+function syncCitaToAgenda(cita){
+  if(!cita.datetime || cita.datetime < TODAY) return
+  const dateStr = cita.datetime.slice(0, 10)
+  const d = new Date(cita.datetime)
+  const rawMin = d.getHours()*60 + d.getMinutes()
+  const snapped = Math.round(rawMin/20)*20
+  const sk = `${Math.floor(snapped/60).toString().padStart(2,'0')}:${(snapped%60).toString().padStart(2,'0')}`
+  const key = 'agenda_' + dateStr
+  const raw = JSON.parse(localStorage.getItem(key) || '{}')
+  const alreadyExists = Object.values(raw).some(arr =>
+    Array.isArray(arr) && arr.some(x => (typeof x === 'string' ? x : x.id) === cita.id)
+  )
+  if(alreadyExists) return
+  if(!raw[sk]) raw[sk] = []
+  raw[sk].push({id: cita.id, dur: 20, type: 'cita', title: cita.title, color: '#EF9F27'})
+  localStorage.setItem(key, JSON.stringify(raw))
+}
+
+function removeCitaFromAgenda(citaId){
+  const cita = allCitas.find(c => c.id === citaId)
+  if(!cita || !cita.datetime) return
+  const dateStr = cita.datetime.slice(0, 10)
+  const key = 'agenda_' + dateStr
+  const raw = JSON.parse(localStorage.getItem(key) || '{}')
+  let changed = false
+  Object.keys(raw).forEach(slot => {
+    if(!Array.isArray(raw[slot])) return
+    const before = raw[slot].length
+    raw[slot] = raw[slot].filter(x => (typeof x === 'string' ? x : x.id) !== citaId)
+    if(raw[slot].length !== before) changed = true
+    if(raw[slot].length === 0) delete raw[slot]
+  })
+  if(changed) localStorage.setItem(key, JSON.stringify(raw))
 }
 
 function renderCitasAlert(){
@@ -5881,6 +5918,7 @@ function renderCitas(){
 async function completarCita(id){
   const { error } = await SB_P.from('appointments').update({status:'completada'}).eq('id',id)
   if(error){ showToast('❌ '+error.message); return }
+  removeCitaFromAgenda(id)
   allCitas = allCitas.map(c => c.id===id ? {...c,status:'completada'} : c)
   renderCitas(); renderCitasAlert()
   showToast('✅ Cita completada')
@@ -5889,6 +5927,7 @@ async function completarCita(id){
 async function cancelarCita(id){
   const { error } = await SB_P.from('appointments').update({status:'cancelada'}).eq('id',id)
   if(error){ showToast('❌ '+error.message); return }
+  removeCitaFromAgenda(id)
   allCitas = allCitas.map(c => c.id===id ? {...c,status:'cancelada'} : c)
   renderCitas(); renderCitasAlert()
   showToast('✗ Cita cancelada')
@@ -5897,6 +5936,7 @@ async function cancelarCita(id){
 async function eliminarCita(id){
   const { error } = await SB_P.from('appointments').delete().eq('id',id)
   if(error){ showToast('❌ '+error.message); return }
+  removeCitaFromAgenda(id)
   allCitas = allCitas.filter(c => c.id!==id)
   renderCitas(); renderCitasAlert()
   showToast('🗑️ Cita eliminada')
