@@ -2720,7 +2720,9 @@ async function toggleFocusCheck(taskId){
   item.completed = newCompleted
   const newStatus = newCompleted ? 'completada' : 'pendiente'
   SB_P.from('daily_focus').update({ completed: newCompleted }).eq('id', item.id)
-  if(item.task_type === 'cita'){
+  // Detectar tipo por allCitas primero (más fiable que task_type guardado)
+  const cita = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === taskId)
+  if(cita || item.task_type === 'cita'){
     SB_P.from('appointments').update({ status: newStatus }).eq('id', taskId)
     allCitas = allCitas.map(c => c.id === taskId ? { ...c, status: newStatus } : c)
   } else {
