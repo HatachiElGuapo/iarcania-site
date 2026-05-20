@@ -2608,7 +2608,8 @@ function getCitasHoy(){
 function renderCitasEnDashboard(){
   const el = document.getElementById('dash-citas-hoy')
   if(!el) return
-  const citas = getCitasHoy()
+  const focusIds = new Set(hoyFocusItems.map(x => x.task_id))
+  const citas = getCitasHoy().filter(c => !focusIds.has(c.id))
   if(!citas.length){ el.innerHTML = ''; return }
   const collapsed = el.dataset.collapsed === '1'
   const listHTML = citas.map(c =>
