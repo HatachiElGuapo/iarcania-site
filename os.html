@@ -503,6 +503,14 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">💼 Trabajo</h1>
         </div>
       </div>
+      <div class="alert-bar alert-red" id="bd-alert-t" style="display:none">
+        <span class="alert-label">📅 PRÓXIMAS</span>
+        <div id="bd-pills-t"></div>
+      </div>
+      <div class="alert-bar alert-amber" id="citas-alert-t" style="display:none">
+        <span class="alert-label">🏥 CITAS</span>
+        <span id="citas-alert-text-t"></span>
+      </div>
       <div class="card">
 
         <!-- 1. 20/20/20 — bloqueado hasta completar Despertar -->
@@ -3254,19 +3262,24 @@ function renderBirthdays(bds){
 
   // Alert dashboard: todas las fechas dentro de reminder_days_before (o 7 por defecto)
   const urgent = bds.filter(b => daysUntil(b.day, b.month) <= (b.reminder_days_before || 7))
-  const alertBar = document.getElementById('bd-alert')
-  if(urgent.length){
-    alertBar.style.display = 'flex'
-    document.getElementById('bd-pills').innerHTML = urgent.map(b => {
-      const days  = daysUntil(b.day, b.month)
-      const cls   = days === 0 ? 'pill-hot' : days <= 3 ? 'pill-hot' : 'pill-warm'
-      const label = days === 0 ? '¡Hoy!' : days === 1 ? 'Mañana' : `en ${days} días`
-      const tipo  = FECHA_TIPOS[b.type || b.relationship_type] || FECHA_TIPOS.otro
-      return `<span class="pill ${cls}">${tipo.label.split(' ')[0]} ${b.name} — ${label}</span>`
-    }).join(' ')
-  } else {
-    alertBar.style.display = 'none'
-  }
+  const pillsHTML = urgent.map(b => {
+    const days  = daysUntil(b.day, b.month)
+    const cls   = days === 0 ? 'pill-hot' : days <= 3 ? 'pill-hot' : 'pill-warm'
+    const label = days === 0 ? '¡Hoy!' : days === 1 ? 'Mañana' : `en ${days} días`
+    const tipo  = FECHA_TIPOS[b.type || b.relationship_type] || FECHA_TIPOS.otro
+    return `<span class="pill ${cls}">${tipo.label.split(' ')[0]} ${b.name} — ${label}</span>`
+  }).join(' ')
+  ;['bd-alert','bd-alert-t'].forEach(alertId => {
+    const bar = document.getElementById(alertId)
+    if(!bar) return
+    const pillsEl = document.getElementById(alertId === 'bd-alert' ? 'bd-pills' : 'bd-pills-t')
+    if(urgent.length){
+      bar.style.display = 'flex'
+      if(pillsEl) pillsEl.innerHTML = pillsHTML
+    } else {
+      bar.style.display = 'none'
+    }
+  })
 }
 
 function crearTareaDesdefecha(bdId){
@@ -5785,9 +5798,6 @@ async function loadCitas(){
 }
 
 function renderCitasAlert(){
-  const el  = document.getElementById('citas-alert')
-  const txt = document.getElementById('citas-alert-text')
-  if(!el) return
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1)
   const tmrStr = tomorrow.toLocaleDateString('en-CA')
   const proximas = allCitas.filter(c => {
@@ -5795,14 +5805,20 @@ function renderCitasAlert(){
     const d = c.datetime.slice(0,10)
     return d === TODAY || d === tmrStr
   })
-  if(!proximas.length){ el.style.display='none'; return }
-  el.style.display = 'flex'
-  txt.textContent = proximas.map(c => {
+  const citasText = proximas.map(c => {
     const d   = new Date(c.datetime)
     const h   = d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
     const dia = c.datetime.slice(0,10) === TODAY ? 'Hoy' : 'Mañana'
     return `${dia} ${h} — ${c.title}`
   }).join(' · ')
+  ;[['citas-alert','citas-alert-text'],['citas-alert-t','citas-alert-text-t']].forEach(([alertId, txtId]) => {
+    const el  = document.getElementById(alertId)
+    const txt = document.getElementById(txtId)
+    if(!el) return
+    if(!proximas.length){ el.style.display='none'; return }
+    el.style.display = 'flex'
+    if(txt) txt.textContent = citasText
+  })
 }
 
 function renderCitas(){
