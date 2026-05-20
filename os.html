@@ -2677,7 +2677,7 @@ function renderDashTasksSection(elId, tasks, listKey){
         ? `background:#EF9F27;border-color:#EF9F27;color:#fff`
         : `border-color:rgba(239,159,39,0.5)`
       return `<div class="task-item${fc?' done':''}" style="border-left-color:${fc?'var(--border)':'#EF9F27'}">
-        <div class="task-check" onclick="toggleFocusCheck('${t.id}')" style="cursor:pointer;border-color:${fc?'#EF9F27':'rgba(239,159,39,0.5)'};${fc?'background:#EF9F27;color:#fff;':''}">${fc?'✓':''}</div>
+        <div class="task-check" onclick="event.stopPropagation();toggleFocusCheck('${t.id}')" style="cursor:pointer;border-color:${fc?'#EF9F27':'rgba(239,159,39,0.5)'};${fc?'background:#EF9F27;color:#fff;':''}">${fc?'✓':''}</div>
         <div class="task-text">
           <div style="${fc?'text-decoration:line-through;':''}color:${citaColor};font-weight:500">🏥 ${t.title}</div>
           <div style="font-size:10px;color:var(--text-muted);margin-top:2px">📅 Hoy${hora?' · 🕐 '+hora:''}</div>
@@ -2695,7 +2695,7 @@ function renderDashTasksSection(elId, tasks, listKey){
     const isOverdue = t.due_date && t.due_date < TODAY && !fc
     const horaTask = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
     const fecha = t.due_date || null
-    const checkClick = isHoy ? `toggleFocusCheck('${t.id}')` : `toggleTask('${t.id}')`
+    const checkClick = isHoy ? `event.stopPropagation();toggleFocusCheck('${t.id}')` : `toggleTask('${t.id}')`
     return `<div class="task-item${fc?' done':''}" style="border-left-color:${fc?'var(--border)':isOverdue?'var(--red)':cat.color}">
       <div class="task-check" onclick="${checkClick}" style="${fc?`background:${cat.color};border-color:${cat.color}`:''}cursor:pointer">${fc?'✓':''}</div>
       <div class="task-text"${!isHoy?` onclick="${checkClick}" style="cursor:pointer"`:''}>
