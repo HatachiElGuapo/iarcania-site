@@ -2677,7 +2677,7 @@ function renderDashTasksSection(elId, tasks, listKey){
         ? `background:#EF9F27;border-color:#EF9F27;color:#fff`
         : `border-color:rgba(239,159,39,0.5)`
       return `<div class="task-item${fc?' done':''}" style="border-left-color:${fc?'var(--border)':'#EF9F27'}">
-        <div class="task-check" onclick="${isHoy?`toggleFocusCheck('${t.id}')`:''}" style="${checkStyle};cursor:${isHoy?'pointer':'default'};display:flex;align-items:center;justify-content:center;font-size:${fc?'12px':'14px'}">${fc?'✓':'🏥'}</div>
+        <div class="task-check" onclick="toggleFocusCheck('${t.id}')" style="cursor:pointer;border-color:${fc?'#EF9F27':'rgba(239,159,39,0.5)'};${fc?'background:#EF9F27;color:#fff;':''}">${fc?'✓':''}</div>
         <div class="task-text">
           <div style="${fc?'text-decoration:line-through;':''}color:${citaColor};font-weight:500">🏥 ${t.title}</div>
           <div style="font-size:10px;color:var(--text-muted);margin-top:2px">📅 Hoy${hora?' · 🕐 '+hora:''}</div>
