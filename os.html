@@ -2610,6 +2610,7 @@ function renderCitasEnDashboard(){
   const el = document.getElementById('dash-citas-hoy')
   if(!el) return
   const focusIds = new Set(hoyFocusItems.map(x => x.task_id))
+  console.log('[citasEnDash] focusIds:', [...focusIds], '| agenda citas:', getCitasHoy().map(c=>c.id))
   const citas = getCitasHoy().filter(c => !focusIds.has(c.id))
   if(!citas.length){ el.innerHTML = ''; return }
   const collapsed = el.dataset.collapsed === '1'
