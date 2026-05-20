@@ -1651,6 +1651,7 @@ async function loadTareasHoy(){
     .eq('user_id', USER_ID)
     .eq('date', TODAY)
     .order('sort_order', { ascending: true })
+  console.log('daily_focus data:', data, 'USER_ID:', USER_ID, 'TODAY:', TODAY)
   hoyFocusItems = data || []
   renderTasks()
 }
