@@ -3260,11 +3260,13 @@ function renderBirthdays(bds){
     </div>`
   }).join('')
 
-  // Alert dashboard: todas las fechas dentro de reminder_days_before (o 7 por defecto)
-  const urgent = bds.filter(b => daysUntil(b.day, b.month) <= (b.reminder_days_before || 7))
+  // Alert dashboard: todas las fechas en los próximos 30 días, ordenadas por días restantes
+  const urgent = bds
+    .filter(b => daysUntil(b.day, b.month) <= 30)
+    .sort((a, b) => daysUntil(a.day, a.month) - daysUntil(b.day, b.month))
   const pillsHTML = urgent.map(b => {
     const days  = daysUntil(b.day, b.month)
-    const cls   = days === 0 ? 'pill-hot' : days <= 3 ? 'pill-hot' : 'pill-warm'
+    const cls   = days <= 1 ? 'pill-hot' : days <= 7 ? 'pill-warm' : 'pill-cool'
     const label = days === 0 ? '¡Hoy!' : days === 1 ? 'Mañana' : `en ${days} días`
     const tipo  = FECHA_TIPOS[b.type || b.relationship_type] || FECHA_TIPOS.otro
     return `<span class="pill ${cls}">${tipo.label.split(' ')[0]} ${b.name} — ${label}</span>`
