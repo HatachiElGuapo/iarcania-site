@@ -1477,6 +1477,7 @@ const CATS = {
 let USER_ID = null
 let USER_PASSWORD = null
 let allTasks = []
+let hoyFocusItems = []  // filas de daily_focus para TODAY
 let allBirthdays = []
 let allClients = []
 let allBooks = []
@@ -1534,7 +1535,7 @@ async function checkDateReset(){
   const firstRun = !saved
   if(changed || firstRun){
     // Guardar IDs de tareas de ayer para la alerta post-20/20/20
-    localStorage.setItem('tareas_hoy_ayer', localStorage.getItem('tareas_hoy_ids') || '[]')
+    localStorage.setItem('tareas_hoy_ayer', JSON.stringify(hoyFocusItems.map(x => x.task_id)))
     const ayer = new Date(); ayer.setDate(ayer.getDate()-1)
     const ayerStr = ayer.toLocaleDateString('en-CA')
     const deleteDate = changed ? saved : ayerStr
@@ -1542,6 +1543,7 @@ async function checkDateReset(){
     habitLogs = {}
     loadHabitos()
     loadTasks()
+    loadTareasHoy()
     showToast('☀️ Nuevo día — hábitos reiniciados')
   }
   localStorage.setItem('last_date', now)
@@ -1555,7 +1557,7 @@ async function initApp(){
   checkDateReset()
   setInterval(checkDateReset, 60000)
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadTareasHoy()])
   loadFacturas() // para facturas-alert en dashboard
   loadTimerFromStorage()
 }
@@ -1638,6 +1640,16 @@ function switchDineroTab(tab){
 async function loadTasks(){
   const { data } = await SB_P.from('tasks').select('*').order('priority')
   allTasks = data || []
+  renderTasks()
+}
+
+async function loadTareasHoy(){
+  const { data } = await SB_P.from('daily_focus')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('date', TODAY)
+    .order('sort_order', { ascending: true })
+  hoyFocusItems = data || []
   renderTasks()
 }
 
@@ -2610,9 +2622,35 @@ function renderCitasEnDashboard(){
   </div>`
 }
 
-// --- DASHBOARD TASK LISTS (manual, localStorage) ---
-function getDashList(list){ return JSON.parse(localStorage.getItem('tareas_'+list+'_ids') || '[]') }
-function setDashList(list, ids){ localStorage.setItem('tareas_'+list+'_ids', JSON.stringify(ids)) }
+// --- DASHBOARD TASK LISTS ('hoy' → Supabase daily_focus, 'extra' → localStorage) ---
+function getDashList(list){
+  if(list === 'hoy') return hoyFocusItems.map(x => x.task_id)
+  return JSON.parse(localStorage.getItem('tareas_'+list+'_ids') || '[]')
+}
+
+function setDashList(list, newIds){
+  if(list === 'hoy'){
+    const oldIds = hoyFocusItems.map(x => x.task_id)
+    const toAdd    = newIds.filter(id => !oldIds.includes(id))
+    const toRemove = oldIds.filter(id => !newIds.includes(id))
+    // Actualizar memoria inmediatamente (sync) para que la UI no espere
+    hoyFocusItems = hoyFocusItems.filter(x => !toRemove.includes(x.task_id))
+    const insertRows = toAdd.map((id, i) => ({
+      id: 'df_' + Date.now() + '_' + i,
+      user_id: USER_ID,
+      task_id: id,
+      task_type: (typeof allCitas !== 'undefined' && allCitas.find(c => c.id === id)) ? 'cita' : 'task',
+      date: TODAY,
+      sort_order: newIds.indexOf(id)
+    }))
+    hoyFocusItems.push(...insertRows)
+    // Supabase fire-and-forget
+    if(toRemove.length) SB_P.from('daily_focus').delete().eq('user_id', USER_ID).eq('date', TODAY).in('task_id', toRemove)
+    if(toAdd.length)    SB_P.from('daily_focus').insert(insertRows)
+    return
+  }
+  localStorage.setItem('tareas_'+list+'_ids', JSON.stringify(newIds))
+}
 
 function renderDashTasksSection(elId, tasks, listKey){
   const el = document.getElementById(elId)
