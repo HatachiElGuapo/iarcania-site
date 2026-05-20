@@ -1557,7 +1557,8 @@ async function initApp(){
   checkDateReset()
   setInterval(checkDateReset, 60000)
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadTareasHoy()])
+  await loadTareasHoy() // primero: hoyFocusItems disponible antes de cualquier render
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas()])
   renderTasks() // render final con todos los datos disponibles
   loadFacturas()
   loadTimerFromStorage()
@@ -2610,7 +2611,6 @@ function renderCitasEnDashboard(){
   const el = document.getElementById('dash-citas-hoy')
   if(!el) return
   const focusIds = new Set(hoyFocusItems.map(x => x.task_id))
-  console.log('[citasEnDash] focusIds:', [...focusIds], '| agenda citas:', getCitasHoy().map(c=>c.id))
   const citas = getCitasHoy().filter(c => !focusIds.has(c.id))
   if(!citas.length){ el.innerHTML = ''; return }
   const collapsed = el.dataset.collapsed === '1'
