@@ -544,7 +544,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               <div class="task-list" id="dashboard-tasks"></div>
             </div>
             <div style="padding:6px 0 2px">
-              <button id="btn-add-hoy" onclick="openTodayTaskPanel()" style="width:100%;background:transparent;border:1px dashed var(--border);border-radius:7px;padding:8px 10px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center">+ Agregar tarea de hoy</button>
+              <div id="btns-add-hoy" style="display:flex;gap:6px">
+                <button id="btn-add-hoy" onclick="openTodayTaskPanel()" style="flex:1;background:transparent;border:1px dashed var(--border);border-radius:7px;padding:8px 10px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center">+ Agregar tarea</button>
+                <button id="btn-citas-hoy" onclick="openCitasHoyPanel()" style="background:transparent;border:1px dashed rgba(239,159,39,0.4);border-radius:7px;padding:8px 10px;color:#EF9F27;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center;white-space:nowrap">📅 Desde citas</button>
+              </div>
               <div id="panel-add-hoy" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
                   <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Seleccionar tareas</span>
@@ -554,6 +557,13 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
                   <input type="text" id="search-hoy-panel" placeholder="🔍 Filtrar tareas..." oninput="renderTodayTaskPanel(this.value)" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
                 </div>
                 <div id="panel-hoy-list" style="max-height:280px;overflow-y:auto"></div>
+              </div>
+              <div id="panel-citas-hoy" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid rgba(239,159,39,0.25);border-radius:8px;overflow:hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(239,159,39,0.15)">
+                  <span style="font-size:12px;font-weight:600;color:#EF9F27">📅 Citas disponibles</span>
+                  <button onclick="closeCitasHoyPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
+                </div>
+                <div id="panel-citas-hoy-list" style="max-height:280px;overflow-y:auto"></div>
               </div>
             </div>
           </div>
@@ -2654,8 +2664,13 @@ function addDashTask(list, id){
 function removeDashTask(list, id){
   setDashList(list, getDashList(list).filter(i => i !== id))
   renderTasks()
-  if(list === 'hoy' && document.getElementById('panel-add-hoy')?.style.display !== 'none'){
-    renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+  if(list === 'hoy'){
+    if(document.getElementById('panel-add-hoy')?.style.display !== 'none'){
+      renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+    }
+    if(document.getElementById('panel-citas-hoy')?.style.display !== 'none'){
+      renderCitasHoyPanel()
+    }
   }
 }
 
@@ -2681,20 +2696,77 @@ function searchDashTask(list, query){
 
 function openTodayTaskPanel(){
   const panel = document.getElementById('panel-add-hoy')
-  const btn   = document.getElementById('btn-add-hoy')
+  const btns  = document.getElementById('btns-add-hoy')
   const inp   = document.getElementById('search-hoy-panel')
   if(!panel) return
   panel.style.display = 'block'
-  if(btn) btn.style.display = 'none'
+  if(btns) btns.style.display = 'none'
   if(inp){ inp.value = ''; inp.focus() }
   renderTodayTaskPanel('')
 }
 
 function closeTodayTaskPanel(){
   const panel = document.getElementById('panel-add-hoy')
-  const btn   = document.getElementById('btn-add-hoy')
+  const btns  = document.getElementById('btns-add-hoy')
   if(panel) panel.style.display = 'none'
-  if(btn) btn.style.display = ''
+  if(btns) btns.style.display = 'flex'
+}
+
+function openCitasHoyPanel(){
+  const panel = document.getElementById('panel-citas-hoy')
+  const btns  = document.getElementById('btns-add-hoy')
+  if(!panel) return
+  panel.style.display = 'block'
+  if(btns) btns.style.display = 'none'
+  renderCitasHoyPanel()
+}
+
+function closeCitasHoyPanel(){
+  const panel = document.getElementById('panel-citas-hoy')
+  const btns  = document.getElementById('btns-add-hoy')
+  if(panel) panel.style.display = 'none'
+  if(btns) btns.style.display = 'flex'
+}
+
+function renderCitasHoyPanel(){
+  const el = document.getElementById('panel-citas-hoy-list')
+  if(!el) return
+  const hoyIds = getDashList('hoy')
+  const full = hoyIds.length >= 5
+  const citas = (typeof allCitas !== 'undefined' ? allCitas : [])
+    .filter(c => c.status === 'pendiente' && c.datetime && c.datetime >= TODAY)
+    .sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
+  if(!citas.length){
+    el.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay citas próximas</div>'
+    return
+  }
+  const citasHoy = citas.filter(c => c.datetime.startsWith(TODAY))
+  const citasProx = citas.filter(c => !c.datetime.startsWith(TODAY))
+  function citaRow(c){
+    const added = hoyIds.includes(c.id)
+    const disabled = !added && full
+    const fecha = new Date(c.datetime)
+    const hora = fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false})
+    const dia = c.datetime.startsWith(TODAY) ? 'Hoy' : fecha.toLocaleDateString('es-CO',{day:'numeric',month:'short'})
+    return `<div
+      onclick="${added || disabled ? '' : `addCitaToHoyFromPanel('${c.id}')`}"
+      style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:${added||disabled?'default':'pointer'};opacity:${disabled?'0.35':'1'};border-bottom:1px solid rgba(255,255,255,0.04)"
+      ${!added&&!disabled?`onmouseenter="this.style.background='rgba(239,159,39,0.06)'" onmouseleave="this.style.background=''"`:''}>
+      <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?'#EF9F27':'rgba(239,159,39,0.4)'};background:${added?'#EF9F27':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':'🏥'}</div>
+      <span style="flex:1;font-size:12px;color:${added?'var(--text-muted)':'#EF9F27'}${added?';text-decoration:line-through':''}">${c.title}</span>
+      <span style="font-size:11px;color:var(--text-muted)">${dia} ${hora}</span>
+    </div>`
+  }
+  let html = ''
+  if(citasHoy.length){
+    html += `<div style="padding:5px 10px 3px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;background:rgba(0,0,0,0.3)">Hoy</div>`
+    html += citasHoy.map(citaRow).join('')
+  }
+  if(citasProx.length){
+    html += `<div style="padding:5px 10px 3px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;background:rgba(0,0,0,0.3)">Próximas</div>`
+    html += citasProx.map(citaRow).join('')
+  }
+  el.innerHTML = html
 }
 
 function renderTodayTaskPanel(query){
@@ -2775,9 +2847,15 @@ function addCitaToHoyFromPanel(citaId){
   renderTasks()
   if(getDashList('hoy').length >= 5){
     closeTodayTaskPanel()
+    closeCitasHoyPanel()
     showToast('✅ 5 tareas seleccionadas para hoy')
   } else {
-    renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+    if(document.getElementById('panel-add-hoy')?.style.display !== 'none'){
+      renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+    }
+    if(document.getElementById('panel-citas-hoy')?.style.display !== 'none'){
+      renderCitasHoyPanel()
+    }
   }
 }
 
