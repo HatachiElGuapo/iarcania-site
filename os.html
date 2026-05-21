@@ -52,6 +52,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .sidebar-user-name{color:var(--text-dim);font-weight:500;margin-bottom:2px}
 .btn-logout{font-size:11px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;margin-top:6px}
 .btn-logout:hover{color:var(--red)}
+.nav-separator{padding:12px 1.25rem 4px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:8px;pointer-events:none;user-select:none}
+.nav-separator::after{content:'';flex:1;height:1px;background:var(--border)}
 
 .main{margin-left:var(--sidebar);padding:2rem 2.5rem;min-height:100vh}
 .section{display:none}
@@ -311,6 +313,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="sidebar-logo-sub">Sistema Operativo</div>
     </div>
     <nav>
+      <div class="nav-separator">Dashboards</div>
       <button class="nav-item active" onclick="showSection('rutinas',this)">
         <span class="nav-icon">🌅</span>Rutinas
         <span class="nav-badge" id="badge-pending">0</span>
@@ -318,6 +321,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('trabajo',this)">
         <span class="nav-icon">💼</span>Trabajo
       </button>
+      <div class="nav-separator">Día a Día</div>
       <button class="nav-item" onclick="showSection('actividades',this)">
         <span class="nav-icon">✅</span>Tareas
       </button>
@@ -328,12 +332,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('agenda',this)">
         <span class="nav-icon">📅</span>Agenda
       </button>
-      <button class="nav-item" onclick="showSection('ideas',this)">
-        <span class="nav-icon">💡</span>Ideas
-      </button>
       <button class="nav-item" onclick="showSection('citas',this)">
         <span class="nav-icon">🏥</span>Citas
       </button>
+      <div class="nav-separator">Personal</div>
       <button class="nav-item" onclick="showSection('fechas',this)">
         <span class="nav-icon">🎂</span>Fechas
       </button>
@@ -346,17 +348,25 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <button class="nav-item" onclick="showSection('hogar',this)">
         <span class="nav-icon">🏠</span>Hogar
       </button>
+      <div class="nav-separator">Dinero</div>
+      <button class="nav-item" onclick="showSection('dinero',this)">
+        <span class="nav-icon">💰</span>Dinero
+      </button>
+      <button class="nav-item" onclick="showSection('clientes',this)">
+        <span class="nav-icon">🤝</span>Clientes
+      </button>
+      <button class="nav-item" onclick="showSection('dinero',this);switchDineroTab('cobros')">
+        <span class="nav-icon">💳</span>Cobros
+      </button>
+      <div class="nav-separator">Creativo</div>
+      <button class="nav-item" onclick="showSection('ideas',this)">
+        <span class="nav-icon">💡</span>Ideas
+      </button>
       <button class="nav-item" onclick="showSection('libros',this)">
         <span class="nav-icon">📚</span>Libros
       </button>
       <button class="nav-item" onclick="showSection('guiones',this)">
         <span class="nav-icon">🎬</span>Guiones
-      </button>
-      <button class="nav-item" onclick="showSection('clientes',this)">
-        <span class="nav-icon">🤝</span>Clientes
-      </button>
-      <button class="nav-item" onclick="showSection('dinero',this)">
-        <span class="nav-icon">💰</span>Dinero
       </button>
     </nav>
     <div class="sidebar-footer">
