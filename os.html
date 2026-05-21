@@ -52,8 +52,13 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .sidebar-user-name{color:var(--text-dim);font-weight:500;margin-bottom:2px}
 .btn-logout{font-size:11px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;margin-top:6px}
 .btn-logout:hover{color:var(--red)}
-.nav-separator{padding:12px 1.25rem 4px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:8px;pointer-events:none;user-select:none}
+.nav-separator{padding:12px 1.25rem 4px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.nav-separator:hover{color:var(--text-dim)}
 .nav-separator::after{content:'';flex:1;height:1px;background:var(--border)}
+.nav-sep-arrow{font-size:8px;display:inline-block;transition:transform .2s;flex-shrink:0}
+.nav-separator.collapsed .nav-sep-arrow{transform:rotate(-90deg)}
+.nav-group{overflow:hidden;max-height:400px;transition:max-height .25s ease}
+.nav-group.collapsed{max-height:0}
 
 .main{margin-left:var(--sidebar);padding:2rem 2.5rem;min-height:100vh}
 .section{display:none}
@@ -313,61 +318,71 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="sidebar-logo-sub">Sistema Operativo</div>
     </div>
     <nav>
-      <div class="nav-separator">Dashboards</div>
-      <button class="nav-item active" onclick="showSection('rutinas',this)">
-        <span class="nav-icon">🌅</span>Rutinas
-        <span class="nav-badge" id="badge-pending">0</span>
-      </button>
-      <button class="nav-item" onclick="showSection('trabajo',this)">
-        <span class="nav-icon">💼</span>Trabajo
-      </button>
-      <div class="nav-separator">Día a Día</div>
-      <button class="nav-item" onclick="showSection('actividades',this)">
-        <span class="nav-icon">✅</span>Tareas
-      </button>
-      <button class="nav-item" onclick="showSection('vencidas',this)">
-        <span class="nav-icon">⏰</span>Vencidas
-        <span class="nav-badge" id="badge-overdue" style="display:none;background:var(--red)">0</span>
-      </button>
-      <button class="nav-item" onclick="showSection('agenda',this)">
-        <span class="nav-icon">📅</span>Agenda
-      </button>
-      <button class="nav-item" onclick="showSection('citas',this)">
-        <span class="nav-icon">🏥</span>Citas
-      </button>
-      <div class="nav-separator">Personal</div>
-      <button class="nav-item" onclick="showSection('fechas',this)">
-        <span class="nav-icon">🎂</span>Fechas
-      </button>
-      <button class="nav-item" onclick="showSection('habitos',this)">
-        <span class="nav-icon">🔥</span>Hábitos
-      </button>
-      <button class="nav-item" onclick="showSection('vicios',this)">
-        <span class="nav-icon">⚠️</span>Vicios
-      </button>
-      <button class="nav-item" onclick="showSection('hogar',this)">
-        <span class="nav-icon">🏠</span>Hogar
-      </button>
-      <div class="nav-separator">Dinero</div>
-      <button class="nav-item" onclick="showSection('dinero',this)">
-        <span class="nav-icon">💰</span>Dinero
-      </button>
-      <button class="nav-item" onclick="showSection('clientes',this)">
-        <span class="nav-icon">🤝</span>Clientes
-      </button>
-      <button class="nav-item" onclick="showSection('dinero',this);switchDineroTab('cobros')">
-        <span class="nav-icon">💳</span>Cobros
-      </button>
-      <div class="nav-separator">Creativo</div>
-      <button class="nav-item" onclick="showSection('ideas',this)">
-        <span class="nav-icon">💡</span>Ideas
-      </button>
-      <button class="nav-item" onclick="showSection('libros',this)">
-        <span class="nav-icon">📚</span>Libros
-      </button>
-      <button class="nav-item" onclick="showSection('guiones',this)">
-        <span class="nav-icon">🎬</span>Guiones
-      </button>
+      <div class="nav-separator" onclick="toggleNavGroup('dashboards')"><span class="nav-sep-arrow">▼</span>Dashboards</div>
+      <div class="nav-group" id="group-dashboards">
+        <button class="nav-item active" onclick="showSection('rutinas',this)">
+          <span class="nav-icon">🌅</span>Rutinas
+          <span class="nav-badge" id="badge-pending">0</span>
+        </button>
+        <button class="nav-item" onclick="showSection('trabajo',this)">
+          <span class="nav-icon">💼</span>Trabajo
+        </button>
+      </div>
+      <div class="nav-separator" onclick="toggleNavGroup('diaadia')"><span class="nav-sep-arrow">▼</span>Día a Día</div>
+      <div class="nav-group" id="group-diaadia">
+        <button class="nav-item" onclick="showSection('actividades',this)">
+          <span class="nav-icon">✅</span>Tareas
+        </button>
+        <button class="nav-item" onclick="showSection('vencidas',this)">
+          <span class="nav-icon">⏰</span>Vencidas
+          <span class="nav-badge" id="badge-overdue" style="display:none;background:var(--red)">0</span>
+        </button>
+        <button class="nav-item" onclick="showSection('agenda',this)">
+          <span class="nav-icon">📅</span>Agenda
+        </button>
+        <button class="nav-item" onclick="showSection('citas',this)">
+          <span class="nav-icon">🏥</span>Citas
+        </button>
+      </div>
+      <div class="nav-separator" onclick="toggleNavGroup('personal')"><span class="nav-sep-arrow">▼</span>Personal</div>
+      <div class="nav-group" id="group-personal">
+        <button class="nav-item" onclick="showSection('habitos',this)">
+          <span class="nav-icon">🔥</span>Hábitos
+        </button>
+        <button class="nav-item" onclick="showSection('vicios',this)">
+          <span class="nav-icon">⚠️</span>Vicios
+        </button>
+        <button class="nav-item" onclick="showSection('hogar',this)">
+          <span class="nav-icon">🏠</span>Hogar
+        </button>
+        <button class="nav-item" onclick="showSection('fechas',this)">
+          <span class="nav-icon">🎂</span>Fechas
+        </button>
+      </div>
+      <div class="nav-separator" onclick="toggleNavGroup('dinero')"><span class="nav-sep-arrow">▼</span>Dinero</div>
+      <div class="nav-group" id="group-dinero">
+        <button class="nav-item" onclick="showSection('dinero',this)">
+          <span class="nav-icon">💰</span>Dinero
+        </button>
+        <button class="nav-item" onclick="showSection('clientes',this)">
+          <span class="nav-icon">🤝</span>Clientes
+        </button>
+        <button class="nav-item" onclick="showSection('dinero',this);switchDineroTab('cobros')">
+          <span class="nav-icon">💳</span>Cobros
+        </button>
+      </div>
+      <div class="nav-separator" onclick="toggleNavGroup('creativo')"><span class="nav-sep-arrow">▼</span>Creativo</div>
+      <div class="nav-group" id="group-creativo">
+        <button class="nav-item" onclick="showSection('ideas',this)">
+          <span class="nav-icon">💡</span>Ideas
+        </button>
+        <button class="nav-item" onclick="showSection('libros',this)">
+          <span class="nav-icon">📚</span>Libros
+        </button>
+        <button class="nav-item" onclick="showSection('guiones',this)">
+          <span class="nav-icon">🎬</span>Guiones
+        </button>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-user">
@@ -1623,6 +1638,21 @@ function showSection(id, btn){
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open') }
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('open') }
+function toggleNavGroup(name){
+  const group=document.getElementById('group-'+name)
+  const sep=group.previousElementSibling
+  const collapsed=group.classList.toggle('collapsed')
+  sep.classList.toggle('collapsed',collapsed)
+  localStorage.setItem('sidebar_collapsed_'+name,collapsed?'1':'0')
+}
+;(function initNavGroups(){
+  ['dashboards','diaadia','personal','dinero','creativo'].forEach(name=>{
+    if(localStorage.getItem('sidebar_collapsed_'+name)==='1'){
+      const group=document.getElementById('group-'+name)
+      if(group){group.classList.add('collapsed');group.previousElementSibling.classList.add('collapsed')}
+    }
+  })
+})()
 
 // --- SECCIÓN DINERO ---
 const DINERO_TABS = ['cuentas','gastos','facturas','cobros']
