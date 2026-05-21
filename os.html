@@ -3032,7 +3032,8 @@ function renderExtraTaskPanel(query){
       </div>
       ${catTasks.map(t => {
         const added = extraIds.includes(t.id)
-        return `<div onclick="${added?'':``addDashTaskFromExtraPanel('${t.id}')``}"
+        const onclick = added ? '' : "addDashTaskFromExtraPanel('" + t.id + "')"
+        return `<div onclick="${onclick}"
           style="display:flex;align-items:center;gap:8px;padding:7px 10px 7px 22px;cursor:${added?'default':'pointer'};border-bottom:1px solid rgba(255,255,255,0.04)"
           ${!added?`onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background=''"`:''}>
           <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?cat.color:'var(--border)'};background:${added?cat.color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':''}</div>
@@ -3057,10 +3058,11 @@ function renderExtraCitasPanel(){
   const citasProx = citas.filter(c => !c.datetime.startsWith(TODAY))
   function citaRow(c){
     const added = extraIds.includes(c.id)
+    const onclick = added ? '' : "addCitaToExtraFromPanel('" + c.id + "')"
     const fecha = new Date(c.datetime)
     const hora  = fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false})
     const dia   = c.datetime.startsWith(TODAY) ? 'Hoy' : fecha.toLocaleDateString('es-CO',{day:'numeric',month:'short'})
-    return `<div onclick="${added?'':``addCitaToExtraFromPanel('${c.id}')``}"
+    return `<div onclick="${onclick}"
       style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:${added?'default':'pointer'};border-bottom:1px solid rgba(255,255,255,0.04)"
       ${!added?`onmouseenter="this.style.background='rgba(239,159,39,0.06)'" onmouseleave="this.style.background=''"`:''}>
       <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?'#EF9F27':'rgba(239,159,39,0.4)'};background:${added?'#EF9F27':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':'🏥'}</div>
