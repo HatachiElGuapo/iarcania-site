@@ -3619,6 +3619,46 @@ async function loadOccurrencesForType(typeId){
   allOccurrences[typeId] = data || []
 }
 
+function _renderEventCard(et){
+  const cat  = EVENT_TYPE_CATS[et.category] || EVENT_TYPE_CATS.visita
+  const open = expandedEventTypes.has(et.id)
+  const occs = allOccurrences[et.id] || []
+  const occHTML = open ? `
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <button onclick="openOccurrenceModal('${et.id}')" style="width:100%;padding:8px;background:transparent;border:1px dashed var(--border);border-radius:7px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;margin-bottom:8px">+ Registrar vez</button>
+      ${!occs.length
+        ? `<div style="font-size:12px;color:var(--text-muted);padding:4px 0;text-align:center">Sin registros todavía</div>`
+        : occs.map(o => {
+            const mood = o.mood ? MOOD_MAP[o.mood]||'' : ''
+            const meta = [
+              o.date     ? '📅 '+o.date : '',
+              o.people   ? '👤 '+o.people : '',
+              o.location ? '📍 '+o.location : '',
+              o.cost     ? '💰 $'+Number(o.cost).toLocaleString('es-CO') : '',
+              mood,
+            ].filter(Boolean).join('  ·  ')
+            return `<div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:10px 12px;margin-bottom:6px">
+              <div style="font-size:11px;color:var(--text-muted)">${meta}</div>
+              ${o.notes?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px">${o.notes}</div>`:''}
+            </div>`
+          }).join('')
+      }
+    </div>` : ''
+  return `<div class="card" style="margin-bottom:10px;padding:12px 14px">
+    <div onclick="toggleEventType('${et.id}')" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+      <span style="font-size:20px">${cat.icon}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${et.name}</div>
+        ${et.description?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${et.description}</div>`:''}
+      </div>
+      <span style="font-size:11px;color:var(--text-muted)">${occs.length} ${occs.length===1?'vez':'veces'}</span>
+      <button onclick="event.stopPropagation();openEventTypeModal('${et.id}')" class="habito-toggle" style="font-size:12px">✏️</button>
+      <span style="font-size:11px;color:var(--text-muted);transition:transform .2s;display:inline-block;${open?'':'transform:rotate(-90deg)'}">▼</span>
+    </div>
+    ${occHTML}
+  </div>`
+}
+
 function renderEventos(){
   const el = document.getElementById('eventos-list')
   if(!el) return
@@ -3626,46 +3666,29 @@ function renderEventos(){
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div>Sin tipos de evento todavía. Crea el primero.</div>'
     return
   }
-  el.innerHTML = allEventTypes.map(et => {
-    const cat   = EVENT_TYPE_CATS[et.category] || EVENT_TYPE_CATS.visita
-    const open  = expandedEventTypes.has(et.id)
-    const occs  = allOccurrences[et.id] || []
-    const occHTML = open ? `
-      <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-        <button onclick="openOccurrenceModal('${et.id}')" style="width:100%;padding:8px;background:transparent;border:1px dashed var(--border);border-radius:7px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;margin-bottom:8px">+ Registrar vez</button>
-        ${!occs.length
-          ? `<div style="font-size:12px;color:var(--text-muted);padding:4px 0;text-align:center">Sin registros todavía</div>`
-          : occs.map(o => {
-              const mood = o.mood ? MOOD_MAP[o.mood]||'' : ''
-              const meta = [
-                o.date     ? '📅 '+o.date : '',
-                o.people   ? '👤 '+o.people : '',
-                o.location ? '📍 '+o.location : '',
-                o.cost     ? '💰 $'+Number(o.cost).toLocaleString('es-CO') : '',
-                mood,
-              ].filter(Boolean).join('  ·  ')
-              return `<div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:10px 12px;margin-bottom:6px">
-                <div style="font-size:11px;color:var(--text-muted)">${meta}</div>
-                ${o.notes?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px">${o.notes}</div>`:''}
-              </div>`
-            }).join('')
-        }
-      </div>` : ''
-    return `<div class="card" style="margin-bottom:10px;padding:12px 14px">
-      <div onclick="toggleEventType('${et.id}')" style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <span style="font-size:20px">${cat.icon}</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;color:var(--text)">${et.name}</div>
-          ${et.description?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${et.description}</div>`:''}
-        </div>
-        <span style="font-size:10px;font-weight:600;color:${cat.color};background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:10px">${cat.label}</span>
-        <span style="font-size:11px;color:var(--text-muted)">${occs.length} ${occs.length===1?'vez':'veces'}</span>
-        <button onclick="event.stopPropagation();openEventTypeModal('${et.id}')" class="habito-toggle" style="font-size:12px">✏️</button>
-        <span style="font-size:11px;color:var(--text-muted);transition:transform .2s;display:inline-block;${open?'transform:rotate(0deg)':'transform:rotate(-90deg)'}"">▼</span>
+  const collapsed = JSON.parse(localStorage.getItem('eventos_groups_collapsed') || '{}')
+  el.innerHTML = Object.entries(EVENT_TYPE_CATS).map(([catKey, cat]) => {
+    const types = allEventTypes.filter(et => (et.category || 'visita') === catKey)
+    if(!types.length) return ''
+    const isCollapsed = !!collapsed[catKey]
+    return `<div style="margin-bottom:1.25rem">
+      <div onclick="toggleEventosGroup('${catKey}')" style="display:flex;align-items:center;gap:8px;padding:8px 4px;cursor:pointer;user-select:none">
+        <span>${cat.icon}</span>
+        <span style="font-size:11px;font-weight:600;color:${cat.color};text-transform:uppercase;letter-spacing:.1em">${cat.label}</span>
+        <span style="font-size:10px;color:var(--text-muted)">(${types.length})</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:9px;color:var(--text-muted);display:inline-block;transition:transform .2s;${isCollapsed?'transform:rotate(-90deg)':''}">▼</span>
       </div>
-      ${occHTML}
+      ${isCollapsed ? '' : types.map(_renderEventCard).join('')}
     </div>`
   }).join('')
+}
+
+function toggleEventosGroup(catKey){
+  const collapsed = JSON.parse(localStorage.getItem('eventos_groups_collapsed') || '{}')
+  collapsed[catKey] = !collapsed[catKey]
+  localStorage.setItem('eventos_groups_collapsed', JSON.stringify(collapsed))
+  renderEventos()
 }
 
 async function toggleEventType(id){
