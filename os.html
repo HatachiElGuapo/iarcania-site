@@ -811,6 +811,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div id="citas-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
     </div>
 
+    <!-- EVENTOS -->
+    <div class="section" id="section-eventos">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🎉 Eventos</h1>
+          <div class="page-sub">Familia, amigos y más</div>
+        </div>
+        <button class="btn-add" onclick="openEventoModal()">+ Nuevo evento</button>
+      </div>
+      <div id="eventos-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
+    </div>
+
     <!-- FECHAS -->
     <div class="section" id="section-fechas">
       <div class="page-header">
@@ -1531,6 +1543,29 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-evento">
+  <div class="modal" style="max-width:440px">
+    <h3 id="ev-modal-title">Nuevo evento</h3>
+    <div class="field"><label>Título *</label><input type="text" id="ev-title" placeholder="¿Qué evento es?"/></div>
+    <div class="field"><label>Categoría</label>
+      <select id="ev-subcat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="familia">👨‍👩‍👧 Familia</option>
+        <option value="amigos">👥 Amigos</option>
+        <option value="citas">🏥 Citas</option>
+        <option value="otro">📌 Otro</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Fecha (opcional)</label><input type="date" id="ev-date" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div class="field"><label>Hora (opcional)</label><input type="time" id="ev-time" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('evento')">Cancelar</button>
+      <button class="btn-save" onclick="saveEvento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1693,6 +1728,7 @@ function showSection(id, btn){
   if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
+  if(id === 'eventos') { loadEventos().then(renderEventos) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(window.innerWidth <= 768) closeSidebar()
 }
@@ -3531,6 +3567,15 @@ async function saveTask(){
 }
 
 // --- EVENTOS ---
+// SQL requerido: ALTER TABLE tasks ADD COLUMN IF NOT EXISTS subcategory text;
+const EVENTO_CATS = {
+  familia: { label:'Familia', icon:'👨‍👩‍👧', color:'#5DCAA5' },
+  amigos:  { label:'Amigos',  icon:'👥',     color:'#378ADD' },
+  citas:   { label:'Citas',   icon:'🏥',     color:'#EF9F27' },
+  otro:    { label:'Otro',    icon:'📌',     color:'#777' },
+}
+let _editingEventoId = null
+
 async function loadEventos(){
   const { data } = await SB_P.from('tasks').select('*')
     .eq('assigned_to', USER_ID)
@@ -3538,6 +3583,87 @@ async function loadEventos(){
     .neq('status', 'completada')
     .order('due_date', { ascending: true, nullsFirst: false })
   window.allEventos = data || []
+}
+
+function renderEventos(){
+  const el = document.getElementById('eventos-list')
+  if(!el) return
+  const eventos = window.allEventos || []
+  if(!eventos.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div>No hay eventos todavía. Agrega el primero.</div>'
+    return
+  }
+  const groups = { familia:[], amigos:[], citas:[], otro:[] }
+  eventos.forEach(e => {
+    const k = (e.subcategory && groups[e.subcategory] !== undefined) ? e.subcategory : 'otro'
+    groups[k].push(e)
+  })
+  const html = Object.entries(EVENTO_CATS).map(([key, cat]) => {
+    const items = groups[key]
+    if(!items.length) return ''
+    return `<div style="margin-bottom:1.5rem">
+      <div style="font-size:12px;font-weight:600;color:${cat.color};display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        ${cat.icon} ${cat.label}
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div class="task-list">
+        ${items.map(e => {
+          const hora = e.notes && /^\d{2}:\d{2}$/.test(e.notes.trim()) ? e.notes.trim() : null
+          return `<div class="task-item" style="border-left-color:${cat.color}">
+            <div class="task-text">
+              <div>${e.title}</div>
+              ${(e.due_date||hora)?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${e.due_date?'📅 '+e.due_date:''}${hora?' 🕐'+hora:''}</div>`:''}
+            </div>
+            <button class="habito-toggle" onclick="openEventoModal('${e.id}')">✏️</button>
+            <button class="habito-toggle" onclick="completarEvento('${e.id}')" style="color:var(--green);border-color:rgba(93,202,165,.3)">✓</button>
+          </div>`
+        }).join('')}
+      </div>
+    </div>`
+  }).join('')
+  el.innerHTML = html || '<div class="empty-state"><div class="empty-icon">🎉</div>No hay eventos todavía.</div>'
+}
+
+function openEventoModal(id){
+  _editingEventoId = id || null
+  const e = id ? (window.allEventos || []).find(x => x.id === id) : null
+  document.getElementById('ev-modal-title').textContent = e ? 'Editar evento' : 'Nuevo evento'
+  document.getElementById('ev-title').value   = e?.title      || ''
+  document.getElementById('ev-subcat').value  = e?.subcategory || 'otro'
+  document.getElementById('ev-date').value    = e?.due_date   || ''
+  document.getElementById('ev-time').value    = (e?.notes && /^\d{2}:\d{2}$/.test(e.notes.trim())) ? e.notes.trim() : ''
+  openModal('evento')
+}
+
+async function saveEvento(){
+  const title = document.getElementById('ev-title').value.trim()
+  if(!title){ showToast('⚠️ El título es obligatorio'); return }
+  const row = {
+    title,
+    category:    'evento',
+    subcategory: document.getElementById('ev-subcat').value,
+    due_date:    document.getElementById('ev-date').value  || null,
+    notes:       document.getElementById('ev-time').value  || null,
+    status:      'pendiente',
+    assigned_to: USER_ID,
+  }
+  if(_editingEventoId){
+    await SB_P.from('tasks').update(row).eq('id', _editingEventoId)
+  } else {
+    row.id = 'ev_' + Date.now()
+    await SB_P.from('tasks').insert(row)
+  }
+  closeModal('evento')
+  await loadEventos()
+  renderEventos()
+  showToast(_editingEventoId ? '✅ Evento actualizado' : '✅ Evento creado')
+}
+
+async function completarEvento(id){
+  await SB_P.from('tasks').update({ status:'completada' }).eq('id', id)
+  window.allEventos = (window.allEventos || []).filter(e => e.id !== id)
+  renderEventos()
+  showToast('✅ Evento completado')
 }
 
 // --- BIRTHDAYS ---
