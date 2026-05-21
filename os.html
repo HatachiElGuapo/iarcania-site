@@ -1754,10 +1754,11 @@ async function initApp(){
   setInterval(checkDateReset, 60000)
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
   await loadTareasHoy() // primero: hoyFocusItems disponible antes de cualquier render
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadAgendaForDate(getAgendaDateStr())])
   renderTasks() // render final con todos los datos disponibles
   loadFacturas()
   loadTimerFromStorage()
+  _migrateLocalAgendaToSupabase()
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -1800,7 +1801,7 @@ function showSection(id, btn){
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'))
   document.getElementById('section-'+id).classList.add('active')
   btn.classList.add('active')
-  if(id === 'agenda') renderAgenda()
+  if(id === 'agenda') loadAndRenderAgenda()
   if(id === 'vicios') renderVicios()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
@@ -1985,16 +1986,19 @@ function getAgendaDateStr(){
 
 function getAgendaKey(){ return 'agenda_' + getAgendaDateStr() }
 
-function navAgenda(delta){ _agendaDayOffset += delta; renderAgenda() }
-function goAgendaToday(){ _agendaDayOffset = 0; renderAgenda() }
+function navAgenda(delta){ _agendaDayOffset += delta; loadAndRenderAgenda() }
+function goAgendaToday(){ _agendaDayOffset = 0; loadAndRenderAgenda() }
 function jumpAgendaToDate(dateStr){
   const today = new Date(); today.setHours(0,0,0,0)
   const target = new Date(dateStr + 'T00:00:00')
   _agendaDayOffset = Math.round((target - today) / 86400000)
-  renderAgenda()
+  loadAndRenderAgenda()
 }
-function getAgendaData(){
-  const raw = JSON.parse(localStorage.getItem(getAgendaKey()) || '{}')
+let _agendaCache = {}
+let _agendaCacheDate = null
+
+function _parseLocalAgenda(dateStr){
+  const raw = JSON.parse(localStorage.getItem('agenda_'+dateStr) || '{}')
   const out = {}
   Object.entries(raw).forEach(([k, v]) => {
     const parts = k.split(':').map(Number)
@@ -2009,7 +2013,81 @@ function getAgendaData(){
   })
   return out
 }
-function setAgendaData(data){ localStorage.setItem(getAgendaKey(), JSON.stringify(data)) }
+
+function getAgendaData(){ return _agendaCache }
+function setAgendaData(data){
+  _agendaCache = data
+  localStorage.setItem(getAgendaKey(), JSON.stringify(data))
+}
+
+async function loadAgendaForDate(dateStr){
+  _agendaCacheDate = dateStr
+  try {
+    const { data, error } = await SB_P.from('agenda_items')
+      .select('*').eq('user_id', USER_ID).eq('date', dateStr)
+    if(!error && data){
+      const out = {}
+      data.forEach(row => {
+        const bk = row.block_time
+        if(!bk) return
+        if(!out[bk]) out[bk] = []
+        const item = { id: row.item_id, dur: row.duration||20, type: row.item_type||'task' }
+        if(row.notes) item.note = row.notes
+        if(!out[bk].find(e => e.id===item.id)) out[bk].push(item)
+      })
+      _agendaCache = out
+      localStorage.setItem('agenda_'+dateStr, JSON.stringify(out))
+      return
+    }
+  } catch(e){}
+  _agendaCache = _parseLocalAgenda(dateStr)
+}
+
+async function loadAndRenderAgenda(){
+  await loadAgendaForDate(getAgendaDateStr())
+  renderAgenda()
+}
+
+function _sbAgendaRow(dateStr, slotKey, item){
+  return {
+    id: 'ai_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+    user_id: USER_ID,
+    date: dateStr,
+    block_time: slotKey,
+    item_id: item.id,
+    item_type: item.type||'task',
+    duration: item.dur||20,
+    notes: item.note||null
+  }
+}
+
+function _sbAgendaDel(dateStr, slotKey, itemId){
+  SB_P.from('agenda_items').delete()
+    .eq('user_id', USER_ID).eq('date', dateStr)
+    .eq('block_time', slotKey).eq('item_id', itemId)
+}
+
+async function _migrateLocalAgendaToSupabase(){
+  if(localStorage.getItem('agenda_sb_migrated')) return
+  const rows = []
+  for(let i=0; i<localStorage.length; i++){
+    const key = localStorage.key(i)
+    if(!key || !key.startsWith('agenda_') || key.startsWith('agenda_routine') || key==='agenda_sb_migrated') continue
+    const dateStr = key.replace('agenda_','')
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue
+    const parsed = _parseLocalAgenda(dateStr)
+    Object.entries(parsed).forEach(([bk, items]) => {
+      items.forEach(x => {
+        rows.push({ id:'ai_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+          user_id:USER_ID, date:dateStr, block_time:bk,
+          item_id:x.id, item_type:x.type||'task', duration:x.dur||20, notes:x.note||null })
+      })
+    })
+  }
+  if(!rows.length){ localStorage.setItem('agenda_sb_migrated','1'); return }
+  const {error} = await SB_P.from('agenda_items').insert(rows)
+  if(!error) localStorage.setItem('agenda_sb_migrated','1')
+}
 
 const agendaToMin = s => { const [h,m] = s.split(':').map(Number); return h*60+m }
 const agendaFromMin = m => `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`
@@ -2155,10 +2233,12 @@ function saveAgendaTask(){
   let dur = parseInt(sel?.value||'20')
   if(dur===0) dur = parseInt(cust?.value||'20')||20
   const type = _agendaModalTab === 'habits' ? 'habit' : 'task'
+  const newItem = {id:_agendaModalSelectedTask, dur, type}
   const data = getAgendaData()
   if(!data[slotKey]) data[slotKey]=[]
-  if(!data[slotKey].find(x=>x.id===_agendaModalSelectedTask)) data[slotKey].push({id:_agendaModalSelectedTask, dur, type})
+  if(!data[slotKey].find(x=>x.id===_agendaModalSelectedTask)) data[slotKey].push(newItem)
   setAgendaData(data)
+  SB_P.from('agenda_items').insert(_sbAgendaRow(getAgendaDateStr(), slotKey, newItem))
   closeAgendaModal()
   renderAgenda()
   showToast('✅ Agregado a la agenda')
@@ -2170,6 +2250,7 @@ function removeAgendaTask(slotKey, taskId){
   data[slotKey] = data[slotKey].filter(x=>x.id!==taskId)
   if(!data[slotKey].length) delete data[slotKey]
   setAgendaData(data)
+  _sbAgendaDel(getAgendaDateStr(), slotKey, taskId)
   renderAgenda()
 }
 
@@ -2283,6 +2364,9 @@ function saveAgendaEdit(){
   else data[newSlot].push(newItem)
 
   setAgendaData(data)
+  const _editDateStr = getAgendaDateStr()
+  _sbAgendaDel(_editDateStr, _agendaEditSlot, _agendaEditId)
+  SB_P.from('agenda_items').insert(_sbAgendaRow(_editDateStr, newSlot, newItem))
   closeAgendaEditModal()
   renderAgenda()
   showToast('✅ Guardado')
@@ -2301,11 +2385,15 @@ function onAgendaBlockDrop(event, newSlot){
   const data = getAgendaData()
   const item = (data[_agendaDragSlot]||[]).find(x=>x.id===_agendaDragId)
   if(!item){ _agendaDragSlot=null; _agendaDragId=null; return }
+  const oldSlot = _agendaDragSlot, dragId = _agendaDragId
   data[_agendaDragSlot] = (data[_agendaDragSlot]||[]).filter(x=>x.id!==_agendaDragId)
   if(!data[_agendaDragSlot].length) delete data[_agendaDragSlot]
   if(!data[newSlot]) data[newSlot]=[]
   if(!data[newSlot].find(x=>x.id===_agendaDragId)) data[newSlot].push(item)
   setAgendaData(data)
+  const _dropDateStr = getAgendaDateStr()
+  _sbAgendaDel(_dropDateStr, oldSlot, dragId)
+  SB_P.from('agenda_items').insert(_sbAgendaRow(_dropDateStr, newSlot, item))
   _agendaDragSlot=null; _agendaDragId=null
   renderAgenda()
   showToast('✅ Tarea movida')
