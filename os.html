@@ -2025,6 +2025,7 @@ async function loadAgendaForDate(dateStr){
   try {
     const { data, error } = await SB_P.from('agenda_items')
       .select('*').eq('user_id', USER_ID).eq('date', dateStr)
+    console.log('[agenda] dateStr:', dateStr, 'USER_ID:', USER_ID, 'rows:', data?.length, 'error:', error)
     if(!error && data){
       if(data.length > 0){
         const out = {}
