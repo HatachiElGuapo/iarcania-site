@@ -1620,6 +1620,10 @@ function updateClock(){
 }
 
 // --- NAV ---
+function navTo(section){
+  const btn = document.querySelector(`.nav-item[onclick*="'${section}'"]`)
+  if(btn) showSection(section, btn)
+}
 function showSection(id, btn){
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'))
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'))
@@ -2612,11 +2616,20 @@ function renderTrabajoDash(){
     el.innerHTML = '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades de trabajo configuradas</div>'
     return
   }
+  const QUICK_LINKS = {
+    'Grabar contenido':          {label:'🎬 Ir a guiones', section:'guiones'},
+    'Trabajo técnico IArcanIA':  {label:'📋 Ir a tareas',  section:'actividades'},
+  }
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
+    const link = QUICK_LINKS[a.name]
+    const linkBtn = link
+      ? `<button class="habito-toggle" onclick="event.stopPropagation();navTo('${link.section}')" style="font-size:10px;padding:2px 7px">${link.label}</button>`
+      : ''
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
+      ${linkBtn}
     </div>`
   }).join('')
 }
