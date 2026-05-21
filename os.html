@@ -644,8 +644,27 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <div class="dash-section-body collapsed" id="dash-extra-body">
             <div class="task-list" id="extra-tasks"></div>
             <div style="padding:6px 0 2px">
-              <input type="text" id="search-extra" placeholder="🔍 Buscar tarea para agregar..." oninput="searchDashTask('extra',this.value)" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
-              <div id="sugg-extra" style="background:#111;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;overflow:hidden;display:none"></div>
+              <div id="btns-add-extra" style="display:flex;gap:6px">
+                <button onclick="openExtraTaskPanel()" style="flex:1;background:transparent;border:1px dashed var(--border);border-radius:7px;padding:8px 10px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center">+ Agregar tarea</button>
+                <button onclick="openExtraCitasPanel()" style="background:transparent;border:1px dashed rgba(239,159,39,0.4);border-radius:7px;padding:8px 10px;color:#EF9F27;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center;white-space:nowrap">📅 Desde citas</button>
+              </div>
+              <div id="panel-add-extra" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
+                  <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Seleccionar tareas</span>
+                  <button onclick="closeExtraTaskPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
+                </div>
+                <div style="padding:8px 10px 4px">
+                  <input type="text" id="search-extra-panel" placeholder="🔍 Filtrar tareas..." oninput="renderExtraTaskPanel(this.value)" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+                </div>
+                <div id="panel-extra-list" style="max-height:280px;overflow-y:auto"></div>
+              </div>
+              <div id="panel-citas-extra" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid rgba(239,159,39,0.25);border-radius:8px;overflow:hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(239,159,39,0.15)">
+                  <span style="font-size:12px;font-weight:600;color:#EF9F27">📅 Citas disponibles</span>
+                  <button onclick="closeExtraCitasPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
+                </div>
+                <div id="panel-citas-extra-list" style="max-height:280px;overflow-y:auto"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -1536,7 +1555,8 @@ const CATS = {
 let USER_ID = null
 let USER_PASSWORD = null
 let allTasks = []
-let hoyFocusItems = []  // filas de daily_focus para TODAY
+let hoyFocusItems   = []  // filas de daily_focus para TODAY con list_type='hoy'
+let extraFocusItems = []  // filas de daily_focus para TODAY con list_type='extra'
 let allBirthdays = []
 let allClients = []
 let allBooks = []
@@ -1729,8 +1749,9 @@ async function loadTareasHoy(){
     .eq('user_id', USER_ID)
     .eq('date', TODAY)
     .order('sort_order', { ascending: true })
-  console.log('daily_focus data:', data, 'USER_ID:', USER_ID, 'TODAY:', TODAY)
-  hoyFocusItems = data || []
+  const all = data || []
+  hoyFocusItems   = all.filter(x => !x.list_type || x.list_type === 'hoy')
+  extraFocusItems = all.filter(x => x.list_type === 'extra')
   renderTasks()
 }
 
@@ -1752,9 +1773,16 @@ function renderTasks(){
   }).filter(Boolean)
   renderDashTasksSection('dashboard-tasks', hoyTasks, 'hoy')
   renderCitasEnDashboard()
-  // Dashboard: Tareas extra (manual desde localStorage)
+  // Dashboard: Tareas extra (daily_focus list_type='extra')
   const extraIds   = getDashList('extra')
-  const extraTasks = extraIds.map(id => allTasks.find(t => t.id === id)).filter(Boolean)
+  const extraTasks = extraIds.map(id => {
+    const fi = extraFocusItems.find(x => x.task_id === id)
+    const t  = allTasks.find(t => t.id === id)
+    if(t) return { ...t, _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
+    const c = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === id)
+    if(c) return { id: c.id, title: c.title, category: null, status: c.status, _isCita: true, _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
+    return null
+  }).filter(Boolean)
   renderDashTasksSection('extra-tasks', extraTasks, 'extra')
   // Sección Tareas: lista sin vencidas + grupos especiales
   const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy')
@@ -2714,30 +2742,42 @@ function renderCitasEnDashboard(){
   </div>`
 }
 
-// --- DASHBOARD TASK LISTS ('hoy' → Supabase daily_focus, 'extra' → localStorage) ---
+// --- DASHBOARD TASK LISTS ('hoy' + 'extra' → Supabase daily_focus por list_type) ---
+// SQL migration: ALTER TABLE public.daily_focus ADD COLUMN IF NOT EXISTS list_type text DEFAULT 'hoy';
 function getDashList(list){
-  if(list === 'hoy') return hoyFocusItems.map(x => x.task_id)
+  if(list === 'hoy')   return hoyFocusItems.map(x => x.task_id)
+  if(list === 'extra') return extraFocusItems.map(x => x.task_id)
   return JSON.parse(localStorage.getItem('tareas_'+list+'_ids') || '[]')
 }
 
 function setDashList(list, newIds){
-  if(list === 'hoy'){
-    const oldIds = hoyFocusItems.map(x => x.task_id)
+  if(list === 'hoy' || list === 'extra'){
+    const focusArr = list === 'hoy' ? hoyFocusItems : extraFocusItems
+    const oldIds   = focusArr.map(x => x.task_id)
     const toAdd    = newIds.filter(id => !oldIds.includes(id))
     const toRemove = oldIds.filter(id => !newIds.includes(id))
     // Actualizar memoria inmediatamente (sync) para que la UI no espere
-    hoyFocusItems = hoyFocusItems.filter(x => !toRemove.includes(x.task_id))
+    if(list === 'hoy'){
+      hoyFocusItems   = hoyFocusItems.filter(x => !toRemove.includes(x.task_id))
+    } else {
+      extraFocusItems = extraFocusItems.filter(x => !toRemove.includes(x.task_id))
+    }
     const insertRows = toAdd.map((id, i) => ({
       id: 'df_' + Date.now() + '_' + i,
       user_id: USER_ID,
       task_id: id,
       task_type: (typeof allCitas !== 'undefined' && allCitas.find(c => c.id === id)) ? 'cita' : 'task',
       date: TODAY,
-      sort_order: newIds.indexOf(id)
+      sort_order: newIds.indexOf(id),
+      list_type: list
     }))
-    hoyFocusItems.push(...insertRows)
+    if(list === 'hoy'){
+      hoyFocusItems.push(...insertRows)
+    } else {
+      extraFocusItems.push(...insertRows)
+    }
     // Supabase fire-and-forget
-    if(toRemove.length) SB_P.from('daily_focus').delete().eq('user_id', USER_ID).eq('date', TODAY).in('task_id', toRemove)
+    if(toRemove.length) SB_P.from('daily_focus').delete().eq('user_id', USER_ID).eq('date', TODAY).eq('list_type', list).in('task_id', toRemove)
     if(toAdd.length)    SB_P.from('daily_focus').insert(insertRows)
     return
   }
@@ -2747,7 +2787,7 @@ function setDashList(list, newIds){
 function renderDashTasksSection(elId, tasks, listKey){
   const el = document.getElementById(elId)
   if(!el) return
-  const isHoy = listKey === 'hoy'
+  const isHoy = listKey === 'hoy' || listKey === 'extra'
   if(!tasks.length){
     el.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--text-muted)">Ninguna tarea seleccionada. Usa el buscador de abajo.</div>'
     return
@@ -2804,8 +2844,12 @@ function renderDashTasksSection(elId, tasks, listKey){
   }).join('')
 }
 
+function findFocusItem(taskId){
+  return hoyFocusItems.find(x => x.task_id === taskId) || extraFocusItems.find(x => x.task_id === taskId)
+}
+
 async function toggleFocusCheck(taskId){
-  const item = hoyFocusItems.find(x => x.task_id === taskId)
+  const item = findFocusItem(taskId)
   if(!item) return
   const newCompleted = !item.completed
   item.completed = newCompleted
@@ -2828,7 +2872,7 @@ async function toggleFocusCheck(taskId){
 
 function openFocusNote(taskId){
   const ed  = document.getElementById('focus-note-editor-' + taskId)
-  const item = hoyFocusItems.find(x => x.task_id === taskId)
+  const item = findFocusItem(taskId)
   if(!ed) return
   const inp = ed.querySelector('input')
   if(inp) inp.value = item?.notes || ''
@@ -2837,7 +2881,7 @@ function openFocusNote(taskId){
 }
 
 function saveFocusNote(taskId, note){
-  const item = hoyFocusItems.find(x => x.task_id === taskId)
+  const item = findFocusItem(taskId)
   if(!item) return
   const ed = document.getElementById('focus-note-editor-' + taskId)
   if(ed) ed.style.display = 'none'
@@ -2869,6 +2913,14 @@ function removeDashTask(list, id){
     }
     if(document.getElementById('panel-citas-hoy')?.style.display !== 'none'){
       renderCitasHoyPanel()
+    }
+  }
+  if(list === 'extra'){
+    if(document.getElementById('panel-add-extra')?.style.display !== 'none'){
+      renderExtraTaskPanel(document.getElementById('search-extra-panel')?.value || '')
+    }
+    if(document.getElementById('panel-citas-extra')?.style.display !== 'none'){
+      renderExtraCitasPanel()
     }
   }
 }
@@ -2925,6 +2977,118 @@ function closeCitasHoyPanel(){
   const btns  = document.getElementById('btns-add-hoy')
   if(panel) panel.style.display = 'none'
   if(btns) btns.style.display = 'flex'
+}
+
+// --- PANELES TAREAS EXTRA ---
+function openExtraTaskPanel(){
+  const panel = document.getElementById('panel-add-extra')
+  const btns  = document.getElementById('btns-add-extra')
+  const inp   = document.getElementById('search-extra-panel')
+  if(!panel) return
+  panel.style.display = 'block'
+  if(btns) btns.style.display = 'none'
+  if(inp){ inp.value = ''; inp.focus() }
+  renderExtraTaskPanel('')
+}
+function closeExtraTaskPanel(){
+  const panel = document.getElementById('panel-add-extra')
+  const btns  = document.getElementById('btns-add-extra')
+  if(panel) panel.style.display = 'none'
+  if(btns) btns.style.display = 'flex'
+}
+function openExtraCitasPanel(){
+  const panel = document.getElementById('panel-citas-extra')
+  const btns  = document.getElementById('btns-add-extra')
+  if(!panel) return
+  panel.style.display = 'block'
+  if(btns) btns.style.display = 'none'
+  renderExtraCitasPanel()
+}
+function closeExtraCitasPanel(){
+  const panel = document.getElementById('panel-citas-extra')
+  const btns  = document.getElementById('btns-add-extra')
+  if(panel) panel.style.display = 'none'
+  if(btns) btns.style.display = 'flex'
+}
+function renderExtraTaskPanel(query){
+  const el = document.getElementById('panel-extra-list')
+  if(!el) return
+  const extraIds = getDashList('extra')
+  const q = (query||'').toLowerCase().trim()
+  const tasks = allTasks.filter(t => t.status !== 'completada' && (!q || t.title.toLowerCase().includes(q)))
+  if(!tasks.length){
+    el.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay tareas pendientes</div>'
+    return
+  }
+  const groups = {}
+  tasks.forEach(t => { const k = t.category||'habitos'; if(!groups[k]) groups[k]=[]; groups[k].push(t) })
+  el.innerHTML = Object.entries(groups).map(([catKey, catTasks]) => {
+    const cat = CATS[catKey] || CATS.habitos
+    const pending = catTasks.filter(t => !extraIds.includes(t.id)).length
+    return `<div>
+      <div style="padding:6px 10px;font-size:11px;font-weight:600;color:${cat.color};display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.25);position:sticky;top:0">
+        <span style="width:7px;height:7px;border-radius:50%;background:${cat.color};display:inline-block;flex-shrink:0"></span>
+        ${cat.label}<span style="font-size:10px;color:var(--text-muted);font-weight:400">(${pending} pendientes)</span>
+      </div>
+      ${catTasks.map(t => {
+        const added = extraIds.includes(t.id)
+        return `<div onclick="${added?'':``addDashTaskFromExtraPanel('${t.id}')``}"
+          style="display:flex;align-items:center;gap:8px;padding:7px 10px 7px 22px;cursor:${added?'default':'pointer'};border-bottom:1px solid rgba(255,255,255,0.04)"
+          ${!added?`onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background=''"`:''}>
+          <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?cat.color:'var(--border)'};background:${added?cat.color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':''}</div>
+          <span style="flex:1;font-size:12px;color:${added?'var(--text-muted)':'var(--text)'}${added?';text-decoration:line-through':''}">${t.title}</span>
+        </div>`
+      }).join('')}
+    </div>`
+  }).join('')
+}
+function renderExtraCitasPanel(){
+  const el = document.getElementById('panel-citas-extra-list')
+  if(!el) return
+  const extraIds = getDashList('extra')
+  const citas = (typeof allCitas !== 'undefined' ? allCitas : [])
+    .filter(c => c.status === 'pendiente' && c.datetime && c.datetime >= TODAY)
+    .sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
+  if(!citas.length){
+    el.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay citas próximas</div>'
+    return
+  }
+  const citasHoy  = citas.filter(c => c.datetime.startsWith(TODAY))
+  const citasProx = citas.filter(c => !c.datetime.startsWith(TODAY))
+  function citaRow(c){
+    const added = extraIds.includes(c.id)
+    const fecha = new Date(c.datetime)
+    const hora  = fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false})
+    const dia   = c.datetime.startsWith(TODAY) ? 'Hoy' : fecha.toLocaleDateString('es-CO',{day:'numeric',month:'short'})
+    return `<div onclick="${added?'':``addCitaToExtraFromPanel('${c.id}')``}"
+      style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:${added?'default':'pointer'};border-bottom:1px solid rgba(255,255,255,0.04)"
+      ${!added?`onmouseenter="this.style.background='rgba(239,159,39,0.06)'" onmouseleave="this.style.background=''"`:''}>
+      <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?'#EF9F27':'rgba(239,159,39,0.4)'};background:${added?'#EF9F27':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':'🏥'}</div>
+      <span style="flex:1;font-size:12px;color:${added?'var(--text-muted)':'#EF9F27'}${added?';text-decoration:line-through':''}">${c.title}</span>
+      <span style="font-size:11px;color:var(--text-muted)">${dia} ${hora}</span>
+    </div>`
+  }
+  let html = ''
+  if(citasHoy.length)  html += `<div style="padding:5px 10px 3px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;background:rgba(0,0,0,0.3)">Hoy</div>` + citasHoy.map(citaRow).join('')
+  if(citasProx.length) html += `<div style="padding:5px 10px 3px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;background:rgba(0,0,0,0.3)">Próximas</div>` + citasProx.map(citaRow).join('')
+  el.innerHTML = html
+}
+function addDashTaskFromExtraPanel(id){
+  const ids = getDashList('extra')
+  if(!ids.includes(id)) ids.push(id)
+  setDashList('extra', ids)
+  renderTasks()
+  renderExtraTaskPanel(document.getElementById('search-extra-panel')?.value || '')
+}
+function addCitaToExtraFromPanel(citaId){
+  const ids = getDashList('extra')
+  if(!ids.includes(citaId)) ids.push(citaId)
+  setDashList('extra', ids)
+  renderTasks()
+  if(document.getElementById('panel-add-extra')?.style.display !== 'none')
+    renderExtraTaskPanel(document.getElementById('search-extra-panel')?.value || '')
+  if(document.getElementById('panel-citas-extra')?.style.display !== 'none')
+    renderExtraCitasPanel()
 }
 
 function renderCitasHoyPanel(){
