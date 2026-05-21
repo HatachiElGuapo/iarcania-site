@@ -816,9 +816,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="page-header">
         <div>
           <h1 class="page-title">🎉 Eventos</h1>
-          <div class="page-sub">Familia, amigos y más</div>
+          <div class="page-sub">Historial de experiencias</div>
         </div>
-        <button class="btn-add" onclick="openEventoModal()">+ Nuevo evento</button>
+        <button class="btn-add" onclick="openEventTypeModal()">+ Nuevo tipo</button>
       </div>
       <div id="eventos-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
     </div>
@@ -1543,25 +1543,50 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-evento">
+<!-- Modal: nuevo/editar tipo de evento -->
+<div class="modal-overlay" id="modal-event-type">
   <div class="modal" style="max-width:440px">
-    <h3 id="ev-modal-title">Nuevo evento</h3>
-    <div class="field"><label>Título *</label><input type="text" id="ev-title" placeholder="¿Qué evento es?"/></div>
+    <h3 id="et-modal-title">Nuevo tipo de evento</h3>
+    <div class="field"><label>Nombre *</label><input type="text" id="et-name" placeholder="Ej: Cena familiar, Salida con amigos..."/></div>
     <div class="field"><label>Categoría</label>
-      <select id="ev-subcat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+      <select id="et-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="cultural">🎭 Cultural</option>
         <option value="familia">👨‍👩‍👧 Familia</option>
         <option value="amigos">👥 Amigos</option>
-        <option value="citas">🏥 Citas</option>
-        <option value="otro">📌 Otro</option>
+        <option value="visita">🏠 Visita</option>
       </select>
     </div>
+    <div class="field"><label>Descripción (opcional)</label><input type="text" id="et-desc" placeholder="Notas sobre este tipo de evento..."/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('event-type')">Cancelar</button>
+      <button class="btn-save" onclick="saveEventType()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: registrar ocurrencia -->
+<div class="modal-overlay" id="modal-occurrence">
+  <div class="modal" style="max-width:460px">
+    <h3 id="occ-modal-title">Registrar vez</h3>
     <div class="form-row">
-      <div class="field"><label>Fecha (opcional)</label><input type="date" id="ev-date" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-      <div class="field"><label>Hora (opcional)</label><input type="time" id="ev-time" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div class="field"><label>Fecha *</label><input type="date" id="occ-date" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div class="field"><label>Gasto (opcional)</label><input type="number" id="occ-cost" placeholder="0" min="0" step="0.01" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    </div>
+    <div class="field"><label>Con quién (opcional)</label><input type="text" id="occ-people" placeholder="Ej: Mamá, Rodrigo..."/></div>
+    <div class="field"><label>Dónde (opcional)</label><input type="text" id="occ-location" placeholder="Ej: Casa, Restaurante El Sur..."/></div>
+    <div class="field"><label>Nota / recuerdo (opcional)</label>
+      <textarea id="occ-notes" rows="3" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;resize:none" placeholder="¿Qué pasó? ¿Qué recuerdas?"></textarea>
+    </div>
+    <div class="field"><label>Estado de ánimo</label>
+      <div style="display:flex;gap:8px" id="occ-mood-btns">
+        <button onclick="selectMood('genial')" id="mood-btn-genial" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;transition:all .15s">😊 Genial</button>
+        <button onclick="selectMood('normal')" id="mood-btn-normal" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;transition:all .15s">😐 Normal</button>
+        <button onclick="selectMood('dificil')" id="mood-btn-dificil" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;transition:all .15s">😔 Difícil</button>
+      </div>
     </div>
     <div class="btn-row">
-      <button class="btn-cancel" onclick="closeModal('evento')">Cancelar</button>
-      <button class="btn-save" onclick="saveEvento()">Guardar</button>
+      <button class="btn-cancel" onclick="closeModal('occurrence')">Cancelar</button>
+      <button class="btn-save" onclick="saveOccurrence()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1728,7 +1753,7 @@ function showSection(id, btn){
   if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
-  if(id === 'eventos') { loadEventos().then(renderEventos) }
+  if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(window.innerWidth <= 768) closeSidebar()
 }
@@ -3566,104 +3591,174 @@ async function saveTask(){
   await loadTasks()
 }
 
-// --- EVENTOS ---
-// SQL requerido: ALTER TABLE tasks ADD COLUMN IF NOT EXISTS subcategory text;
-const EVENTO_CATS = {
-  familia: { label:'Familia', icon:'👨‍👩‍👧', color:'#5DCAA5' },
-  amigos:  { label:'Amigos',  icon:'👥',     color:'#378ADD' },
-  citas:   { label:'Citas',   icon:'🏥',     color:'#EF9F27' },
-  otro:    { label:'Otro',    icon:'📌',     color:'#777' },
+// --- EVENTOS (event_types + event_occurrences) ---
+const EVENT_TYPE_CATS = {
+  cultural: { label:'Cultural', icon:'🎭', color:'#8B6CF6' },
+  familia:  { label:'Familia',  icon:'👨‍👩‍👧', color:'#5DCAA5' },
+  amigos:   { label:'Amigos',   icon:'👥',    color:'#378ADD' },
+  visita:   { label:'Visita',   icon:'🏠',    color:'#EF9F27' },
 }
-let _editingEventoId = null
+const MOOD_MAP = { genial:'😊', normal:'😐', dificil:'😔' }
+let allEventTypes       = []
+let allOccurrences      = {}   // { [event_type_id]: occurrence[] }
+let expandedEventTypes  = new Set()
+let _editingEventTypeId = null
+let _editingOccId       = null
+let _occTargetTypeId    = null
+let _selectedMood       = null
 
 async function loadEventos(){
-  const { data } = await SB_P.from('tasks').select('*')
-    .eq('assigned_to', USER_ID)
-    .eq('category', 'evento')
-    .neq('status', 'completada')
-    .order('due_date', { ascending: true, nullsFirst: false })
-  window.allEventos = data || []
+  const { data } = await SB_P.from('event_types').select('*').eq('user_id', USER_ID).order('name')
+  allEventTypes = data || []
+}
+
+async function loadOccurrencesForType(typeId){
+  const { data } = await SB_P.from('event_occurrences')
+    .select('*').eq('event_type_id', typeId).eq('user_id', USER_ID)
+    .order('date', { ascending: false })
+  allOccurrences[typeId] = data || []
 }
 
 function renderEventos(){
   const el = document.getElementById('eventos-list')
   if(!el) return
-  const eventos = window.allEventos || []
-  if(!eventos.length){
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div>No hay eventos todavía. Agrega el primero.</div>'
+  if(!allEventTypes.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div>Sin tipos de evento todavía. Crea el primero.</div>'
     return
   }
-  const groups = { familia:[], amigos:[], citas:[], otro:[] }
-  eventos.forEach(e => {
-    const k = (e.subcategory && groups[e.subcategory] !== undefined) ? e.subcategory : 'otro'
-    groups[k].push(e)
-  })
-  const html = Object.entries(EVENTO_CATS).map(([key, cat]) => {
-    const items = groups[key]
-    if(!items.length) return ''
-    return `<div style="margin-bottom:1.5rem">
-      <div style="font-size:12px;font-weight:600;color:${cat.color};display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        ${cat.icon} ${cat.label}
-        <div style="flex:1;height:1px;background:var(--border)"></div>
+  el.innerHTML = allEventTypes.map(et => {
+    const cat   = EVENT_TYPE_CATS[et.category] || EVENT_TYPE_CATS.visita
+    const open  = expandedEventTypes.has(et.id)
+    const occs  = allOccurrences[et.id] || []
+    const occHTML = open ? `
+      <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+        <button onclick="openOccurrenceModal('${et.id}')" style="width:100%;padding:8px;background:transparent;border:1px dashed var(--border);border-radius:7px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;margin-bottom:8px">+ Registrar vez</button>
+        ${!occs.length
+          ? `<div style="font-size:12px;color:var(--text-muted);padding:4px 0;text-align:center">Sin registros todavía</div>`
+          : occs.map(o => {
+              const mood = o.mood ? MOOD_MAP[o.mood]||'' : ''
+              const meta = [
+                o.date     ? '📅 '+o.date : '',
+                o.people   ? '👤 '+o.people : '',
+                o.location ? '📍 '+o.location : '',
+                o.cost     ? '💰 $'+Number(o.cost).toLocaleString('es-CO') : '',
+                mood,
+              ].filter(Boolean).join('  ·  ')
+              return `<div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:10px 12px;margin-bottom:6px">
+                <div style="font-size:11px;color:var(--text-muted)">${meta}</div>
+                ${o.notes?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px">${o.notes}</div>`:''}
+              </div>`
+            }).join('')
+        }
+      </div>` : ''
+    return `<div class="card" style="margin-bottom:10px;padding:12px 14px">
+      <div onclick="toggleEventType('${et.id}')" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <span style="font-size:20px">${cat.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${et.name}</div>
+          ${et.description?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${et.description}</div>`:''}
+        </div>
+        <span style="font-size:10px;font-weight:600;color:${cat.color};background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:10px">${cat.label}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${occs.length} ${occs.length===1?'vez':'veces'}</span>
+        <button onclick="event.stopPropagation();openEventTypeModal('${et.id}')" class="habito-toggle" style="font-size:12px">✏️</button>
+        <span style="font-size:11px;color:var(--text-muted);transition:transform .2s;display:inline-block;${open?'transform:rotate(0deg)':'transform:rotate(-90deg)'}"">▼</span>
       </div>
-      <div class="task-list">
-        ${items.map(e => {
-          const hora = e.notes && /^\d{2}:\d{2}$/.test(e.notes.trim()) ? e.notes.trim() : null
-          return `<div class="task-item" style="border-left-color:${cat.color}">
-            <div class="task-text">
-              <div>${e.title}</div>
-              ${(e.due_date||hora)?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${e.due_date?'📅 '+e.due_date:''}${hora?' 🕐'+hora:''}</div>`:''}
-            </div>
-            <button class="habito-toggle" onclick="openEventoModal('${e.id}')">✏️</button>
-            <button class="habito-toggle" onclick="completarEvento('${e.id}')" style="color:var(--green);border-color:rgba(93,202,165,.3)">✓</button>
-          </div>`
-        }).join('')}
-      </div>
+      ${occHTML}
     </div>`
   }).join('')
-  el.innerHTML = html || '<div class="empty-state"><div class="empty-icon">🎉</div>No hay eventos todavía.</div>'
 }
 
-function openEventoModal(id){
-  _editingEventoId = id || null
-  const e = id ? (window.allEventos || []).find(x => x.id === id) : null
-  document.getElementById('ev-modal-title').textContent = e ? 'Editar evento' : 'Nuevo evento'
-  document.getElementById('ev-title').value   = e?.title      || ''
-  document.getElementById('ev-subcat').value  = e?.subcategory || 'otro'
-  document.getElementById('ev-date').value    = e?.due_date   || ''
-  document.getElementById('ev-time').value    = (e?.notes && /^\d{2}:\d{2}$/.test(e.notes.trim())) ? e.notes.trim() : ''
-  openModal('evento')
-}
-
-async function saveEvento(){
-  const title = document.getElementById('ev-title').value.trim()
-  if(!title){ showToast('⚠️ El título es obligatorio'); return }
-  const row = {
-    title,
-    category:    'evento',
-    subcategory: document.getElementById('ev-subcat').value,
-    due_date:    document.getElementById('ev-date').value  || null,
-    notes:       document.getElementById('ev-time').value  || null,
-    status:      'pendiente',
-    assigned_to: USER_ID,
-  }
-  if(_editingEventoId){
-    await SB_P.from('tasks').update(row).eq('id', _editingEventoId)
+async function toggleEventType(id){
+  if(expandedEventTypes.has(id)){
+    expandedEventTypes.delete(id)
   } else {
-    row.id = 'ev_' + Date.now()
-    await SB_P.from('tasks').insert(row)
+    expandedEventTypes.add(id)
+    if(!allOccurrences[id]) await loadOccurrencesForType(id)
   }
-  closeModal('evento')
+  renderEventos()
+}
+
+function openEventTypeModal(id){
+  _editingEventTypeId = id || null
+  const et = id ? allEventTypes.find(x => x.id === id) : null
+  document.getElementById('et-modal-title').textContent = et ? 'Editar tipo' : 'Nuevo tipo de evento'
+  document.getElementById('et-name').value = et?.name        || ''
+  document.getElementById('et-cat').value  = et?.category    || 'cultural'
+  document.getElementById('et-desc').value = et?.description || ''
+  openModal('event-type')
+}
+
+async function saveEventType(){
+  const name = document.getElementById('et-name').value.trim()
+  if(!name){ showToast('⚠️ El nombre es obligatorio'); return }
+  const row = {
+    name,
+    category:    document.getElementById('et-cat').value,
+    description: document.getElementById('et-desc').value.trim() || null,
+    user_id:     USER_ID,
+  }
+  if(_editingEventTypeId){
+    await SB_P.from('event_types').update(row).eq('id', _editingEventTypeId)
+  } else {
+    row.id = 'et_' + Date.now()
+    await SB_P.from('event_types').insert(row)
+  }
+  closeModal('event-type')
   await loadEventos()
   renderEventos()
-  showToast(_editingEventoId ? '✅ Evento actualizado' : '✅ Evento creado')
+  showToast(_editingEventTypeId ? '✅ Tipo actualizado' : '✅ Tipo creado')
 }
 
-async function completarEvento(id){
-  await SB_P.from('tasks').update({ status:'completada' }).eq('id', id)
-  window.allEventos = (window.allEventos || []).filter(e => e.id !== id)
+function openOccurrenceModal(typeId, occId){
+  _occTargetTypeId  = typeId
+  _editingOccId     = occId || null
+  _selectedMood     = null
+  const o = occId ? (allOccurrences[typeId]||[]).find(x => x.id === occId) : null
+  document.getElementById('occ-modal-title').textContent = o ? 'Editar registro' : 'Registrar vez'
+  document.getElementById('occ-date').value     = o?.date     || TODAY
+  document.getElementById('occ-cost').value     = o?.cost     || ''
+  document.getElementById('occ-people').value   = o?.people   || ''
+  document.getElementById('occ-location').value = o?.location || ''
+  document.getElementById('occ-notes').value    = o?.notes    || ''
+  _selectedMood = o?.mood || null
+  ;['genial','normal','dificil'].forEach(m => {
+    const btn = document.getElementById('mood-btn-'+m)
+    if(btn){ btn.style.background = m === _selectedMood ? 'rgba(255,255,255,0.1)' : 'transparent'; btn.style.borderColor = m === _selectedMood ? 'var(--gold)' : 'var(--border)'; btn.style.color = m === _selectedMood ? 'var(--text)' : 'var(--text-muted)' }
+  })
+  openModal('occurrence')
+}
+
+function selectMood(m){
+  _selectedMood = (_selectedMood === m) ? null : m
+  ;['genial','normal','dificil'].forEach(k => {
+    const btn = document.getElementById('mood-btn-'+k)
+    if(btn){ btn.style.background = k === _selectedMood ? 'rgba(255,255,255,0.1)' : 'transparent'; btn.style.borderColor = k === _selectedMood ? 'var(--gold)' : 'var(--border)'; btn.style.color = k === _selectedMood ? 'var(--text)' : 'var(--text-muted)' }
+  })
+}
+
+async function saveOccurrence(){
+  const date = document.getElementById('occ-date').value
+  if(!date){ showToast('⚠️ La fecha es obligatoria'); return }
+  const row = {
+    event_type_id: _occTargetTypeId,
+    user_id:       USER_ID,
+    date,
+    cost:     parseFloat(document.getElementById('occ-cost').value)     || null,
+    people:   document.getElementById('occ-people').value.trim()   || null,
+    location: document.getElementById('occ-location').value.trim() || null,
+    notes:    document.getElementById('occ-notes').value.trim()    || null,
+    mood:     _selectedMood || null,
+  }
+  if(_editingOccId){
+    await SB_P.from('event_occurrences').update(row).eq('id', _editingOccId)
+  } else {
+    row.id = 'occ_' + Date.now()
+    await SB_P.from('event_occurrences').insert(row)
+  }
+  closeModal('occurrence')
+  await loadOccurrencesForType(_occTargetTypeId)
   renderEventos()
-  showToast('✅ Evento completado')
+  showToast(_editingOccId ? '✅ Registro actualizado' : '✅ Registro guardado')
 }
 
 // --- BIRTHDAYS ---
