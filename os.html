@@ -2037,6 +2037,7 @@ async function loadAgendaForDate(dateStr){
           if(row.notes) item.note = row.notes
           if(!out[bk].find(e => e.id===item.id)) out[bk].push(item)
         })
+        console.log('[agenda cache]', JSON.stringify(out))
         _agendaCache = out
         localStorage.setItem('agenda_'+dateStr, JSON.stringify(out))
         return
@@ -2052,6 +2053,7 @@ async function loadAgendaForDate(dateStr){
 
 async function loadAndRenderAgenda(){
   await loadAgendaForDate(getAgendaDateStr())
+  console.log('[agenda render]', JSON.stringify(_agendaCache))
   renderAgenda()
 }
 
