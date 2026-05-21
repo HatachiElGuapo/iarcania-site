@@ -272,6 +272,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .agenda-routine-lbl{font-size:12px;color:var(--text-dim);font-weight:500}
 .agenda-routine-lbl.is-now{color:var(--gold);font-weight:600}
 .agenda-chip{display:flex;align-items:center;gap:6px;border-radius:6px;padding:4px 8px;font-size:11px;border:1px solid;overflow:hidden}
+.agenda-block-content.drag-over{background:rgba(155,114,240,0.08);border-radius:6px;outline:1px dashed rgba(155,114,240,0.4)}
 .agenda-add-btn{font-size:11px;color:var(--text-muted);background:transparent;border:1px dashed var(--border);border-radius:6px;padding:2px 8px;cursor:pointer;align-self:flex-start;font-family:'Outfit',sans-serif;transition:all .15s}
 .agenda-add-btn:hover{color:var(--gold);border-color:rgba(201,168,76,0.4)}
 .agenda-search-panel{background:#0A0A0A;border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px}
@@ -768,6 +769,38 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             </div>
           </div>
           <button onclick="saveAgendaTask()" style="width:100%;background:var(--purple);border:none;border-radius:8px;padding:12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Guardar</button>
+        </div>
+      </div>
+
+      <!-- Mini modal editar chip / rutina -->
+      <div id="agenda-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)closeAgendaEditModal()">
+        <div style="background:#111;border-radius:12px;width:90%;max-width:340px;padding:18px 16px;box-sizing:border-box">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">Editar</span>
+            <button onclick="closeAgendaEditModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:0;line-height:1">✕</button>
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Hora</div>
+            <select id="aedit-slot" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box"></select>
+          </div>
+          <div id="aedit-dur-row" style="margin-bottom:12px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Duración</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="aedit-dur" onchange="document.getElementById('aedit-dur-cust').style.display=this.value==='0'?'block':'none'" style="flex:1;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+                <option value="20">20 min</option>
+                <option value="40">40 min</option>
+                <option value="60">1 hora</option>
+                <option value="120">2 horas</option>
+                <option value="0">Personalizado</option>
+              </select>
+              <input id="aedit-dur-cust" type="number" min="5" max="480" placeholder="min" style="display:none;width:80px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+            </div>
+          </div>
+          <div id="aedit-note-row" style="margin-bottom:16px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Nota</div>
+            <textarea id="aedit-note" rows="2" placeholder="Nota opcional..." style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;resize:none;box-sizing:border-box"></textarea>
+          </div>
+          <button onclick="saveAgendaEdit()" style="width:100%;background:var(--purple);border:none;border-radius:8px;padding:11px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Guardar</button>
         </div>
       </div>
     </div>
@@ -1961,6 +1994,8 @@ const agendaFromMin = m => `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%
 
 let _agendaModalSelectedTask = null
 let _agendaModalTab = 'tasks'
+let _agendaEditSlot = null, _agendaEditId = null, _agendaEditType = null
+let _agendaDragSlot = null, _agendaDragId = null
 
 function openAgendaModal(){
   _agendaModalSelectedTask = null
@@ -2124,6 +2159,136 @@ async function removeAutoAgendaTask(taskId){
   renderTasks()
 }
 
+function getRoutineOverrides(){
+  return JSON.parse(localStorage.getItem('agenda_routine_overrides_'+getAgendaDateStr())||'{}')
+}
+function setRoutineOverrides(ov){
+  localStorage.setItem('agenda_routine_overrides_'+getAgendaDateStr(), JSON.stringify(ov))
+}
+
+function _populateAgendaSlotSelect(selId, selected){
+  const sel = document.getElementById(selId)
+  if(!sel) return
+  const blocks = []
+  for(let h=0;h<24;h++) for(let m of [0,20,40]) blocks.push(agendaFromMin(h*60+m))
+  sel.innerHTML = blocks.map(bk => {
+    const s = AGENDA_SCHEDULE.find(x=>x.time===bk)
+    const label = s ? `${bk}  —  ${s.label}` : bk
+    return `<option value="${bk}"${bk===selected?' selected':''}>${label}</option>`
+  }).join('')
+}
+
+function openAgendaEditModal(slotKey, itemId){
+  const data = getAgendaData()
+  const item = (data[slotKey]||[]).find(x=>x.id===itemId)
+  if(!item) return
+  _agendaEditSlot = slotKey
+  _agendaEditId = itemId
+  _agendaEditType = item.type
+  const modal = document.getElementById('agenda-edit-modal')
+  if(!modal) return
+  document.getElementById('aedit-dur-row').style.display = ''
+  document.getElementById('aedit-note-row').style.display = ''
+  _populateAgendaSlotSelect('aedit-slot', slotKey)
+  const durSel = document.getElementById('aedit-dur')
+  const durCust = document.getElementById('aedit-dur-cust')
+  const knownDurs = ['20','40','60','120']
+  const durStr = String(item.dur||20)
+  if(knownDurs.includes(durStr)){
+    durSel.value = durStr
+    durCust.style.display = 'none'
+  } else {
+    durSel.value = '0'
+    durCust.style.display = 'block'
+    durCust.value = durStr
+  }
+  document.getElementById('aedit-note').value = item.note || ''
+  modal.style.display = 'flex'
+}
+
+function openRoutineEditModal(originalSlot){
+  _agendaEditSlot = '__routine__'
+  _agendaEditId = originalSlot
+  _agendaEditType = 'routine'
+  const modal = document.getElementById('agenda-edit-modal')
+  if(!modal) return
+  document.getElementById('aedit-dur-row').style.display = 'none'
+  document.getElementById('aedit-note-row').style.display = 'none'
+  const overrides = getRoutineOverrides()
+  _populateAgendaSlotSelect('aedit-slot', overrides[originalSlot] || originalSlot)
+  modal.style.display = 'flex'
+}
+
+function closeAgendaEditModal(){
+  const modal = document.getElementById('agenda-edit-modal')
+  if(modal) modal.style.display = 'none'
+  _agendaEditSlot = null; _agendaEditId = null; _agendaEditType = null
+}
+
+function saveAgendaEdit(){
+  if(!_agendaEditSlot || !_agendaEditId) return
+  const newSlot = document.getElementById('aedit-slot')?.value
+  if(!newSlot){ showToast('⚠️ Selecciona la hora'); return }
+
+  if(_agendaEditType === 'routine'){
+    const overrides = getRoutineOverrides()
+    if(newSlot === _agendaEditId) delete overrides[_agendaEditId]
+    else overrides[_agendaEditId] = newSlot
+    setRoutineOverrides(overrides)
+    closeAgendaEditModal()
+    renderAgenda()
+    showToast('✅ Rutina movida para hoy')
+    return
+  }
+
+  const data = getAgendaData()
+  const oldItems = data[_agendaEditSlot] || []
+  const item = oldItems.find(x=>x.id===_agendaEditId)
+  if(!item) return
+  const durSel = document.getElementById('aedit-dur')
+  const durCust = document.getElementById('aedit-dur-cust')
+  let dur = parseInt(durSel?.value||'20')
+  if(dur===0) dur = parseInt(durCust?.value||'20')||20
+  const note = document.getElementById('aedit-note')?.value?.trim()||''
+
+  data[_agendaEditSlot] = oldItems.filter(x=>x.id!==_agendaEditId)
+  if(!data[_agendaEditSlot].length) delete data[_agendaEditSlot]
+  if(!data[newSlot]) data[newSlot]=[]
+  const existing = data[newSlot].findIndex(x=>x.id===_agendaEditId)
+  const newItem = {id:_agendaEditId, dur, type:item.type}
+  if(note) newItem.note = note
+  if(existing>=0) data[newSlot][existing]=newItem
+  else data[newSlot].push(newItem)
+
+  setAgendaData(data)
+  closeAgendaEditModal()
+  renderAgenda()
+  showToast('✅ Guardado')
+}
+
+function onAgendaChipDragStart(event, slotKey, itemId){
+  _agendaDragSlot = slotKey
+  _agendaDragId = itemId
+  event.dataTransfer.effectAllowed = 'move'
+}
+
+function onAgendaBlockDrop(event, newSlot){
+  event.preventDefault()
+  if(!_agendaDragSlot || !_agendaDragId) return
+  if(_agendaDragSlot === newSlot){ _agendaDragSlot=null; _agendaDragId=null; return }
+  const data = getAgendaData()
+  const item = (data[_agendaDragSlot]||[]).find(x=>x.id===_agendaDragId)
+  if(!item){ _agendaDragSlot=null; _agendaDragId=null; return }
+  data[_agendaDragSlot] = (data[_agendaDragSlot]||[]).filter(x=>x.id!==_agendaDragId)
+  if(!data[_agendaDragSlot].length) delete data[_agendaDragSlot]
+  if(!data[newSlot]) data[newSlot]=[]
+  if(!data[newSlot].find(x=>x.id===_agendaDragId)) data[newSlot].push(item)
+  setAgendaData(data)
+  _agendaDragSlot=null; _agendaDragId=null
+  renderAgenda()
+  showToast('✅ Tarea movida')
+}
+
 function renderAgenda(){
   const el = document.getElementById('agenda-timeline')
   if(!el) return
@@ -2135,8 +2300,12 @@ function renderAgenda(){
   const curBk = agendaFromMin(curBlockMin)
   const progressInBlock = (nowMin - curBlockMin) / 20
 
+  const routineOverrides = getRoutineOverrides()
   const schedMap = {}
-  AGENDA_SCHEDULE.forEach(s => schedMap[s.time] = s.label)
+  AGENDA_SCHEDULE.forEach(s => {
+    const effectiveSlot = routineOverrides[s.time] || s.time
+    schedMap[effectiveSlot] = {label: s.label, originalSlot: s.time}
+  })
 
   // Continuation blocks for multi-block routine items
   const routineContMap = {}
@@ -2224,7 +2393,9 @@ function renderAgenda(){
     const isNow   = bk === curBk
     const isPast  = bMin+20 <= nowMin
     const isHour  = bk.endsWith(':00')
-    const routine     = schedMap[bk]
+    const routineEntry = schedMap[bk]
+    const routine      = routineEntry?.label || null
+    const routineOrig  = routineEntry?.originalSlot || bk
     const routineCont = routineContMap[bk]
     const conts   = contMap[bk]||[]
     const autos   = autoMap[bk]||[]
@@ -2236,17 +2407,17 @@ function renderAgenda(){
         const act = allActivities.find(a=>a.id===x.id)
         if(!act) return null
         const color = CAT_COLORS[act.category]||'#555'
-        return {id:x.id, title:act.name, color, dur:x.dur, isHabit:true}
+        return {id:x.id, title:act.name, color, dur:x.dur, isHabit:true, note:x.note}
       }
       if(x.type === 'cita'){
         const color = x.color || '#EF9F27'
         const title = x.title || allCitas.find(c=>c.id===x.id)?.title || 'Cita'
-        return {id:x.id, title:'🏥 '+title, color, dur:x.dur, isHabit:false, isCita:true}
+        return {id:x.id, title:'🏥 '+title, color, dur:x.dur, isHabit:false, isCita:true, note:x.note}
       }
       const t = allTasks.find(t=>t.id===x.id)
       if(!t) return null
       const cat = CATS[t.category]||CATS.habitos
-      return {id:x.id, title:t.title, color:cat.color, dur:x.dur, task:t, isHabit:false}
+      return {id:x.id, title:t.title, color:cat.color, dur:x.dur, task:t, isHabit:false, note:x.note}
     }).filter(Boolean)
     const domId   = bk.replace(':','_')
     const hasContent = routine||routineCont||conts.length||autos.length||pinnedItems.length
@@ -2270,15 +2441,17 @@ function renderAgenda(){
     }).join('')
 
     const pinnedHTML = pinnedItems.map(item => {
-      const {id, title, color, dur, isHabit, isCita, task} = item
+      const {id, title, color, dur, isHabit, isCita, task, note} = item
       const done = !isHabit && !isCita && task?.status === 'completada'
       const checkEl = (isHabit || isCita)
         ? `<div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0;opacity:0.8"></div>`
         : chipCheck(task, {color})
-      return `<div class="agenda-chip" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''}">
+      return `<div class="agenda-chip" draggable="true" ondragstart="onAgendaChipDragStart(event,'${bk}','${id}')" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''}">
         ${checkEl}
         <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''};">${title}</span>
+        ${note?`<span style="font-size:9px;color:var(--text-muted);font-style:italic;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="${note}">${note}</span>`:''}
         <span style="color:var(--text-muted);font-size:9px;flex-shrink:0">(${fmtDur(dur)})</span>
+        <button onclick="event.stopPropagation();openAgendaEditModal('${bk}','${id}')" style="font-size:11px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button>
         <button onclick="removeAgendaTask('${bk}','${id}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>
       </div>`
     }).join('')
@@ -2287,8 +2460,8 @@ function renderAgenda(){
       ${nowLineHTML}
       <div class="agenda-time-lbl${isHour?' is-hour':''}">${bk}</div>
       <div class="agenda-block-line"></div>
-      <div class="agenda-block-content" style="min-height:${hasContent?48:32}px">
-        ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}">${routine}</div>`:''}
+      <div class="agenda-block-content" style="min-height:${hasContent?48:32}px" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')">
+        ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}" style="display:flex;align-items:center;gap:4px">${routine}<button onclick="event.stopPropagation();openRoutineEditModal('${routineOrig}')" style="font-size:10px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button></div>`:''}
         ${routineCont?`<div style="font-size:10px;color:var(--text-muted);padding-left:4px;font-style:italic">↳ ${routineCont}</div>`:''}
         ${contHTML}${autoHTML}${pinnedHTML}
       </div>
