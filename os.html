@@ -2026,17 +2026,23 @@ async function loadAgendaForDate(dateStr){
     const { data, error } = await SB_P.from('agenda_items')
       .select('*').eq('user_id', USER_ID).eq('date', dateStr)
     if(!error && data){
-      const out = {}
-      data.forEach(row => {
-        const bk = row.block_time
-        if(!bk) return
-        if(!out[bk]) out[bk] = []
-        const item = { id: row.item_id, dur: row.duration||20, type: row.item_type||'task' }
-        if(row.notes) item.note = row.notes
-        if(!out[bk].find(e => e.id===item.id)) out[bk].push(item)
-      })
-      _agendaCache = out
-      localStorage.setItem('agenda_'+dateStr, JSON.stringify(out))
+      if(data.length > 0){
+        const out = {}
+        data.forEach(row => {
+          const bk = row.block_time
+          if(!bk) return
+          if(!out[bk]) out[bk] = []
+          const item = { id: row.item_id, dur: row.duration||20, type: row.item_type||'task' }
+          if(row.notes) item.note = row.notes
+          if(!out[bk].find(e => e.id===item.id)) out[bk].push(item)
+        })
+        _agendaCache = out
+        localStorage.setItem('agenda_'+dateStr, JSON.stringify(out))
+        return
+      }
+      // Supabase vacío — usar localStorage como fuente si tiene datos (migración pendiente)
+      const local = _parseLocalAgenda(dateStr)
+      _agendaCache = local
       return
     }
   } catch(e){}
@@ -2531,6 +2537,8 @@ function renderAgenda(){
     }).filter(Boolean)
     const domId   = bk.replace(':','_')
     const hasContent = routine||routineCont||conts.length||autos.length||pinnedItems.length
+    const rowCount = (routine?1:0) + (routineCont?1:0) + conts.length + autos.length + pinnedItems.length
+    const minH = rowCount === 0 ? 32 : Math.max(40, rowCount * 30 + 10)
 
     const nowLineY = Math.round(progressInBlock*(hasContent?52:36))
     const nowLineHTML = isNow ? `<div class="agenda-now-line" style="top:${nowLineY}px"></div>` : ''
@@ -2570,7 +2578,7 @@ function renderAgenda(){
       ${nowLineHTML}
       <div class="agenda-time-lbl${isHour?' is-hour':''}">${bk}</div>
       <div class="agenda-block-line"></div>
-      <div class="agenda-block-content" style="min-height:${hasContent?48:32}px" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')">
+      <div class="agenda-block-content" style="min-height:${minH}px" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')">
         ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}" style="display:flex;align-items:center;gap:4px">${routine}<button onclick="event.stopPropagation();openRoutineEditModal('${routineOrig}')" style="font-size:10px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button></div>`:''}
         ${routineCont?`<div style="font-size:10px;color:var(--text-muted);padding-left:4px;font-style:italic">↳ ${routineCont}</div>`:''}
         ${contHTML}${autoHTML}${pinnedHTML}
