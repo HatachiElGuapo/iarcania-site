@@ -89,6 +89,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
 .card-title{font-size:14px;color:var(--gold);margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
 .card-title span{font-family:'Outfit',sans-serif;font-size:11px;color:var(--text-muted);font-weight:400}
+.ws-link{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:7px;color:var(--text-dim);font-size:13px;text-decoration:none;transition:background .15s;gap:8px}
+.ws-link:hover{background:var(--bg-hover);color:var(--text)}
+.ws-link-arrow{font-size:11px;color:var(--text-muted);flex-shrink:0}
 
 /* TASKS */
 .task-list{display:flex;flex-direction:column;gap:6px}
@@ -381,6 +384,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </button>
         <button class="nav-item" onclick="showSection('guiones',this)">
           <span class="nav-icon">🎬</span>Guiones
+        </button>
+        <button class="nav-item" onclick="showSection('workspace',this)">
+          <span class="nav-icon">🖥️</span>Workspace
         </button>
       </div>
     </nav>
@@ -923,6 +929,34 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
       <div id="scripts-list" style="display:flex;flex-direction:column;gap:8px">
         <div class="loading"><div class="spinner"></div><br>Cargando guiones...</div>
+      </div>
+    </div>
+
+    <div class="section" id="section-workspace">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🖥️ Workspace</h1>
+          <div class="page-sub">Links rápidos a tus herramientas</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:760px">
+        <div class="card">
+          <div class="card-title">⚙️ Técnico</div>
+          <a class="ws-link" href="https://miguel-aguilar-n8n.7sx006.easypanel.host" target="_blank" rel="noopener">n8n<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://supabase.com/dashboard/project/gpfidxxawcwsbuzsbeob" target="_blank" rel="noopener">Supabase Personal<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://supabase.com/dashboard/project/ktmiurbvgewuwkzkqitj" target="_blank" rel="noopener">Supabase IArcanIA<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://vercel.com/hatachielguapos-projects" target="_blank" rel="noopener">Vercel<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://github.com/HatachiElGuapo" target="_blank" rel="noopener">GitHub Personal<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://github.com/iarcania" target="_blank" rel="noopener">GitHub IArcanIA<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://miguel-aguilar.7sx006.easypanel.host" target="_blank" rel="noopener">EasyPanel<span class="ws-link-arrow">↗</span></a>
+        </div>
+        <div class="card">
+          <div class="card-title">🎬 Contenido</div>
+          <a class="ws-link" href="https://www.youtube.com/@stoicvoid-o5f" target="_blank" rel="noopener">YouTube VoidStoic<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://www.instagram.com/iarcania.ai/" target="_blank" rel="noopener">Instagram IArcanIA<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://studio.youtube.com" target="_blank" rel="noopener">YouTube Studio<span class="ws-link-arrow">↗</span></a>
+          <a class="ws-link" href="https://www.canva.com" target="_blank" rel="noopener">Canva<span class="ws-link-arrow">↗</span></a>
+        </div>
       </div>
     </div>
 
