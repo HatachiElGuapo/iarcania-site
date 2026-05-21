@@ -789,8 +789,13 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
               <select id="aedit-dur" onchange="document.getElementById('aedit-dur-cust').style.display=this.value==='0'?'block':'none'" style="flex:1;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none">
                 <option value="20">20 min</option>
                 <option value="40">40 min</option>
-                <option value="60">1 hora</option>
-                <option value="120">2 horas</option>
+                <option value="60">1 h</option>
+                <option value="80">1 h 20</option>
+                <option value="100">1 h 40</option>
+                <option value="120">2 h</option>
+                <option value="150">2 h 30</option>
+                <option value="180">3 h</option>
+                <option value="240">4 h</option>
                 <option value="0">Personalizado</option>
               </select>
               <input id="aedit-dur-cust" type="number" min="5" max="480" placeholder="min" style="display:none;width:80px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none">
@@ -2192,7 +2197,7 @@ function openAgendaEditModal(slotKey, itemId){
   _populateAgendaSlotSelect('aedit-slot', slotKey)
   const durSel = document.getElementById('aedit-dur')
   const durCust = document.getElementById('aedit-dur-cust')
-  const knownDurs = ['20','40','60','120']
+  const knownDurs = ['20','40','60','80','100','120','150','180','240']
   const durStr = String(item.dur||20)
   if(knownDurs.includes(durStr)){
     durSel.value = durStr
