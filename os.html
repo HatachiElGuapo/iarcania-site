@@ -2620,6 +2620,7 @@ function renderTrabajoDash(){
     'Grabar contenido':          {label:'🎬 Ir a guiones', section:'guiones'},
     'Trabajo técnico IArcanIA':  {label:'📋 Ir a tareas',  section:'actividades'},
   }
+  console.log('trabajoDash acts:', acts.map(a => a.name))
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
     const link = QUICK_LINKS[a.name]
