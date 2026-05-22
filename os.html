@@ -2025,7 +2025,6 @@ async function loadAgendaForDate(dateStr){
   try {
     const { data, error } = await SB_P.from('agenda_items')
       .select('*').eq('user_id', USER_ID).eq('date', dateStr)
-    console.log('[agenda] dateStr:', dateStr, 'USER_ID:', USER_ID, 'rows:', data?.length, 'error:', error)
     if(!error && data){
       if(data.length > 0){
         const out = {}
@@ -2033,11 +2032,12 @@ async function loadAgendaForDate(dateStr){
           const bk = row.block_time
           if(!bk) return
           if(!out[bk]) out[bk] = []
-          const item = { id: row.item_id, dur: row.duration||20, type: row.item_type||'task' }
+          const item = { id: row.item_id ?? null, dur: row.duration||20, type: row.item_type||'task' }
           if(row.notes) item.note = row.notes
-          if(!out[bk].find(e => e.id===item.id)) out[bk].push(item)
+          // allow multiple null-id events per block
+          const isDup = item.id !== null && out[bk].find(e => e.id===item.id)
+          if(!isDup) out[bk].push(item)
         })
-        console.log('[agenda cache]', JSON.stringify(out))
         _agendaCache = out
         localStorage.setItem('agenda_'+dateStr, JSON.stringify(out))
         return
@@ -2053,7 +2053,6 @@ async function loadAgendaForDate(dateStr){
 
 async function loadAndRenderAgenda(){
   await loadAgendaForDate(getAgendaDateStr())
-  console.log('[agenda render]', JSON.stringify(_agendaCache))
   renderAgenda()
 }
 
@@ -2533,6 +2532,9 @@ function renderAgenda(){
         const title = x.title || allCitas.find(c=>c.id===x.id)?.title || 'Cita'
         return {id:x.id, title:'🏥 '+title, color, dur:x.dur, isHabit:false, isCita:true, note:x.note}
       }
+      if(x.id === null || x.id === undefined){
+        return {id:null, title:x.note||'Evento', color:'#9B72F0', dur:x.dur, isHabit:false, isEvent:true}
+      }
       const t = allTasks.find(t=>t.id===x.id)
       if(!t) return null
       const cat = CATS[t.category]||CATS.habitos
@@ -2562,7 +2564,14 @@ function renderAgenda(){
     }).join('')
 
     const pinnedHTML = pinnedItems.map(item => {
-      const {id, title, color, dur, isHabit, isCita, task, note} = item
+      const {id, title, color, dur, isHabit, isCita, isEvent, task, note} = item
+      if(isEvent){
+        return `<div class="agenda-chip" style="border-color:${color}44;background:${color}0D">
+          <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin:2px"></div>
+          <span style="flex:1;color:var(--text)">${title}</span>
+          <span style="color:var(--text-muted);font-size:9px;flex-shrink:0">(${fmtDur(dur)})</span>
+        </div>`
+      }
       const done = !isHabit && !isCita && task?.status === 'completada'
       const checkEl = (isHabit || isCita)
         ? `<div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0;opacity:0.8"></div>`
