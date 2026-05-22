@@ -2443,15 +2443,21 @@ function renderAgenda(){
   Object.entries(data).forEach(([sk, items]) => {
     items.forEach(x => {
       const {id, dur, type} = x
-      let color
+      let color, title
       if(type === 'habit'){
         const act = allActivities.find(a=>a.id===id)
         color = act ? (CAT_COLORS[act.category]||'#555') : '#555'
+        title = act?.name || 'Hábito'
       } else if(type === 'cita'){
         color = x.color || '#EF9F27'
+        title = allCitas.find(c=>c.id===id)?.title || 'Cita'
+      } else if(id === null || id === undefined){
+        color = '#9B72F0'
+        title = x.note || 'Evento'
       } else {
         const task = allTasks.find(t=>t.id===id)
         color = task ? (CATS[task.category]||CATS.habitos).color : '#555'
+        title = task?.title || 'Tarea'
       }
       const n = Math.ceil(dur/20)
       for(let i=1; i<n; i++){
@@ -2459,7 +2465,7 @@ function renderAgenda(){
         if(bm>=24*60) break
         const bk = agendaFromMin(bm)
         if(!contMap[bk]) contMap[bk]=[]
-        contMap[bk].push({color, taskId:id, startKey:sk})
+        contMap[bk].push({color, title, taskId:id, startKey:sk})
       }
     })
   })
@@ -2549,7 +2555,10 @@ function renderAgenda(){
     const nowLineHTML = isNow ? `<div class="agenda-now-line" style="top:${nowLineY}px"></div>` : ''
 
     const contHTML = conts.map(c =>
-      `<div style="height:3px;width:65%;border-radius:3px;background:${c.color};opacity:0.55;margin-left:2px"></div>`
+      `<div style="display:flex;align-items:center;gap:5px;opacity:0.45">
+        <div style="width:2px;height:14px;border-radius:2px;background:${c.color};flex-shrink:0"></div>
+        <span style="font-size:10px;color:${c.color};font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↕ ${c.title}</span>
+      </div>`
     ).join('')
 
     const autoHTML = autos.map(t => {
