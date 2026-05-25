@@ -6295,17 +6295,24 @@ let allBills = []
 let allCitas = []
 let allBillPayments = []
 let _pagarBillId = null
+let allServiciosExpenses = []
 
 async function loadFacturas(){
   const { data: bills } = await SB_P.from('bills').select('*').eq('user_id', USER_ID).eq('is_active', true).order('due_day')
   allBills = bills || []
-
   const monthStart = TODAY.slice(0,7)+'-01'
   const lastDay = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate()
   const monthEnd = TODAY.slice(0,7)+'-'+String(lastDay).padStart(2,'0')
   const { data: payments } = await SB_P.from('bill_payments').select('*').gte('paid_date', monthStart).lte('paid_date', monthEnd)
   allBillPayments = payments || []
-
+  const since = new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().slice(0,10)
+  const { data: svc } = await SB_P.from('expenses')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('category', 'servicios')
+    .gte('date', since)
+    .order('date', { ascending: false })
+  allServiciosExpenses = svc || []
   renderFacturasAlert()
   renderFacturas()
 }
@@ -6325,57 +6332,136 @@ function renderFacturasAlert(){
 function renderFacturas(){
   const el = document.getElementById('facturas-list')
   if(!el) return
+  const fmt = n => '$' + Number(n).toLocaleString('es-CO')
+  const currentYM = TODAY.slice(0,7)
 
-  const todayDay  = parseInt(TODAY.split('-')[2])
-  const paidIds   = new Set(allBillPayments.map(p => p.bill_id))
-  const payMap    = {}
-  allBillPayments.forEach(p => { payMap[p.bill_id] = p })
-
-  const subEl = document.getElementById('facturas-sub')
-  if(subEl){
-    const total = allBills.reduce((s,b) => s+(b.estimated_amount||0), 0)
-    const paid  = allBills.filter(b => paidIds.has(b.id)).length
-    subEl.textContent = `${paid} / ${allBills.length} pagadas este mes · Estimado: $${total.toLocaleString('es-CO')}`
-  }
-
-  if(!allBills.length){
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div>Sin facturas. Agrega con "+ Nueva factura"</div>'
-    return
-  }
-
-  const catIcon = { servicios:'⚡', tecnologia:'💻', hogar:'🏠', salud:'💊', otros:'📦' }
-  const sorted = [...allBills].sort((a,b) => {
-    const aOver = a.due_day < todayDay && !paidIds.has(a.id)
-    const bOver = b.due_day < todayDay && !paidIds.has(b.id)
-    if(aOver !== bOver) return aOver ? -1 : 1
-    return a.due_day - b.due_day
+  // ── SECCIÓN 1: SERVICIOS RECURRENTES (expenses category='servicios') ──────
+  const groups = {}
+  allServiciosExpenses.forEach(e => {
+    const key = (e.description || 'Sin nombre').trim()
+    if(!groups[key]) groups[key] = []
+    groups[key].push(e)
   })
 
-  el.innerHTML = sorted.map(bill => {
-    const pay      = payMap[bill.id]
-    const isPaid   = !!pay
-    const isOverdue = !isPaid && bill.due_day < todayDay
-    const border   = isPaid ? '#5DCAA5' : isOverdue ? '#E24B4A' : 'var(--border)'
-    const bg       = isPaid ? 'rgba(93,202,165,0.06)' : isOverdue ? 'rgba(226,75,74,0.06)' : 'var(--bg-card)'
-    const icon     = catIcon[bill.category] || '📦'
-    const amt      = bill.estimated_amount ? `~$${bill.estimated_amount.toLocaleString('es-CO')}` : 'Sin monto'
-    const overdueTag = isOverdue
-      ? `<span style="font-size:10px;background:rgba(226,75,74,0.15);color:#E24B4A;padding:2px 6px;border-radius:4px;margin-left:6px">VENCIDA</span>`
-      : ''
-    const statusHtml = isPaid
-      ? `<div style="text-align:right;flex-shrink:0">
-          <div style="font-size:12px;color:#5DCAA5;font-weight:600">✓ Pagada</div>
-          <div style="font-size:11px;color:var(--text-muted)">$${(pay.amount||0).toLocaleString('es-CO')} · ${pay.paid_date}</div>
-        </div>`
-      : `<button onclick="abrirPagarFactura('${bill.id}')" style="flex-shrink:0;padding:7px 13px;border-radius:7px;border:1px solid ${isOverdue?'#E24B4A':'var(--purple)'};background:${isOverdue?'rgba(226,75,74,0.1)':'rgba(155,114,240,0.1)'};color:${isOverdue?'#E24B4A':'var(--purple)'};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Marcar pagada</button>`
-    return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:var(--text)">${icon} ${bill.name}${overdueTag}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${amt} · Vence día ${bill.due_day}</div>
-      </div>
-      ${statusHtml}
+  const SVC_ICONS = { acueducto:'💧', agua:'💧', luz:'💡', energia:'💡', epm:'⚡', gas:'🔥', internet:'📡', wifi:'📡', claro:'📡', movistar:'📡', tv:'📺', netflix:'📺', spotify:'🎵' }
+  const getIcon = name => {
+    const lower = name.toLowerCase()
+    for(const [k,v] of Object.entries(SVC_ICONS)) if(lower.includes(k)) return v
+    return '⚡'
+  }
+
+  let svcBody = ''
+  if(!Object.keys(groups).length){
+    svcBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Sin gastos en categoría "servicios". Registra uno desde el tab Gastos.</div>'
+  } else {
+    const tableRows = Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0])).map(([desc, exps]) => {
+      const sorted = [...exps].sort((a,b) => (b.date||'').localeCompare(a.date||''))
+      const last = sorted[0]
+      const last3 = sorted.slice(0, 3)
+      const prom3 = last3.reduce((s,e) => s + Number(e.amount||0), 0) / last3.length
+      const ultimoMonto = Number(last.amount||0)
+      const pctDiff = prom3 > 0 ? ((ultimoMonto - prom3) / prom3 * 100) : 0
+      const flecha = pctDiff > 5 ? '↑' : pctDiff < -5 ? '↓' : '→'
+      const flechaColor = pctDiff > 5 ? 'var(--red)' : pctDiff < -5 ? 'var(--green)' : 'var(--text-muted)'
+      const paidThisMonth = (last.date||'').startsWith(currentYM)
+      const mesUltimo = last.date ? new Date(last.date+'T12:00:00').toLocaleDateString('es-CO',{month:'short',year:'numeric'}) : '—'
+      const icon = getIcon(desc)
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:12px 14px;font-size:13px;font-weight:600;color:var(--text)">
+          ${icon} ${desc}
+          ${paidThisMonth?'<span style="margin-left:8px;font-size:10px;background:rgba(93,202,165,0.12);color:#5DCAA5;padding:2px 6px;border-radius:4px;vertical-align:middle">✓ mes actual</span>':''}
+        </td>
+        <td style="padding:12px 8px;font-size:13px;color:var(--text);text-align:right;white-space:nowrap">${fmt(ultimoMonto)}</td>
+        <td style="padding:12px 8px;font-size:13px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
+        <td style="padding:12px 8px;text-align:center">
+          <span style="font-size:17px;color:${flechaColor};font-weight:700;line-height:1">${flecha}</span>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
+        </td>
+        <td style="padding:12px 8px;font-size:12px;color:var(--text-muted);text-align:center;white-space:nowrap">${mesUltimo}</td>
+        <td style="padding:12px 8px 12px 4px;text-align:right">
+          ${paidThisMonth
+            ? '<span style="font-size:11px;color:var(--text-muted)">—</span>'
+            : `<button onclick="abrirPagarServicio(this.dataset.desc)" data-desc="${desc.replace(/"/g,'&quot;')}" style="padding:6px 12px;border-radius:7px;border:1px solid rgba(155,114,240,0.4);background:rgba(155,114,240,0.1);color:var(--purple);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">Pagar</button>`
+          }
+        </td>
+      </tr>`
+    }).join('')
+    svcBody = `<div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:500px">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:8px 14px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Servicio</th>
+          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Último</th>
+          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Prom. 3m</th>
+          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Tend.</th>
+          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Mes</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
     </div>`
-  }).join('')
+  }
+
+  // ── SECCIÓN 2: OTRAS FACTURAS (tabla bills) ───────────────────────────────
+  const todayDay = parseInt(TODAY.split('-')[2])
+  const paidIds  = new Set(allBillPayments.map(p => p.bill_id))
+  const payMap   = {}
+  allBillPayments.forEach(p => { payMap[p.bill_id] = p })
+
+  let billsBody = ''
+  if(!allBills.length){
+    billsBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Sin facturas registradas. Agrega con "+ Nueva factura".</div>'
+  } else {
+    const catIcon = { servicios:'⚡', tecnologia:'💻', hogar:'🏠', salud:'💊', otros:'📦' }
+    const sorted = [...allBills].sort((a,b) => {
+      const aOver = a.due_day < todayDay && !paidIds.has(a.id)
+      const bOver = b.due_day < todayDay && !paidIds.has(b.id)
+      if(aOver !== bOver) return aOver ? -1 : 1
+      return a.due_day - b.due_day
+    })
+    billsBody = `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${sorted.map(bill => {
+      const pay      = payMap[bill.id]
+      const isPaid   = !!pay
+      const isOverdue = !isPaid && bill.due_day < todayDay
+      const border   = isPaid ? '#5DCAA5' : isOverdue ? '#E24B4A' : 'var(--border)'
+      const bg       = isPaid ? 'rgba(93,202,165,0.06)' : isOverdue ? 'rgba(226,75,74,0.06)' : 'var(--bg-card)'
+      const icon     = catIcon[bill.category] || '📦'
+      const amt      = bill.estimated_amount ? `~$${bill.estimated_amount.toLocaleString('es-CO')}` : 'Sin monto'
+      const overdueTag = isOverdue ? '<span style="font-size:10px;background:rgba(226,75,74,0.15);color:#E24B4A;padding:2px 6px;border-radius:4px;margin-left:6px">VENCIDA</span>' : ''
+      const statusHtml = isPaid
+        ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;color:#5DCAA5;font-weight:600">✓ Pagada</div><div style="font-size:11px;color:var(--text-muted)">$${(pay.amount||0).toLocaleString('es-CO')} · ${pay.paid_date}</div></div>`
+        : `<button onclick="abrirPagarFactura('${bill.id}')" style="flex-shrink:0;padding:7px 13px;border-radius:7px;border:1px solid ${isOverdue?'#E24B4A':'var(--purple)'};background:${isOverdue?'rgba(226,75,74,0.1)':'rgba(155,114,240,0.1)'};color:${isOverdue?'#E24B4A':'var(--purple)'};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Marcar pagada</button>`
+      return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${icon} ${bill.name}${overdueTag}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${amt} · Vence día ${bill.due_day}</div>
+        </div>
+        ${statusHtml}
+      </div>`
+    }).join('')}</div>`
+  }
+
+  // ── sub label ─────────────────────────────────────────────────────────────
+  const subEl = document.getElementById('facturas-sub')
+  if(subEl){
+    const svcCount = Object.keys(groups).length
+    const paidCount = allBills.filter(b => paidIds.has(b.id)).length
+    subEl.textContent = `${svcCount} servicio${svcCount!==1?'s':''} · ${paidCount}/${allBills.length} facturas pagadas este mes`
+  }
+
+  const secStyle = 'font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px'
+  el.innerHTML =
+    `<div style="${secStyle}">⚡ Servicios recurrentes</div>` +
+    `<div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-card);margin-bottom:20px;overflow:hidden">${svcBody}</div>` +
+    `<div style="${secStyle}">🧾 Otras facturas</div>` +
+    billsBody
+}
+
+function abrirPagarServicio(desc){
+  document.getElementById('g-amount').value = ''
+  document.getElementById('g-desc').value = desc
+  document.getElementById('g-cat').value = 'servicios'
+  document.getElementById('g-date').value = TODAY
+  openModal('gasto')
 }
 
 function abrirPagarFactura(billId){
