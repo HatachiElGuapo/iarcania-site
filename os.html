@@ -6307,6 +6307,7 @@ let allCitas = []
 let allBillPayments = []
 let _pagarBillId = null
 let allServiciosExpenses = []
+let allMercadoExpenses = []
 
 async function loadFacturas(){
   const { data: bills } = await SB_P.from('bills').select('*').eq('user_id', USER_ID).eq('is_active', true).order('due_day')
@@ -6317,13 +6318,12 @@ async function loadFacturas(){
   const { data: payments } = await SB_P.from('bill_payments').select('*').gte('paid_date', monthStart).lte('paid_date', monthEnd)
   allBillPayments = payments || []
   const since = new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().slice(0,10)
-  const { data: svc } = await SB_P.from('expenses')
-    .select('*')
-    .eq('user_id', USER_ID)
-    .eq('category', 'servicios')
-    .gte('date', since)
-    .order('date', { ascending: false })
+  const [{ data: svc }, { data: mkt }] = await Promise.all([
+    SB_P.from('expenses').select('*').eq('user_id', USER_ID).eq('category', 'servicios').gte('date', since).order('date', { ascending: false }),
+    SB_P.from('expenses').select('*').eq('user_id', USER_ID).eq('category', 'mercado').gte('date', since).order('date', { ascending: false }),
+  ])
   allServiciosExpenses = svc || []
+  allMercadoExpenses = mkt || []
   renderFacturasAlert()
   renderFacturas()
 }
@@ -6493,10 +6493,62 @@ function renderFacturas(){
     subEl.textContent = `${svcCount} servicio${svcCount!==1?'s':''} · ${paidCount}/${allBills.length} facturas pagadas este mes`
   }
 
+  // ── SECCIÓN MERCADO (expenses category='mercado', agrupado por mes) ─────────
+  const mercadoByMonth = {}
+  allMercadoExpenses.forEach(e => {
+    if(!e.date) return
+    const ym = e.date.slice(0,7)
+    mercadoByMonth[ym] = (mercadoByMonth[ym] || 0) + Number(e.amount || 0)
+  })
+
+  let mercadoBody = ''
+  if(!Object.keys(mercadoByMonth).length){
+    mercadoBody = '<div style="padding:12px 16px;font-size:13px;color:var(--text-muted)">Sin gastos en categoría "mercado" en los últimos 6 meses.</div>'
+  } else {
+    const months = Object.keys(mercadoByMonth).sort((a,b) => b.localeCompare(a))
+    const vals   = months.map(m => mercadoByMonth[m])
+    const mercadoRows = months.map((ym, i) => {
+      const total  = vals[i]
+      const window3 = vals.slice(i, i + 3)
+      const prom3  = window3.reduce((s,v) => s + v, 0) / window3.length
+      const pctDiff = prom3 > 0 ? ((total - prom3) / prom3 * 100) : 0
+      const flecha = pctDiff > 5 ? '↑' : pctDiff < -5 ? '↓' : '→'
+      const flechaColor = pctDiff > 5 ? 'var(--red)' : pctDiff < -5 ? 'var(--green)' : 'var(--text-muted)'
+      const [y, m] = ym.split('-')
+      const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-CO', { month:'long', year:'numeric' })
+      const isCurrent = ym === currentYM
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)${isCurrent?';background:rgba(255,255,255,0.02)':''}">
+        <td style="padding:16px 16px;font-size:15px;font-weight:600;color:var(--text);text-transform:capitalize">
+          ${mesLabel}
+          ${isCurrent?'<span style="margin-left:8px;font-size:10px;background:rgba(201,168,76,0.12);color:var(--gold);padding:2px 6px;border-radius:4px;vertical-align:middle">mes actual</span>':''}
+        </td>
+        <td style="padding:16px 10px;font-size:15px;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(total))}</td>
+        <td style="padding:16px 10px;font-size:15px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
+        <td style="padding:16px 10px;text-align:center">
+          <span style="font-size:20px;color:${flechaColor};font-weight:700;line-height:1">${flecha}</span>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
+        </td>
+      </tr>`
+    }).join('')
+    mercadoBody = `<div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:380px">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Mes</th>
+          <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Total</th>
+          <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Prom. 3m</th>
+          <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Tend.</th>
+        </tr></thead>
+        <tbody>${mercadoRows}</tbody>
+      </table>
+    </div>`
+  }
+
   const secStyle = 'font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px'
   el.innerHTML =
     `<div style="${secStyle}">⚡ Servicios recurrentes</div>` +
     `<div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-card);margin-bottom:20px;overflow:hidden">${svcBody}</div>` +
+    `<div style="${secStyle}">🛒 Mercado</div>` +
+    `<div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-card);margin-bottom:20px;overflow:hidden">${mercadoBody}</div>` +
     `<div style="${secStyle}">🧾 Otras facturas</div>` +
     billsBody
 }
