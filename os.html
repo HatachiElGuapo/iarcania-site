@@ -6346,104 +6346,87 @@ function renderFacturas(){
   const fmt = n => '$' + Number(n).toLocaleString('es-CO')
   const currentYM = TODAY.slice(0,7)
 
-  // ── SECCIÓN 1: SERVICIOS RECURRENTES (expenses category='servicios') ──────
-  const groups = {}
-  allServiciosExpenses.forEach(e => {
-    const key = (e.description || 'Sin nombre').trim()
-    if(!groups[key]) groups[key] = []
-    groups[key].push(e)
-  })
-
+  // ── helpers ───────────────────────────────────────────────────────────────
   const SVC_ICONS = { acueducto:'💧', agua:'💧', luz:'💡', energia:'💡', epm:'⚡', gas:'🔥', internet:'📡', wifi:'📡', claro:'📡', movistar:'📡', tv:'📺', netflix:'📺', spotify:'🎵' }
   const getIcon = name => {
-    const lower = name.toLowerCase()
+    const lower = (name||'').toLowerCase()
     for(const [k,v] of Object.entries(SVC_ICONS)) if(lower.includes(k)) return v
     return '⚡'
   }
+  const mkMonthRow = (ym, total, prom3, pctDiff, flecha, fColor, isCurrent, key, detailRows, detailHeader) => {
+    const [y, m] = ym.split('-')
+    const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-CO', { month:'long', year:'numeric' })
+    const bgCurrent = isCurrent ? ';background:rgba(255,255,255,0.02)' : ''
+    return `<tr onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer${bgCurrent}" onmouseover="this.style.background='rgba(255,255,255,0.035)'" onmouseout="this.style.background='${isCurrent?'rgba(255,255,255,0.02)':''}'">
+      <td style="padding:16px 16px;font-size:15px;font-weight:600;color:var(--text);text-transform:capitalize">
+        <span id="chev-${key}" style="font-size:11px;color:var(--text-muted);margin-right:7px;display:inline-block;width:9px">▸</span>${mesLabel}
+        ${isCurrent?'<span style="margin-left:8px;font-size:10px;background:rgba(201,168,76,0.12);color:var(--gold);padding:2px 6px;border-radius:4px;vertical-align:middle">mes actual</span>':''}
+      </td>
+      <td style="padding:16px 10px;font-size:15px;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(total))}</td>
+      <td style="padding:16px 10px;font-size:15px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
+      <td style="padding:16px 10px;text-align:center">
+        <span style="font-size:20px;color:${fColor};font-weight:700;line-height:1">${flecha}</span>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
+      </td>
+    </tr>
+    <tr id="svc-hist-${key}" style="display:none">
+      <td colspan="4" style="padding:0;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.07)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+            <th style="padding:7px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">${detailHeader}</th>
+            <th style="padding:7px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Monto</th>
+          </tr></thead>
+          <tbody>${detailRows}</tbody>
+        </table>
+      </td>
+    </tr>`
+  }
+  const mkMonthStats = (vals, i) => {
+    const total   = vals[i]
+    const w3      = vals.slice(i, i + 3)
+    const prom3   = w3.reduce((s,v) => s + v, 0) / w3.length
+    const pctDiff = prom3 > 0 ? ((total - prom3) / prom3 * 100) : 0
+    const flecha  = pctDiff > 5 ? '↑' : pctDiff < -5 ? '↓' : '→'
+    const fColor  = pctDiff > 5 ? 'var(--red)' : pctDiff < -5 ? 'var(--green)' : 'var(--text-muted)'
+    return { total, prom3, pctDiff, flecha, fColor }
+  }
+  const mkTable = (bodyRows) =>
+    `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:380px">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Mes</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Total</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Prom. 3m</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Tend.</th>
+      </tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table></div>`
+
+  // ── SECCIÓN 1: SERVICIOS RECURRENTES (agrupado por mes) ──────────────────
+  const svcByMonth = {}
+  allServiciosExpenses.forEach(e => {
+    if(!e.date) return
+    const ym = e.date.slice(0,7)
+    if(!svcByMonth[ym]) svcByMonth[ym] = []
+    svcByMonth[ym].push(e)
+  })
 
   let svcBody = ''
-  if(!Object.keys(groups).length){
-    svcBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Sin gastos en categoría "servicios". Registra uno desde el tab Gastos.</div>'
+  if(!Object.keys(svcByMonth).length){
+    svcBody = '<div style="padding:12px 16px;font-size:13px;color:var(--text-muted)">Sin gastos en categoría "servicios".</div>'
   } else {
-    const tableRows = Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0])).map(([desc, exps], idx) => {
-      const sorted = [...exps].sort((a,b) => (b.date||'').localeCompare(a.date||''))
-      const last = sorted[0]
-      const last3 = sorted.slice(0, 3)
-      const prom3 = last3.reduce((s,e) => s + Number(e.amount||0), 0) / last3.length
-      const ultimoMonto = Number(last.amount||0)
-      const pctDiff = prom3 > 0 ? ((ultimoMonto - prom3) / prom3 * 100) : 0
-      const flecha = pctDiff > 5 ? '↑' : pctDiff < -5 ? '↓' : '→'
-      const flechaColor = pctDiff > 5 ? 'var(--red)' : pctDiff < -5 ? 'var(--green)' : 'var(--text-muted)'
-      const paidThisMonth = (last.date||'').startsWith(currentYM)
-      const mesUltimo = last.date ? new Date(last.date+'T12:00:00').toLocaleDateString('es-CO',{month:'short',year:'numeric'}) : '—'
-      const icon = getIcon(desc)
-      const key = `svc${idx}`
-
-      const histRows = sorted.map((e, i) => {
-        const mes = e.date ? new Date(e.date+'T12:00:00').toLocaleDateString('es-CO',{month:'long',year:'numeric'}) : '—'
-        const monto = Number(e.amount||0)
-        const prevMonto = sorted[i+1] ? Number(sorted[i+1].amount||0) : null
-        const diff = prevMonto !== null ? monto - prevMonto : null
-        const diffHtml = diff === null
-          ? '<span style="color:var(--text-muted)">—</span>'
-          : diff > 0 ? `<span style="color:var(--red)">↑ +${fmt(diff)}</span>`
-          : diff < 0 ? `<span style="color:var(--green)">↓ ${fmt(Math.abs(diff))}</span>`
-          : '<span style="color:var(--text-muted)">→ igual</span>'
-        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-          <td style="padding:10px 16px;font-size:13px;color:var(--text-dim);text-transform:capitalize">${mes}</td>
-          <td style="padding:10px 10px;font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(monto)}</td>
-          <td style="padding:10px 16px;font-size:13px;text-align:right;white-space:nowrap">${diffHtml}</td>
+    const svcMonths = Object.keys(svcByMonth).sort((a,b) => b.localeCompare(a))
+    const svcVals   = svcMonths.map(ym => svcByMonth[ym].reduce((s,e) => s + Number(e.amount||0), 0))
+    svcBody = mkTable(svcMonths.map((ym, i) => {
+      const { total, prom3, pctDiff, flecha, fColor } = mkMonthStats(svcVals, i)
+      const isCurrent = ym === currentYM
+      const detailRows = [...svcByMonth[ym]].sort((a,b) => Number(b.amount||0) - Number(a.amount||0)).map(e =>
+        `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+          <td style="padding:9px 16px;font-size:13px;color:var(--text-dim)">${getIcon(e.description)} ${e.description||'Sin nombre'}</td>
+          <td style="padding:9px 10px;font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(Number(e.amount||0))}</td>
         </tr>`
-      }).join('')
-
-      const dataRow = `<tr id="svc-row-${key}" data-svc-key="${key}" onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.025)'" onmouseout="this.style.background=''">
-        <td style="padding:16px 16px;font-size:15px;font-weight:600;color:var(--text)">
-          <span id="chev-${key}" style="font-size:11px;color:var(--text-muted);margin-right:7px;display:inline-block;width:9px">▸</span>${icon} ${desc}
-          ${paidThisMonth?'<span style="margin-left:8px;font-size:10px;background:rgba(93,202,165,0.12);color:#5DCAA5;padding:2px 6px;border-radius:4px;vertical-align:middle">✓ mes actual</span>':''}
-        </td>
-        <td style="padding:16px 10px;font-size:15px;color:var(--text);text-align:right;white-space:nowrap">${fmt(ultimoMonto)}</td>
-        <td style="padding:16px 10px;font-size:15px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
-        <td style="padding:16px 10px;text-align:center">
-          <span style="font-size:20px;color:${flechaColor};font-weight:700;line-height:1">${flecha}</span>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
-        </td>
-        <td style="padding:16px 10px;font-size:13px;color:var(--text-muted);text-align:center;white-space:nowrap">${mesUltimo}</td>
-        <td style="padding:16px 10px 16px 4px;text-align:right">
-          ${paidThisMonth
-            ? '<span style="font-size:11px;color:var(--text-muted)">—</span>'
-            : `<button onclick="event.stopPropagation();abrirPagarServicio(this.dataset.desc)" data-desc="${desc.replace(/"/g,'&quot;')}" style="padding:6px 12px;border-radius:7px;border:1px solid rgba(155,114,240,0.4);background:rgba(155,114,240,0.1);color:var(--purple);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">Pagar</button>`
-          }
-        </td>
-      </tr>`
-
-      const accordionRow = `<tr id="svc-hist-${key}" style="display:none">
-        <td colspan="6" style="padding:0;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.07)">
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
-              <th style="padding:7px 14px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Mes / Año</th>
-              <th style="padding:7px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Monto</th>
-              <th style="padding:7px 14px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Vs anterior</th>
-            </tr></thead>
-            <tbody>${histRows}</tbody>
-          </table>
-        </td>
-      </tr>`
-
-      return dataRow + accordionRow
-    }).join('')
-    svcBody = `<div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;min-width:500px">
-        <thead><tr style="border-bottom:1px solid var(--border)">
-          <th style="padding:8px 14px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Servicio</th>
-          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Último</th>
-          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Prom. 3m</th>
-          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Tend.</th>
-          <th style="padding:8px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Mes</th>
-          <th></th>
-        </tr></thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-    </div>`
+      ).join('')
+      return mkMonthRow(ym, total, prom3, pctDiff, flecha, fColor, isCurrent, `sv${i}`, detailRows, 'Servicio')
+    }).join(''))
   }
 
   // ── SECCIÓN 2: OTRAS FACTURAS (tabla bills) ───────────────────────────────
@@ -6485,62 +6468,39 @@ function renderFacturas(){
     }).join('')}</div>`
   }
 
-  // ── sub label ─────────────────────────────────────────────────────────────
-  const subEl = document.getElementById('facturas-sub')
-  if(subEl){
-    const svcCount = Object.keys(groups).length
-    const paidCount = allBills.filter(b => paidIds.has(b.id)).length
-    subEl.textContent = `${svcCount} servicio${svcCount!==1?'s':''} · ${paidCount}/${allBills.length} facturas pagadas este mes`
-  }
-
-  // ── SECCIÓN MERCADO (expenses category='mercado', agrupado por mes) ─────────
+  // ── SECCIÓN MERCADO (agrupado por mes, con accordion de compras) ──────────
   const mercadoByMonth = {}
   allMercadoExpenses.forEach(e => {
     if(!e.date) return
     const ym = e.date.slice(0,7)
-    mercadoByMonth[ym] = (mercadoByMonth[ym] || 0) + Number(e.amount || 0)
+    if(!mercadoByMonth[ym]) mercadoByMonth[ym] = []
+    mercadoByMonth[ym].push(e)
   })
 
   let mercadoBody = ''
   if(!Object.keys(mercadoByMonth).length){
     mercadoBody = '<div style="padding:12px 16px;font-size:13px;color:var(--text-muted)">Sin gastos en categoría "mercado" en los últimos 6 meses.</div>'
   } else {
-    const months = Object.keys(mercadoByMonth).sort((a,b) => b.localeCompare(a))
-    const vals   = months.map(m => mercadoByMonth[m])
-    const mercadoRows = months.map((ym, i) => {
-      const total  = vals[i]
-      const window3 = vals.slice(i, i + 3)
-      const prom3  = window3.reduce((s,v) => s + v, 0) / window3.length
-      const pctDiff = prom3 > 0 ? ((total - prom3) / prom3 * 100) : 0
-      const flecha = pctDiff > 5 ? '↑' : pctDiff < -5 ? '↓' : '→'
-      const flechaColor = pctDiff > 5 ? 'var(--red)' : pctDiff < -5 ? 'var(--green)' : 'var(--text-muted)'
-      const [y, m] = ym.split('-')
-      const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-CO', { month:'long', year:'numeric' })
+    const mktMonths = Object.keys(mercadoByMonth).sort((a,b) => b.localeCompare(a))
+    const mktVals   = mktMonths.map(ym => mercadoByMonth[ym].reduce((s,e) => s + Number(e.amount||0), 0))
+    mercadoBody = mkTable(mktMonths.map((ym, i) => {
+      const { total, prom3, pctDiff, flecha, fColor } = mkMonthStats(mktVals, i)
       const isCurrent = ym === currentYM
-      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)${isCurrent?';background:rgba(255,255,255,0.02)':''}">
-        <td style="padding:16px 16px;font-size:15px;font-weight:600;color:var(--text);text-transform:capitalize">
-          ${mesLabel}
-          ${isCurrent?'<span style="margin-left:8px;font-size:10px;background:rgba(201,168,76,0.12);color:var(--gold);padding:2px 6px;border-radius:4px;vertical-align:middle">mes actual</span>':''}
-        </td>
-        <td style="padding:16px 10px;font-size:15px;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(total))}</td>
-        <td style="padding:16px 10px;font-size:15px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
-        <td style="padding:16px 10px;text-align:center">
-          <span style="font-size:20px;color:${flechaColor};font-weight:700;line-height:1">${flecha}</span>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
-        </td>
-      </tr>`
-    }).join('')
-    mercadoBody = `<div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;min-width:380px">
-        <thead><tr style="border-bottom:1px solid var(--border)">
-          <th style="padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Mes</th>
-          <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Total</th>
-          <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Prom. 3m</th>
-          <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Tend.</th>
-        </tr></thead>
-        <tbody>${mercadoRows}</tbody>
-      </table>
-    </div>`
+      const detailRows = [...mercadoByMonth[ym]].sort((a,b) => Number(b.amount||0) - Number(a.amount||0)).map(e =>
+        `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+          <td style="padding:9px 16px;font-size:13px;color:var(--text-dim)">${e.description||'Mercado'}</td>
+          <td style="padding:9px 10px;font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(Number(e.amount||0))}</td>
+        </tr>`
+      ).join('')
+      return mkMonthRow(ym, total, prom3, pctDiff, flecha, fColor, isCurrent, `mk${i}`, detailRows, 'Compra')
+    }).join(''))
+  }
+
+  // ── sub label ─────────────────────────────────────────────────────────────
+  const subEl = document.getElementById('facturas-sub')
+  if(subEl){
+    const paidCount = allBills.filter(b => paidIds.has(b.id)).length
+    subEl.textContent = `${Object.keys(svcByMonth).length}m servicios · ${Object.keys(mercadoByMonth).length}m mercado · ${paidCount}/${allBills.length} facturas`
   }
 
   const secStyle = 'font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px'
