@@ -1814,6 +1814,17 @@ function showSection(id, btn){
 }
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open') }
+;(function(){
+  let _tx = 0
+  document.addEventListener('touchstart', e => { _tx = e.touches[0].clientX }, { passive: true })
+  document.addEventListener('touchend', e => {
+    if(window.innerWidth > 900) return
+    const dx = e.changedTouches[0].clientX - _tx
+    const sb = document.getElementById('sidebar')
+    if(dx > 50 && !sb.classList.contains('open'))  sb.classList.add('open')
+    if(dx < -50 && sb.classList.contains('open'))  sb.classList.remove('open')
+  }, { passive: true })
+})()
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('open') }
 function toggleNavGroup(name){
   const group=document.getElementById('group-'+name)
@@ -6379,25 +6390,25 @@ function renderFacturas(){
           : diff < 0 ? `<span style="color:var(--green)">↓ ${fmt(Math.abs(diff))}</span>`
           : '<span style="color:var(--text-muted)">→ igual</span>'
         return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-          <td style="padding:7px 14px;font-size:12px;color:var(--text-dim);text-transform:capitalize">${mes}</td>
-          <td style="padding:7px 8px;font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(monto)}</td>
-          <td style="padding:7px 14px;font-size:12px;text-align:right;white-space:nowrap">${diffHtml}</td>
+          <td style="padding:10px 16px;font-size:13px;color:var(--text-dim);text-transform:capitalize">${mes}</td>
+          <td style="padding:10px 10px;font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(monto)}</td>
+          <td style="padding:10px 16px;font-size:13px;text-align:right;white-space:nowrap">${diffHtml}</td>
         </tr>`
       }).join('')
 
       const dataRow = `<tr id="svc-row-${key}" data-svc-key="${key}" onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.025)'" onmouseout="this.style.background=''">
-        <td style="padding:12px 14px;font-size:13px;font-weight:600;color:var(--text)">
-          <span id="chev-${key}" style="font-size:10px;color:var(--text-muted);margin-right:6px;display:inline-block;width:8px">▸</span>${icon} ${desc}
+        <td style="padding:16px 16px;font-size:15px;font-weight:600;color:var(--text)">
+          <span id="chev-${key}" style="font-size:11px;color:var(--text-muted);margin-right:7px;display:inline-block;width:9px">▸</span>${icon} ${desc}
           ${paidThisMonth?'<span style="margin-left:8px;font-size:10px;background:rgba(93,202,165,0.12);color:#5DCAA5;padding:2px 6px;border-radius:4px;vertical-align:middle">✓ mes actual</span>':''}
         </td>
-        <td style="padding:12px 8px;font-size:13px;color:var(--text);text-align:right;white-space:nowrap">${fmt(ultimoMonto)}</td>
-        <td style="padding:12px 8px;font-size:13px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
-        <td style="padding:12px 8px;text-align:center">
-          <span style="font-size:17px;color:${flechaColor};font-weight:700;line-height:1">${flecha}</span>
-          <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
+        <td style="padding:16px 10px;font-size:15px;color:var(--text);text-align:right;white-space:nowrap">${fmt(ultimoMonto)}</td>
+        <td style="padding:16px 10px;font-size:15px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
+        <td style="padding:16px 10px;text-align:center">
+          <span style="font-size:20px;color:${flechaColor};font-weight:700;line-height:1">${flecha}</span>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
         </td>
-        <td style="padding:12px 8px;font-size:12px;color:var(--text-muted);text-align:center;white-space:nowrap">${mesUltimo}</td>
-        <td style="padding:12px 8px 12px 4px;text-align:right">
+        <td style="padding:16px 10px;font-size:13px;color:var(--text-muted);text-align:center;white-space:nowrap">${mesUltimo}</td>
+        <td style="padding:16px 10px 16px 4px;text-align:right">
           ${paidThisMonth
             ? '<span style="font-size:11px;color:var(--text-muted)">—</span>'
             : `<button onclick="event.stopPropagation();abrirPagarServicio(this.dataset.desc)" data-desc="${desc.replace(/"/g,'&quot;')}" style="padding:6px 12px;border-radius:7px;border:1px solid rgba(155,114,240,0.4);background:rgba(155,114,240,0.1);color:var(--purple);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">Pagar</button>`
