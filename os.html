@@ -6354,7 +6354,7 @@ function renderFacturas(){
   if(!Object.keys(groups).length){
     svcBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Sin gastos en categoría "servicios". Registra uno desde el tab Gastos.</div>'
   } else {
-    const tableRows = Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0])).map(([desc, exps]) => {
+    const tableRows = Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0])).map(([desc, exps], idx) => {
       const sorted = [...exps].sort((a,b) => (b.date||'').localeCompare(a.date||''))
       const last = sorted[0]
       const last3 = sorted.slice(0, 3)
@@ -6366,9 +6366,28 @@ function renderFacturas(){
       const paidThisMonth = (last.date||'').startsWith(currentYM)
       const mesUltimo = last.date ? new Date(last.date+'T12:00:00').toLocaleDateString('es-CO',{month:'short',year:'numeric'}) : '—'
       const icon = getIcon(desc)
-      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+      const key = `svc${idx}`
+
+      const histRows = sorted.map((e, i) => {
+        const mes = e.date ? new Date(e.date+'T12:00:00').toLocaleDateString('es-CO',{month:'long',year:'numeric'}) : '—'
+        const monto = Number(e.amount||0)
+        const prevMonto = sorted[i+1] ? Number(sorted[i+1].amount||0) : null
+        const diff = prevMonto !== null ? monto - prevMonto : null
+        const diffHtml = diff === null
+          ? '<span style="color:var(--text-muted)">—</span>'
+          : diff > 0 ? `<span style="color:var(--red)">↑ +${fmt(diff)}</span>`
+          : diff < 0 ? `<span style="color:var(--green)">↓ ${fmt(Math.abs(diff))}</span>`
+          : '<span style="color:var(--text-muted)">→ igual</span>'
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+          <td style="padding:7px 14px;font-size:12px;color:var(--text-dim);text-transform:capitalize">${mes}</td>
+          <td style="padding:7px 8px;font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(monto)}</td>
+          <td style="padding:7px 14px;font-size:12px;text-align:right;white-space:nowrap">${diffHtml}</td>
+        </tr>`
+      }).join('')
+
+      const dataRow = `<tr id="svc-row-${key}" data-svc-key="${key}" onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.025)'" onmouseout="this.style.background=''">
         <td style="padding:12px 14px;font-size:13px;font-weight:600;color:var(--text)">
-          ${icon} ${desc}
+          <span id="chev-${key}" style="font-size:10px;color:var(--text-muted);margin-right:6px;display:inline-block;width:8px">▸</span>${icon} ${desc}
           ${paidThisMonth?'<span style="margin-left:8px;font-size:10px;background:rgba(93,202,165,0.12);color:#5DCAA5;padding:2px 6px;border-radius:4px;vertical-align:middle">✓ mes actual</span>':''}
         </td>
         <td style="padding:12px 8px;font-size:13px;color:var(--text);text-align:right;white-space:nowrap">${fmt(ultimoMonto)}</td>
@@ -6381,10 +6400,25 @@ function renderFacturas(){
         <td style="padding:12px 8px 12px 4px;text-align:right">
           ${paidThisMonth
             ? '<span style="font-size:11px;color:var(--text-muted)">—</span>'
-            : `<button onclick="abrirPagarServicio(this.dataset.desc)" data-desc="${desc.replace(/"/g,'&quot;')}" style="padding:6px 12px;border-radius:7px;border:1px solid rgba(155,114,240,0.4);background:rgba(155,114,240,0.1);color:var(--purple);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">Pagar</button>`
+            : `<button onclick="event.stopPropagation();abrirPagarServicio(this.dataset.desc)" data-desc="${desc.replace(/"/g,'&quot;')}" style="padding:6px 12px;border-radius:7px;border:1px solid rgba(155,114,240,0.4);background:rgba(155,114,240,0.1);color:var(--purple);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">Pagar</button>`
           }
         </td>
       </tr>`
+
+      const accordionRow = `<tr id="svc-hist-${key}" style="display:none">
+        <td colspan="6" style="padding:0;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.07)">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+              <th style="padding:7px 14px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Mes / Año</th>
+              <th style="padding:7px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Monto</th>
+              <th style="padding:7px 14px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Vs anterior</th>
+            </tr></thead>
+            <tbody>${histRows}</tbody>
+          </table>
+        </td>
+      </tr>`
+
+      return dataRow + accordionRow
     }).join('')
     svcBody = `<div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;min-width:500px">
@@ -6454,6 +6488,23 @@ function renderFacturas(){
     `<div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-card);margin-bottom:20px;overflow:hidden">${svcBody}</div>` +
     `<div style="${secStyle}">🧾 Otras facturas</div>` +
     billsBody
+}
+
+let _svcOpen = null
+function toggleSvcHistorial(key){
+  if(_svcOpen && _svcOpen !== key){
+    const prevHist = document.getElementById('svc-hist-'+_svcOpen)
+    const prevChev = document.getElementById('chev-'+_svcOpen)
+    if(prevHist) prevHist.style.display = 'none'
+    if(prevChev) prevChev.textContent = '▸'
+  }
+  const hist = document.getElementById('svc-hist-'+key)
+  const chev = document.getElementById('chev-'+key)
+  if(!hist) return
+  const opening = hist.style.display === 'none'
+  hist.style.display = opening ? 'table-row' : 'none'
+  if(chev) chev.textContent = opening ? '▾' : '▸'
+  _svcOpen = opening ? key : null
 }
 
 function abrirPagarServicio(desc){
