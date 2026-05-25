@@ -6388,12 +6388,23 @@ function renderFacturas(){
       const fColor  = pctDiff > 5 ? 'var(--red)' : pctDiff < -5 ? 'var(--green)' : 'var(--text-muted)'
       const icon    = getIcon(desc)
       const key     = `sv${i}`
-      const detailRows = months.map(ym => {
+      const dMax  = Math.max(...vals.slice(0, 12))
+      const dAvg  = vals.slice(0, 12).reduce((s,v) => s+v, 0) / (Math.min(vals.length, 12) || 1)
+      const detailRows = months.slice(0, 12).map(ym => {
         const [y, m] = ym.split('-')
-        const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-CO', { month:'long', year:'numeric' })
+        const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-CO', { month:'short', year:'numeric' })
+        const val    = byMonth[ym]
+        const diffPc = dAvg > 0 ? ((val - dAvg) / dAvg * 100) : 0
+        const barW   = dMax > 0 ? Math.round((val / dMax) * 100) : 0
+        const barClr = diffPc > 8 ? '#E24B4A' : diffPc > -8 ? '#EF9F27' : '#5DCAA5'
         return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-          <td style="padding:9px 16px;font-size:13px;color:var(--text-dim)">${mesLabel}</td>
-          <td style="padding:9px 10px;font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(byMonth[ym]))}</td>
+          <td style="padding:8px 16px;font-size:12px;color:var(--text-dim);white-space:nowrap">${mesLabel}</td>
+          <td style="padding:8px 8px;width:100%">
+            <div style="background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;height:6px;min-width:60px">
+              <div style="width:${barW}%;height:100%;background:${barClr};border-radius:3px"></div>
+            </div>
+          </td>
+          <td style="padding:8px 16px;font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(val))}</td>
         </tr>`
       }).join('')
       return `<tr onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.035)'" onmouseout="this.style.background=''">
@@ -6412,7 +6423,8 @@ function renderFacturas(){
           <table style="width:100%;border-collapse:collapse">
             <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
               <th style="padding:7px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Mes</th>
-              <th style="padding:7px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Monto</th>
+              <th></th>
+              <th style="padding:7px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Monto</th>
             </tr></thead>
             <tbody>${detailRows}</tbody>
           </table>
@@ -6490,12 +6502,23 @@ function renderFacturas(){
     const mktPct     = mktProm3 > 0 ? ((mktLast - mktProm3) / mktProm3 * 100) : 0
     const mktFlecha  = mktPct > 5 ? '↑' : mktPct < -5 ? '↓' : '→'
     const mktColor   = mktPct > 5 ? 'var(--red)' : mktPct < -5 ? 'var(--green)' : 'var(--text-muted)'
-    const mktDetail  = mktMonths.map((ym, i) => {
+    const mktMax    = Math.max(...mktVals.slice(0, 12))
+    const mktAvg12  = mktVals.slice(0, 12).reduce((s,v) => s+v, 0) / (Math.min(mktVals.length, 12) || 1)
+    const mktDetail  = mktMonths.slice(0, 12).map((ym, i) => {
       const [y, m] = ym.split('-')
-      const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-CO', { month:'long', year:'numeric' })
+      const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-CO', { month:'short', year:'numeric' })
+      const val    = mktVals[i]
+      const diffPc = mktAvg12 > 0 ? ((val - mktAvg12) / mktAvg12 * 100) : 0
+      const barW   = mktMax > 0 ? Math.round((val / mktMax) * 100) : 0
+      const barClr = diffPc > 8 ? '#E24B4A' : diffPc > -8 ? '#EF9F27' : '#5DCAA5'
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-        <td style="padding:9px 16px;font-size:13px;color:var(--text-dim)">${mesLabel}</td>
-        <td style="padding:9px 10px;font-size:13px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(mktVals[i]))}</td>
+        <td style="padding:8px 16px;font-size:12px;color:var(--text-dim);white-space:nowrap">${mesLabel}</td>
+        <td style="padding:8px 8px;width:100%">
+          <div style="background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;height:6px;min-width:60px">
+            <div style="width:${barW}%;height:100%;background:${barClr};border-radius:3px"></div>
+          </div>
+        </td>
+        <td style="padding:8px 16px;font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(val))}</td>
       </tr>`
     }).join('')
     mercadoBody = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:380px">
@@ -6522,7 +6545,8 @@ function renderFacturas(){
             <table style="width:100%;border-collapse:collapse">
               <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
                 <th style="padding:7px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Mes</th>
-                <th style="padding:7px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Total</th>
+                <th></th>
+                <th style="padding:7px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Total</th>
               </tr></thead>
               <tbody>${mktDetail}</tbody>
             </table>
