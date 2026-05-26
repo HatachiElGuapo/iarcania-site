@@ -6449,35 +6449,33 @@ function renderFacturas(){
   allBillPayments.forEach(p => { payMap[p.bill_id] = p })
 
   let billsBody = ''
-  const otrosBills = allBills.filter(b => b.category !== 'servicios')
-  if(!otrosBills.length){
-    billsBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Sin facturas registradas. Agrega con "+ Nueva factura".</div>'
+  const otrosBills     = allBills.filter(b => b.category !== 'servicios')
+  const pendientesBills = otrosBills.filter(b => !paidIds.has(b.id))
+  if(!pendientesBills.length){
+    billsBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Todo pagado este mes 🎉</div>'
   } else {
     const catIcon = { servicios:'⚡', tecnologia:'💻', hogar:'🏠', salud:'💊', herramientas:'🔧', otros:'📦' }
-    const sorted = [...otrosBills].sort((a,b) => {
-      const aOver = a.due_day < todayDay && !paidIds.has(a.id)
-      const bOver = b.due_day < todayDay && !paidIds.has(b.id)
+    const sorted = [...pendientesBills].sort((a,b) => {
+      const aOver = a.due_day < todayDay
+      const bOver = b.due_day < todayDay
       if(aOver !== bOver) return aOver ? -1 : 1
       return a.due_day - b.due_day
     })
     billsBody = `<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${sorted.map(bill => {
-      const pay      = payMap[bill.id]
-      const isPaid   = !!pay
-      const isOverdue = !isPaid && bill.due_day < todayDay
-      const border   = isPaid ? '#5DCAA5' : isOverdue ? '#E24B4A' : 'var(--border)'
-      const bg       = isPaid ? 'rgba(93,202,165,0.06)' : isOverdue ? 'rgba(226,75,74,0.06)' : 'var(--bg-card)'
-      const icon     = catIcon[bill.category] || '📦'
-      const amt      = bill.estimated_amount ? `~$${bill.estimated_amount.toLocaleString('es-CO')}` : 'Sin monto'
+      const isOverdue  = bill.due_day < todayDay
+      const border     = isOverdue ? '#E24B4A' : 'var(--border)'
+      const bg         = isOverdue ? 'rgba(226,75,74,0.04)' : 'var(--bg-card)'
+      const icon       = catIcon[bill.category] || '📦'
+      const amt        = bill.estimated_amount ? `$${bill.estimated_amount.toLocaleString('es-CO')}` : 'Sin monto'
       const overdueTag = isOverdue ? '<span style="font-size:10px;background:rgba(226,75,74,0.15);color:#E24B4A;padding:2px 6px;border-radius:4px;margin-left:6px">VENCIDA</span>' : ''
-      const statusHtml = isPaid
-        ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;color:#5DCAA5;font-weight:600">✓ Pagada</div><div style="font-size:11px;color:var(--text-muted)">$${(pay.amount||0).toLocaleString('es-CO')} · ${pay.paid_date}</div></div>`
-        : `<button onclick="abrirPagarFactura('${bill.id}')" style="flex-shrink:0;padding:7px 13px;border-radius:7px;border:1px solid ${isOverdue?'#E24B4A':'var(--purple)'};background:${isOverdue?'rgba(226,75,74,0.1)':'rgba(155,114,240,0.1)'};color:${isOverdue?'#E24B4A':'var(--purple)'};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Marcar pagada</button>`
+      const btnColor   = isOverdue ? '#E24B4A' : 'var(--gold)'
+      const btnBg      = isOverdue ? 'rgba(226,75,74,0.1)' : 'rgba(196,163,90,0.1)'
       return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:var(--text)">${icon} ${bill.name}${overdueTag}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${amt} · Vence día ${bill.due_day}</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${icon} ${bill.name}${overdueTag}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${amt} · Vence día ${bill.due_day}</div>
         </div>
-        ${statusHtml}
+        <button onclick="abrirPagarFactura('${bill.id}')" style="flex-shrink:0;padding:8px 16px;border-radius:8px;border:1px solid ${btnColor};background:${btnBg};color:${btnColor};cursor:pointer;font-size:13px;font-weight:600;font-family:'Outfit',sans-serif;white-space:nowrap">Pagar</button>
       </div>`
     }).join('')}</div>`
   }
@@ -6625,7 +6623,7 @@ async function guardarPagoFactura(){
   })
   if(e1){ showToast('❌ '+e1.message); return }
 
-  const catMap = { servicios:'servicios', tecnologia:'tecnologia', hogar:'hogar', salud:'salud' }
+  const catMap = { servicios:'servicios', tecnologia:'tecnologia', hogar:'hogar', salud:'salud', herramientas:'herramientas' }
   await SB_P.from('expenses').insert({
     id: 'exp_'+Date.now(), user_id: USER_ID, amount,
     category: catMap[bill.category] || 'otros',
