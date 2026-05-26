@@ -6453,7 +6453,7 @@ function renderFacturas(){
   if(!otrosBills.length){
     billsBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Sin facturas registradas. Agrega con "+ Nueva factura".</div>'
   } else {
-    const catIcon = { servicios:'⚡', tecnologia:'💻', hogar:'🏠', salud:'💊', otros:'📦' }
+    const catIcon = { servicios:'⚡', tecnologia:'💻', hogar:'🏠', salud:'💊', herramientas:'🔧', otros:'📦' }
     const sorted = [...otrosBills].sort((a,b) => {
       const aOver = a.due_day < todayDay && !paidIds.has(a.id)
       const bOver = b.due_day < todayDay && !paidIds.has(b.id)
