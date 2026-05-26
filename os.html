@@ -6449,11 +6449,12 @@ function renderFacturas(){
   allBillPayments.forEach(p => { payMap[p.bill_id] = p })
 
   let billsBody = ''
-  if(!allBills.length){
+  const otrosBills = allBills.filter(b => b.category !== 'servicios')
+  if(!otrosBills.length){
     billsBody = '<div style="padding:12px 14px;font-size:13px;color:var(--text-muted)">Sin facturas registradas. Agrega con "+ Nueva factura".</div>'
   } else {
     const catIcon = { servicios:'⚡', tecnologia:'💻', hogar:'🏠', salud:'💊', otros:'📦' }
-    const sorted = [...allBills].sort((a,b) => {
+    const sorted = [...otrosBills].sort((a,b) => {
       const aOver = a.due_day < todayDay && !paidIds.has(a.id)
       const bOver = b.due_day < todayDay && !paidIds.has(b.id)
       if(aOver !== bOver) return aOver ? -1 : 1
