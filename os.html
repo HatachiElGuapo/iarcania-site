@@ -292,6 +292,25 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .script-card.active{background:#0e0e0e}
 .script-editor-field{width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;resize:vertical;outline:none;min-height:80px;box-sizing:border-box}
 .script-editor-field:focus{border-color:rgba(155,114,240,0.5)}
+/* ── Responsive Dinero ────────────────────────────────────────────────────── */
+@media (max-width:768px){
+  /* 1. Tabs dinero scrolleables */
+  #section-dinero .freq-tabs{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+  #section-dinero .freq-tab{flex-shrink:0;white-space:nowrap}
+  /* 2. Columna Prom. 3m oculta en tabla servicios */
+  .svc-col-prom{display:none!important}
+  /* 3. Mercado: tabla → card vertical apilado */
+  .mercado-tbl{display:block!important}
+  .mercado-tbl thead{display:none!important}
+  .mercado-tbl tbody{display:block!important}
+  .mercado-main-row{display:flex!important;flex-direction:column!important;cursor:pointer}
+  .mercado-main-row td:nth-child(1){display:block;padding:12px 16px 8px!important;font-size:15px!important;font-weight:600!important}
+  .mercado-main-row td:nth-child(2),.mercado-main-row td:nth-child(3),.mercado-main-row td:nth-child(4){display:flex!important;justify-content:space-between!important;align-items:center!important;padding:6px 16px!important;font-size:14px!important;text-align:left!important;border-top:1px solid rgba(255,255,255,0.04)}
+  .mercado-main-row td:nth-child(2)::before{content:"Último mes";color:var(--text-muted);font-size:11px;font-weight:400;white-space:nowrap;margin-right:8px}
+  .mercado-main-row td:nth-child(3)::before{content:"Prom. 3m";color:var(--text-muted);font-size:11px;font-weight:400;white-space:nowrap;margin-right:8px}
+  .mercado-main-row td:nth-child(4)::before{content:"Tendencia";color:var(--text-muted);font-size:11px;font-weight:400;white-space:nowrap;margin-right:8px}
+  .mercado-main-row td:nth-child(4){padding-bottom:12px!important}
+}
 </style>
 </head>
 <body>
@@ -6400,7 +6419,7 @@ function renderFacturas(){
         <span id="chev-${key}" style="font-size:11px;color:var(--text-muted);margin-right:7px;display:inline-block;width:9px">▸</span>${icon} ${label}
       </td>
       <td style="padding:16px 10px;font-size:15px;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(lastAmt))}</td>
-      <td style="padding:16px 10px;font-size:15px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
+      <td class="svc-col-prom" style="padding:16px 10px;font-size:15px;color:var(--text-dim);text-align:right;white-space:nowrap">${fmt(Math.round(prom3))}</td>
       <td style="padding:16px 10px;text-align:center">
         <span style="font-size:20px;color:${fColor};font-weight:700;line-height:1">${flecha}</span>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${pctDiff>0?'+':''}${Math.round(pctDiff)}%</div>
@@ -6481,7 +6500,7 @@ function renderFacturas(){
       <thead><tr style="border-bottom:1px solid var(--border)">
         <th style="padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Servicio</th>
         <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Último</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Prom. 3m</th>
+        <th class="svc-col-prom" style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Prom. 3m</th>
         <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Tend.</th>
       </tr></thead>
       <tbody>${svcRows}${billRows}</tbody>
@@ -6529,7 +6548,7 @@ function renderFacturas(){
         <td style="padding:8px 16px;font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(Math.round(val))}</td>
       </tr>`
     }).join('')
-    mercadoBody = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:380px">
+    mercadoBody = `<div style="overflow-x:auto"><table class="mercado-tbl" style="width:100%;border-collapse:collapse;min-width:280px">
       <thead><tr style="border-bottom:1px solid var(--border)">
         <th style="padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Categoría</th>
         <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Último mes</th>
@@ -6537,7 +6556,7 @@ function renderFacturas(){
         <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">Tend.</th>
       </tr></thead>
       <tbody>
-        <tr onclick="toggleSvcHistorial('mk0')" style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.035)'" onmouseout="this.style.background=''">
+        <tr class="mercado-main-row" onclick="toggleSvcHistorial('mk0')" style="border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.035)'" onmouseout="this.style.background=''">
           <td style="padding:16px 16px;font-size:15px;font-weight:600;color:var(--text)">
             <span id="chev-mk0" style="font-size:11px;color:var(--text-muted);margin-right:7px;display:inline-block;width:9px">▸</span>🛒 Mercado
           </td>
@@ -6592,7 +6611,7 @@ function toggleSvcHistorial(key){
   const chev = document.getElementById('chev-'+key)
   if(!hist) return
   const opening = hist.style.display === 'none'
-  hist.style.display = opening ? 'table-row' : 'none'
+  hist.style.display = opening ? 'block' : 'none'
   if(chev) chev.textContent = opening ? '▾' : '▸'
   _svcOpen = opening ? key : null
 }
