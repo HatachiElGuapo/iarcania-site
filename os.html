@@ -1766,6 +1766,7 @@ async function checkDateReset(){
 
 // --- INIT ---
 async function initApp(){
+  history.replaceState({section: 'rutinas'}, '', '#rutinas')
   setDate()
   updateClock()
   setInterval(updateClock, 1000)
@@ -1830,9 +1831,20 @@ function showSection(id, btn){
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(window.innerWidth <= 768) closeSidebar()
+  if(!_isPopState) history.pushState({section: id}, '', '#'+id)
 }
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open') }
+
+window.addEventListener('popstate', e => {
+  const section = e.state?.section
+  if(!section) return
+  const btn = document.querySelector(`.nav-item[onclick*="'${section}'"]`)
+  if(!btn) return
+  _isPopState = true
+  showSection(section, btn)
+  _isPopState = false
+})
 ;(function(){
   let _tx = 0
   document.addEventListener('touchstart', e => { _tx = e.touches[0].clientX }, { passive: true })
@@ -1864,6 +1876,7 @@ function toggleNavGroup(name){
 // --- SECCIÓN DINERO ---
 const DINERO_TABS = ['cuentas','gastos','facturas','cobros']
 let _dineroTab = 'cuentas'
+let _isPopState = false
 
 function switchDineroTab(tab){
   _dineroTab = tab
