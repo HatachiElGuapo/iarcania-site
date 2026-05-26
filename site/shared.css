@@ -141,6 +141,20 @@ section { position: relative; z-index: 1; }
   .footer-grid { grid-template-columns: 1fr; gap: 32px; }
 }
 
+/* Admin floating launcher */
+#admin-fab-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+#admin-fab-menu { display: none; flex-direction: column; gap: 2px; background: #0d0a1a; border: 1px solid rgba(155,114,240,0.22); border-radius: 12px; padding: 6px; min-width: 164px; box-shadow: 0 8px 32px rgba(0,0,0,0.7); }
+#admin-fab-wrap.open #admin-fab-menu { display: flex; }
+.admin-fab-link { display: flex; align-items: center; gap: 9px; color: #c4b5fd; text-decoration: none; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; padding: 9px 12px; border-radius: 8px; transition: background 0.15s; white-space: nowrap; }
+.admin-fab-link:hover { background: rgba(155,114,240,0.12); color: #ddd6fe; }
+.admin-fab-link svg { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.75; }
+.admin-fab-logout { background: none; border: none; border-top: 1px solid rgba(155,114,240,0.1); cursor: pointer; width: 100%; text-align: left; color: rgba(248,113,113,0.65); font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; padding: 9px 12px; margin-top: 2px; border-radius: 8px; display: flex; align-items: center; gap: 9px; transition: background 0.15s; }
+.admin-fab-logout:hover { background: rgba(248,113,113,0.08); color: #f87171; }
+.admin-fab-logout svg { width: 13px; height: 13px; flex-shrink: 0; }
+#admin-fab-btn { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(155,114,240,0.35); background: rgba(10,6,20,0.92); backdrop-filter: blur(12px); cursor: pointer; display: flex; align-items: center; justify-content: center; color: #9b72f0; transition: all 0.2s; box-shadow: 0 4px 18px rgba(0,0,0,0.55); }
+#admin-fab-btn:hover { border-color: rgba(155,114,240,0.65); color: #b08af5; box-shadow: 0 4px 22px rgba(155,114,240,0.22); }
+#admin-fab-btn svg { width: 18px; height: 18px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

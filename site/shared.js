@@ -73,20 +73,48 @@
   document.querySelectorAll('.reveal').forEach(e => obs.observe(e));
 })();
 
-/* Admin auth — show/hide navbar elements based on localStorage */
+/* Admin auth — floating launcher when logged in, hidden nav admin links */
 (function initAuth() {
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
-  function setVis(sel, displayVal) {
-    document.querySelectorAll(sel).forEach(el => { el.style.display = displayVal; });
+  function setVis(sel, val) {
+    document.querySelectorAll(sel).forEach(el => { el.style.display = val; });
   }
+  // Admin nav links and separator always stay hidden — launcher FAB handles navigation
+  setVis('.nav-link-admin, .nav-admin-sep, .nav-logout', 'none');
+
   if (isAdmin) {
-    setVis('.nav-link-admin', 'inline-flex');
-    setVis('.nav-admin-sep', 'inline-flex');
-    setVis('.nav-logout', 'inline-flex');
     setVis('.nav-login-admin', 'none');
-  } else {
-    setVis('.nav-link-admin, .nav-admin-sep, .nav-logout', 'none');
-    /* nav-login-admin visible by default — no change needed */
+    const fab = document.createElement('div');
+    fab.id = 'admin-fab-wrap';
+    fab.innerHTML = `
+      <div id="admin-fab-menu">
+        <a href="/os.html" class="admin-fab-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          OS Personal
+        </a>
+        <a href="/planner.html" class="admin-fab-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Planner
+        </a>
+        <a href="/platform.html" class="admin-fab-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+          Platform
+        </a>
+        <button class="admin-fab-logout" onclick="window.IArc.logout()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Cerrar sesión
+        </button>
+      </div>
+      <button id="admin-fab-btn" aria-label="Admin">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/><circle cx="16" cy="16" r="2"/></svg>
+      </button>`;
+    document.body.appendChild(fab);
+
+    document.getElementById('admin-fab-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      fab.classList.toggle('open');
+    });
+    document.addEventListener('click', () => fab.classList.remove('open'));
   }
 })();
 
