@@ -312,6 +312,12 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   .mercado-main-row td:nth-child(4){padding-bottom:12px!important}
 }
 </style>
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/icons/icon-180.png" />
+<meta name="theme-color" content="#0a0614" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="IArcanIA" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 <body>
 
@@ -7349,5 +7355,6 @@ async function saveNuevaTareaFromSelector(){
   showToast('✅ Tarea creada')
 }
 </script>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>
 </html>

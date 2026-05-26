@@ -76,6 +76,12 @@
     .calc-results { position: relative; top: 0; }
   }
 </style>
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/icons/icon-180.png" />
+<meta name="theme-color" content="#0a0614" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="IArcanIA" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -421,5 +427,6 @@ Generado el ${new Date().toLocaleDateString('es-CO')}.
   calc();
 })();
 </script>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>
 </html>
