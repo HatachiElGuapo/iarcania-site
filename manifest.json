@@ -2,7 +2,7 @@
   "name": "IArcanIA",
   "short_name": "IArcanIA",
   "description": "Automatización IA para empresas",
-  "start_url": "/",
+  "start_url": "/os.html",
   "display": "standalone",
   "background_color": "#0a0614",
   "theme_color": "#0a0614",
