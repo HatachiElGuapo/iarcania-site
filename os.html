@@ -625,6 +625,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
                   <input type="text" id="search-hoy-panel" placeholder="🔍 Filtrar tareas..." oninput="renderTodayTaskPanel(this.value)" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
                 </div>
                 <div id="panel-hoy-list" style="max-height:280px;overflow-y:auto"></div>
+                <div id="panel-hoy-create" style="display:none;border-top:1px solid var(--border);padding:10px"></div>
               </div>
               <div id="panel-citas-hoy" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid rgba(239,159,39,0.25);border-radius:8px;overflow:hidden">
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(239,159,39,0.15)">
@@ -1699,6 +1700,7 @@ let allTasks = []
 let _showArchived = false
 let hoyFocusItems   = []  // filas de daily_focus para TODAY con list_type='hoy'
 let extraFocusItems = []  // filas de daily_focus para TODAY con list_type='extra'
+let _quickCreateType = null  // 'task' | 'cita' | null — mini-form de creación inline en panel de hoy
 let allBirthdays = []
 let allClients = []
 let allBooks = []
@@ -3562,14 +3564,11 @@ function renderCitasHoyPanel(){
 function renderTodayTaskPanel(query){
   const el = document.getElementById('panel-hoy-list')
   if(!el) return
+  if(_quickCreateType) return  // mini-form abierto, no destruir su contexto
   const hoyIds = getDashList('hoy')
   const q = (query||'').toLowerCase().trim()
   const tasks = allTasks.filter(t => t.status !== 'completada' &&
     (!q || t.title.toLowerCase().includes(q)))
-  if(!tasks.length){
-    el.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay tareas pendientes</div>'
-    return
-  }
   const groups = {}
   tasks.forEach(t => {
     const k = t.category || 'habitos'
@@ -3623,9 +3622,20 @@ function renderTodayTaskPanel(query){
     }).join('')}
   </div>` : ''
 
-  el.innerHTML = taskGroupsHTML + citasHTML
+  const qSafe = q.replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  const qLabel = q ? `"${qSafe}"` : 'nueva'
+  const _cbs = `padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:11px;font-family:'Outfit',sans-serif;cursor:pointer`
+  const createRow = `<div style="border-top:1px solid rgba(255,255,255,0.06);padding:8px 10px">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">✎ Crear ${qLabel} como:</div>
+    <div style="display:flex;gap:6px">
+      <button onclick="openQuickCreate('task')" style="${_cbs}">📝 Tarea</button>
+      <button onclick="openQuickCreate('cita')" style="${_cbs}">🏥 Cita</button>
+    </div>
+  </div>`
   if(!taskGroupsHTML && !citasHTML){
-    el.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay tareas ni citas pendientes</div>'
+    el.innerHTML = `<div style="padding:12px 10px 4px;font-size:12px;color:var(--text-muted);text-align:center">${q ? 'Sin coincidencias — crea una nueva:' : 'No hay tareas pendientes'}</div>` + createRow
+  } else {
+    el.innerHTML = taskGroupsHTML + citasHTML + createRow
   }
 }
 
@@ -3661,6 +3671,160 @@ function addDashTaskFromPanel(id){
     showToast('✅ 5 tareas seleccionadas para hoy')
   } else {
     renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+  }
+}
+
+// --- QUICK CREATE (creación inline en panel de hoy) ---
+function openQuickCreate(type){
+  _quickCreateType = type
+  const form = document.getElementById('panel-hoy-create')
+  const list = document.getElementById('panel-hoy-list')
+  if(!form) return
+  if(list) list.style.display = 'none'
+
+  const titlePrefill = (document.getElementById('search-hoy-panel')?.value || '').trim()
+  const now  = new Date()
+  const dateStr = now.toLocaleDateString('en-CA')
+  const nextH = new Date(now.getTime() + 3600000)
+  const timeStr = nextH.toTimeString().slice(0,5)
+
+  const inp  = `width:100%;background:#111;border:1px solid var(--border);border-radius:5px;padding:7px 9px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-top:3px`
+  const lbl  = `font-size:11px;color:var(--text-muted);display:block;margin-top:8px`
+  const sel  = inp + `;appearance:auto`
+
+  let fieldsHTML = ''
+  let headerText = ''
+  if(type === 'task'){
+    headerText = '📝 Nueva tarea'
+    fieldsHTML = `
+      <label style="${lbl}">Título *</label>
+      <input id="phc-inp-title" type="text" value="${titlePrefill.replace(/"/g,'&quot;')}" placeholder="Nombre de la tarea" style="${inp}">
+      <label style="${lbl}">Categoría</label>
+      <select id="phc-inp-cat" style="${sel}">
+        <option value="personal">Personal</option>
+        <option value="proyectos">Proyectos</option>
+        <option value="iarcania">IArcanIA</option>
+        <option value="contenido">Contenido</option>
+        <option value="infra">Infraestructura</option>
+        <option value="habitos">Hábitos</option>
+      </select>
+      <label style="${lbl}">Prioridad</label>
+      <select id="phc-inp-priority" style="${sel}">
+        <option value="media" selected>Media</option>
+        <option value="alta">Alta</option>
+        <option value="baja">Baja</option>
+      </select>
+      <label style="${lbl}">Fecha límite</label>
+      <input id="phc-inp-due" type="date" value="${dateStr}" style="${inp}">
+      <label style="${lbl}">Notas (opcional)</label>
+      <input id="phc-inp-notes" type="text" placeholder="Notas..." style="${inp}">`
+  } else {
+    headerText = '🏥 Nueva cita'
+    fieldsHTML = `
+      <label style="${lbl}">Título *</label>
+      <input id="phc-inp-title" type="text" value="${titlePrefill.replace(/"/g,'&quot;')}" placeholder="Nombre de la cita" style="${inp}">
+      <label style="${lbl}">Tipo</label>
+      <select id="phc-inp-type" style="${sel}">
+        <option value="otro" selected>Otro</option>
+        <option value="médica">Médica</option>
+        <option value="reunión">Reunión</option>
+      </select>
+      <label style="${lbl}">Fecha *</label>
+      <input id="phc-inp-date" type="date" value="${dateStr}" style="${inp}">
+      <label style="${lbl}">Hora</label>
+      <input id="phc-inp-time" type="time" value="${timeStr}" style="${inp}">
+      <label style="${lbl}">Doctor / persona (opcional)</label>
+      <input id="phc-inp-doctor" type="text" placeholder="Dr. García..." style="${inp}">
+      <label style="${lbl}">Lugar (opcional)</label>
+      <input id="phc-inp-location" type="text" placeholder="Clínica / dirección..." style="${inp}">`
+  }
+
+  form.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:12px;font-weight:600;color:var(--text-dim)">${headerText}</span>
+      <button onclick="cancelQuickCreate()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:0 2px;font-family:'Outfit',sans-serif">✕</button>
+    </div>
+    ${fieldsHTML}
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button id="phc-save-btn" onclick="submitQuickCreate()" style="flex:1;padding:8px;background:var(--purple);border:none;border-radius:6px;color:#fff;font-size:12px;font-family:'Outfit',sans-serif;font-weight:600;cursor:pointer">✓ Crear y agregar a hoy</button>
+      <button onclick="cancelQuickCreate()" style="padding:8px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer">Cancelar</button>
+    </div>`
+  form.style.display = 'block'
+  setTimeout(() => { const i = document.getElementById('phc-inp-title'); if(i){ i.focus(); i.select() } }, 30)
+}
+
+function cancelQuickCreate(){
+  _quickCreateType = null
+  const form = document.getElementById('panel-hoy-create')
+  const list = document.getElementById('panel-hoy-list')
+  if(form) form.style.display = 'none'
+  if(list) list.style.display = 'block'
+  renderTodayTaskPanel(document.getElementById('search-hoy-panel')?.value || '')
+}
+
+async function submitQuickCreate(){
+  const type = _quickCreateType
+  if(!type) return
+  const titleInp = document.getElementById('phc-inp-title')
+  const title = (titleInp?.value || '').trim()
+  if(!title){ showToast('⚠️ El título es obligatorio'); titleInp?.focus(); return }
+  const hoyIds = getDashList('hoy')
+  if(hoyIds.length >= 5){ showToast('Máximo 5 tareas en "Mis 5 tareas"'); return }
+  const btn = document.getElementById('phc-save-btn')
+  if(btn){ btn.textContent = 'Creando...'; btn.disabled = true }
+  try {
+    let newId
+    if(type === 'task'){
+      newId = 'task_' + Date.now()
+      const cat = document.getElementById('phc-inp-cat')?.value || 'personal'
+      const catObj = CATS[cat] || CATS.personal
+      const rec = {
+        id:          newId,
+        title,
+        category:    cat,
+        color:       catObj.color,
+        priority:    document.getElementById('phc-inp-priority')?.value || 'media',
+        due_date:    document.getElementById('phc-inp-due')?.value || null,
+        notes:       document.getElementById('phc-inp-notes')?.value.trim() || null,
+        assigned_to: USER_ID,
+        created_by:  USER_ID,
+        status:      'pendiente'
+      }
+      const { error } = await SB_P.from('tasks').insert(rec)
+      if(error) throw new Error(error.message)
+      allTasks.push(rec)
+    } else {
+      newId = 'apt_' + Date.now()
+      const dateVal = document.getElementById('phc-inp-date')?.value
+      if(!dateVal) throw new Error('La fecha es obligatoria')
+      const timeVal = document.getElementById('phc-inp-time')?.value || '00:00'
+      const rec = {
+        id:          newId,
+        user_id:     USER_ID,
+        title,
+        type:        document.getElementById('phc-inp-type')?.value || 'otro',
+        datetime:    new Date(`${dateVal}T${timeVal}:00`).toISOString(),
+        location:    document.getElementById('phc-inp-location')?.value.trim() || null,
+        doctor_name: document.getElementById('phc-inp-doctor')?.value.trim()   || null,
+        reminder_1:  null,
+        reminder_2:  null,
+        status:      'pendiente'
+      }
+      const { error } = await SB_P.from('appointments').insert(rec)
+      if(error) throw new Error(error.message)
+      allCitas = [...allCitas, rec].sort((a,b) => new Date(a.datetime) - new Date(b.datetime))
+    }
+    const ids = getDashList('hoy')
+    if(!ids.includes(newId)) ids.push(newId)
+    setDashList('hoy', ids)
+    renderTasks()
+    cancelQuickCreate()
+    const atMax = getDashList('hoy').length >= 5
+    if(atMax) closeTodayTaskPanel()
+    showToast((type === 'task' ? '✓ Tarea' : '✓ Cita') + ' creada y agregada a hoy' + (atMax ? ' · 5/5 🎯' : ''))
+  } catch(e){
+    showToast('❌ ' + e.message)
+    if(btn){ btn.textContent = '✓ Crear y agregar a hoy'; btn.disabled = false }
   }
 }
 
