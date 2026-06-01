@@ -353,7 +353,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <span class="nav-icon">🌅</span>Rutinas
           <span class="nav-badge" id="badge-pending">0</span>
         </button>
-        <button class="nav-item" onclick="showSection('trabajo',this)">
+        <button class="nav-item" id="nav-trabajo" onclick="showSection('trabajo',this)">
           <span class="nav-icon">💼</span>Trabajo
         </button>
       </div>
@@ -391,7 +391,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <span class="nav-icon">🎂</span>Fechas
         </button>
       </div>
-      <div class="nav-separator" onclick="toggleNavGroup('dinero')"><span class="nav-sep-arrow">▼</span>Dinero</div>
+      <div class="nav-separator" id="nav-sep-dinero" onclick="toggleNavGroup('dinero')"><span class="nav-sep-arrow">▼</span>Dinero</div>
       <div class="nav-group" id="group-dinero">
         <button class="nav-item" onclick="showSection('dinero',this)">
           <span class="nav-icon">💰</span>Dinero
@@ -408,10 +408,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" onclick="showSection('ideas',this)">
           <span class="nav-icon">💡</span>Ideas
         </button>
-        <button class="nav-item" onclick="showSection('libros',this)">
+        <button class="nav-item" id="nav-libros" onclick="showSection('libros',this)">
           <span class="nav-icon">📚</span>Libros
         </button>
-        <button class="nav-item" onclick="showSection('guiones',this)">
+        <button class="nav-item" id="nav-guiones" onclick="showSection('guiones',this)">
           <span class="nav-icon">🎬</span>Guiones
         </button>
         <button class="nav-item" onclick="showSection('workspace',this)">
@@ -434,7 +434,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div class="section active" id="section-rutinas">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Buen día, Miguel</h1>
+          <h1 class="page-title" id="greeting-title">Buen día, Miguel</h1>
           <div class="page-sub" id="today-date" style="color:var(--text-dim)"></div>
           <div class="page-sub" id="today-date-short" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
         </div>
@@ -1695,6 +1695,7 @@ const CATS = {
 }
 
 let USER_ID = null
+let USER_NAME = null
 let USER_PASSWORD = null
 let allTasks = []
 let _showArchived = false
@@ -1725,12 +1726,12 @@ async function doLogin(){
   try {
     const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
     if(error){ throw new Error(error.message) }
-    USER_ID = data.user.id
+    await loadCurrentUserSlug()
+    if(!USER_ID){ throw new Error('Usuario no encontrado en el sistema. Contacta al administrador.') }
     USER_PASSWORD = pass
     sessionStorage.setItem('_up', btoa(pass))
     document.getElementById('auth-screen').style.display = 'none'
     document.getElementById('app').style.display = 'block'
-    document.getElementById('user-name').textContent = email.split('@')[0]
     try { await SB_I.auth.signInWithPassword({ email, password: pass }) } catch(e){}
     initApp()
   } catch(e) {
@@ -1745,6 +1746,48 @@ async function doLogout(){
   await SB_P.auth.signOut()
   await SB_I.auth.signOut()
   location.reload()
+}
+
+// Resuelve el slug de dominio ('u1', 'u2', ...) a partir del auth_id de Supabase Auth.
+// Asigna USER_ID al slug; lo deja null si no hay mapeo (usuario nuevo o no registrado).
+async function loadCurrentUserSlug() {
+  const { data: { user } } = await SB_P.auth.getUser()
+  if (!user) { USER_ID = null; return }
+
+  const { data, error } = await SB_P
+    .from('users')
+    .select('id, name, role')
+    .eq('auth_id', user.id)
+    .single()
+
+  if (error || !data) {
+    console.error('[loadCurrentUserSlug] Sin mapeo para auth_id:', user.id)
+    USER_ID = null
+    return
+  }
+
+  USER_ID = data.id // 'u1', 'u2', etc.
+
+  if (data.name) {
+    USER_NAME = data.name
+    document.getElementById('user-name').textContent = data.name
+    document.getElementById('greeting-title').textContent = `Buen día, ${data.name}`
+  }
+
+  applyRoleRestrictions(data.role)
+}
+
+function applyRoleRestrictions(role) {
+  const hide = (...ids) => ids.forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.style.display = 'none'
+  })
+
+  if (role === 'family') {
+    hide('nav-trabajo')
+    hide('nav-sep-dinero', 'group-dinero')
+    hide('nav-libros', 'nav-guiones')
+  }
 }
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin() })
@@ -1939,6 +1982,8 @@ function renderTasks(){
     if(t) return { ...t, _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
     const c = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === id)
     if(c) return { id: c.id, title: c.title, category: null, status: c.status, _isCita: true, _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
+    const act = (typeof allActivities !== 'undefined' ? allActivities : []).find(a => a.id === id)
+    if(act) return { id: act.id, title: act.name, _isHabit: true, _habitColor: act.color || '#f97316', _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
     return null
   }).filter(Boolean)
   renderDashTasksSection('dashboard-tasks', hoyTasks, 'hoy')
@@ -1951,6 +1996,8 @@ function renderTasks(){
     if(t) return { ...t, _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
     const c = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === id)
     if(c) return { id: c.id, title: c.title, category: null, status: c.status, _isCita: true, _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
+    const act = (typeof allActivities !== 'undefined' ? allActivities : []).find(a => a.id === id)
+    if(act) return { id: act.id, title: act.name, _isHabit: true, _habitColor: act.color || '#f97316', _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
     return null
   }).filter(Boolean)
   renderDashTasksSection('extra-tasks', extraTasks, 'extra')
@@ -3223,6 +3270,22 @@ function renderDashTasksSection(elId, tasks, listKey){
     <input type="text" placeholder="Escribe una nota..." onkeydown="if(event.key==='Enter')saveFocusNote('${id}',this.value);else if(event.key==='Escape')this.parentElement.style.display='none'" onblur="saveFocusNote('${id}',this.value)" style="width:100%;background:#111;border:1px solid var(--border);border-radius:4px;padding:4px 7px;color:var(--text);font-size:11px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
   </div>`
   el.innerHTML = tasks.map(t => {
+    if(t._isHabit){
+      const hColor = t._habitColor || '#f97316'
+      const fc = isHoy ? t._focusCompleted : false
+      const fn = isHoy ? (t._focusNote || '') : ''
+      return `<div class="task-item${fc?' done':''}" style="border-left-color:${fc?'var(--border)':hColor}">
+        <div class="task-check" onclick="event.stopPropagation();toggleFocusCheck('${t.id}')" style="cursor:pointer;border-color:${fc?hColor:'rgba(249,115,22,0.4)'};${fc?`background:${hColor};color:#fff;`:''}">${fc?'✓':''}</div>
+        <div class="task-text">
+          <div style="${fc?'text-decoration:line-through;':''}color:${fc?'var(--text-muted)':hColor};font-weight:500">🔥 ${t.title}</div>
+          ${fn?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">📝 ${fn}</div>`:''}
+          ${isHoy?noteEditor(t.id, fn):''}
+        </div>
+        <div class="task-cat" style="color:${fc?'var(--text-muted)':hColor}">Hábito</div>
+        ${isHoy?`<button class="habito-toggle" onclick="openFocusNote('${t.id}')" title="Nota" style="font-size:12px;padding:3px 5px;color:var(--text-muted)">📝</button>`:''}
+        <button class="habito-toggle" onclick="removeDashTask('${listKey}','${t.id}')" title="Quitar" style="font-size:15px;color:var(--text-muted)">×</button>
+      </div>`
+    }
     if(t._isCita){
       const fc   = isHoy ? (t._focusCompleted || t.status === 'completada') : false
       const fn   = isHoy ? (t._focusNote || '') : ''
@@ -3282,11 +3345,22 @@ async function toggleFocusCheck(taskId){
   item.completed = newCompleted
   const newStatus = newCompleted ? 'completada' : 'pendiente'
   SB_P.from('daily_focus').update({ completed: newCompleted }).eq('id', item.id)
-  // Detectar tipo por allCitas primero (más fiable que task_type guardado)
+  // Detectar tipo — cita, hábito o tarea
   const cita = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === taskId)
+  const act  = (typeof allActivities !== 'undefined' ? allActivities : []).find(a => a.id === taskId)
   if(cita || item.task_type === 'cita'){
     SB_P.from('appointments').update({ status: newStatus }).eq('id', taskId)
     allCitas = allCitas.map(c => c.id === taskId ? { ...c, status: newStatus } : c)
+  } else if(act || item.task_type === 'habit'){
+    if(newCompleted){
+      const logId = 'log_' + Date.now()
+      const log = { id: logId, user_id: USER_ID, activity_id: taskId, value: 1, date: TODAY }
+      SB_P.from('activity_logs').insert(log)
+      habitLogs[taskId] = log
+    } else {
+      const existingLog = habitLogs[taskId]
+      if(existingLog){ SB_P.from('activity_logs').delete().eq('id', existingLog.id); delete habitLogs[taskId] }
+    }
   } else {
     const task = allTasks.find(t => t.id === taskId)
     if(task){
@@ -3626,10 +3700,11 @@ function renderTodayTaskPanel(query){
   const qLabel = q ? `"${qSafe}"` : 'nueva'
   const _cbs = `padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:11px;font-family:'Outfit',sans-serif;cursor:pointer`
   const createRow = `<div style="border-top:1px solid rgba(255,255,255,0.06);padding:8px 10px">
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">✎ Crear ${qLabel} como:</div>
-    <div style="display:flex;gap:6px">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">✎ Agregar ${qLabel}:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button onclick="openQuickCreate('task')" style="${_cbs}">📝 Tarea</button>
       <button onclick="openQuickCreate('cita')" style="${_cbs}">🏥 Cita</button>
+      <button onclick="openHabitPanel()" style="${_cbs}">🔥 Hábito</button>
     </div>
   </div>`
   if(!taskGroupsHTML && !citasHTML){
@@ -3826,6 +3901,93 @@ async function submitQuickCreate(){
     showToast('❌ ' + e.message)
     if(btn){ btn.textContent = '✓ Crear y agregar a hoy'; btn.disabled = false }
   }
+}
+
+// --- PANEL HÁBITOS (selección para Mis 5 tareas de hoy) ---
+let _habitScheduledIds = new Set()
+
+async function openHabitPanel(){
+  const form = document.getElementById('panel-hoy-create')
+  const list = document.getElementById('panel-hoy-list')
+  if(!form) return
+  _quickCreateType = 'habit'
+  if(list) list.style.display = 'none'
+  form.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--text-muted);text-align:center">Cargando hábitos...</div>'
+  form.style.display = 'block'
+  const dayName = new Date().toLocaleDateString('es', {weekday:'long'}).toLowerCase()
+  const { data: schedules } = await SB_P.from('training_schedule').select('activity_id').eq('user_id', USER_ID).eq('day_of_week', dayName)
+  _habitScheduledIds = new Set((schedules || []).map(s => s.activity_id))
+  renderHabitPanel()
+}
+
+function renderHabitPanel(){
+  const form = document.getElementById('panel-hoy-create')
+  if(!form || _quickCreateType !== 'habit') return
+  const hoyIds = new Set(getDashList('hoy'))
+  const full = hoyIds.size >= 5
+
+  const diarios = allActivities.filter(a =>
+    a.is_active && (a.frequency === 'diaria' || !a.frequency) &&
+    !habitLogs[a.id] && !hoyIds.has(a.id)
+  )
+  const programados = allActivities.filter(a =>
+    a.is_active && a.frequency !== 'diaria' &&
+    _habitScheduledIds.has(a.id) && !habitLogs[a.id] && !hoyIds.has(a.id)
+  )
+  const otros = allActivities.filter(a =>
+    a.is_active && ['recurrente','unico','semanal','mensual'].includes(a.frequency) &&
+    !_habitScheduledIds.has(a.id) && !habitLogs[a.id] && !hoyIds.has(a.id)
+  )
+
+  const rowHtml = (a) => {
+    const added    = hoyIds.has(a.id)
+    const disabled = !added && full
+    const color    = a.color || '#f97316'
+    const attrs    = (!added && !disabled) ? `onclick="addHabitToHoy('${a.id}')" onmouseenter="this.style.background='rgba(255,255,255,0.05)'" onmouseleave="this.style.background=''"` : ''
+    return `<div ${attrs} style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:${added||disabled?'default':'pointer'};opacity:${disabled?'0.35':'1'}">
+      <div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${added?color:'var(--border)'};background:${added?color:'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff">${added?'✓':''}</div>
+      <span style="flex:1;font-size:12px;color:${added?'var(--text-muted)':'var(--text)'}${added?';text-decoration:line-through':''}">${a.name}</span>
+      ${a.category?`<span style="font-size:10px;color:var(--text-muted)">${a.category}</span>`:''}
+    </div>`
+  }
+  const sHdr = (label) => `<div style="padding:5px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;background:rgba(0,0,0,0.3)">${label}</div>`
+
+  let body = ''
+  if(diarios.length)    body += sHdr('🔥 Diarios pendientes hoy') + diarios.map(rowHtml).join('')
+  if(programados.length) body += sHdr('📅 Programados hoy') + programados.map(rowHtml).join('')
+  if(otros.length) body += `<details><summary style="padding:5px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;background:rgba(0,0,0,0.3);cursor:pointer;list-style:none;display:flex;align-items:center;gap:4px">➕ Otros (${otros.length}) ▾</summary>` + otros.map(rowHtml).join('') + '</details>'
+  if(!body) body = '<div style="padding:14px 10px;font-size:12px;color:var(--text-muted);text-align:center">No hay hábitos pendientes disponibles</div>'
+
+  form.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:600;color:var(--text-dim)">🔥 Seleccionar hábito</span>
+      <button onclick="cancelQuickCreate()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:0 2px;font-family:'Outfit',sans-serif">✕</button>
+    </div>
+    <div style="max-height:300px;overflow-y:auto">${body}</div>`
+}
+
+async function addHabitToHoy(activityId){
+  const hoyIds = getDashList('hoy')
+  if(hoyIds.length >= 5){ showToast('Máximo 5 tareas en "Mis 5 tareas"'); return }
+  if(hoyIds.includes(activityId)) return
+  const rec = {
+    id:        'df_' + Date.now(),
+    user_id:   USER_ID,
+    task_id:   activityId,
+    task_type: 'habit',
+    date:      TODAY,
+    sort_order: hoyIds.length,
+    completed:  false,
+    list_type:  'hoy'
+  }
+  const { error } = await SB_P.from('daily_focus').insert(rec)
+  if(error){ showToast('❌ ' + error.message); return }
+  hoyFocusItems.push(rec)
+  renderTasks()
+  renderHabitPanel()
+  const newLen = getDashList('hoy').length
+  if(newLen >= 5){ cancelQuickCreate(); closeTodayTaskPanel(); showToast('🔥 Hábito agregado · 5/5 🎯') }
+  else { showToast('🔥 Hábito agregado a hoy') }
 }
 
 // --- TAREAS VENCIDAS ---
@@ -4886,7 +5048,7 @@ async function loadHogar(){
   ;(today||[]).forEach(c => {
     if(!choreToday[c.name]) choreToday[c.name] = { miguel:null, diana:null, notes:[] }
     if(c.notes) choreToday[c.name].notes.push(c)
-    else if(c.done_by === 'miguel') choreToday[c.name].miguel = c
+    else if(c.done_by === USER_ID) choreToday[c.name].miguel = c
     else if(c.done_by === 'diana')  choreToday[c.name].diana  = c
   })
 
@@ -4919,7 +5081,7 @@ function renderHogar(){
     const styleNote = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
 
     const badges = [
-      byMiguel ? `<span style="font-size:11px;color:#378ADD">Yo ✓</span>` : '',
+      byMiguel ? `<span style="font-size:11px;color:#378ADD">${USER_NAME||'Yo'} ✓</span>` : '',
       byDiana  ? `<span style="font-size:11px;color:#f472b6">Mamá ✓</span>` : ''
     ].filter(Boolean).join(' ')
 
@@ -4950,7 +5112,7 @@ function renderHogar(){
         <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${ch.label}</span>
         <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
           ${badges}
-          <button onclick="toggleChore('${ch.id}','miguel')" style="${styleMiguel}">Yo</button>
+          <button onclick="toggleChore('${ch.id}','${USER_ID}')" style="${styleMiguel}">${USER_NAME||'Yo'}</button>
           <button onclick="toggleChore('${ch.id}','diana')" style="${styleDiana}">Mamá</button>
           <button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>
         </div>
@@ -4972,7 +5134,7 @@ function renderHogar(){
     if(!c.done_by || c.notes) return
     if(!histByDate[c.date]) histByDate[c.date] = {}
     if(!histByDate[c.date][c.name]) histByDate[c.date][c.name] = { miguel:false, diana:false }
-    if(c.done_by === 'miguel') histByDate[c.date][c.name].miguel = true
+    if(c.done_by === USER_ID) histByDate[c.date][c.name].miguel = true
     if(c.done_by === 'diana')  histByDate[c.date][c.name].diana  = true
   })
   const thStyle = 'padding:5px 8px;font-size:11px;color:var(--text-muted);font-weight:500;text-align:center'
@@ -4980,8 +5142,8 @@ function renderHogar(){
   const rows = CHORES_DEF.map(ch => {
     const cells = days.map(d => {
       const s = histByDate[d.date]?.[ch.id]
-      if(s?.miguel && s?.diana) return `<td style="text-align:center;padding:4px 6px;font-size:10px;color:var(--gold);font-weight:500">Yo+M</td>`
-      if(s?.miguel) return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#378ADD;font-weight:500">Yo</td>`
+      if(s?.miguel && s?.diana) return `<td style="text-align:center;padding:4px 6px;font-size:10px;color:var(--gold);font-weight:500">${USER_NAME||'Yo'}+M</td>`
+      if(s?.miguel) return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#378ADD;font-weight:500">${USER_NAME||'Yo'}</td>`
       if(s?.diana)  return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:#f472b6;font-weight:500">M</td>`
       return `<td style="text-align:center;padding:4px 6px;font-size:11px;color:var(--border)">·</td>`
     }).join('')
@@ -6875,12 +7037,18 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
 ;(async()=>{
   const { data } = await SB_P.auth.getSession()
   if(data.session){
-    USER_ID = data.session.user.id
+    await loadCurrentUserSlug()
+    if(!USER_ID){
+      const errEl = document.getElementById('auth-error')
+      errEl.textContent = 'Sesión inválida: usuario no registrado en el sistema. Inicia sesión nuevamente.'
+      errEl.style.display = 'block'
+      await SB_P.auth.signOut()
+      return
+    }
     const stored = sessionStorage.getItem('_up')
     if(stored) USER_PASSWORD = atob(stored)
     document.getElementById('auth-screen').style.display='none'
     document.getElementById('app').style.display='block'
-    document.getElementById('user-name').textContent = data.session.user.email.split('@')[0]
     const sbiSess = await SB_I.auth.getSession()
     if(!sbiSess.data.session && USER_PASSWORD){
       await SB_I.auth.signInWithPassword({ email: data.session.user.email, password: USER_PASSWORD }).catch(()=>{})
