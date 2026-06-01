@@ -4815,6 +4815,7 @@ let choreToday = {}
 let choreHistory = []
 let _choreInput = null
 let _choreInputText = ''
+let _chorePersonPicker = null
 const CHORES_DEF = [
   { id:'cocinar',    label:'Cocinar',     icon:'🍳', multiNote:true },
   { id:'loza',       label:'Loza',        icon:'🍽️', multiNote:true },
@@ -5090,9 +5091,14 @@ function renderHogar(){
     const stylePlus = `background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-muted);font-size:13px;padding:2px 8px;cursor:pointer;line-height:1;font-family:'Outfit',sans-serif`
     const styleNote = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
 
+    const isPicking    = _chorePersonPicker === ch.id
+    const plusOrPicker = isPicking
+      ? `<button onclick="addChoreOccurrence('${ch.id}','${USER_ID}')" style="${styleGray}">${USER_NAME||'Yo'}</button><button onclick="addChoreOccurrence('${ch.id}','${PARTNER_ID}')" style="${styleGray}">${PARTNER_NAME||'Otro'}</button><button onclick="_chorePersonPicker=null;renderHogar()" style="${stylePlus}">×</button>`
+      : `<button onclick="_chorePersonPicker='${ch.id}';renderHogar()" style="${stylePlus}">+</button>`
+
     const actionButtons = hasOcc
-      ? `<button onclick="addChoreOccurrence('${ch.id}')" style="${stylePlus}">+</button><button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>`
-      : `<button onclick="toggleChore('${ch.id}','${USER_ID}')" style="${styleGray}">${USER_NAME||'Yo'}</button><button onclick="toggleChore('${ch.id}','${PARTNER_ID}')" style="${styleGray}">${PARTNER_NAME||'Otro'}</button><button onclick="addChoreOccurrence('${ch.id}')" style="${stylePlus}">+</button><button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>`
+      ? `${plusOrPicker}<button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>`
+      : `<button onclick="toggleChore('${ch.id}','${USER_ID}')" style="${styleGray}">${USER_NAME||'Yo'}</button><button onclick="toggleChore('${ch.id}','${PARTNER_ID}')" style="${styleGray}">${PARTNER_NAME||'Otro'}</button>${plusOrPicker}<button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>`
 
     const occRow = hasOcc
       ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${ocurrencias.map(rec => choreBadge(ch.id, rec)).join('')}</div>`
@@ -5208,15 +5214,16 @@ async function toggleChore(choreId, person){
   if(error){ choreToday[choreId].ocurrencias = choreToday[choreId].ocurrencias.filter(r => r.id !== id); renderHogar(); showToast('❌ '+error.message) }
 }
 
-async function addChoreOccurrence(choreId){
+async function addChoreOccurrence(choreId, person){
   if(!choreToday[choreId]) choreToday[choreId] = { ocurrencias: [], notes: [] }
+  _chorePersonPicker = null
   const id = 'ch_'+Date.now()
   const now = new Date()
   const done_at = now.toTimeString().slice(0,5)
-  const newRec = { id, name:choreId, done_by:USER_ID, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() }
+  const newRec = { id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() }
   choreToday[choreId].ocurrencias.push(newRec)
   renderHogar()
-  const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:USER_ID, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() })
+  const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() })
   if(error){ choreToday[choreId].ocurrencias = choreToday[choreId].ocurrencias.filter(r => r.id !== id); renderHogar(); showToast('❌ '+error.message) }
 }
 
