@@ -1696,6 +1696,8 @@ const CATS = {
 
 let USER_ID = null
 let USER_NAME = null
+let PARTNER_ID = null
+let PARTNER_NAME = null
 let USER_PASSWORD = null
 let allTasks = []
 let _showArchived = false
@@ -1774,6 +1776,16 @@ async function loadCurrentUserSlug() {
     USER_NAME = data.name
     document.getElementById('user-name').textContent = data.name
     document.getElementById('greeting-title').textContent = `Buen día, ${data.name}`
+  }
+
+  const { data: partner } = await SB_P
+    .from('users')
+    .select('id, name')
+    .neq('id', USER_ID)
+    .single()
+  if (partner) {
+    PARTNER_ID = partner.id
+    PARTNER_NAME = partner.name
   }
 
   applyRoleRestrictions(data.role)
@@ -5052,7 +5064,7 @@ async function loadHogar(){
     if(!choreToday[c.name]) choreToday[c.name] = { miguel:null, diana:null, notes:[] }
     if(c.notes) choreToday[c.name].notes.push(c)
     else if(c.done_by === USER_ID) choreToday[c.name].miguel = c
-    else if(c.done_by === 'diana')  choreToday[c.name].diana  = c
+    else if(c.done_by === PARTNER_ID)  choreToday[c.name].diana  = c
   })
 
   const d7 = new Date(); d7.setDate(d7.getDate()-6)
@@ -5085,7 +5097,7 @@ function renderHogar(){
 
     const badges = [
       byMiguel ? `<span style="font-size:11px;color:#378ADD">${USER_NAME||'Yo'} ✓</span>` : '',
-      byDiana  ? `<span style="font-size:11px;color:#f472b6">Mamá ✓</span>` : ''
+      byDiana  ? `<span style="font-size:11px;color:#f472b6">${PARTNER_NAME||'Otro'} ✓</span>` : ''
     ].filter(Boolean).join(' ')
 
     const inputArea = isOpen
@@ -5116,7 +5128,7 @@ function renderHogar(){
         <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
           ${badges}
           <button onclick="toggleChore('${ch.id}','${USER_ID}')" style="${styleMiguel}">${USER_NAME||'Yo'}</button>
-          <button onclick="toggleChore('${ch.id}','diana')" style="${styleDiana}">Mamá</button>
+          <button onclick="toggleChore('${ch.id}','${PARTNER_ID}')" style="${styleDiana}">${PARTNER_NAME||'Otro'}</button>
           <button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>
         </div>
       </div>
@@ -5138,7 +5150,7 @@ function renderHogar(){
     if(!histByDate[c.date]) histByDate[c.date] = {}
     if(!histByDate[c.date][c.name]) histByDate[c.date][c.name] = { miguel:false, diana:false }
     if(c.done_by === USER_ID) histByDate[c.date][c.name].miguel = true
-    if(c.done_by === 'diana')  histByDate[c.date][c.name].diana  = true
+    if(c.done_by === PARTNER_ID)  histByDate[c.date][c.name].diana  = true
   })
   const thStyle = 'padding:5px 8px;font-size:11px;color:var(--text-muted);font-weight:500;text-align:center'
   const headers = `<th style="${thStyle};text-align:left"></th>` + days.map(d => `<th style="${thStyle}">${d.label}</th>`).join('')
