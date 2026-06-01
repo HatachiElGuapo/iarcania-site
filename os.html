@@ -1752,6 +1752,7 @@ async function doLogout(){
 // Asigna USER_ID al slug; lo deja null si no hay mapeo (usuario nuevo o no registrado).
 async function loadCurrentUserSlug() {
   const { data: { user } } = await SB_P.auth.getUser()
+  console.log('[DEBUG auth] user:', user)
   if (!user) { USER_ID = null; return }
 
   const { data, error } = await SB_P
@@ -1759,6 +1760,7 @@ async function loadCurrentUserSlug() {
     .select('id, name, role')
     .eq('auth_id', user.id)
     .single()
+  console.log('[DEBUG users query] data:', data, 'error:', error)
 
   if (error || !data) {
     console.error('[loadCurrentUserSlug] Sin mapeo para auth_id:', user.id)
