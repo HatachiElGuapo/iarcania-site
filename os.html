@@ -5058,13 +5058,12 @@ async function loadHogar(){
     el.innerHTML = `<div style="padding:1rem;font-size:13px;color:var(--text-muted)">Error: ${error.message}</div>`
     return
   }
-  // State: { [choreId]: { miguel: rec|null, diana: rec|null, notes: [rec,...] } }
+  // State: { [choreId]: { ocurrencias: rec[], notes: rec[] } }
   choreToday = {}
   ;(today||[]).forEach(c => {
-    if(!choreToday[c.name]) choreToday[c.name] = { miguel:null, diana:null, notes:[] }
+    if(!choreToday[c.name]) choreToday[c.name] = { ocurrencias: [], notes: [] }
     if(c.notes) choreToday[c.name].notes.push(c)
-    else if(c.done_by === USER_ID) choreToday[c.name].miguel = c
-    else if(c.done_by === PARTNER_ID)  choreToday[c.name].diana  = c
+    else choreToday[c.name].ocurrencias.push(c)
   })
 
   const d7 = new Date(); d7.setDate(d7.getDate()-6)
@@ -5082,23 +5081,22 @@ function renderHogar(){
   const btnBase = 'padding:5px 10px;border-radius:6px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;border:1px solid'
 
   const todayCards = CHORES_DEF.map(ch => {
-    const state    = choreToday[ch.id] || { miguel:null, diana:null, notes:[] }
-    const byMiguel = !!state.miguel
-    const byDiana  = !!state.diana
-    const isOpen   = _choreInput === ch.id
+    const state       = choreToday[ch.id] || { ocurrencias: [], notes: [] }
+    const ocurrencias = state.ocurrencias
+    const hasOcc      = ocurrencias.length > 0
+    const isOpen      = _choreInput === ch.id
 
-    const styleMiguel = byMiguel
-      ? `${btnBase} #378ADD;background:rgba(55,138,221,0.15);color:#378ADD`
-      : `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
-    const styleDiana = byDiana
-      ? `${btnBase} #f472b6;background:rgba(244,114,182,0.15);color:#f472b6`
-      : `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
+    const styleGray = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
+    const stylePlus = `background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-muted);font-size:13px;padding:2px 8px;cursor:pointer;line-height:1;font-family:'Outfit',sans-serif`
     const styleNote = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
 
-    const badges = [
-      choreBadge(ch.id, state.miguel, USER_NAME||'Yo',       '#378ADD'),
-      choreBadge(ch.id, state.diana,  PARTNER_NAME||'Otro',  '#f472b6')
-    ].filter(Boolean).join(' ')
+    const actionButtons = hasOcc
+      ? `<button onclick="addChoreOccurrence('${ch.id}')" style="${stylePlus}">+</button><button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>`
+      : `<button onclick="toggleChore('${ch.id}','${USER_ID}')" style="${styleGray}">${USER_NAME||'Yo'}</button><button onclick="toggleChore('${ch.id}','${PARTNER_ID}')" style="${styleGray}">${PARTNER_NAME||'Otro'}</button><button onclick="addChoreOccurrence('${ch.id}')" style="${stylePlus}">+</button><button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>`
+
+    const occRow = hasOcc
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${ocurrencias.map(rec => choreBadge(ch.id, rec)).join('')}</div>`
+      : ''
 
     const inputArea = isOpen
       ? `<div style="margin-top:8px">
@@ -5120,18 +5118,13 @@ function renderHogar(){
       </div>`
     }).join('')
 
-    const hasExtras = inputArea || notesList
     return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:18px;flex-shrink:0">${ch.icon}</span>
         <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${ch.label}</span>
-        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-          ${badges}
-          <button onclick="toggleChore('${ch.id}','${USER_ID}')" style="${styleMiguel}">${USER_NAME||'Yo'}</button>
-          <button onclick="toggleChore('${ch.id}','${PARTNER_ID}')" style="${styleDiana}">${PARTNER_NAME||'Otro'}</button>
-          <button onclick="abrirChoreNotes('${ch.id}')" style="${styleNote}">📝</button>
-        </div>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">${actionButtons}</div>
       </div>
+      ${occRow}
       ${notesList ? `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:6px">${notesList}</div>` : ''}
       ${inputArea}
     </div>`
@@ -5186,43 +5179,54 @@ function renderHogar(){
   }
 }
 
-function choreBadge(choreId, rec, name, color) {
+function choreBadge(choreId, rec) {
   if (!rec) return ''
+  const isMiguel = rec.done_by === USER_ID
+  const color = isMiguel ? '#378ADD' : '#f472b6'
+  const name  = isMiguel ? (USER_NAME||'Yo') : (PARTNER_NAME||'Otro')
   const iStyle = `background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.12);color:${color};font-size:11px;font-family:'Outfit',sans-serif;outline:none;padding:0 2px`
-  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${color}">${name}&nbsp;✓<input type="time" value="${rec.done_at||''}" onchange="updateChoreField('${choreId}','${rec.id}','done_at',this.value)" style="${iStyle};width:68px;cursor:pointer"><input type="number" value="${rec.duration_minutes??''}" placeholder="min" min="1" max="480" onchange="updateChoreField('${choreId}','${rec.id}','duration_minutes',this.value===''?null:+this.value)" style="${iStyle};width:36px;text-align:center"></span>`
+  const xStyle = `background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 2px;line-height:1;flex-shrink:0`
+  return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:${color};background:rgba(255,255,255,0.04);border-radius:6px;padding:3px 6px">${name}&nbsp;✓<input type="time" value="${rec.done_at||''}" onchange="updateChoreField('${choreId}','${rec.id}','done_at',this.value)" style="${iStyle};width:68px;cursor:pointer"><input type="number" value="${rec.duration_minutes??''}" placeholder="min" min="1" max="480" onchange="updateChoreField('${choreId}','${rec.id}','duration_minutes',this.value===''?null:+this.value)" style="${iStyle};width:36px;text-align:center"><button onclick="removeChoreOccurrence('${rec.id}','${choreId}')" style="${xStyle}">×</button></span>`
 }
 
 async function updateChoreField(choreId, recId, field, value) {
-  for (const k of ['miguel', 'diana']) {
-    if (choreToday[choreId]?.[k]?.id === recId) { choreToday[choreId][k][field] = value; break }
-  }
+  const rec = choreToday[choreId]?.ocurrencias?.find(r => r.id === recId)
+  if (rec) rec[field] = value
   const { error } = await SB_P.from('chores').update({ [field]: value }).eq('id', recId)
   if (error) showToast('❌ ' + error.message)
 }
 
 async function toggleChore(choreId, person){
-  if(!choreToday[choreId]) choreToday[choreId] = { miguel:null, diana:null, notes:[] }
-  const state = choreToday[choreId]
-  // Map person ID to state key ('miguel' or 'diana')
-  const key = person === USER_ID ? 'miguel' : 'diana'
-  const rec = state[key]
+  if(!choreToday[choreId]) choreToday[choreId] = { ocurrencias: [], notes: [] }
+  const id = 'ch_'+Date.now()
+  const now = new Date()
+  const done_at = now.toTimeString().slice(0,5)
+  const newRec = { id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() }
+  choreToday[choreId].ocurrencias.push(newRec)
+  renderHogar()
+  const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() })
+  if(error){ choreToday[choreId].ocurrencias = choreToday[choreId].ocurrencias.filter(r => r.id !== id); renderHogar(); showToast('❌ '+error.message) }
+}
 
-  if(rec){
-    const prev = state[key]
-    state[key] = null
-    renderHogar()
-    const { error } = await SB_P.from('chores').delete().eq('id', prev.id)
-    if(error){ state[key] = prev; renderHogar(); showToast('❌ '+error.message) }
-  } else {
-    const id = 'ch_'+Date.now()
-    const now = new Date()
-    const done_at = now.toTimeString().slice(0,5)
-    const newRec = { id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() }
-    state[key] = newRec
-    renderHogar()
-    const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() })
-    if(error){ state[key] = null; renderHogar(); showToast('❌ '+error.message) }
-  }
+async function addChoreOccurrence(choreId){
+  if(!choreToday[choreId]) choreToday[choreId] = { ocurrencias: [], notes: [] }
+  const id = 'ch_'+Date.now()
+  const now = new Date()
+  const done_at = now.toTimeString().slice(0,5)
+  const newRec = { id, name:choreId, done_by:USER_ID, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() }
+  choreToday[choreId].ocurrencias.push(newRec)
+  renderHogar()
+  const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:USER_ID, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() })
+  if(error){ choreToday[choreId].ocurrencias = choreToday[choreId].ocurrencias.filter(r => r.id !== id); renderHogar(); showToast('❌ '+error.message) }
+}
+
+async function removeChoreOccurrence(recId, choreId){
+  if(!choreToday[choreId]) return
+  const prev = choreToday[choreId].ocurrencias
+  choreToday[choreId].ocurrencias = prev.filter(r => r.id !== recId)
+  renderHogar()
+  const { error } = await SB_P.from('chores').delete().eq('id', recId)
+  if(error){ choreToday[choreId].ocurrencias = prev; renderHogar(); showToast('❌ '+error.message) }
 }
 
 function abrirChoreNotes(choreId){
@@ -5238,7 +5242,7 @@ async function guardarChoreNotes(choreId){
   const id = 'chn_'+Date.now()
   const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:null, notes, date:TODAY, created_at:new Date().toISOString() })
   if(error){ showToast('❌ '+error.message); return }
-  if(!choreToday[choreId]) choreToday[choreId] = { miguel:null, diana:null, notes:[] }
+  if(!choreToday[choreId]) choreToday[choreId] = { ocurrencias: [], notes: [] }
   choreToday[choreId].notes.push({ id, name:choreId, done_by:null, notes, date:TODAY, created_at:new Date().toISOString() })
   _choreInput = null
   _choreInputText = ''
