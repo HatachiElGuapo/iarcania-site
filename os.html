@@ -5096,8 +5096,8 @@ function renderHogar(){
     const styleNote = `${btnBase} var(--border);background:transparent;color:var(--text-muted)`
 
     const badges = [
-      byMiguel ? `<span style="font-size:11px;color:#378ADD">${USER_NAME||'Yo'} ✓</span>` : '',
-      byDiana  ? `<span style="font-size:11px;color:#f472b6">${PARTNER_NAME||'Otro'} ✓</span>` : ''
+      choreBadge(ch.id, state.miguel, USER_NAME||'Yo',       '#378ADD'),
+      choreBadge(ch.id, state.diana,  PARTNER_NAME||'Otro',  '#f472b6')
     ].filter(Boolean).join(' ')
 
     const inputArea = isOpen
@@ -5184,6 +5184,20 @@ function renderHogar(){
     const inp = document.getElementById('chore-notes-'+_choreInput)
     if(inp){ inp.value = _choreInputText; inp.focus() }
   }
+}
+
+function choreBadge(choreId, rec, name, color) {
+  if (!rec) return ''
+  const iStyle = `background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.12);color:${color};font-size:11px;font-family:'Outfit',sans-serif;outline:none;padding:0 2px`
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${color}">${name}&nbsp;✓<input type="time" value="${rec.done_at||''}" onchange="updateChoreField('${choreId}','${rec.id}','done_at',this.value)" style="${iStyle};width:68px;cursor:pointer"><input type="number" value="${rec.duration_minutes??''}" placeholder="min" min="1" max="480" onchange="updateChoreField('${choreId}','${rec.id}','duration_minutes',this.value===''?null:+this.value)" style="${iStyle};width:36px;text-align:center"></span>`
+}
+
+async function updateChoreField(choreId, recId, field, value) {
+  for (const k of ['miguel', 'diana']) {
+    if (choreToday[choreId]?.[k]?.id === recId) { choreToday[choreId][k][field] = value; break }
+  }
+  const { error } = await SB_P.from('chores').update({ [field]: value }).eq('id', recId)
+  if (error) showToast('❌ ' + error.message)
 }
 
 async function toggleChore(choreId, person){
