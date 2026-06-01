@@ -5189,18 +5189,26 @@ function renderHogar(){
 async function toggleChore(choreId, person){
   if(!choreToday[choreId]) choreToday[choreId] = { miguel:null, diana:null, notes:[] }
   const state = choreToday[choreId]
-  const rec = state[person]
+  // Map person ID to state key ('miguel' or 'diana')
+  const key = person === USER_ID ? 'miguel' : 'diana'
+  const rec = state[key]
+
   if(rec){
-    const { error } = await SB_P.from('chores').delete().eq('id', rec.id)
-    if(error){ showToast('❌ '+error.message); return }
-    state[person] = null
+    const prev = state[key]
+    state[key] = null
+    renderHogar()
+    const { error } = await SB_P.from('chores').delete().eq('id', prev.id)
+    if(error){ state[key] = prev; renderHogar(); showToast('❌ '+error.message) }
   } else {
     const id = 'ch_'+Date.now()
-    const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:person, notes:null, date:TODAY, created_at:new Date().toISOString() })
-    if(error){ showToast('❌ '+error.message); return }
-    state[person] = { id, name:choreId, done_by:person, notes:null, date:TODAY }
+    const now = new Date()
+    const done_at = now.toTimeString().slice(0,5)
+    const newRec = { id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() }
+    state[key] = newRec
+    renderHogar()
+    const { error } = await SB_P.from('chores').insert({ id, name:choreId, done_by:person, notes:null, date:TODAY, done_at, duration_minutes:null, created_at:now.toISOString() })
+    if(error){ state[key] = null; renderHogar(); showToast('❌ '+error.message) }
   }
-  renderHogar()
 }
 
 function abrirChoreNotes(choreId){
