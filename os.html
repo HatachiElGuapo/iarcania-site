@@ -414,7 +414,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" id="nav-guiones" onclick="showSection('guiones',this)">
           <span class="nav-icon">🎬</span>Guiones
         </button>
-        <button class="nav-item" onclick="showSection('workspace',this)">
+        <button class="nav-item" id="nav-workspace" onclick="showSection('workspace',this)">
           <span class="nav-icon">🖥️</span>Workspace
         </button>
       </div>
@@ -1789,6 +1789,7 @@ function applyRoleRestrictions(role) {
     hide('nav-trabajo')
     hide('nav-sep-dinero', 'group-dinero')
     hide('nav-libros', 'nav-guiones')
+    hide('nav-workspace')
   }
 }
 
