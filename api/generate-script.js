@@ -5,7 +5,53 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
 
-  const { raw, idea, canal, formato } = req.body || {}
+  const { raw, idea, canal, formato, modo, q1, q2, q3 } = req.body || {}
+
+  // --- Modo 3 preguntas → guión en 4 bloques ---
+  if (modo && q1 && q2 && q3) {
+    const isScreen = modo === 'pantalla'
+    const systemPrompt = isScreen
+      ? `Eres el asistente de guiones de Miguel Aguilar, fundador de IArcanIA. Miguel tiene 25 años, es desarrollador independiente en Bogotá, construye automatizaciones con n8n, Supabase y agentes de IA. Su estilo es directo, sin hype, muestra cosas reales que construyó.
+
+Con base en las 3 respuestas del usuario, genera un guión en 4 bloques para un video corto (máx 3 min). El guión debe sonar como Miguel habla, no como marketing.
+
+Formato de respuesta — JSON estricto, sin backticks, sin texto extra:
+{"pantalla_inicio":"qué tiene en pantalla y qué dice en los primeros 15 segundos","problema":"qué dice sobre el problema que resuelve, 1-2 frases en su voz","explicacion":"la idea central explicada con sus palabras, máx 3 frases","cierre":"una frase de perspectiva, no CTA, que cierre con una idea propia"}`
+      : `Eres el asistente de guiones de Miguel Aguilar, creador de Void Stoic. Miguel sintetiza filosofía de Marco Aurelio, Musashi, Frankl y Taoísmo. Habla desde experiencia personal, no desde teoría. Su principio es "aprende de todos, sigue a nadie".
+
+Con base en las 3 respuestas del usuario, genera un guión en 4 bloques para un video reflexivo (máx 4 min). Sin motivación vacía, sin frases de Instagram. Que suene a alguien que está construyéndose, no a alguien que ya llegó.
+
+Formato de respuesta — JSON estricto, sin backticks, sin texto extra:
+{"contradiccion":"cómo arranca el video con la contradicción personal, directo sin presentación","tension":"desarrolla la tensión sin resolverla todavía, deja que el problema respire","aprendizaje":"lo que aprendió desde sus fuentes filosóficas, en sus palabras no citando","cambio_real":"acción concreta que tomó en su vida, no consejo genérico"}`
+    try {
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1200,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: `1. ${q1}\n2. ${q2}\n3. ${q3}` }]
+        })
+      })
+      const data = await anthropicRes.json()
+      if (!anthropicRes.ok) {
+        res.status(anthropicRes.status).json({ error: data.error?.message || 'Error de Anthropic' })
+        return
+      }
+      const text = data.content?.[0]?.text || ''
+      const match = text.match(/\{[\s\S]*\}/)
+      if (!match) { res.status(500).json({ error: 'Respuesta inesperada de la IA' }); return }
+      res.status(200).json(JSON.parse(match[0]))
+    } catch (e) {
+      res.status(500).json({ error: e.message || 'Error interno' })
+    }
+    return
+  }
 
   // --- Modo idea: estructurar texto en 2 oraciones ---
   if (raw) {

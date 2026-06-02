@@ -30,8 +30,13 @@
   .svc-meta { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; width: 100%; }
   .svc-time { padding: 5px 12px; border-radius: 100px; background: rgba(201,168,76,0.10); border: 1px solid var(--border-gold); color: var(--gold); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; }
   .svc-price-label { font-size: 11px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+  .svc-prices { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  .svc-price-row { display: flex; flex-direction: column; align-items: flex-end; }
+  .svc-price-row + .svc-price-row { padding-top: 8px; border-top: 1px solid var(--border); }
+  .svc-price-type { font-size: 10px; color: var(--text-dim); letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 2px; }
   .svc-price { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--text-primary); }
-  .svc-price small { font-size: 12px; font-weight: 400; color: var(--text-secondary); display: block; margin-top: 2px; font-family: 'Outfit', sans-serif; }
+  .svc-price small { font-size: 12px; font-weight: 400; color: var(--text-secondary); font-family: 'Outfit', sans-serif; }
+  .svc-price.svc-monthly { font-size: 17px; color: var(--purple); }
   .svc-cta { width: 100%; }
   .svc-tag-popular { padding: 3px 10px; border-radius: 100px; background: rgba(201,168,76,0.12); border: 1px solid var(--border-gold); color: var(--gold); font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
 
@@ -144,7 +149,16 @@
           <div class="svc-meta">
             <span class="svc-time">⏱ 3-4 semanas</span>
             <span class="svc-price-label">Inversión</span>
-            <div class="svc-price">$3.500.000<small>desde · COP</small></div>
+            <div class="svc-prices">
+              <div class="svc-price-row">
+                <span class="svc-price-type">Setup único</span>
+                <div class="svc-price">$3.500.000 <small>COP</small></div>
+              </div>
+              <div class="svc-price-row">
+                <span class="svc-price-type">Mantenimiento</span>
+                <div class="svc-price svc-monthly">$700.000 <small>COP/mes</small></div>
+              </div>
+            </div>
           </div>
           <a href="https://wa.me/573006709840?text=Hola%20Miguel%2C%20me%20interesa%20el%20servicio%20de%20Agente%20WhatsApp%20con%20IA." target="_blank" rel="noopener" class="btn btn-primary svc-cta">Solicitar este servicio</a>
         </div>
@@ -169,7 +183,16 @@
           <div class="svc-meta">
             <span class="svc-time">⏱ 2-3 semanas</span>
             <span class="svc-price-label">Inversión</span>
-            <div class="svc-price">$2.500.000<small>desde · COP</small></div>
+            <div class="svc-prices">
+              <div class="svc-price-row">
+                <span class="svc-price-type">Setup único</span>
+                <div class="svc-price">$2.500.000 <small>COP</small></div>
+              </div>
+              <div class="svc-price-row">
+                <span class="svc-price-type">Mantenimiento</span>
+                <div class="svc-price svc-monthly">$500.000 <small>COP/mes</small></div>
+              </div>
+            </div>
           </div>
           <a href="https://wa.me/573006709840?text=Hola%20Miguel%2C%20me%20interesa%20la%20Automatizaci%C3%B3n%20de%20flujos%20internos." target="_blank" rel="noopener" class="btn btn-primary svc-cta">Solicitar este servicio</a>
         </div>
@@ -194,7 +217,16 @@
           <div class="svc-meta">
             <span class="svc-time">⏱ 3-5 semanas</span>
             <span class="svc-price-label">Inversión</span>
-            <div class="svc-price">$4.500.000<small>desde · COP</small></div>
+            <div class="svc-prices">
+              <div class="svc-price-row">
+                <span class="svc-price-type">Setup único</span>
+                <div class="svc-price">$4.500.000 <small>COP</small></div>
+              </div>
+              <div class="svc-price-row">
+                <span class="svc-price-type">Mantenimiento</span>
+                <div class="svc-price svc-monthly">$900.000 <small>COP/mes</small></div>
+              </div>
+            </div>
           </div>
           <a href="https://wa.me/573006709840?text=Hola%20Miguel%2C%20me%20interesa%20la%20Integraci%C3%B3n%20de%20IA%20en%20procesos%20existentes." target="_blank" rel="noopener" class="btn btn-primary svc-cta">Solicitar este servicio</a>
         </div>
@@ -219,7 +251,16 @@
           <div class="svc-meta">
             <span class="svc-time">⏱ 4-6 semanas</span>
             <span class="svc-price-label">Inversión</span>
-            <div class="svc-price">$5.500.000<small>desde · COP</small></div>
+            <div class="svc-prices">
+              <div class="svc-price-row">
+                <span class="svc-price-type">Setup único</span>
+                <div class="svc-price">$5.500.000 <small>COP</small></div>
+              </div>
+              <div class="svc-price-row">
+                <span class="svc-price-type">Mantenimiento</span>
+                <div class="svc-price svc-monthly">$1.100.000 <small>COP/mes</small></div>
+              </div>
+            </div>
           </div>
           <a href="https://wa.me/573006709840?text=Hola%20Miguel%2C%20me%20interesa%20el%20Dashboard%20de%20control%20y%20m%C3%A9tricas." target="_blank" rel="noopener" class="btn btn-primary svc-cta">Solicitar este servicio</a>
         </div>
