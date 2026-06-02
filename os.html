@@ -103,6 +103,14 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .task-check{width:18px;height:18px;border-radius:4px;border:1.5px solid #333;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
 .task-text{flex:1;font-size:13px;color:var(--text)}
 .task-item.done .task-text{text-decoration:line-through;color:var(--text-muted)}
+.task-section-hdr{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;cursor:pointer;padding:4px 2px;border-radius:4px;transition:background .12s;user-select:none}
+.task-section-hdr:hover{background:#161616}
+.task-section-hdr.overdue-hdr{color:var(--red)}
+.task-collapse-icon{font-size:10px;color:#555;transition:transform .2s ease;display:inline-block;flex-shrink:0}
+.task-collapse-icon.collapsed{transform:rotate(-90deg)}
+.task-section-body{overflow:hidden;transition:max-height .2s ease}
+.tf-btn{padding:5px 12px;border-radius:6px;border:1px solid #2a2a2a;background:#161616;color:#888;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;transition:all .15s}
+.tf-btn.active{border-color:#444;background:#1e1e1e;color:#e8e8e8}
 .task-cat{font-size:10px;flex-shrink:0;opacity:.7}
 .cat-legend{display:flex;flex-direction:column;gap:7px}
 .cat-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)}
@@ -720,20 +728,37 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <button class="btn-add" onclick="openNuevaTareaModal()">+ Nueva tarea</button>
         </div>
       </div>
+      <!-- Toolbar de filtros -->
+      <div id="tasks-filter-bar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1.2rem;padding:8px 0 12px;border-bottom:1px solid var(--border)">
+        <button id="tf-todas" class="tf-btn active" onclick="setTaskFilter('todas')">Todas</button>
+        <button id="tf-hoy"   class="tf-btn" onclick="setTaskFilter('hoy')">Hoy</button>
+        <button id="tf-semana" class="tf-btn" onclick="setTaskFilter('semana')">Esta semana</button>
+        <div style="width:1px;height:18px;background:var(--border);margin:0 2px"></div>
+        <select id="tf-cat" onchange="setTaskCatFilter(this.value)" style="background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:5px 10px;color:#888;font-family:'Outfit',sans-serif;font-size:12px;outline:none;cursor:pointer">
+          <option value="">Todas las categorías</option>
+        </select>
+        <button id="tf-limpiar" onclick="limpiarFiltros()" style="display:none;padding:5px 12px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">Limpiar ✕</button>
+      </div>
       <!-- Tareas con fecha asignada -->
       <div id="tareas-con-fecha-wrap" style="display:none;margin-bottom:1.5rem">
-        <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <div class="task-section-hdr" onclick="toggleTaskSection('fecha')">
+          <span class="task-collapse-icon" id="icon-fecha">▾</span>
           📅 Con fecha asignada
-          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <div style="flex:1;height:1px;background:var(--border);margin-left:4px"></div>
         </div>
-        <div id="tareas-con-fecha" class="task-list"></div>
+        <div class="task-section-body" id="body-fecha" style="max-height:none">
+          <div id="tareas-con-fecha" class="task-list"></div>
+        </div>
       </div>
       <div id="overdue-wrap" style="display:none;margin-bottom:1rem">
-        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <div class="task-section-hdr overdue-hdr" onclick="toggleTaskSection('overdue')">
+          <span class="task-collapse-icon collapsed" id="icon-overdue">▾</span>
           ⚠️ Vencidas
-          <div style="flex:1;height:1px;background:rgba(226,75,74,0.2)"></div>
+          <div style="flex:1;height:1px;background:rgba(226,75,74,0.2);margin-left:4px"></div>
         </div>
-        <div class="task-list" id="overdue-tasks"></div>
+        <div class="task-section-body" id="body-overdue" style="max-height:0">
+          <div class="task-list" id="overdue-tasks"></div>
+        </div>
       </div>
       <div class="task-list" id="all-tasks">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
@@ -1701,7 +1726,9 @@ let USER_NAME = null
 let PARTNER_ID = null
 let PARTNER_NAME = null
 let USER_PASSWORD = null
-let allTasks = []
+let allTasks   = []
+let _taskFilter = { tiempo: 'todas', cat: '' }
+let _taskSectionsInited = false
 let _showArchived = false
 let hoyFocusItems   = []  // filas de daily_focus para TODAY con list_type='hoy'
 let extraFocusItems = []  // filas de daily_focus para TODAY con list_type='extra'
@@ -1903,6 +1930,7 @@ function showSection(id, btn){
   if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
+  if(id === 'actividades') initTaskSections()
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(window.innerWidth <= 768) closeSidebar()
@@ -1992,6 +2020,110 @@ async function loadTareasHoy(){
   renderTasks()
 }
 
+function toggleTaskSection(id){
+  const body = document.getElementById('body-'+id)
+  const icon = document.getElementById('icon-'+id)
+  if(!body || !icon) return
+  const collapsing = !icon.classList.contains('collapsed')
+  if(collapsing){
+    body.style.maxHeight = body.scrollHeight + 'px'
+    requestAnimationFrame(() => { body.style.maxHeight = '0' })
+    icon.classList.add('collapsed')
+    localStorage.setItem('tasks_collapsed_'+id, '1')
+  } else {
+    body.style.maxHeight = body.scrollHeight + 'px'
+    icon.classList.remove('collapsed')
+    setTimeout(() => { body.style.maxHeight = 'none' }, 220)
+    localStorage.removeItem('tasks_collapsed_'+id)
+  }
+}
+
+function initTaskSections(){
+  const defaults = { fecha: false, overdue: true }
+  Object.keys(defaults).forEach(id => {
+    const saved = localStorage.getItem('tasks_collapsed_'+id)
+    const collapsed = saved !== null ? saved === '1' : defaults[id]
+    const icon = document.getElementById('icon-'+id)
+    const body = document.getElementById('body-'+id)
+    if(!body) return
+    if(collapsed){ icon?.classList.add('collapsed'); body.style.maxHeight = '0' }
+    else { icon?.classList.remove('collapsed'); body.style.maxHeight = 'none' }
+  })
+}
+
+function setTaskFilter(tiempo){
+  _taskFilter.tiempo = tiempo
+  ;['todas','hoy','semana'].forEach(t => {
+    document.getElementById('tf-'+t)?.classList.toggle('active', t === tiempo)
+  })
+  applyTaskFilters()
+}
+
+function setTaskCatFilter(cat){
+  _taskFilter.cat = cat
+  const sel = document.getElementById('tf-cat')
+  if(sel) sel.style.color = cat ? '#e8e8e8' : '#888'
+  applyTaskFilters()
+}
+
+function limpiarFiltros(){
+  _taskFilter = { tiempo: 'todas', cat: '' }
+  document.getElementById('tf-todas')?.classList.add('active')
+  document.getElementById('tf-hoy')?.classList.remove('active')
+  document.getElementById('tf-semana')?.classList.remove('active')
+  const sel = document.getElementById('tf-cat')
+  if(sel){ sel.value = ''; sel.style.color = '#888' }
+  applyTaskFilters()
+}
+
+function applyTaskFilters(){
+  const { tiempo, cat } = _taskFilter
+  const weekEnd = new Date(TODAY); weekEnd.setDate(weekEnd.getDate() + 7)
+  const weekEndStr = weekEnd.toISOString().split('T')[0]
+  ;['tareas-con-fecha','overdue-tasks','all-tasks'].forEach(listId => {
+    const list = document.getElementById(listId)
+    if(!list) return
+    list.querySelectorAll('.task-item').forEach(item => {
+      const tid = item.getAttribute('data-id')
+      const task = tid ? allTasks.find(t => t.id === tid) : null
+      let show = true
+      if(task){
+        if(tiempo === 'hoy') show = task.due_date === TODAY
+        else if(tiempo === 'semana') show = !!(task.due_date && task.due_date >= TODAY && task.due_date <= weekEndStr)
+        if(cat && task.category !== cat) show = false
+      }
+      item.style.display = show ? '' : 'none'
+    })
+  })
+  ;[['tareas-con-fecha-wrap','tareas-con-fecha'],['overdue-wrap','overdue-tasks']].forEach(([wid,lid]) => {
+    const wrap = document.getElementById(wid)
+    const list = document.getElementById(lid)
+    if(!wrap || !list) return
+    const total = list.querySelectorAll('.task-item').length
+    if(!total) return
+    let visible = 0
+    list.querySelectorAll('.task-item').forEach(i => { if(i.style.display !== 'none') visible++ })
+    wrap.style.display = visible > 0 ? 'block' : 'none'
+  })
+  const hasFilter = _taskFilter.tiempo !== 'todas' || !!_taskFilter.cat
+  const lBtn = document.getElementById('tf-limpiar')
+  if(lBtn) lBtn.style.display = hasFilter ? 'inline-block' : 'none'
+}
+
+function updateCatDropdown(){
+  const sel = document.getElementById('tf-cat')
+  if(!sel) return
+  const cats = new Set(allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && t.category).map(t => t.category))
+  const cur = sel.value
+  sel.innerHTML = '<option value="">Todas las categorías</option>'
+  ;[...cats].sort().forEach(c => {
+    const opt = document.createElement('option')
+    opt.value = c; opt.textContent = CATS[c]?.label || c
+    if(c === cur) opt.selected = true
+    sel.appendChild(opt)
+  })
+}
+
 function renderTasks(){
   const pending = allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada')
   const done    = allTasks.filter(t => t.status === 'completada')
@@ -2038,6 +2170,9 @@ function renderTasks(){
   renderCatLegend()
   if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda()
   update2020Widget()
+  updateCatDropdown()
+  applyTaskFilters()
+  if(!_taskSectionsInited){ _taskSectionsInited = true; setTimeout(initTaskSections, 60) }
 }
 
 
@@ -4023,7 +4158,7 @@ function renderOverdueTasks(tasks){
   if(!tasks.length) return
   el.innerHTML = tasks.map(t => {
     const cat = CATS[t.category] || CATS.habitos
-    return `<div class="task-item" style="border-left-color:var(--red)">
+    return `<div class="task-item" data-id="${t.id}" style="border-left-color:var(--red)">
       <div class="task-check" style="border-color:rgba(226,75,74,0.4)"></div>
       <div class="task-text">
         <div>${t.title}</div>
@@ -4059,7 +4194,7 @@ function renderTareasConFecha(tasks){
     const cat = CATS[t.category] || CATS.habitos
     const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
     const isOverdue = t.due_date < TODAY
-    return `<div class="task-item" style="border-left-color:${isOverdue?'var(--red)':cat.color}">
+    return `<div class="task-item" data-id="${t.id}" style="border-left-color:${isOverdue?'var(--red)':cat.color}">
       <div class="task-check" onclick="toggleTask('${t.id}')" style="cursor:pointer"></div>
       <div class="task-text" onclick="toggleTask('${t.id}')" style="cursor:pointer">
         <div>${t.title}</div>
