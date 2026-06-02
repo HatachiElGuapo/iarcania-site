@@ -5,7 +5,43 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
 
-  const { raw, idea, canal, formato, modo, q1, q2, q3 } = req.body || {}
+  const { raw, idea, canal, formato, modo, q1, q2, q3, libre_text } = req.body || {}
+
+  // --- Modo texto libre → estructurar en 4 bloques ---
+  if (libre_text) {
+    const systemPrompt = `Eres el asistente de guiones de Miguel Aguilar (IArcanIA / Void Stoic). El usuario escribió su guión en texto libre. Tu trabajo es dividirlo en exactamente 4 bloques sin cambiar el sentido ni agregar ideas nuevas — solo reorganizar lo que ya escribió.
+
+Responde SOLO en JSON sin backticks:
+{"b1":"lo que va primero — qué muestra o cómo arranca","b2":"el problema o tensión central","b3":"la explicación o desarrollo","b4":"el cierre con perspectiva"}`
+    try {
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1200,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: libre_text }]
+        })
+      })
+      const data = await anthropicRes.json()
+      if (!anthropicRes.ok) {
+        res.status(anthropicRes.status).json({ error: data.error?.message || 'Error de Anthropic' })
+        return
+      }
+      const text = data.content?.[0]?.text || ''
+      const match = text.match(/\{[\s\S]*\}/)
+      if (!match) { res.status(500).json({ error: 'Respuesta inesperada de la IA' }); return }
+      res.status(200).json(JSON.parse(match[0]))
+    } catch (e) {
+      res.status(500).json({ error: e.message || 'Error interno' })
+    }
+    return
+  }
 
   // --- Modo 3 preguntas → guión en 4 bloques ---
   if (modo && q1 && q2 && q3) {

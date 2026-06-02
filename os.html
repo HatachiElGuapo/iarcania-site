@@ -1720,6 +1720,9 @@ let _scriptModo    = {}
 let _scriptStep    = {}
 let _scriptGen     = {}
 let _scriptInputs  = {}
+let _editorModo    = {}
+let _scriptLibre   = {}
+let _scriptBloques = {}
 
 // --- AUTH ---
 async function doLogin(){
@@ -6338,6 +6341,81 @@ async function confirmarGrabacion(){
   showToast('🎬 ¡Grabación registrada!')
 }
 
+function switchEditorModo(id, target){
+  const cur = _editorModo[id] || 'ia'
+  if(cur === 'libre'){
+    const el = document.getElementById('se-libre-'+id)
+    if(el) _scriptLibre[id] = el.value
+  } else if(cur === 'bloques'){
+    _captureBlocksFromDOM(id)
+  }
+  if(target === 'bloques'){
+    _editorModo[id] = _scriptBloques[id] ? 'bloques' : 'bloques_prompt'
+  } else if(target === 'libre'){
+    if(cur === 'bloques'){
+      const b = _scriptBloques[id]
+      if(b) _scriptLibre[id] = [b.b1,b.b2,b.b3,b.b4].filter(Boolean).join('\n\n')
+    }
+    _editorModo[id] = 'libre'
+  } else {
+    _editorModo[id] = target
+  }
+  renderScripts()
+}
+
+function _captureBlocksFromDOM(id){
+  const b1 = document.getElementById('se-b1-'+id)?.value || ''
+  const b2 = document.getElementById('se-b2-'+id)?.value || ''
+  const b3 = document.getElementById('se-b3-'+id)?.value || ''
+  const b4 = document.getElementById('se-b4-'+id)?.value || ''
+  const notas = document.getElementById('se-notes-'+id)?.value || ''
+  if(!_scriptBloques[id]) _scriptBloques[id] = {}
+  Object.assign(_scriptBloques[id], {b1,b2,b3,b4,notas})
+  _scriptLibre[id] = [b1,b2,b3,b4].filter(Boolean).join('\n\n')
+}
+
+function empezarBloquesVacios(id){
+  _scriptBloques[id] = {b1:'',b2:'',b3:'',b4:'',notas:''}
+  _editorModo[id] = 'bloques'
+  renderScripts()
+}
+
+function syncLibreFromBloques(id){
+  const b1 = document.getElementById('se-b1-'+id)?.value || ''
+  const b2 = document.getElementById('se-b2-'+id)?.value || ''
+  const b3 = document.getElementById('se-b3-'+id)?.value || ''
+  const b4 = document.getElementById('se-b4-'+id)?.value || ''
+  _scriptLibre[id] = [b1,b2,b3,b4].filter(Boolean).join('\n\n')
+}
+
+async function estructurarConIA(id){
+  const libreEl = document.getElementById('se-libre-'+id)
+  const texto = ((libreEl ? libreEl.value : '') || _scriptLibre[id] || '').trim()
+  if(!texto){ showToast('❌ Escribe algo primero'); return }
+  _scriptLibre[id] = texto
+  const btn    = document.getElementById('se-estructurar-btn-'+id)
+  const loadEl = document.getElementById('se-estructurar-load-'+id)
+  if(btn){ btn.disabled=true; btn.textContent='Estructurando...' }
+  if(loadEl) loadEl.style.display = 'flex'
+  try {
+    const script = allScripts.find(s => s.id === id)
+    const response = await fetch('/api/generate-script', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({libre_text: texto, canal: script?.canal||'iarcania'})
+    })
+    const data = await response.json()
+    if(!response.ok) throw new Error(data.error||'Error del servidor')
+    _scriptBloques[id] = {b1:data.b1||'',b2:data.b2||'',b3:data.b3||'',b4:data.b4||'',notas:''}
+    _editorModo[id] = 'bloques'
+    renderScripts()
+  } catch(e){
+    showToast('❌ '+(e.message||'Error desconocido'))
+    if(btn){ btn.disabled=false; btn.textContent='Estructurar con IA →' }
+    if(loadEl) loadEl.style.display = 'none'
+  }
+}
+
 function setScriptModo(id, modo){
   _scriptInputs[id] = {
     q1: document.getElementById('ai-q1-'+id)?.value || '',
@@ -6379,8 +6457,9 @@ async function generateScriptInline(id){
     } else {
       b1=data.contradiccion||''; b2=data.tension||''; b3=data.aprendizaje||''; b4=data.cambio_real||''
     }
-    _scriptGen[id]  = { b1, b2, b3, b4, q1, q2, q3, modo }
-    _scriptStep[id] = 'editing'
+    _scriptBloques[id] = { b1, b2, b3, b4, notas:'' }
+    _scriptLibre[id]   = [b1,b2,b3,b4].filter(Boolean).join('\n\n')
+    _editorModo[id]    = 'bloques'
     renderScripts()
   } catch(e){
     showToast('❌ ' + (e.message || 'Error desconocido'))
@@ -6413,53 +6492,81 @@ function renderScripts(){
     const clKeys = ['guion','imagenes','grabado','editado','thumbnail','publicado']
     const clLabels = {guion:'Guión listo',imagenes:'Imágenes / recursos listos',grabado:'Grabado',editado:'Editado',thumbnail:'Thumbnail',publicado:'Publicado'}
     const clBarC = clDone === 0 ? 'var(--text-muted)' : clDone < 6 ? '#EF9F27' : '#5DCAA5'
-    const hasContent   = !!(s.hook || s.body || s.cta)
-    const defaultModo  = s.canal === 'voidstoic' ? 'camara' : 'pantalla'
-    const modo = _scriptModo[s.id] || (() => { try { const p=JSON.parse(s.notes||'{}'); return p.modo||defaultModo } catch(e){ return defaultModo } })()
-    const step = hasContent ? 'editing' : (_scriptStep[s.id] || 'questions')
-    const gen  = _scriptGen[s.id]
-    const savedInputs = _scriptInputs[s.id] || {}
-    let b1='',b2='',b3='',b4=''
-    if(gen){ b1=gen.b1; b2=gen.b2; b3=gen.b3; b4=gen.b4 }
-    else if(hasContent){ b1=s.hook||''; const parts=(s.body||'').split('\n\n'); b2=parts[0]||''; b3=parts.slice(1).join('\n\n')||''; b4=s.cta||'' }
-    const BL = modo==='pantalla'
-      ? {b1:'Pantalla inicio',b2:'Problema',b3:'Explicación',b4:'Cierre'}
-      : {b1:'Contradicción',b2:'Tensión',b3:'Aprendizaje',b4:'Cambio real'}
-    const QL = modo==='pantalla'
-      ? {q1:'¿Qué vas a mostrar en pantalla?',q2:'¿Qué no entiende la gente de esto?',q3:'¿Qué cambia para quien lo vea?'}
-      : {q1:'¿Qué contradicción tuya arranca el video?',q2:'¿Qué tensión o problema hay detrás?',q3:'¿Qué cambiaste tú en tu vida real?'}
-    const PH = modo==='pantalla'
-      ? {q1:'ej: mi agente de WhatsApp respondiendo mensajes',q2:'ej: que no es un chatbot, es un agente con herramientas',q3:'ej: dejarían de responder WhatsApp manualmente'}
-      : {q1:'ej: tengo todo organizado y no lo cumplo',q2:'ej: saber y hacer son cosas diferentes',q3:'ej: decidí que el tema de mañana se decide hoy en la noche'}
-    const isPA  = modo==='pantalla'
-    const isCM  = modo==='camara'
+    const hasContent  = !!(s.hook || s.body || s.cta)
+    const editorModo  = _editorModo[s.id] || (hasContent ? 'bloques' : 'ia')
+    const bl = _scriptBloques[s.id]
+    let b1='',b2='',b3='',b4='',notesVal=''
+    if(bl){ b1=bl.b1; b2=bl.b2; b3=bl.b3; b4=bl.b4; notesVal=bl.notas||'' }
+    else if(hasContent){
+      b1=s.hook||''; const pts=(s.body||'').split('\n\n')
+      b2=pts[0]||''; b3=pts.slice(1).join('\n\n')||''; b4=s.cta||''
+      notesVal = (s.notes && !s.notes.startsWith('{')) ? s.notes : ''
+    }
+    const libreText  = _scriptLibre[s.id] !== undefined ? _scriptLibre[s.id] : [b1,b2,b3,b4].filter(Boolean).join('\n\n')
+    const iaModo     = _scriptModo[s.id] || (s.canal==='voidstoic' ? 'camara' : 'pantalla')
+    const iaInputs   = _scriptInputs[s.id] || {}
     const iStyle = 'width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:9px 12px;color:#e8e8e8;font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box'
     const tStyle = 'width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:9px 12px;color:#e8e8e8;font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box;resize:vertical'
     const lStyle = 'font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block'
     const mBtnA  = 'padding:7px 14px;border-radius:6px;font-family:Outfit,sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid #444;background:#1e1e1e;color:#e8e8e8'
     const mBtnI  = 'padding:7px 14px;border-radius:6px;font-family:Outfit,sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid #2a2a2a;background:transparent;color:#888'
-    const genBadge = gen ? `<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#888;font-family:Outfit,sans-serif">✨ ${modo==='pantalla'?'📺 Pantalla':'🎥 Cámara'}</span><button onclick="resetToAIQuestions('${s.id}')" style="background:transparent;border:1px solid #2a2a2a;border-radius:4px;padding:2px 8px;color:#888;font-size:11px;cursor:pointer;font-family:Outfit,sans-serif">Regenerar</button></div>` : ''
-    const notesRow = (!gen && s.notes && !s.notes.startsWith('{')) ? `<div><label style="${lStyle}">Notas</label><textarea id="se-notes-${s.id}" style="${tStyle};min-height:60px">${s.notes}</textarea></div>` : ''
-    const questionsHTML = `<div style="border:1px solid #2a2a2a;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button onclick="setScriptModo('${s.id}','pantalla')" style="${isPA?mBtnA:mBtnI}">📺 Muestro pantalla</button>
-            <button onclick="setScriptModo('${s.id}','camara')" style="${isCM?mBtnA:mBtnI}">🎥 Hablo a cámara</button>
-          </div>
-          <div><label style="${lStyle}">${QL.q1}</label><input id="ai-q1-${s.id}" type="text" placeholder="${PH.q1}" value="${(savedInputs.q1||'').replace(/"/g,'&quot;')}" style="${iStyle}"></div>
-          <div><label style="${lStyle}">${QL.q2}</label><input id="ai-q2-${s.id}" type="text" placeholder="${PH.q2}" value="${(savedInputs.q2||'').replace(/"/g,'&quot;')}" style="${iStyle}"></div>
-          <div><label style="${lStyle}">${QL.q3}</label><input id="ai-q3-${s.id}" type="text" placeholder="${PH.q3}" value="${(savedInputs.q3||'').replace(/"/g,'&quot;')}" style="${iStyle}"></div>
-          <div id="ai-load-${s.id}" style="display:none;font-size:12px;color:#888;font-family:Outfit,sans-serif;align-items:center;gap:6px"><span class="ai-dot-anim">●</span>&nbsp;Generando...</div>
-          <button id="ai-gen-btn-${s.id}" onclick="generateScriptInline('${s.id}')" style="padding:10px 20px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">✨ Generar guión</button>
-        </div>`
-    const editingHTML = `<div style="display:flex;flex-direction:column;gap:10px">
-          ${genBadge}
-          <div><label style="${lStyle}">${BL.b1}</label><textarea id="se-b1-${s.id}" style="${tStyle};min-height:80px">${b1}</textarea></div>
-          <div><label style="${lStyle}">${BL.b2}</label><textarea id="se-b2-${s.id}" style="${tStyle};min-height:100px">${b2}</textarea></div>
-          <div><label style="${lStyle}">${BL.b3}</label><textarea id="se-b3-${s.id}" style="${tStyle};min-height:100px">${b3}</textarea></div>
-          <div><label style="${lStyle}">${BL.b4}</label><textarea id="se-b4-${s.id}" style="${tStyle};min-height:80px">${b4}</textarea></div>
-          ${notesRow}
-        </div>`
-    const scriptBlockUI = step === 'questions' ? questionsHTML : editingHTML
+    const tBtnA  = 'padding:6px 14px;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #444;background:#1e1e1e;color:#e8e8e8'
+    const tBtnI  = 'padding:6px 14px;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #2a2a2a;background:transparent;color:#888'
+    const isPA   = iaModo==='pantalla'
+    const isCM   = iaModo==='camara'
+    const QL = isPA
+      ? {q1:'¿Qué vas a mostrar en pantalla?',q2:'¿Qué no entiende la gente de esto?',q3:'¿Qué cambia para quien lo vea?'}
+      : {q1:'¿Qué contradicción tuya arranca el video?',q2:'¿Qué tensión o problema hay detrás?',q3:'¿Qué cambiaste tú en tu vida real?'}
+    const PH = isPA
+      ? {q1:'ej: mi agente de WhatsApp respondiendo mensajes',q2:'ej: que no es un chatbot, es un agente con herramientas',q3:'ej: dejarían de responder WhatsApp manualmente'}
+      : {q1:'ej: tengo todo organizado y no lo cumplo',q2:'ej: saber y hacer son cosas diferentes',q3:'ej: decidí que el tema de mañana se decide hoy en la noche'}
+    // Toggle de 3 modos
+    const toggleBar = `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <button onclick="switchEditorModo('${s.id}','libre')" style="${editorModo==='libre'?tBtnA:tBtnI}">✏️ Libre</button>
+      <button onclick="switchEditorModo('${s.id}','bloques')" style="${(editorModo==='bloques'||editorModo==='bloques_prompt')?tBtnA:tBtnI}">🧩 Bloques</button>
+      <button onclick="switchEditorModo('${s.id}','ia')" style="${editorModo==='ia'?tBtnA:tBtnI}">✨ IA</button>
+    </div>`
+    // Modo Libre
+    const libreHTML = `<div style="display:flex;flex-direction:column;gap:10px">
+      <textarea id="se-libre-${s.id}" style="${tStyle};min-height:300px;background:#111;border-color:#1e1e1e" placeholder="Escribe tu guión como quieras. Cuando termines, presiona Estructurar y la IA lo divide en bloques.">${libreText}</textarea>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="se-estructurar-btn-${s.id}" onclick="estructurarConIA('${s.id}')" style="padding:10px 20px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer">Estructurar con IA →</button>
+        <div id="se-estructurar-load-${s.id}" style="display:none;font-size:12px;color:#888;font-family:Outfit,sans-serif;align-items:center;gap:6px"><span class="ai-dot-anim">●</span>&nbsp;Estructurando...</div>
+      </div>
+    </div>`
+    // Modo Bloques — prompt cuando no hay bloques
+    const bloquePromptHTML = `<div style="border:1px solid #2a2a2a;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+      <div style="font-size:13px;color:#888;font-family:Outfit,sans-serif">¿Cómo quieres empezar los bloques?</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="estructurarConIA('${s.id}')" style="padding:9px 16px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer">✨ Estructurar con IA</button>
+        <button onclick="empezarBloquesVacios('${s.id}')" style="padding:9px 16px;border-radius:6px;background:transparent;border:1px solid #2a2a2a;color:#e8e8e8;font-family:Outfit,sans-serif;font-size:13px;cursor:pointer">Escribir manualmente</button>
+      </div>
+    </div>`
+    // Modo Bloques — contenido
+    const backBtn = _scriptLibre[s.id] !== undefined ? `<button onclick="switchEditorModo('${s.id}','libre')" style="background:transparent;border:1px solid #2a2a2a;border-radius:4px;padding:2px 8px;color:#888;font-size:11px;cursor:pointer;font-family:Outfit,sans-serif">← Ver texto libre</button>` : ''
+    const bloquesContentHTML = `<div style="display:flex;flex-direction:column;gap:10px">
+      ${backBtn ? `<div>${backBtn}</div>` : ''}
+      <div><label style="${lStyle}">Pantalla inicio</label><textarea id="se-b1-${s.id}" style="${tStyle};min-height:80px" oninput="syncLibreFromBloques('${s.id}')">${b1}</textarea></div>
+      <div><label style="${lStyle}">Problema</label><textarea id="se-b2-${s.id}" style="${tStyle};min-height:100px" oninput="syncLibreFromBloques('${s.id}')">${b2}</textarea></div>
+      <div><label style="${lStyle}">Explicación</label><textarea id="se-b3-${s.id}" style="${tStyle};min-height:100px" oninput="syncLibreFromBloques('${s.id}')">${b3}</textarea></div>
+      <div><label style="${lStyle}">Cierre</label><textarea id="se-b4-${s.id}" style="${tStyle};min-height:80px" oninput="syncLibreFromBloques('${s.id}')">${b4}</textarea></div>
+      <div><label style="${lStyle}">Notas</label><textarea id="se-notes-${s.id}" style="${tStyle};min-height:60px">${notesVal}</textarea></div>
+    </div>`
+    const bloquesHTML = editorModo === 'bloques_prompt' ? bloquePromptHTML : bloquesContentHTML
+    // Modo IA
+    const iaHTML = `<div style="border:1px solid #2a2a2a;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="setScriptModo('${s.id}','pantalla')" style="${isPA?mBtnA:mBtnI}">📺 Muestro pantalla</button>
+        <button onclick="setScriptModo('${s.id}','camara')" style="${isCM?mBtnA:mBtnI}">🎥 Hablo a cámara</button>
+      </div>
+      <div><label style="${lStyle}">${QL.q1}</label><input id="ai-q1-${s.id}" type="text" placeholder="${PH.q1}" value="${(iaInputs.q1||'').replace(/"/g,'&quot;')}" style="${iStyle}"></div>
+      <div><label style="${lStyle}">${QL.q2}</label><input id="ai-q2-${s.id}" type="text" placeholder="${PH.q2}" value="${(iaInputs.q2||'').replace(/"/g,'&quot;')}" style="${iStyle}"></div>
+      <div><label style="${lStyle}">${QL.q3}</label><input id="ai-q3-${s.id}" type="text" placeholder="${PH.q3}" value="${(iaInputs.q3||'').replace(/"/g,'&quot;')}" style="${iStyle}"></div>
+      <div id="ai-load-${s.id}" style="display:none;font-size:12px;color:#888;font-family:Outfit,sans-serif;align-items:center;gap:6px"><span class="ai-dot-anim">●</span>&nbsp;Generando...</div>
+      <button id="ai-gen-btn-${s.id}" onclick="generateScriptInline('${s.id}')" style="padding:10px 20px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">✨ Generar guión</button>
+    </div>`
+    const editorContent  = editorModo === 'libre' ? libreHTML : editorModo === 'ia' ? iaHTML : bloquesHTML
+    const scriptBlockUI  = `<div>${toggleBar}${editorContent}</div>`
     return `<div class="script-card${isActive?' active':''}" style="border-left-color:${cColor}">
       <div onclick="openScriptDetail('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
         <div style="flex:1;min-width:0">
@@ -6519,27 +6626,29 @@ function filterScripts(filter, btn){
 
 async function saveScript(scriptId){
   await ensureSBI()
-  const fechaVal = document.getElementById('se-fecha-'+scriptId).value
-  const gen  = _scriptGen[scriptId]
-  const b1   = (document.getElementById('se-b1-'+scriptId)?.value || '').trim()
-  const b2   = (document.getElementById('se-b2-'+scriptId)?.value || '').trim()
-  const b3   = (document.getElementById('se-b3-'+scriptId)?.value || '').trim()
-  const b4   = (document.getElementById('se-b4-'+scriptId)?.value || '').trim()
-  const notesEl = document.getElementById('se-notes-'+scriptId)
+  const mode = _editorModo[scriptId] || 'bloques'
+  if(mode === 'libre'){
+    const texto = (document.getElementById('se-libre-'+scriptId)?.value || _scriptLibre[scriptId] || '').trim()
+    if(!texto){ showToast('❌ El guión está vacío'); return }
+    if(!confirm('El guión está en modo libre. ¿Guardar el texto completo en el primer bloque?')) return
+    _scriptLibre[scriptId] = texto
+    _scriptBloques[scriptId] = {b1:texto, b2:'', b3:'', b4:'', notas:''}
+  } else if(mode === 'bloques'){
+    _captureBlocksFromDOM(scriptId)
+  }
+  const bl = _scriptBloques[scriptId] || {}
+  const fechaVal = document.getElementById('se-fecha-'+scriptId)?.value || ''
   const data = {
-    hook:            b1,
-    body:            b3 ? b2 + '\n\n' + b3 : b2,
-    cta:             b4,
-    notes:           gen
-      ? JSON.stringify({modo: gen.modo, q1: gen.q1, q2: gen.q2, q3: gen.q3})
-      : (notesEl?.value || ''),
-    status:          document.getElementById('se-status-'+scriptId).value,
+    hook:            bl.b1 || '',
+    body:            [bl.b2, bl.b3].filter(Boolean).join('\n\n'),
+    cta:             bl.b4 || '',
+    notes:           bl.notas || '',
+    status:          document.getElementById('se-status-'+scriptId)?.value || 'borrador',
     fecha_grabacion: fechaVal || null
   }
   const { error } = await SB_P.from('scripts').update(data).eq('id', scriptId)
   if(error){ showToast('❌ Error: ' + error.message); return }
   allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
-  delete _scriptGen[scriptId]
   showToast('✅ Guión guardado')
   renderScripts()
   loadProyectoDia()
