@@ -120,6 +120,8 @@ select.sld-prop-input { cursor:pointer; }
 .sld-dialog h3 { color:#E8E0D0; font-size:15px; margin-bottom:16px; font-family:'Playfair Display',serif; }
 .sld-dialog-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
 .sld-text-inner { width:100%; height:100%; outline:none; white-space:pre-wrap; overflow-wrap:break-word; display:block; }
+.sld-tb-select { height:30px; padding:0 8px; border-radius:5px; border:1px solid #2a2a2a; background:#161616; color:#888; font-family:'Outfit',sans-serif; font-size:12px; outline:none; cursor:pointer; max-width:190px; transition:border-color .12s; flex-shrink:0; }
+.sld-tb-select:hover,.sld-tb-select:focus { border-color:#444; color:#e8e8e8; }
 `
   document.head.appendChild(s)
 }
@@ -138,6 +140,10 @@ function buildEditor() {
     <button class="sld-tb-btn" onclick="_sld.save()">💾 Guardar</button>
     <div class="sld-tb-sep"></div>
     <button class="sld-tb-btn" onclick="_sld.newPresentation()">📁 Nueva</button>
+    <select id="sld-pres-select" class="sld-tb-select" onchange="_sld.loadFromSelect(this.value)">
+      <option value="">— Cargar presentación —</option>
+    </select>
+    <button class="sld-tb-btn" onclick="_sld.deletePresentation()" title="Eliminar presentación" style="color:#E24B4A;padding:0 8px;flex-shrink:0">🗑</button>
     <div class="sld-tb-sep"></div>
     <input id="sld-pres-name" placeholder="Nombre de la presentación" value="${esc(_presName)}" oninput="_sld.setName(this.value)">
   </div>
@@ -836,20 +842,56 @@ async function loadLib(url, check) {
   } catch { return false }
 }
 
+async function captureSlide(s, el) {
+  if (!await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas'))
+    throw new Error('No se pudo cargar html2canvas')
+  const w = el.offsetWidth, h = el.offsetHeight, scale = 2
+
+  // Fondo: gradiente o color sólido sobre canvas temporal
+  const bgCvs = document.createElement('canvas')
+  bgCvs.width = w * scale; bgCvs.height = h * scale
+  const bgCtx = bgCvs.getContext('2d')
+  bgCtx.scale(scale, scale)
+  const fondo = s?.fondo || ''
+  if (fondo.startsWith('#')) {
+    bgCtx.fillStyle = fondo
+    bgCtx.fillRect(0, 0, w, h)
+  } else {
+    const cx = w / 2, cy = h / 2, r = Math.max(w, h) * 0.85
+    const grad = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, r)
+    grad.addColorStop(0, '#12082a')
+    grad.addColorStop(0.6, '#08060f')
+    grad.addColorStop(1, '#04030a')
+    bgCtx.fillStyle = grad
+    bgCtx.fillRect(0, 0, w, h)
+  }
+
+  // Contenido via html2canvas (ignora el canvas de lluvia)
+  const content = await html2canvas(el, {
+    backgroundColor: null, useCORS: true, scale,
+    ignoreElements: e => e.tagName === 'CANVAS',
+  })
+
+  // Combinar fondo + contenido
+  const final = document.createElement('canvas')
+  final.width = w * scale; final.height = h * scale
+  const ctx = final.getContext('2d')
+  ctx.drawImage(bgCvs, 0, 0)
+  ctx.drawImage(content, 0, 0)
+  return final
+}
+
 async function downloadPNG() {
   const btn = $('sld-btn-png')
   const orig = btn?.textContent
   if (btn) btn.textContent = '⏳ Capturando...'
   try {
-    if (!await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')) {
-      toast('❌ No se pudo cargar html2canvas'); return
-    }
     const el = $('sld-canvas')
     if (!el) { toast('❌ Canvas no encontrado'); return }
-    const cvs = await html2canvas(el, { backgroundColor: null, useCORS: true, scale: 2 })
+    const final = await captureSlide(slide(), el)
     const a = document.createElement('a')
-    a.href = cvs.toDataURL('image/png')
     a.download = `slide-${_activeIdx + 1}-${Date.now()}.png`
+    a.href = final.toDataURL('image/png')
     a.click()
   } catch(e) {
     toast('❌ Error al capturar: ' + (e?.message || String(e)))
@@ -861,9 +903,11 @@ async function downloadPNG() {
 async function exportZip() {
   const btn = $('sld-btn-zip')
   const orig = btn?.textContent
-  const h2c = await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')
-  const jsz = await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip')
-  if (!h2c || !jsz) { toast('❌ Error al cargar librerías'); return }
+  if (!await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip')) {
+    toast('❌ Error al cargar JSZip'); return
+  }
+  // html2canvas se carga dentro de captureSlide pero lo precargamos para el loop
+  await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')
   const origIdx = _activeIdx
   const zip = new JSZip()
   try {
@@ -873,8 +917,8 @@ async function exportZip() {
       await new Promise(r => setTimeout(r, 150))
       const el = $('sld-canvas')
       if (!el) continue
-      const c = await html2canvas(el, { backgroundColor: null, useCORS: true, scale: 2 })
-      const blob = await new Promise(r => c.toBlob(r, 'image/png'))
+      const final = await captureSlide(_slides[i], el)
+      const blob = await new Promise(r => final.toBlob(r, 'image/png'))
       zip.file(`slide-${String(i + 1).padStart(2, '0')}.png`, blob)
     }
     const content = await zip.generateAsync({ type: 'blob' })
@@ -905,6 +949,7 @@ async function save() {
   }
   if (result.error) { toast('❌ ' + result.error.message); return }
   _dirty = false; toast('✅ Presentación guardada')
+  loadAllPresentations()
 }
 
 async function loadPresentation() {
@@ -920,6 +965,7 @@ async function loadPresentation() {
   _slides = data.contenido?.slides || []
   if (!_slides.length) initDefault()
   else { _activeIdx = 0; renderAll() }
+  loadAllPresentations()
 }
 
 function initDefault() {
@@ -944,6 +990,67 @@ async function newPresentation() {
   const inp = $('sld-pres-name')
   if (inp) inp.value = _presName
   renderAll()
+  loadAllPresentations()
+}
+
+// ── Selector de presentaciones ────────────────────────────────
+async function loadAllPresentations() {
+  if (typeof SB_P === 'undefined') return
+  const { data } = await SB_P.from('slides')
+    .select('id,titulo,created_at')
+    .eq('modo', 'presentacion')
+    .order('created_at', { ascending: false })
+  const sel = $('sld-pres-select')
+  if (!sel) return
+  sel.innerHTML = '<option value="">— Cargar presentación —</option>'
+  ;(data || []).forEach(p => {
+    const date = new Date(p.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+    const opt = document.createElement('option')
+    opt.value = p.id
+    opt.textContent = `${p.titulo || 'Sin nombre'} · ${date}`
+    if (p.id === _presId) opt.selected = true
+    sel.appendChild(opt)
+  })
+}
+
+async function loadFromSelect(id) {
+  if (!id) return
+  if (_dirty && !confirm('¿Cargar otra presentación? Los cambios no guardados se perderán.')) {
+    const sel = $('sld-pres-select')
+    if (sel) [...sel.options].forEach(o => { o.selected = (o.value === _presId) })
+    return
+  }
+  const { data, error } = await SB_P.from('slides').select('*').eq('id', id).single()
+  if (error || !data) { toast('❌ Error al cargar'); return }
+  _presId     = data.id
+  _presName   = data.titulo || 'Mi Presentación'
+  _slides     = data.contenido?.slides?.length ? data.contenido.slides : [newSlide(1)]
+  _activeIdx  = 0
+  _selectedId = null
+  _dirty      = false
+  const inp = $('sld-pres-name')
+  if (inp) inp.value = _presName
+  renderAll()
+  loadAllPresentations()
+  toast('✅ Presentación cargada')
+}
+
+async function deletePresentation() {
+  const sel = $('sld-pres-select')
+  const id = sel?.value || _presId
+  if (!id) { toast('⚠️ Selecciona una presentación para eliminar'); return }
+  if (!confirm('¿Eliminar esta presentación? No se puede deshacer.')) return
+  const { error } = await SB_P.from('slides').delete().eq('id', id)
+  if (error) { toast('❌ ' + error.message); return }
+  toast('🗑 Presentación eliminada')
+  if (id === _presId) {
+    _presId = null; _presName = 'Mi Presentación'
+    _slides = [newSlide(1)]; _activeIdx = 0; _selectedId = null; _dirty = false
+    const inp = $('sld-pres-name')
+    if (inp) inp.value = _presName
+    renderAll()
+  }
+  loadAllPresentations()
 }
 
 // ── Entry point ───────────────────────────────────────────────
@@ -967,6 +1074,7 @@ const _sld = {
   delSlide: () => delSlideAt(_activeIdx),
   delSlideAt,
   downloadPNG, exportZip, save, newPresentation,
+  loadFromSelect, deletePresentation,
   setName: v => { _presName = v; _dirty = true },
   setSlideProp,
   addEl, addElTabla, addElImagen, changeImage, handleImage,
