@@ -133,9 +133,11 @@ function buildEditor() {
     <button class="sld-tb-btn" onclick="_sld.dupSlide()">⧉ Duplicar</button>
     <button class="sld-tb-btn" onclick="_sld.delSlide()">✕ Eliminar</button>
     <div class="sld-tb-sep"></div>
-    <button class="sld-tb-btn" onclick="_sld.downloadPNG()">⬇ PNG</button>
-    <button class="sld-tb-btn" onclick="_sld.exportZip()">⬇ ZIP</button>
+    <button class="sld-tb-btn" id="sld-btn-png" onclick="_sld.downloadPNG()">⬇ PNG</button>
+    <button class="sld-tb-btn" id="sld-btn-zip" onclick="_sld.exportZip()">⬇ ZIP</button>
     <button class="sld-tb-btn" onclick="_sld.save()">💾 Guardar</button>
+    <div class="sld-tb-sep"></div>
+    <button class="sld-tb-btn" onclick="_sld.newPresentation()">📁 Nueva</button>
     <div class="sld-tb-sep"></div>
     <input id="sld-pres-name" placeholder="Nombre de la presentación" value="${esc(_presName)}" oninput="_sld.setName(this.value)">
   </div>
@@ -835,42 +837,59 @@ async function loadLib(url, check) {
 }
 
 async function downloadPNG() {
-  if (!await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')) {
-    toast('❌ Error al cargar html2canvas'); return
-  }
+  const btn = $('sld-btn-png')
+  const orig = btn?.textContent
+  if (btn) btn.textContent = '⏳ Capturando...'
   try {
-    const cvs = await html2canvas($('sld-canvas'), { scale: 2, useCORS: true, backgroundColor: slide()?.fondo || '#08060f' })
+    if (!await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')) {
+      toast('❌ No se pudo cargar html2canvas'); return
+    }
+    const el = $('sld-canvas')
+    if (!el) { toast('❌ Canvas no encontrado'); return }
+    const cvs = await html2canvas(el, { backgroundColor: null, useCORS: true, scale: 2 })
     const a = document.createElement('a')
     a.href = cvs.toDataURL('image/png')
     a.download = `slide-${_activeIdx + 1}-${Date.now()}.png`
     a.click()
-  } catch { toast('❌ Error al capturar — intenta de nuevo') }
+  } catch(e) {
+    toast('❌ Error al capturar: ' + (e?.message || String(e)))
+  } finally {
+    if (btn && orig) btn.textContent = orig
+  }
 }
 
 async function exportZip() {
-  const h2c  = await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')
-  const jsz  = await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip')
+  const btn = $('sld-btn-zip')
+  const orig = btn?.textContent
+  const h2c = await loadLib('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')
+  const jsz = await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip')
   if (!h2c || !jsz) { toast('❌ Error al cargar librerías'); return }
-  toast('⏳ Exportando presentación...')
   const origIdx = _activeIdx
   const zip = new JSZip()
   try {
     for (let i = 0; i < _slides.length; i++) {
+      if (btn) btn.textContent = `⏳ ${i + 1}/${_slides.length}...`
       _activeIdx = i; _selectedId = null; renderCanvas()
-      await new Promise(r => setTimeout(r, 120))
-      const c = await html2canvas($('sld-canvas'), { scale: 2, useCORS: true, backgroundColor: _slides[i].fondo })
+      await new Promise(r => setTimeout(r, 150))
+      const el = $('sld-canvas')
+      if (!el) continue
+      const c = await html2canvas(el, { backgroundColor: null, useCORS: true, scale: 2 })
       const blob = await new Promise(r => c.toBlob(r, 'image/png'))
       zip.file(`slide-${String(i + 1).padStart(2, '0')}.png`, blob)
     }
     const content = await zip.generateAsync({ type: 'blob' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(content)
-    a.download = `${_presName || 'presentacion'}-${Date.now()}.zip`
+    a.download = `${_presName || 'presentacion'}.zip`
     a.click()
     URL.revokeObjectURL(a.href)
     toast('✅ Presentación exportada')
-  } catch { toast('❌ Error al exportar') }
-  finally { _activeIdx = origIdx; renderAll() }
+  } catch(e) {
+    toast('❌ Error al exportar: ' + (e?.message || String(e)))
+  } finally {
+    _activeIdx = origIdx; renderAll()
+    if (btn && orig) btn.textContent = orig
+  }
 }
 
 // ── Supabase ──────────────────────────────────────────────────
@@ -913,6 +932,20 @@ function startAutoSave() {
   _autoSaveTimer = setInterval(() => { if (_dirty) save() }, 30000)
 }
 
+async function newPresentation() {
+  if (!confirm('¿Crear nueva presentación? Se guardará la actual.')) return
+  if (_dirty) await save()
+  _presId     = null
+  _presName   = 'Mi Presentación'
+  _slides     = [newSlide(1)]
+  _activeIdx  = 0
+  _selectedId = null
+  _dirty      = false
+  const inp = $('sld-pres-name')
+  if (inp) inp.value = _presName
+  renderAll()
+}
+
 // ── Entry point ───────────────────────────────────────────────
 function onSlidesEnter() {
   if (!_initialized) {
@@ -933,7 +966,7 @@ const _sld = {
   addSlide, dupSlide,
   delSlide: () => delSlideAt(_activeIdx),
   delSlideAt,
-  downloadPNG, exportZip, save,
+  downloadPNG, exportZip, save, newPresentation,
   setName: v => { _presName = v; _dirty = true },
   setSlideProp,
   addEl, addElTabla, addElImagen, changeImage, handleImage,
