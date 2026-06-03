@@ -33,7 +33,7 @@ const findEl = id => (slide()?.elementos || []).find(e => e.id === id)
 
 // ── Factories ─────────────────────────────────────────────────
 function newSlide(n) {
-  return { id: uid(), nombre: 'Slide ' + n, fondo: '#08060f', lluvia: true, logo: true, elementos: [] }
+  return { id: uid(), nombre: 'Slide ' + n, fondo: 'radial-gradient(ellipse at center, #12082a 0%, #08060f 60%, #04030a 100%)', lluvia: true, logo: true, elementos: [] }
 }
 
 function newEl(tipo) {
@@ -89,9 +89,10 @@ function injectStyles() {
 .sld-el { cursor:move; }
 .sld-el-sel { outline:2px dashed #534AB7!important; outline-offset:2px; }
 .sld-resize { position:absolute; bottom:-5px; right:-5px; width:11px; height:11px; background:#534AB7; border-radius:2px; cursor:se-resize; z-index:10; }
-#sld-logo-bg { position:absolute; width:38%; top:50%; left:50%; transform:translate(-50%,-50%); opacity:.07; filter:blur(2px); pointer-events:none; z-index:1; }
+#sld-logo-bg { position:absolute; width:35%; top:50%; left:50%; transform:translate(-50%,-50%); opacity:.06; filter:blur(1px); pointer-events:none; z-index:1; }
 #sld-rain { position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; }
-#sld-elements { position:absolute; inset:0; z-index:3; }
+#sld-vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%); pointer-events:none; z-index:3; }
+#sld-elements { position:absolute; inset:0; z-index:4; }
 .sld-prop-label { font-size:10px; color:#555; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; }
 .sld-prop-group { display:flex; flex-direction:column; gap:4px; }
 .sld-prop-input { width:100%; background:#161616; border:1px solid #2a2a2a; border-radius:5px; padding:6px 8px; font-family:'Outfit',sans-serif; font-size:12px; color:#e8e8e8; outline:none; transition:border-color .12s; box-sizing:border-box; }
@@ -151,8 +152,22 @@ function buildEditor() {
     <div id="sld-canvas-area">
       <div id="sld-canvas-wrap">
         <div id="sld-canvas">
-          <img id="sld-logo-bg" src="/assets/logo.svg" alt="">
+          <div id="sld-logo-bg"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+            <circle cx="100" cy="100" r="95" fill="none" stroke="#8b7ed8" stroke-width="1"/>
+            <path d="M100 30 L145 100 L100 170 L55 100 Z" fill="none" stroke="#8b7ed8" stroke-width="1.5"/>
+            <circle cx="100" cy="100" r="28" fill="none" stroke="#8b7ed8" stroke-width="1.5"/>
+            <circle cx="100" cy="100" r="10" fill="#c8c0f0"/>
+            <line x1="100" y1="72" x2="100" y2="58" stroke="#8b7ed8" stroke-width="1"/>
+            <line x1="100" y1="128" x2="100" y2="142" stroke="#8b7ed8" stroke-width="1"/>
+            <line x1="72" y1="100" x2="58" y2="100" stroke="#8b7ed8" stroke-width="1"/>
+            <line x1="128" y1="100" x2="142" y2="100" stroke="#8b7ed8" stroke-width="1"/>
+            <line x1="80" y1="80" x2="70" y2="70" stroke="#8b7ed8" stroke-width="1"/>
+            <line x1="120" y1="80" x2="130" y2="70" stroke="#8b7ed8" stroke-width="1"/>
+            <line x1="80" y1="120" x2="70" y2="130" stroke="#8b7ed8" stroke-width="1"/>
+            <line x1="120" y1="120" x2="130" y2="130" stroke="#8b7ed8" stroke-width="1"/>
+          </svg></div>
           <canvas id="sld-rain"></canvas>
+          <div id="sld-vignette"></div>
           <div id="sld-elements"></div>
         </div>
       </div>
@@ -770,13 +785,14 @@ function updateRain(active) {
       canvas.width  = canvas.offsetWidth  || 800
       canvas.height = canvas.offsetHeight || 450
       _rainCtx = canvas.getContext('2d')
-      const count = Math.floor(canvas.width / 8)
+      const count = Math.floor(canvas.width / 5)
       _rainDrops = Array.from({ length: count }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         len: 8 + Math.random() * 18,
         speed: 1.5 + Math.random() * 3,
-        opacity: 0.03 + Math.random() * 0.09,
+        opacity: 0.06 + Math.random() * 0.15,
+        dark: Math.random() > 0.7,
       }))
       drawRain()
     })
@@ -796,7 +812,7 @@ function drawRain() {
     _rainCtx.beginPath()
     _rainCtx.moveTo(d.x, d.y)
     _rainCtx.lineTo(d.x - 1, d.y + d.len)
-    _rainCtx.strokeStyle = `rgba(150,130,230,${d.opacity})`
+    _rainCtx.strokeStyle = d.dark ? `rgba(100,80,200,${d.opacity})` : `rgba(150,130,230,${d.opacity})`
     _rainCtx.lineWidth = 0.8
     _rainCtx.stroke()
     d.y += d.speed
