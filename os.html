@@ -60,6 +60,30 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .nav-group{overflow:hidden;max-height:400px;transition:max-height .25s ease}
 .nav-group.collapsed{max-height:0}
 
+/* SLIDES */
+.slides-layout{display:grid;grid-template-columns:2fr 3fr;gap:1.5rem;align-items:start}
+.slides-panel{background:#111;border:1px solid #1e1e1e;border-radius:12px;padding:1.25rem;display:flex;flex-direction:column;gap:12px}
+.slides-mode-toggle{display:flex;gap:6px}
+.slides-mode-btn{flex:1;padding:8px 6px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;border-radius:7px;cursor:pointer;border:1px solid #2a2a2a;background:#161616;color:#888;transition:all .15s}
+.slides-mode-btn.active{border-color:#444;background:#1e1e1e;color:#e8e8e8}
+.sld-field{display:flex;flex-direction:column;gap:5px}
+.sld-label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.1em;font-family:'Outfit',sans-serif}
+.sld-input{background:#161616;border:1px solid #2a2a2a;border-radius:7px;padding:9px 11px;font-family:'Outfit',sans-serif;font-size:13px;color:#e8e8e8;outline:none;transition:border-color .15s;width:100%}
+.sld-input:focus{border-color:#444}
+.sld-input::placeholder{color:#444}
+textarea.sld-input{resize:vertical}
+.sld-actions{display:flex;flex-direction:column;gap:6px}
+.sld-btn-primary{padding:10px 16px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;border-radius:8px;border:none;background:#fff;color:#000;cursor:pointer;transition:opacity .15s}
+.sld-btn-primary:hover{opacity:.85}
+.sld-btn-ghost{padding:9px 16px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #2a2a2a;background:transparent;color:#888;cursor:pointer;transition:all .15s}
+.sld-btn-ghost:hover{border-color:#444;color:#e8e8e8}
+.slides-preview-wrap{position:sticky;top:2rem}
+.saved-slide-row{background:#111;border:1px solid #1e1e1e;border-radius:9px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.saved-slide-info{flex:1;min-width:0}
+.saved-slide-title{font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saved-slide-meta{font-size:11px;color:var(--text-muted);margin-top:2px}
+.saved-slide-actions{display:flex;gap:6px;flex-shrink:0}
+
 .main{margin-left:var(--sidebar);padding:2rem 2.5rem;min-height:100vh}
 .section{display:none}
 .section.active{display:block}
@@ -423,6 +447,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </button>
         <button class="nav-item" id="nav-guiones" onclick="showSection('guiones',this)">
           <span class="nav-icon">🎬</span>Guiones
+        </button>
+        <button class="nav-item" id="nav-slides" onclick="showSection('slides',this)">
+          <span class="nav-icon">🖼️</span>Slides
         </button>
         <button class="nav-item" id="nav-workspace" onclick="showSection('workspace',this)">
           <span class="nav-icon">🖥️</span>Workspace
@@ -1062,6 +1089,103 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
       <div id="scripts-list" style="display:flex;flex-direction:column;gap:8px">
         <div class="loading"><div class="spinner"></div><br>Cargando guiones...</div>
+      </div>
+    </div>
+
+    <!-- SLIDES -->
+    <div class="section" id="section-slides">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🖼️ Slides</h1>
+          <div class="page-sub">Generador de slides con marca IArcanIA</div>
+        </div>
+      </div>
+
+      <div class="slides-layout">
+        <!-- PANEL IZQUIERDO -->
+        <div class="slides-panel">
+          <div class="slides-mode-toggle">
+            <button class="slides-mode-btn active" onclick="setSlidesMode('titulo',this)">Título</button>
+            <button class="slides-mode-btn" onclick="setSlidesMode('bullets',this)">Puntos clave</button>
+            <button class="slides-mode-btn" onclick="setSlidesMode('diagrama',this)">Diagrama</button>
+          </div>
+
+          <div class="sld-field">
+            <label class="sld-label">Tag / Categoría</label>
+            <input type="text" id="sld-tag" class="sld-input" placeholder="IArcanIA · Builds" oninput="updateSlidePreview()">
+          </div>
+          <div class="sld-field">
+            <label class="sld-label">Número de slide</label>
+            <input type="text" id="sld-num" class="sld-input" placeholder="01 / 05" oninput="updateSlidePreview()">
+          </div>
+
+          <!-- Modo Título -->
+          <div id="sld-ctrl-titulo" style="display:flex;flex-direction:column;gap:12px">
+            <div class="sld-field">
+              <label class="sld-label">Título</label>
+              <input type="text" id="sld-titulo" class="sld-input" placeholder="Escribe tu título aquí" oninput="updateSlidePreview()">
+            </div>
+          </div>
+
+          <!-- Modo Puntos clave -->
+          <div id="sld-ctrl-bullets" style="display:none;flex-direction:column;gap:12px">
+            <div class="sld-field">
+              <label class="sld-label">Título</label>
+              <input type="text" id="sld-bullets-titulo" class="sld-input" placeholder="Título del slide" oninput="updateSlidePreview()">
+            </div>
+            <div class="sld-field">
+              <label class="sld-label">Puntos clave (uno por línea, máx 4)</label>
+              <textarea id="sld-bullets" class="sld-input" rows="5" placeholder="Punto 1&#10;Punto 2&#10;Punto 3&#10;Punto 4" oninput="updateSlidePreview()"></textarea>
+            </div>
+          </div>
+
+          <!-- Modo Diagrama -->
+          <div id="sld-ctrl-diagrama" style="display:none;flex-direction:column;gap:12px">
+            <div class="sld-field">
+              <label class="sld-label">Título</label>
+              <input type="text" id="sld-diagrama-titulo" class="sld-input" placeholder="Título del diagrama" oninput="updateSlidePreview()">
+            </div>
+            <div id="sld-nodes"></div>
+          </div>
+
+          <div class="sld-actions">
+            <button class="sld-btn-primary" onclick="downloadSlidePNG()">⬇ Descargar PNG</button>
+            <button class="sld-btn-ghost" onclick="copySlideHTML()">📋 Copiar HTML</button>
+            <button class="sld-btn-ghost" onclick="resetSlide()">↺ Nuevo slide</button>
+          </div>
+          <div>
+            <button class="sld-btn-ghost" style="width:100%;border-color:rgba(83,74,183,0.4);color:#9d8fe0" onclick="saveSlide()">+ Guardar slide actual</button>
+          </div>
+        </div>
+
+        <!-- PREVIEW DERECHO -->
+        <div class="slides-preview-wrap">
+          <div id="slide-preview-el" style="position:relative;aspect-ratio:16/9;background:#08060f;overflow:hidden;border-radius:8px;width:100%">
+            <img src="/assets/logo.svg" style="position:absolute;width:38%;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.07;filter:blur(2px);pointer-events:none;user-select:none;z-index:1" alt="">
+            <canvas id="slides-rain-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:2"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:5% 6%;box-sizing:border-box;z-index:3;font-family:'Outfit',sans-serif">
+              <div id="slide-tag-display" style="font-size:clamp(8px,1vw,11px);letter-spacing:.14em;text-transform:uppercase;color:#9d8fe0;margin-bottom:6%;font-weight:500"></div>
+              <div id="slide-title-display" style="flex:1;display:flex;align-items:center">
+                <div id="slide-title-inner" style="font-family:'Playfair Display',serif;font-size:clamp(14px,2.6vw,34px);line-height:1.25;color:#fff;word-break:break-word"></div>
+              </div>
+              <div style="height:2px;background:#534AB7;margin:2.5% 0;border-radius:1px"></div>
+              <div id="slide-var-content" style="min-height:12%;display:flex;flex-direction:column;gap:5px"></div>
+              <div style="border-top:1px solid rgba(127,119,221,0.2);padding-top:2.5%;margin-top:2%;display:flex;justify-content:space-between;align-items:center">
+                <span style="color:#534AB7;font-weight:600;font-size:clamp(8px,1vw,12px)">IArcanIA</span>
+                <span id="slide-num-display" style="color:rgba(255,255,255,0.2);font-size:clamp(8px,0.9vw,11px)"></span>
+              </div>
+            </div>
+          </div>
+          <div id="slides-capture-msg" style="display:none;color:var(--red);font-size:12px;margin-top:8px;text-align:center">Error al capturar — intenta de nuevo</div>
+        </div>
+      </div>
+
+      <!-- Banco de slides guardados -->
+      <div style="margin-top:2rem">
+        <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:1rem">Slides guardados</div>
+        <div id="saved-slides-list">
+          <div style="color:var(--text-muted);font-size:12px;text-align:center;padding:2rem">No hay slides guardados aún.</div>
+        </div>
       </div>
     </div>
 
@@ -1930,6 +2054,7 @@ function showSection(id, btn){
   if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
+  if(id === 'slides') onSlidesEnter()
   if(id === 'actividades') initTaskSections()
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
@@ -8051,6 +8176,275 @@ function confirmarSeleccionTareas(){
   closeModal('selector-tarea')
   renderTasks()
   showToast(added > 0 ? `✅ ${added} tarea${added > 1 ? 's' : ''} agregada${added > 1 ? 's' : ''} a Hoy` : '⚠️ Límite de 5 tareas alcanzado o ya estaban en la lista')
+}
+
+// ——— SLIDES ———
+let _slidesMode = 'titulo'
+let _rainInit = false
+let _html2canvasLoaded = false
+
+function onSlidesEnter(){
+  buildSldNodes()
+  updateSlidePreview()
+  loadSavedSlides()
+  if(!_rainInit){
+    _rainInit = true
+    const c = document.getElementById('slides-rain-canvas')
+    if(c) initRain(c)
+  }
+}
+
+function initRain(canvas){
+  const ctx = canvas.getContext('2d')
+  canvas.width = canvas.offsetWidth
+  canvas.height = canvas.offsetHeight
+  const drops = []
+  const count = Math.floor(canvas.width / 8)
+  for(let i = 0; i < count; i++){
+    drops.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      len: 8 + Math.random() * 18,
+      speed: 1.5 + Math.random() * 3,
+      opacity: 0.03 + Math.random() * 0.09
+    })
+  }
+  function draw(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    drops.forEach(d => {
+      ctx.beginPath()
+      ctx.moveTo(d.x, d.y)
+      ctx.lineTo(d.x - 1, d.y + d.len)
+      ctx.strokeStyle = `rgba(150,130,230,${d.opacity})`
+      ctx.lineWidth = 0.8
+      ctx.stroke()
+      d.y += d.speed
+      if(d.y > canvas.height){ d.y = -d.len; d.x = Math.random() * canvas.width }
+    })
+    requestAnimationFrame(draw)
+  }
+  draw()
+}
+
+function buildSldNodes(){
+  const container = document.getElementById('sld-nodes')
+  if(!container) return
+  container.innerHTML = Array.from({length:4}, (_,i) => `
+    <div style="margin-bottom:8px">
+      <div class="sld-label" style="margin-bottom:4px">Nodo ${i+1}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <input id="sld-node-title-${i+1}" class="sld-input" placeholder="Título" oninput="updateSlidePreview()">
+        <input id="sld-node-sub-${i+1}" class="sld-input" placeholder="Subtítulo" oninput="updateSlidePreview()">
+      </div>
+    </div>
+  `).join('')
+}
+
+function setSlidesMode(mode, btn){
+  _slidesMode = mode
+  document.querySelectorAll('.slides-mode-btn').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('sld-ctrl-titulo').style.display   = mode === 'titulo'   ? 'flex' : 'none'
+  document.getElementById('sld-ctrl-bullets').style.display  = mode === 'bullets'  ? 'flex' : 'none'
+  document.getElementById('sld-ctrl-diagrama').style.display = mode === 'diagrama' ? 'flex' : 'none'
+  updateSlidePreview()
+}
+
+function _escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+
+function _splitTitle(titulo){
+  if(!titulo) return '<span style="opacity:.25;color:#fff">Tu título aquí...</span>'
+  const words = titulo.split(' ')
+  const cut = Math.ceil(words.length * 2 / 3) || words.length
+  const p1 = words.slice(0, cut).join(' ')
+  const p2 = words.slice(cut).join(' ')
+  return `<span style="color:#fff">${_escHtml(p1)}</span>${p2 ? ` <span style="color:#9d8fe0">${_escHtml(p2)}</span>` : ''}`
+}
+
+function updateSlidePreview(){
+  const tag = (document.getElementById('sld-tag')?.value || '').trim()
+  const num = (document.getElementById('sld-num')?.value || '').trim()
+  const tagEl = document.getElementById('slide-tag-display')
+  const numEl = document.getElementById('slide-num-display')
+  const titleEl = document.getElementById('slide-title-inner')
+  const varEl  = document.getElementById('slide-var-content')
+  if(!tagEl || !titleEl || !varEl) return
+
+  tagEl.textContent = tag || 'IArcanIA · Builds'
+  if(numEl) numEl.textContent = num
+
+  if(_slidesMode === 'titulo'){
+    const t = (document.getElementById('sld-titulo')?.value || '').trim()
+    titleEl.innerHTML = _splitTitle(t)
+    varEl.innerHTML = ''
+  } else if(_slidesMode === 'bullets'){
+    const t = (document.getElementById('sld-bullets-titulo')?.value || '').trim()
+    titleEl.innerHTML = _splitTitle(t)
+    const lines = (document.getElementById('sld-bullets')?.value || '').split('\n').map(l=>l.trim()).filter(Boolean).slice(0,4)
+    varEl.innerHTML = lines.map(l => `
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 0">
+        <span style="width:6px;height:6px;border-radius:50%;background:#7F77DD;flex-shrink:0;display:inline-block"></span>
+        <span style="color:#c8c0f0;font-size:clamp(9px,1.1vw,14px);line-height:1.35">${_escHtml(l)}</span>
+      </div>`).join('')
+  } else {
+    const t = (document.getElementById('sld-diagrama-titulo')?.value || '').trim()
+    titleEl.innerHTML = _splitTitle(t)
+    const nodes = []
+    for(let i = 1; i <= 4; i++){
+      const nt = (document.getElementById(`sld-node-title-${i}`)?.value || '').trim()
+      const ns = (document.getElementById(`sld-node-sub-${i}`)?.value  || '').trim()
+      if(nt || ns) nodes.push({t:nt, s:ns})
+    }
+    if(nodes.length){
+      varEl.innerHTML = `<div style="display:flex;align-items:stretch;gap:6px;flex-wrap:wrap">${
+        nodes.map((n,i) => `
+          ${i > 0 ? `<span style="color:#534AB7;font-size:clamp(12px,1.4vw,18px);display:flex;align-items:center">→</span>` : ''}
+          <div style="background:rgba(83,74,183,0.15);border:1px solid rgba(127,119,221,0.35);border-radius:6px;padding:6px 10px;flex:1;min-width:0">
+            <div style="color:#e8e8e8;font-size:clamp(8px,1vw,12px);font-weight:600">${_escHtml(n.t)}</div>
+            ${n.s ? `<div style="color:#9d8fe0;font-size:clamp(7px,0.85vw,10px);margin-top:3px">${_escHtml(n.s)}</div>` : ''}
+          </div>`).join('')
+      }</div>`
+    } else {
+      varEl.innerHTML = ''
+    }
+  }
+}
+
+async function downloadSlidePNG(){
+  const msgEl = document.getElementById('slides-capture-msg')
+  msgEl.style.display = 'none'
+  try{
+    if(!_html2canvasLoaded){
+      await new Promise((res, rej) => {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+        s.onload = res; s.onerror = rej
+        document.head.appendChild(s)
+      })
+      _html2canvasLoaded = true
+    }
+    const el = document.getElementById('slide-preview-el')
+    const cvs = await html2canvas(el, {scale:2, useCORS:true, backgroundColor:'#08060f'})
+    const a = document.createElement('a')
+    a.href = cvs.toDataURL('image/png')
+    a.download = `slide-${Date.now()}.png`
+    a.click()
+  } catch(e){
+    msgEl.style.display = 'block'
+  }
+}
+
+function copySlideHTML(){
+  const el = document.getElementById('slide-preview-el')
+  navigator.clipboard.writeText(el.outerHTML).then(() => showToast('✅ HTML copiado al portapapeles'))
+}
+
+function resetSlide(){
+  ;['sld-tag','sld-num','sld-titulo','sld-bullets-titulo','sld-bullets','sld-diagrama-titulo'].forEach(id => {
+    const el = document.getElementById(id)
+    if(el) el.value = ''
+  })
+  for(let i = 1; i <= 4; i++){
+    const t = document.getElementById(`sld-node-title-${i}`)
+    const s = document.getElementById(`sld-node-sub-${i}`)
+    if(t) t.value = ''
+    if(s) s.value = ''
+  }
+  updateSlidePreview()
+}
+
+function _getSlidesPayload(){
+  const tag = (document.getElementById('sld-tag')?.value || '').trim()
+  const num = (document.getElementById('sld-num')?.value || '').trim()
+  let titulo = '', contenido = {}
+  if(_slidesMode === 'titulo'){
+    titulo = (document.getElementById('sld-titulo')?.value || '').trim()
+    contenido = {tag, num}
+  } else if(_slidesMode === 'bullets'){
+    titulo = (document.getElementById('sld-bullets-titulo')?.value || '').trim()
+    const bullets = (document.getElementById('sld-bullets')?.value || '').split('\n').map(l=>l.trim()).filter(Boolean).slice(0,4)
+    contenido = {tag, num, bullets}
+  } else {
+    titulo = (document.getElementById('sld-diagrama-titulo')?.value || '').trim()
+    const nodes = []
+    for(let i = 1; i <= 4; i++) nodes.push({
+      t: (document.getElementById(`sld-node-title-${i}`)?.value || '').trim(),
+      s: (document.getElementById(`sld-node-sub-${i}`)?.value  || '').trim()
+    })
+    contenido = {tag, num, nodes}
+  }
+  return {titulo: titulo || '(Sin título)', modo: _slidesMode, contenido}
+}
+
+async function saveSlide(){
+  const payload = _getSlidesPayload()
+  const {error} = await SB_P.from('slides').insert({
+    user_id: USER_ID,
+    titulo: payload.titulo,
+    modo: payload.modo,
+    contenido: payload.contenido
+  })
+  if(error){ showToast('❌ '+error.message); return }
+  showToast('✅ Slide guardado')
+  loadSavedSlides()
+}
+
+async function loadSavedSlides(){
+  const listEl = document.getElementById('saved-slides-list')
+  if(!listEl) return
+  const {data, error} = await SB_P.from('slides').select('*').order('created_at',{ascending:false})
+  if(error){ listEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:1rem">${_escHtml(error.message)}</div>`; return }
+  if(!data?.length){
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:2rem">No hay slides guardados aún.</div>'
+    return
+  }
+  listEl.innerHTML = data.map(s => `
+    <div class="saved-slide-row" id="sld-row-${s.id}">
+      <div class="saved-slide-info">
+        <div class="saved-slide-title">${_escHtml(s.titulo)}</div>
+        <div class="saved-slide-meta">${s.modo} · ${new Date(s.created_at).toLocaleDateString('es-MX')}</div>
+      </div>
+      <div class="saved-slide-actions">
+        <button class="sld-btn-ghost" style="padding:6px 12px;font-size:11px" onclick="loadSavedSlide('${s.id}')">Cargar</button>
+        <button class="sld-btn-ghost" style="padding:6px 12px;font-size:11px;color:var(--red);border-color:rgba(226,75,74,0.3)" onclick="deleteSavedSlide('${s.id}')">Eliminar</button>
+      </div>
+    </div>`).join('')
+}
+
+async function loadSavedSlide(id){
+  const {data, error} = await SB_P.from('slides').select('*').eq('id', id).single()
+  if(error || !data){ showToast('❌ Error al cargar'); return }
+  const {titulo, modo, contenido} = data
+  const modeBtn = document.querySelector(`.slides-mode-btn[onclick*="'${modo}'"]`)
+  if(modeBtn) setSlidesMode(modo, modeBtn)
+  ;(document.getElementById('sld-tag') || {}).value  = contenido.tag || ''
+  ;(document.getElementById('sld-num') || {}).value  = contenido.num || ''
+  if(modo === 'titulo'){
+    ;(document.getElementById('sld-titulo') || {}).value = titulo
+  } else if(modo === 'bullets'){
+    ;(document.getElementById('sld-bullets-titulo') || {}).value = titulo
+    ;(document.getElementById('sld-bullets') || {}).value = (contenido.bullets || []).join('\n')
+  } else {
+    ;(document.getElementById('sld-diagrama-titulo') || {}).value = titulo
+    ;(contenido.nodes || []).forEach((n,i) => {
+      ;(document.getElementById(`sld-node-title-${i+1}`) || {}).value = n.t || ''
+      ;(document.getElementById(`sld-node-sub-${i+1}`)  || {}).value = n.s || ''
+    })
+  }
+  updateSlidePreview()
+  showToast('✅ Slide cargado')
+}
+
+async function deleteSavedSlide(id){
+  const {error} = await SB_P.from('slides').delete().eq('id', id)
+  if(error){ showToast('❌ '+error.message); return }
+  document.getElementById('sld-row-'+id)?.remove()
+  const listEl = document.getElementById('saved-slides-list')
+  if(listEl && !listEl.querySelector('.saved-slide-row'))
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:2rem">No hay slides guardados aún.</div>'
+  showToast('🗑 Slide eliminado')
 }
 
 async function saveNuevaTareaFromSelector(){
