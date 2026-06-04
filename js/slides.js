@@ -233,8 +233,8 @@ function bindGlobalKeys() {
   })
 
   document.addEventListener('paste', ev => {
-    const sec = $('section-slides')
-    if (!sec || !sec.classList.contains('active')) return
+    const slidesSection = document.getElementById('section-slides')
+    if (!slidesSection || !slidesSection.classList.contains('active')) return
     const items = ev.clipboardData?.items
     if (!items) return
     for (const item of items) {
@@ -258,7 +258,8 @@ function renderCanvas() {
   if (!s) return
   const cvs = $('sld-canvas')
   if (!cvs) return
-  cvs.style.background = s.fondo
+  cvs.style.backgroundColor = '#0d0920'
+  cvs.style.backgroundImage = s.fondo.startsWith('#') ? 'none' : s.fondo
   const logo = $('sld-logo-bg')
   if (logo) logo.style.display = s.logo ? '' : 'none'
   updateRain(s.lluvia)
@@ -694,7 +695,7 @@ function setSlideProp(key, val) {
   const s = slide()
   if (!s) return
   s[key] = val; _dirty = true
-  if (key === 'fondo') { const c = $('sld-canvas'); if (c) c.style.background = val }
+  if (key === 'fondo') { const c = $('sld-canvas'); if (c) { c.style.backgroundColor = '#0d0920'; c.style.backgroundImage = val.startsWith('#') ? 'none' : val } }
   if (key === 'logo')  { const l = $('sld-logo-bg'); if (l) l.style.display = val ? '' : 'none' }
   if (key === 'lluvia') updateRain(val)
   if (key === 'nombre') renderStrip()
