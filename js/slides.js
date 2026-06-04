@@ -22,6 +22,8 @@ let _changingImageId = null
 let _initialized = false
 let _autoSaveTimer = null
 let _history = []
+let _charts = {}
+let _chartJsLoading = null
 
 // ── Historial ─────────────────────────────────────────────────
 function saveHistory() {
@@ -66,6 +68,14 @@ function newEl(tipo) {
     case 'tabla':
       base.w = 70; base.h = 40
       base.props = { rows: 3, cols: 3, cells: [] }
+      break
+    case 'grafica':
+      base.w = 65; base.h = 42; base.x = 17; base.y = 18
+      base.props = { tipo_grafica: 'barras', titulo: '', datos_raw: 'WhatsApp, 45\nInstagram, 30\nEmail, 25' }
+      break
+    case 'diagrama':
+      base.w = 70; base.h = 35; base.x = 15; base.y = 25
+      base.props = { definicion: 'WhatsApp → n8n\nn8n → GPT-4\nGPT-4 → Supabase\nSupabase → Respuesta' }
       break
   }
   return base
@@ -168,6 +178,8 @@ function buildEditor() {
       <button class="sld-el-type-btn" onclick="_sld.addElTabla()">⬜ Tabla</button>
       <button class="sld-el-type-btn" onclick="_sld.addElImagen()">🖼 Imagen</button>
       <button class="sld-el-type-btn" onclick="_sld.addEl('flecha')">➡ Flecha</button>
+      <button class="sld-el-type-btn" onclick="_sld.addElGrafica()">📊 Gráfica</button>
+      <button class="sld-el-type-btn" onclick="_sld.addElDiagrama()">🔀 Diagrama</button>
       <input type="file" id="sld-img-input" accept=".jpg,.jpeg,.png,.webp,.svg,image/*" style="display:none" onchange="_sld.handleImage(this)">
     </div>
     <div id="sld-canvas-area">
@@ -282,11 +294,17 @@ function renderCanvas() {
   const logo = $('sld-logo-bg')
   if (logo) logo.style.display = s.logo ? '' : 'none'
   updateRain(s.lluvia)
+  Object.values(_charts).forEach(c => { try { c.destroy() } catch {} })
+  _charts = {}
   const container = $('sld-elements')
   container.innerHTML = ''
   s.elementos.forEach(e => {
     const dom = makeElDOM(e)
     if (dom) container.appendChild(dom)
+  })
+  s.elementos.filter(e => e.tipo === 'grafica').forEach(e => {
+    const chartCvs = document.getElementById('sld-chart-' + e.id)
+    if (chartCvs) renderGraficaCanvas(e, chartCvs)
   })
 }
 
@@ -365,6 +383,21 @@ function makeElDOM(e) {
       line.setAttribute('marker-end', 'url(#ah' + e.id + ')')
       svg.appendChild(defs); svg.appendChild(line)
       d.appendChild(svg)
+      break
+    }
+    case 'grafica': {
+      d.style.cssText += 'background:transparent;overflow:hidden;'
+      const chartCvs = document.createElement('canvas')
+      chartCvs.id = 'sld-chart-' + e.id
+      chartCvs.style.cssText = 'width:100%;height:100%;display:block;'
+      d.appendChild(chartCvs)
+      d.addEventListener('dblclick', ev => { ev.stopPropagation(); showGraficaModal(e) })
+      break
+    }
+    case 'diagrama': {
+      d.style.cssText += 'background:transparent;overflow:hidden;'
+      d.appendChild(buildDiagramaSVG(e))
+      d.addEventListener('dblclick', ev => { ev.stopPropagation(); showDiagramaModal(e) })
       break
     }
   }
@@ -680,6 +713,10 @@ function renderProps() {
         <div class="sld-prop-label">Grosor (px)</div>
         <input type="number" class="sld-prop-input" value="${el.props.strokeWidth}" min="1" max="12" oninput="_sld.updateProp('strokeWidth',+this.value)">
       </div>`
+  } else if (el.tipo === 'grafica') {
+    html += `<button class="sld-prop-btn" onclick="_sld.editGrafica()">Editar gráfica</button>`
+  } else if (el.tipo === 'diagrama') {
+    html += `<button class="sld-prop-btn" onclick="_sld.editDiagrama()">Editar diagrama</button>`
   }
 
   html += `
@@ -863,6 +900,226 @@ function showCtxMenu(x, y) {
 
   document.body.appendChild(menu)
   setTimeout(() => document.addEventListener('click', removeCtxMenu, { once: true }), 0)
+}
+
+// ── Gráfica ───────────────────────────────────────────────────
+const SLD_COLORS = ['#7F77DD', '#534AB7', '#9d8fe0', '#3C3489', '#c8c0f0', '#AFA9EC']
+
+async function ensureChartJs() {
+  if (window.Chart) return true
+  if (!_chartJsLoading) {
+    _chartJsLoading = loadLib('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js', 'Chart')
+  }
+  return _chartJsLoading
+}
+
+function parseGraficaDatos(raw) {
+  return (raw || '').split('\n')
+    .map(l => l.trim()).filter(Boolean)
+    .map(l => {
+      const [label, ...rest] = l.split(',')
+      return { label: label.trim(), value: parseFloat(rest.join(',')) || 0 }
+    })
+}
+
+async function renderGraficaCanvas(el, cvs) {
+  if (!await ensureChartJs()) return
+  if (_charts[el.id]) { try { _charts[el.id].destroy() } catch {} }
+  const datos = parseGraficaDatos(el.props.datos_raw)
+  const tipo = { barras: 'bar', lineas: 'line', pie: 'pie' }[el.props.tipo_grafica] || 'bar'
+  const isRound = tipo === 'pie'
+  _charts[el.id] = new Chart(cvs, {
+    type: tipo,
+    data: {
+      labels: datos.map(d => d.label),
+      datasets: [{
+        label: el.props.titulo || '',
+        data: datos.map(d => d.value),
+        backgroundColor: SLD_COLORS,
+        borderColor: isRound ? 'transparent' : SLD_COLORS,
+        borderWidth: 1,
+        tension: 0.3,
+        fill: false,
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#c8c0f0', font: { family: 'Outfit' } } },
+        title: el.props.titulo
+          ? { display: true, text: el.props.titulo, color: '#c8c0f0', font: { family: 'Outfit', size: 14 } }
+          : { display: false }
+      },
+      scales: isRound ? {} : {
+        x: { ticks: { color: '#c8c0f0' }, grid: { color: 'rgba(127,119,221,0.2)' } },
+        y: { ticks: { color: '#c8c0f0' }, grid: { color: 'rgba(127,119,221,0.2)' } }
+      }
+    }
+  })
+}
+
+function showGraficaModal(existingEl) {
+  const prev = existingEl?.props || {}
+  const tipoActivo = t => (prev.tipo_grafica || 'barras') === t ? '' : 'ghost'
+  const ov = document.createElement('div')
+  ov.className = 'sld-dialog-overlay'
+  ov.innerHTML = `
+    <div class="sld-dialog" style="min-width:340px;max-width:420px">
+      <h3>${existingEl ? 'Editar gráfica' : 'Nueva gráfica'}</h3>
+      <div class="sld-prop-group" style="margin-bottom:10px">
+        <div class="sld-prop-label">Tipo</div>
+        <div style="display:flex;gap:6px">
+          <button id="sld-gt-barras" class="sld-prop-btn ${tipoActivo('barras')}" style="flex:1;padding:6px 0">Barras</button>
+          <button id="sld-gt-lineas" class="sld-prop-btn ${tipoActivo('lineas')}" style="flex:1;padding:6px 0">Líneas</button>
+          <button id="sld-gt-pie"    class="sld-prop-btn ${tipoActivo('pie')}"    style="flex:1;padding:6px 0">Pie</button>
+        </div>
+      </div>
+      <div class="sld-prop-group" style="margin-bottom:10px">
+        <div class="sld-prop-label">Título (opcional)</div>
+        <input id="sld-gt-titulo" class="sld-prop-input" placeholder="Sin título" value="${esc(prev.titulo || '')}">
+      </div>
+      <div class="sld-prop-group" style="margin-bottom:14px">
+        <div class="sld-prop-label">Datos — Etiqueta, Valor</div>
+        <textarea id="sld-gt-datos" rows="5" class="sld-prop-input" style="resize:vertical;font-family:monospace;font-size:12px">${esc(prev.datos_raw || 'WhatsApp, 45\nInstagram, 30\nEmail, 25')}</textarea>
+      </div>
+      <div class="sld-dialog-actions">
+        <button class="sld-prop-btn ghost" style="padding:7px 14px" onclick="this.closest('.sld-dialog-overlay').remove()">Cancelar</button>
+        <button class="sld-prop-btn" style="padding:7px 14px" id="sld-gt-ok">${existingEl ? 'Actualizar' : 'Insertar gráfica'}</button>
+      </div>
+    </div>`
+  document.body.appendChild(ov)
+  let tipoSel = prev.tipo_grafica || 'barras'
+  ;['barras', 'lineas', 'pie'].forEach(t => {
+    ov.querySelector('#sld-gt-' + t).addEventListener('click', () => {
+      tipoSel = t
+      ;['barras', 'lineas', 'pie'].forEach(b => ov.querySelector('#sld-gt-' + b).classList.toggle('ghost', b !== t))
+    })
+  })
+  ov.querySelector('#sld-gt-ok').addEventListener('click', () => {
+    const titulo    = ov.querySelector('#sld-gt-titulo').value.trim()
+    const datos_raw = ov.querySelector('#sld-gt-datos').value.trim()
+    ov.remove()
+    if (existingEl) {
+      saveHistory()
+      existingEl.props.tipo_grafica = tipoSel
+      existingEl.props.titulo    = titulo
+      existingEl.props.datos_raw = datos_raw
+      _dirty = true; renderCanvas(); if (_selectedId) selectEl(_selectedId)
+    } else {
+      const s = slide(); if (!s) return
+      saveHistory()
+      const el = newEl('grafica')
+      el.props.tipo_grafica = tipoSel
+      el.props.titulo    = titulo
+      el.props.datos_raw = datos_raw
+      s.elementos.push(el)
+      _dirty = true; renderCanvas(); selectEl(el.id)
+    }
+  })
+}
+
+// ── Diagrama ──────────────────────────────────────────────────
+function parseDiagramaDef(def) {
+  const nodes = [], edges = [], nodeMap = {}
+  ;(def || '').split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
+    const m = line.match(/^(.+?)\s*(?:→|->)\s*(.+)$/)
+    if (!m) return
+    const a = m[1].trim(), b = m[2].trim()
+    if (nodeMap[a] === undefined) { nodeMap[a] = nodes.length; nodes.push(a) }
+    if (nodeMap[b] === undefined) { nodeMap[b] = nodes.length; nodes.push(b) }
+    edges.push([nodeMap[a], nodeMap[b]])
+  })
+  return { nodes, edges }
+}
+
+function buildDiagramaSVG(el) {
+  const { nodes, edges } = parseDiagramaDef(el.props.definicion)
+  const NW = 120, NH = 36, GAP = 55
+  const horiz = nodes.length <= 4
+  const count = Math.max(nodes.length, 1)
+  const vbW = horiz ? count * NW + (count - 1) * GAP + 20 : NW + 20
+  const vbH = horiz ? NH + 40 : count * NH + (count - 1) * GAP + 20
+  const svgNS = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(svgNS, 'svg')
+  svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%')
+  svg.setAttribute('viewBox', `0 0 ${vbW} ${vbH}`)
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+  const defs = document.createElementNS(svgNS, 'defs')
+  const mk = document.createElementNS(svgNS, 'marker')
+  mk.setAttribute('id', 'dgm-ah-' + el.id)
+  mk.setAttribute('markerWidth', '8'); mk.setAttribute('markerHeight', '8')
+  mk.setAttribute('refX', '7'); mk.setAttribute('refY', '3'); mk.setAttribute('orient', 'auto')
+  const mkp = document.createElementNS(svgNS, 'path')
+  mkp.setAttribute('d', 'M0,0 L0,6 L8,3 z'); mkp.setAttribute('fill', '#7F77DD')
+  mk.appendChild(mkp); defs.appendChild(mk); svg.appendChild(defs)
+  const nodePos = nodes.map((_, i) => ({
+    x: horiz ? 10 + i * (NW + GAP) : (vbW - NW) / 2,
+    y: horiz ? (vbH - NH) / 2 : 10 + i * (NH + GAP)
+  }))
+  edges.forEach(([a, b]) => {
+    const pa = nodePos[a], pb = nodePos[b]
+    const line = document.createElementNS(svgNS, 'line')
+    line.setAttribute('x1', horiz ? pa.x + NW  : pa.x + NW / 2)
+    line.setAttribute('y1', horiz ? pa.y + NH / 2 : pa.y + NH)
+    line.setAttribute('x2', horiz ? pb.x - 2   : pb.x + NW / 2)
+    line.setAttribute('y2', horiz ? pb.y + NH / 2 : pb.y - 2)
+    line.setAttribute('stroke', '#7F77DD'); line.setAttribute('stroke-width', '1.5')
+    line.setAttribute('marker-end', 'url(#dgm-ah-' + el.id + ')')
+    svg.appendChild(line)
+  })
+  nodes.forEach((label, i) => {
+    const { x, y } = nodePos[i]
+    const rect = document.createElementNS(svgNS, 'rect')
+    rect.setAttribute('x', x); rect.setAttribute('y', y)
+    rect.setAttribute('width', NW); rect.setAttribute('height', NH); rect.setAttribute('rx', '6')
+    rect.setAttribute('fill', 'rgba(83,74,183,0.2)')
+    rect.setAttribute('stroke', 'rgba(127,119,221,0.4)'); rect.setAttribute('stroke-width', '1')
+    svg.appendChild(rect)
+    const text = document.createElementNS(svgNS, 'text')
+    text.setAttribute('x', x + NW / 2); text.setAttribute('y', y + NH / 2 + 4.5)
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', '#c8c0f0')
+    text.setAttribute('font-size', '13'); text.setAttribute('font-family', 'Outfit,sans-serif')
+    text.textContent = label
+    svg.appendChild(text)
+  })
+  return svg
+}
+
+function showDiagramaModal(existingEl) {
+  const prev = existingEl?.props || {}
+  const ov = document.createElement('div')
+  ov.className = 'sld-dialog-overlay'
+  ov.innerHTML = `
+    <div class="sld-dialog" style="min-width:340px;max-width:420px">
+      <h3>${existingEl ? 'Editar diagrama' : 'Nuevo diagrama'}</h3>
+      <div class="sld-prop-group" style="margin-bottom:14px">
+        <div class="sld-prop-label">Definición — A → B</div>
+        <textarea id="sld-dgm-def" rows="6" class="sld-prop-input" style="resize:vertical;font-family:monospace;font-size:12px">${esc(prev.definicion || 'WhatsApp → n8n\nn8n → GPT-4\nGPT-4 → Supabase\nSupabase → Respuesta')}</textarea>
+      </div>
+      <div class="sld-dialog-actions">
+        <button class="sld-prop-btn ghost" style="padding:7px 14px" onclick="this.closest('.sld-dialog-overlay').remove()">Cancelar</button>
+        <button class="sld-prop-btn" style="padding:7px 14px" id="sld-dgm-ok">${existingEl ? 'Actualizar' : 'Insertar diagrama'}</button>
+      </div>
+    </div>`
+  document.body.appendChild(ov)
+  ov.querySelector('#sld-dgm-ok').addEventListener('click', () => {
+    const definicion = ov.querySelector('#sld-dgm-def').value.trim()
+    ov.remove()
+    if (existingEl) {
+      saveHistory()
+      existingEl.props.definicion = definicion
+      _dirty = true; renderCanvas(); if (_selectedId) selectEl(_selectedId)
+    } else {
+      const s = slide(); if (!s) return
+      saveHistory()
+      const el = newEl('diagrama')
+      el.props.definicion = definicion
+      s.elementos.push(el)
+      _dirty = true; renderCanvas(); selectEl(el.id)
+    }
+  })
 }
 
 function updateProp(key, val) {
@@ -1214,6 +1471,10 @@ const _sld = {
   setName: v => { _presName = v; _dirty = true },
   setSlideProp,
   addEl, addElTabla, addElImagen, changeImage, handleImage,
+  addElGrafica: () => showGraficaModal(),
+  addElDiagrama: () => showDiagramaModal(),
+  editGrafica:  () => { const el = findEl(_selectedId); if (el) showGraficaModal(el) },
+  editDiagrama: () => { const el = findEl(_selectedId); if (el) showDiagramaModal(el) },
   updateProp, deleteSelected,
 }
 
