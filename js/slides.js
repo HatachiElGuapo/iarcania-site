@@ -21,6 +21,15 @@ let _thumbDrag = null
 let _changingImageId = null
 let _initialized = false
 let _autoSaveTimer = null
+let _history = []
+
+// ── Historial ─────────────────────────────────────────────────
+function saveHistory() {
+  const s = slide()
+  if (!s) return
+  if (_history.length >= 20) _history.shift()
+  _history.push(JSON.parse(JSON.stringify(s)))
+}
 
 // ── Utilidades ────────────────────────────────────────────────
 const $  = id => document.getElementById(id)
@@ -230,6 +239,16 @@ function bindGlobalKeys() {
       ev.preventDefault(); deleteSelectedEl()
     }
     if (ev.key === 'Escape') deselectEl()
+    if (ev.key === 'z' && (ev.ctrlKey || ev.metaKey)) {
+      ev.preventDefault()
+      if (_history.length) {
+        _slides[_activeIdx] = _history.pop()
+        _selectedId = null; _dirty = true; renderAll()
+      }
+    }
+    if (ev.key === 'x' && (ev.ctrlKey || ev.metaKey) && _selectedId) {
+      ev.preventDefault(); saveHistory(); deleteSelectedEl()
+    }
   })
 
   document.addEventListener('paste', ev => {
@@ -446,6 +465,7 @@ function deleteSelectedEl() {
   if (!_selectedId) return
   const s = slide()
   if (!s) return
+  saveHistory()
   s.elementos = s.elementos.filter(e => e.id !== _selectedId)
   _selectedId = null
   _dirty = true
@@ -456,6 +476,7 @@ function deleteSelectedEl() {
 function initDrag(ev, elId) {
   const el = findEl(elId)
   if (!el) return
+  saveHistory()
   _drag = { elId, startX: ev.clientX, startY: ev.clientY, origX: el.x, origY: el.y }
   ev.preventDefault()
 }
@@ -463,6 +484,7 @@ function initDrag(ev, elId) {
 function initResize(ev, elId) {
   const el = findEl(elId)
   if (!el) return
+  saveHistory()
   _resize = { elId, startX: ev.clientX, startY: ev.clientY, origW: el.w, origH: el.h }
   ev.preventDefault()
 }
@@ -706,6 +728,7 @@ function setSlideProp(key, val) {
 function addEl(tipo) {
   const s = slide()
   if (!s) return
+  saveHistory()
   const el = newEl(tipo)
   s.elementos.push(el)
   _dirty = true; renderCanvas(); selectEl(el.id)
@@ -715,6 +738,7 @@ function addElTabla() {
   showTableDialog((rows, cols) => {
     const s = slide()
     if (!s) return
+    saveHistory()
     const el = newEl('tabla')
     el.props.rows = rows; el.props.cols = cols; el.props.cells = []
     s.elementos.push(el)
@@ -762,6 +786,7 @@ function addImageElement(src) {
   if (!s) return
   const tmp = new Image()
   tmp.onload = () => {
+    saveHistory()
     const el = newEl('imagen')
     el.w = 60; el.x = 20; el.y = 20
     const ratio = tmp.naturalHeight / tmp.naturalWidth
@@ -771,6 +796,7 @@ function addImageElement(src) {
     _dirty = true; renderCanvas(); selectEl(el.id)
   }
   tmp.onerror = () => {
+    saveHistory()
     const el = newEl('imagen')
     el.w = 60; el.x = 20; el.y = 20
     el.props.src = src
@@ -842,6 +868,7 @@ function showCtxMenu(x, y) {
 function updateProp(key, val) {
   const el = findEl(_selectedId)
   if (!el) return
+  saveHistory()
   el.props[key] = val; _dirty = true
   const dom = $('sldel-' + el.id)
   if (!dom) return
