@@ -122,6 +122,10 @@ select.sld-prop-input { cursor:pointer; }
 .sld-text-inner { width:100%; height:100%; outline:none; white-space:pre-wrap; overflow-wrap:break-word; display:block; }
 .sld-tb-select { height:30px; padding:0 8px; border-radius:5px; border:1px solid #2a2a2a; background:#161616; color:#888; font-family:'Outfit',sans-serif; font-size:12px; outline:none; cursor:pointer; max-width:190px; transition:border-color .12s; flex-shrink:0; }
 .sld-tb-select:hover,.sld-tb-select:focus { border-color:#444; color:#e8e8e8; }
+#sld-ctx-menu { position:fixed; z-index:9999; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.6); padding:4px 0; min-width:160px; }
+.sld-ctx-item { display:flex; align-items:center; padding:8px 14px; font-size:13px; color:#e8e8e8; cursor:pointer; transition:background .1s; white-space:nowrap; }
+.sld-ctx-item:hover { background:#2a2a2a; }
+.sld-ctx-sep { height:1px; background:#2a2a2a; margin:4px 0; }
 `
   document.head.appendChild(s)
 }
@@ -197,6 +201,11 @@ function buildEditor() {
 
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mouseup', onMouseUp)
+
+  $('sld-canvas').addEventListener('contextmenu', ev => {
+    ev.preventDefault()
+    showCtxMenu(ev.clientX, ev.clientY)
+  })
 }
 
 function sizCanvas() {
@@ -221,6 +230,23 @@ function bindGlobalKeys() {
       ev.preventDefault(); deleteSelectedEl()
     }
     if (ev.key === 'Escape') deselectEl()
+  })
+
+  document.addEventListener('paste', ev => {
+    const sec = $('section-slides')
+    if (!sec || !sec.classList.contains('active')) return
+    const items = ev.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image')) {
+        const file = item.getAsFile()
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = e => addImageElement(e.target.result)
+        reader.readAsDataURL(file)
+        return
+      }
+    }
   })
 }
 
@@ -728,6 +754,88 @@ function handleImage(input) {
   }
   reader.readAsDataURL(file)
   input.value = ''
+}
+
+function addImageElement(src) {
+  const s = slide()
+  if (!s) return
+  const tmp = new Image()
+  tmp.onload = () => {
+    const el = newEl('imagen')
+    el.w = 60; el.x = 20; el.y = 20
+    const ratio = tmp.naturalHeight / tmp.naturalWidth
+    el.h = Math.round(Math.min(60 * ratio, 55) * 100) / 100
+    el.props.src = src
+    s.elementos.push(el)
+    _dirty = true; renderCanvas(); selectEl(el.id)
+  }
+  tmp.onerror = () => {
+    const el = newEl('imagen')
+    el.w = 60; el.x = 20; el.y = 20
+    el.props.src = src
+    s.elementos.push(el)
+    _dirty = true; renderCanvas(); selectEl(el.id)
+  }
+  tmp.src = src
+}
+
+async function pasteImageFromClipboard() {
+  try {
+    const items = await navigator.clipboard.read()
+    for (const item of items) {
+      const imageType = item.types.find(t => t.startsWith('image'))
+      if (imageType) {
+        const blob = await item.getType(imageType)
+        const reader = new FileReader()
+        reader.onload = e => addImageElement(e.target.result)
+        reader.readAsDataURL(blob)
+        return
+      }
+    }
+  } catch {
+    // Fallback via paste event listener
+  }
+}
+
+function removeCtxMenu() {
+  const m = $('sld-ctx-menu')
+  if (m) m.remove()
+}
+
+function showCtxMenu(x, y) {
+  removeCtxMenu()
+  const menu = document.createElement('div')
+  menu.id = 'sld-ctx-menu'
+  menu.style.left = x + 'px'
+  menu.style.top  = y + 'px'
+
+  const opts = [
+    ['📋', 'Pegar imagen',  () => pasteImageFromClipboard()],
+    ['📝', 'Agregar texto', () => addEl('texto')],
+    ['⬜', 'Agregar forma', () => addEl('forma')],
+  ]
+  opts.forEach(([icon, label, fn]) => {
+    const item = document.createElement('div')
+    item.className = 'sld-ctx-item'
+    item.textContent = icon + ' ' + label
+    item.addEventListener('click', () => { removeCtxMenu(); fn() })
+    menu.appendChild(item)
+  })
+
+  if (_selectedId) {
+    const sep = document.createElement('div')
+    sep.className = 'sld-ctx-sep'
+    menu.appendChild(sep)
+    const del = document.createElement('div')
+    del.className = 'sld-ctx-item'
+    del.style.color = '#E24B4A'
+    del.textContent = '🗑 Eliminar elemento'
+    del.addEventListener('click', () => { removeCtxMenu(); deleteSelectedEl() })
+    menu.appendChild(del)
+  }
+
+  document.body.appendChild(menu)
+  setTimeout(() => document.addEventListener('click', removeCtxMenu, { once: true }), 0)
 }
 
 function updateProp(key, val) {
