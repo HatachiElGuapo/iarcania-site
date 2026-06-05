@@ -980,9 +980,18 @@ function showGraficaModal(existingEl) {
         <div class="sld-prop-label">Título (opcional)</div>
         <input id="sld-gt-titulo" class="sld-prop-input" placeholder="Sin título" value="${esc(prev.titulo || '')}">
       </div>
-      <div class="sld-prop-group" style="margin-bottom:14px">
-        <div class="sld-prop-label">Datos — Etiqueta, Valor</div>
+      <div class="sld-prop-group" style="margin-bottom:6px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div class="sld-prop-label" style="margin-bottom:0">Datos — Etiqueta, Valor</div>
+          <button class="sld-prop-btn ghost" id="sld-gt-ia-btn" style="padding:3px 10px;font-size:12px">✨ Generar con IA</button>
+        </div>
         <textarea id="sld-gt-datos" rows="5" class="sld-prop-input" style="resize:vertical;font-family:monospace;font-size:12px">${esc(prev.datos_raw || 'WhatsApp, 45\nInstagram, 30\nEmail, 25')}</textarea>
+      </div>
+      <div id="sld-gt-ia-panel" style="display:none;margin-bottom:14px">
+        <div style="display:flex;gap:6px">
+          <input id="sld-gt-ia-tema" class="sld-prop-input" placeholder="¿Sobre qué quieres la gráfica?" style="flex:1">
+          <button class="sld-prop-btn" id="sld-gt-ia-gen" style="padding:6px 12px;white-space:nowrap">Generar</button>
+        </div>
       </div>
       <div class="sld-dialog-actions">
         <button class="sld-prop-btn ghost" style="padding:7px 14px" onclick="this.closest('.sld-dialog-overlay').remove()">Cancelar</button>
@@ -996,6 +1005,39 @@ function showGraficaModal(existingEl) {
       tipoSel = t
       ;['barras', 'lineas', 'pie'].forEach(b => ov.querySelector('#sld-gt-' + b).classList.toggle('ghost', b !== t))
     })
+  })
+  ov.querySelector('#sld-gt-ia-btn').addEventListener('click', () => {
+    const panel = ov.querySelector('#sld-gt-ia-panel')
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none'
+    if (panel.style.display === 'block') ov.querySelector('#sld-gt-ia-tema').focus()
+  })
+  ov.querySelector('#sld-gt-ia-gen').addEventListener('click', async () => {
+    const tema = ov.querySelector('#sld-gt-ia-tema').value.trim()
+    if (!tema) return
+    const genBtn = ov.querySelector('#sld-gt-ia-gen')
+    genBtn.textContent = 'Generando...'
+    genBtn.disabled = true
+    try {
+      const res = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system: 'Eres un asistente de datos para Miguel Aguilar, fundador de IArcanIA en Colombia. Miguel construye automatizaciones con n8n, agentes de IA con GPT-4, sitios web con Next.js y Supabase. Cuando te pidan datos para una gráfica, devuelve SOLO el formato Etiqueta, Valor — una por línea, sin texto adicional, sin explicaciones. Los valores deben ser números. Máximo 8 filas. Si no tienes datos exactos, usa estimaciones razonables basadas en tu conocimiento.',
+          messages: [{ role: 'user', content: `Genera datos para una gráfica sobre: ${tema}` }]
+        })
+      })
+      const data = await res.json()
+      const texto = data.content?.[0]?.text || data.text || data.result || ''
+      if (texto) {
+        ov.querySelector('#sld-gt-datos').value = texto.trim()
+        ov.querySelector('#sld-gt-ia-panel').style.display = 'none'
+      }
+    } catch (e) {
+      console.error('Error generando datos con IA:', e)
+    } finally {
+      genBtn.textContent = 'Generar'
+      genBtn.disabled = false
+    }
   })
   ov.querySelector('#sld-gt-ok').addEventListener('click', () => {
     const titulo    = ov.querySelector('#sld-gt-titulo').value.trim()
