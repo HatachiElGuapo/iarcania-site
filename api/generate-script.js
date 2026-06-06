@@ -117,6 +117,36 @@ Formato de respuesta — JSON estricto, sin backticks, sin texto extra:
     return
   }
 
+  // --- Modo gráfica: generar datos en formato Etiqueta, Valor ---
+  if (req.body?.grafica) {
+    const tema = req.body.grafica
+    try {
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 300,
+          system: 'Devuelve SOLO datos en formato Etiqueta, Valor — una por línea, sin texto adicional, sin explicaciones. Los valores deben ser números. Máximo 8 filas. Si no tienes datos exactos, usa estimaciones razonables.',
+          messages: [{ role: 'user', content: `Genera datos para una gráfica sobre: ${tema}` }]
+        })
+      })
+      const data = await anthropicRes.json()
+      if (!anthropicRes.ok) {
+        res.status(anthropicRes.status).json({ error: data.error?.message || 'Error de Anthropic' })
+        return
+      }
+      res.status(200).json({ text: data.content?.[0]?.text || null })
+    } catch (e) {
+      res.status(500).json({ error: e.message || 'Error interno' })
+    }
+    return
+  }
+
   // --- Modo guión: generar guión estructurado en JSON ---
   if (!idea) { res.status(400).json({ error: 'Falta el campo idea o raw' }); return }
 

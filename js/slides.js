@@ -1021,13 +1021,11 @@ function showGraficaModal(existingEl) {
       const res = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system: 'Eres un asistente de datos para Miguel Aguilar, fundador de IArcanIA en Colombia. Miguel construye automatizaciones con n8n, agentes de IA con GPT-4, sitios web con Next.js y Supabase. Cuando te pidan datos para una gráfica, devuelve SOLO el formato Etiqueta, Valor — una por línea, sin texto adicional, sin explicaciones. Los valores deben ser números. Máximo 8 filas. Si no tienes datos exactos, usa estimaciones razonables basadas en tu conocimiento.',
-          messages: [{ role: 'user', content: `Genera datos para una gráfica sobre: ${tema}` }]
-        })
+        body: JSON.stringify({ grafica: tema })
       })
       const data = await res.json()
-      const texto = data.content?.[0]?.text || data.text || data.result || ''
+      if (!res.ok) throw new Error(data.error || 'Error del servidor')
+      const texto = data.text || ''
       if (texto) {
         ov.querySelector('#sld-gt-datos').value = texto.trim()
         ov.querySelector('#sld-gt-ia-panel').style.display = 'none'
