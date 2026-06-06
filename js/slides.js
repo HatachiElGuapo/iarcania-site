@@ -988,9 +988,9 @@ function showGraficaModal(existingEl) {
         <textarea id="sld-gt-datos" rows="5" class="sld-prop-input" style="resize:vertical;font-family:monospace;font-size:12px">${esc(prev.datos_raw || 'WhatsApp, 45\nInstagram, 30\nEmail, 25')}</textarea>
       </div>
       <div id="sld-gt-ia-panel" style="display:none;margin-bottom:14px">
+        <input type="text" id="sld-ai-tema" placeholder="Ej: lenguajes de programación más usados en 2025" style="width:100%; background:#111; border:1px solid #2a2a2a; color:#e8e8e8; padding:8px 10px; border-radius:6px; font-size:13px; margin-bottom:8px;">
         <div style="display:flex;gap:6px">
-          <input id="sld-gt-ia-tema" class="sld-prop-input" placeholder="¿Sobre qué quieres la gráfica?" style="flex:1">
-          <button class="sld-prop-btn" id="sld-gt-ia-gen" style="padding:6px 12px;white-space:nowrap">Generar</button>
+          <button class="sld-prop-btn" id="sld-gt-ia-gen" style="padding:6px 12px;white-space:nowrap;width:100%">Generar</button>
         </div>
       </div>
       <div class="sld-dialog-actions">
@@ -1009,10 +1009,10 @@ function showGraficaModal(existingEl) {
   ov.querySelector('#sld-gt-ia-btn').addEventListener('click', () => {
     const panel = ov.querySelector('#sld-gt-ia-panel')
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none'
-    if (panel.style.display === 'block') ov.querySelector('#sld-gt-ia-tema').focus()
+    if (panel.style.display === 'block') ov.querySelector('#sld-ai-tema').focus()
   })
   ov.querySelector('#sld-gt-ia-gen').addEventListener('click', async () => {
-    const tema = ov.querySelector('#sld-gt-ia-tema').value.trim()
+    const tema = ov.querySelector('#sld-ai-tema').value.trim()
     if (!tema) return
     const genBtn = ov.querySelector('#sld-gt-ia-gen')
     genBtn.textContent = 'Generando...'
