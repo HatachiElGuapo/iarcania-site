@@ -290,7 +290,7 @@ function renderCanvas() {
   const cvs = $('sld-canvas')
   if (!cvs) return
   cvs.style.backgroundColor = '#0d0920'
-  cvs.style.backgroundImage = s.fondo.startsWith('#') ? 'none' : s.fondo
+  cvs.style.backgroundImage = 'radial-gradient(ellipse at center, #12082a 0%, #08060f 60%, #04030a 100%)'
   const logo = $('sld-logo-bg')
   if (logo) logo.style.display = s.logo ? '' : 'none'
   updateRain(s.lluvia)
@@ -925,6 +925,11 @@ function parseGraficaDatos(raw) {
 async function renderGraficaCanvas(el, cvs) {
   if (!await ensureChartJs()) return
   if (_charts[el.id]) { try { _charts[el.id].destroy() } catch {} }
+  const container = cvs.parentElement
+  cvs.style.width = '100%'
+  cvs.style.height = '100%'
+  cvs.width = container.offsetWidth
+  cvs.height = container.offsetHeight
   const datos = parseGraficaDatos(el.props.datos_raw)
   const tipo = { barras: 'bar', lineas: 'line', pie: 'pie' }[el.props.tipo_grafica] || 'bar'
   const isRound = tipo === 'pie'
