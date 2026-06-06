@@ -70,7 +70,7 @@ function newEl(tipo) {
       base.props = { rows: 3, cols: 3, cells: [] }
       break
     case 'grafica':
-      base.w = 65; base.h = 42; base.x = 17; base.y = 18
+      base.w = 70; base.h = 50; base.x = 15; base.y = 15
       base.props = { tipo_grafica: 'barras', titulo: '', datos_raw: 'WhatsApp, 45\nInstagram, 30\nEmail, 25' }
       break
     case 'diagrama':
@@ -954,7 +954,7 @@ async function renderGraficaCanvas(el, cvs) {
       },
       scales: isRound ? {} : {
         x: { ticks: { color: '#c8c0f0' }, grid: { color: 'rgba(127,119,221,0.2)' } },
-        y: { ticks: { color: '#c8c0f0' }, grid: { color: 'rgba(127,119,221,0.2)' } }
+        y: { beginAtZero: true, suggestedMax: undefined, ticks: { color: '#c8c0f0' }, grid: { color: 'rgba(127,119,221,0.2)' } }
       }
     }
   })
