@@ -437,6 +437,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" onclick="showSection('clientes',this)">
           <span class="nav-icon">🤝</span>Clientes
         </button>
+        <button class="nav-item" onclick="showSection('dinero',this);switchDineroTab('escanear')">
+          <span class="nav-icon">📷</span>Escanear
+        </button>
         <button class="nav-item" onclick="showSection('dinero',this);switchDineroTab('cobros')">
           <span class="nav-icon">💳</span>Cobros
         </button>
@@ -7053,28 +7056,31 @@ let allInvoicesP = []
 
 async function loadClientesDashboard(){
   if(!USER_ID) return
+  const el = document.getElementById('client-list')
+  if(!el) return
+
   const now = new Date()
   const y = now.getFullYear()
   const m = String(now.getMonth()+1).padStart(2,'0')
   const monthStart = `${y}-${m}-01`
   const monthEnd   = `${y}-${m}-31`
 
-  const [
-    { data: clients },
-    { data: projects },
-    { data: payments },
-    { data: invoices }
-  ] = await Promise.all([
-    SB_P.from('clients').select('*').eq('user_id', USER_ID).order('created_at',{ascending:false}),
-    SB_P.from('projects').select('*').eq('user_id', USER_ID),
-    SB_P.from('payments').select('*').eq('user_id', USER_ID).order('paid_date',{ascending:false}),
-    SB_P.from('invoices').select('*').eq('user_id', USER_ID).order('due_date',{ascending:true})
-  ])
+  try {
+    const [r1, r2, r3, r4] = await Promise.all([
+      SB_P.from('clients').select('*').eq('user_id', USER_ID).order('created_at',{ascending:false}),
+      SB_P.from('projects').select('*').eq('user_id', USER_ID),
+      SB_P.from('payments').select('*').eq('user_id', USER_ID).order('paid_date',{ascending:false}),
+      SB_P.from('invoices').select('*').eq('user_id', USER_ID).order('due_date',{ascending:true})
+    ])
 
-  allClientsP  = clients  || []
-  allProjectsP = projects || []
-  allPaymentsP = payments || []
-  allInvoicesP = invoices || []
+    allClientsP  = r1.data || []
+    allProjectsP = r2.data || []
+    allPaymentsP = r3.data || []
+    allInvoicesP = r4.data || []
+  } catch(err){
+    console.error('loadClientesDashboard error:', err)
+    allClientsP = []; allProjectsP = []; allPaymentsP = []; allInvoicesP = []
+  }
 
   const cobrado = allPaymentsP
     .filter(p => p.status === 'pagado' && p.paid_date >= monthStart && p.paid_date <= monthEnd)
@@ -7085,12 +7091,12 @@ async function loadClientesDashboard(){
     .reduce((a, i) => a + (i.amount || 0), 0)
 
   const summaryEl = document.getElementById('cli-summary')
-  if(allClientsP.length && summaryEl){
-    summaryEl.style.display = 'grid'
-    document.getElementById('cli-cobrado').textContent  = '$'+cobrado.toLocaleString('es-CO')
-    document.getElementById('cli-pendiente').textContent = '$'+pendiente.toLocaleString('es-CO')
-  } else if(summaryEl){
-    summaryEl.style.display = 'none'
+  if(summaryEl){
+    summaryEl.style.display = allClientsP.length ? 'grid' : 'none'
+    if(allClientsP.length){
+      document.getElementById('cli-cobrado').textContent  = '$'+cobrado.toLocaleString('es-CO')
+      document.getElementById('cli-pendiente').textContent = '$'+pendiente.toLocaleString('es-CO')
+    }
   }
 
   renderClientesDashboard()
