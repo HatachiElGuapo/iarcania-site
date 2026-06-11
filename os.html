@@ -1086,6 +1086,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-add" style="border-color:rgba(201,168,76,0.4);color:var(--gold)" onclick="openAIScriptModal()">✨ Crear con IA</button>
+          <button class="btn-add" style="border-color:rgba(124,58,237,0.5);color:var(--purple-light)" onclick="openPresentacionModal('guion')">🎨 Presentación</button>
           <button class="btn-add" onclick="openNewScript()">+ Nuevo guión</button>
         </div>
       </div>
@@ -1239,7 +1240,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Clientes</h1>
           <div class="page-sub">Clientes activos de IArcanIA</div>
         </div>
-        <button class="btn-add" onclick="openModal('client')">+ Nuevo cliente</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-add" style="border-color:rgba(124,58,237,0.5);color:var(--purple-light)" onclick="openPresentacionModal('propuesta')">📄 Generar propuesta</button>
+          <button class="btn-add" onclick="openModal('client')">+ Nuevo cliente</button>
+        </div>
       </div>
       <div class="cli-summary" id="cli-summary" style="display:none">
         <div class="cli-sum-box">
@@ -1778,6 +1782,66 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 </div>
 
 <!-- Modal: registrar ocurrencia -->
+<!-- MODAL PRESENTACIÓN -->
+<div class="modal-overlay" id="modal-presentacion">
+  <div class="modal" style="max-width:520px">
+    <h3 id="pres-title">🎨 Generar presentación</h3>
+
+    <!-- TIPO: guion -->
+    <div id="pres-form-guion">
+      <div class="field">
+        <label>💡 Tema o idea</label>
+        <textarea id="pres-idea" placeholder="Describe el tema, lo que construiste, o la filosofía que quieres explorar..." style="min-height:100px;resize:vertical;width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Canal</label>
+          <select id="pres-canal" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+            <option value="iarcania">IArcanIA</option>
+            <option value="voidstoic">Void Stoic</option>
+          </select>
+        </div>
+        <div class="field"><label>Formato</label>
+          <select id="pres-formato" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+            <option value="largo">Video largo (YouTube)</option>
+            <option value="corto">Short / Reels (60-90s)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIPO: propuesta -->
+    <div id="pres-form-propuesta" style="display:none">
+      <div class="form-row">
+        <div class="field"><label>Nombre del cliente *</label><input type="text" id="pres-cli-nombre" placeholder="Ej: Alejandra Salazar" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"/></div>
+        <div class="field"><label>Empresa / negocio</label><input type="text" id="pres-cli-empresa" placeholder="Ej: Diamy Shop" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"/></div>
+      </div>
+      <div class="field"><label>Problema principal *</label>
+        <textarea id="pres-cli-problema" placeholder="¿Qué les está costando tiempo o dinero hoy?" style="min-height:70px;resize:vertical;width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"></textarea>
+      </div>
+      <div class="field"><label>Solución que ofreces *</label>
+        <textarea id="pres-cli-solucion" placeholder="¿Qué vas a construir exactamente?" style="min-height:70px;resize:vertical;width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Precio *</label><input type="text" id="pres-cli-precio" placeholder="Ej: $3.500.000 COP" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"/></div>
+        <div class="field"><label>Forma de pago</label><input type="text" id="pres-cli-pago" placeholder="50% inicio / 50% entrega" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;box-sizing:border-box"/></div>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="pres-cli-fundadora" style="width:16px;height:16px;accent-color:#7c3aed">
+        <label style="font-size:13px;color:var(--text-muted);margin:0">Incluir oferta fundadora (referidos)</label>
+      </div>
+    </div>
+
+    <div id="pres-loading" style="display:none;text-align:center;padding:16px 0;color:var(--purple-light);font-size:13px;font-family:'Outfit',sans-serif">
+      <div class="spinner" style="margin:0 auto 8px"></div>
+      Generando presentación con IA...
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('presentacion')">Cancelar</button>
+      <button class="btn-save" id="pres-generate-btn" onclick="generarPresentacion()" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">✨ Generar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-occurrence">
   <div class="modal" style="max-width:460px">
     <h3 id="occ-modal-title">Registrar vez</h3>
@@ -6978,6 +7042,66 @@ function openAIScriptModal(){
   document.getElementById('ai-loading').style.display = 'none'
   document.getElementById('ai-generate-btn').disabled = false
   openModal('ai-script')
+}
+
+function openPresentacionModal(tipo){
+  const isGuion = tipo !== 'propuesta'
+  document.getElementById('pres-title').textContent = isGuion ? '🎨 Generar presentación de guión' : '📄 Generar propuesta comercial'
+  document.getElementById('pres-form-guion').style.display = isGuion ? '' : 'none'
+  document.getElementById('pres-form-propuesta').style.display = isGuion ? 'none' : ''
+  document.getElementById('pres-loading').style.display = 'none'
+  document.getElementById('pres-generate-btn').disabled = false
+  document.getElementById('pres-generate-btn').dataset.tipo = tipo
+  if(isGuion){ document.getElementById('pres-idea').value = ''; document.getElementById('pres-canal').value = 'iarcania' }
+  else { ['nombre','empresa','problema','solucion','precio','pago'].forEach(f => document.getElementById('pres-cli-'+f).value = '') }
+  openModal('presentacion')
+}
+
+async function generarPresentacion(){
+  const tipo = document.getElementById('pres-generate-btn').dataset.tipo
+  let body = { tipo }
+
+  if(tipo === 'guion'){
+    const idea = document.getElementById('pres-idea').value.trim()
+    if(!idea){ showToast('❌ Escribe el tema primero'); return }
+    body.idea = idea
+    body.canal = document.getElementById('pres-canal').value
+    body.formato = document.getElementById('pres-formato').value
+  } else {
+    const nombre = document.getElementById('pres-cli-nombre').value.trim()
+    const problema = document.getElementById('pres-cli-problema').value.trim()
+    const solucion = document.getElementById('pres-cli-solucion').value.trim()
+    const precio = document.getElementById('pres-cli-precio').value.trim()
+    if(!nombre || !problema || !solucion || !precio){ showToast('❌ Completa los campos obligatorios (*)'); return }
+    body.cliente = {
+      nombre, precio,
+      empresa: document.getElementById('pres-cli-empresa').value.trim(),
+      problema, solucion,
+      pago: document.getElementById('pres-cli-pago').value.trim() || '50% inicio / 50% entrega',
+      fundadora: document.getElementById('pres-cli-fundadora').checked
+    }
+  }
+
+  document.getElementById('pres-loading').style.display = 'block'
+  document.getElementById('pres-generate-btn').disabled = true
+
+  try {
+    const r = await fetch('/api/generar-presentacion', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+    const data = await r.json()
+    if(!r.ok) throw new Error(data.error || 'Error del servidor')
+
+    closeModal('presentacion')
+    const w = window.open('', '_blank')
+    w.document.open()
+    w.document.write(data.html)
+    w.document.close()
+    showToast('✨ Presentación generada — abierta en nueva pestaña')
+  } catch(e){
+    showToast('❌ Error: ' + (e.message || 'Error desconocido'))
+  }
+
+  document.getElementById('pres-loading').style.display = 'none'
+  document.getElementById('pres-generate-btn').disabled = false
 }
 
 async function generateScriptWithAI(){
