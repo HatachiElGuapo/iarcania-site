@@ -155,6 +155,33 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .empty-state{text-align:center;padding:2rem;color:var(--text-muted);font-size:13px}
 .empty-icon{font-size:2rem;margin-bottom:.5rem;opacity:.3}
 
+/* CLIENT DASHBOARD */
+.cli-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.cli-sum-box{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.cli-sum-num{font-family:'Playfair Display',serif;font-size:22px;color:var(--text);margin-bottom:2px}
+.cli-sum-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+.cli-card2{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .15s}
+.cli-card2:hover{border-color:var(--border-gold)}
+.cli-card2-head{padding:14px 16px;display:flex;align-items:flex-start;gap:12px}
+.cli-card2-meta{flex:1;min-width:0}
+.cli-card2-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px}
+.cli-card2-name{font-size:14px;font-weight:500;color:var(--text)}
+.cli-card2-biz{font-size:11px;color:var(--text-muted);margin-bottom:5px}
+.cli-card2-project{font-size:11px;color:var(--text-dim);margin-bottom:7px}
+.cli-card2-nums{display:flex;gap:14px;font-size:12px;flex-wrap:wrap}
+.cli-card2-toggle{flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;padding:5px 9px;font-size:11px;font-family:'Outfit',sans-serif;transition:all .15s;white-space:nowrap;align-self:flex-start}
+.cli-card2-toggle:hover{border-color:var(--gold);color:var(--gold)}
+.cli-accordion{display:none;border-top:1px solid var(--border);padding:14px 16px;background:#080808}
+.cli-accordion.open{display:block}
+.cli-acc-section{margin-bottom:14px}
+.cli-acc-section:last-child{margin-bottom:0}
+.cli-acc-title{font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.cli-hist-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.cli-hist-row:last-child{border-bottom:none}
+.cli-hist-date{color:var(--text-muted);flex-shrink:0;min-width:82px}
+.cli-hist-desc{flex:1;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-hist-amount{font-weight:500;flex-shrink:0;font-family:'Playfair Display',serif}
+
 /* PAYMENTS */
 .payment-list{display:flex;flex-direction:column;gap:6px}
 .payment-row{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:12px}
@@ -1111,6 +1138,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="freq-tab active" id="dtab-cuentas"  onclick="switchDineroTab('cuentas')">💳 Cuentas</button>
         <button class="freq-tab"        id="dtab-gastos"   onclick="switchDineroTab('gastos')">📊 Gastos</button>
         <button class="freq-tab"        id="dtab-facturas" onclick="switchDineroTab('facturas')">🧾 Facturas</button>
+        <button class="freq-tab"        id="dtab-escanear" onclick="switchDineroTab('escanear')">📷 Escanear</button>
         <button class="freq-tab"        id="dtab-cobros"   onclick="switchDineroTab('cobros')">🤝 Cobros</button>
       </div>
       <!-- Cuentas -->
@@ -1128,6 +1156,60 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
         <div id="facturas-list" style="display:flex;flex-direction:column;gap:8px">
           <div class="loading"><div class="spinner"></div><br>Cargando facturas...</div>
+        </div>
+      </div>
+      <!-- Escanear -->
+      <div id="dinero-tab-escanear" style="display:none">
+        <div id="scan-drop-zone" onclick="document.getElementById('scan-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleScanDrop(event)" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color .2s">
+          <div style="font-size:36px;margin-bottom:10px">📷</div>
+          <div style="color:var(--text-muted);font-size:13px">Arrastra una imagen aquí o toca para seleccionar</div>
+          <div style="color:var(--text-muted);font-size:11px;margin-top:4px">JPG · PNG</div>
+          <input type="file" id="scan-file-input" accept="image/jpeg,image/png" style="display:none" onchange="handleScanFileInput(event)">
+        </div>
+        <div id="scan-preview" style="display:none;margin-top:12px;text-align:center">
+          <img id="scan-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border)">
+        </div>
+        <div id="scan-loading" style="display:none;text-align:center;padding:24px">
+          <div class="spinner"></div>
+          <div style="margin-top:10px;color:var(--text-muted);font-size:13px">Analizando imagen...</div>
+        </div>
+        <div id="scan-question-box" style="display:none;margin-top:16px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--gold);font-weight:600;margin-bottom:8px;letter-spacing:.5px">🤔 NECESITO MÁS INFORMACIÓN</div>
+          <div id="scan-question-text" style="font-size:13px;color:var(--text);line-height:1.5"></div>
+          <input type="text" id="scan-question-answer" placeholder="Tu respuesta..." style="width:100%;margin-top:10px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+          <button onclick="continueScanWithAnswer()" style="margin-top:8px;width:100%;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);border-radius:8px;padding:9px;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Continuar →</button>
+        </div>
+        <div id="scan-form-box" style="display:none;margin-top:16px">
+          <div id="scan-tipo-badge" style="margin-bottom:12px"></div>
+          <div class="form-row">
+            <div class="field"><label>Monto (COP)</label><input type="number" id="scan-monto" placeholder="0" min="0"/></div>
+            <div class="field"><label>Fecha</label><input type="date" id="scan-fecha"/></div>
+          </div>
+          <div class="field"><label>Descripción</label><input type="text" id="scan-desc" placeholder="¿Qué fue?"/></div>
+          <div class="field"><label>Categoría</label>
+            <select id="scan-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+              <option value="servicios">⚡ Servicios</option>
+              <option value="mercado">🛒 Mercado</option>
+              <option value="salud">💊 Salud</option>
+              <option value="tecnologia">💻 Tecnología</option>
+              <option value="hogar">🏠 Hogar</option>
+              <option value="restaurantes">🍽️ Restaurantes</option>
+              <option value="transporte">🚗 Transporte</option>
+              <option value="herramientas">🔧 Herramientas</option>
+              <option value="otros">📦 Otros</option>
+            </select>
+          </div>
+          <div id="scan-factura-fields" style="display:none">
+            <div class="form-row">
+              <div class="field"><label>Nombre factura</label><input type="text" id="scan-bill-name" placeholder="Ej: Netflix"/></div>
+              <div class="field"><label>Día de vencimiento</label><input type="number" id="scan-bill-day" placeholder="1–28" min="1" max="28"/></div>
+            </div>
+          </div>
+          <div id="scan-confianza-badge" style="margin-bottom:12px"></div>
+          <div class="btn-row">
+            <button class="btn-cancel" onclick="resetScanTab()">← Nueva imagen</button>
+            <button class="btn-save" onclick="registrarEscaneo()">✓ Registrar</button>
+          </div>
         </div>
       </div>
       <!-- Cobros -->
@@ -1150,6 +1232,16 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <div class="page-sub">Clientes activos de IArcanIA</div>
         </div>
         <button class="btn-add" onclick="openModal('client')">+ Nuevo cliente</button>
+      </div>
+      <div class="cli-summary" id="cli-summary" style="display:none">
+        <div class="cli-sum-box">
+          <div class="cli-sum-num" id="cli-cobrado" style="color:var(--green)">$0</div>
+          <div class="cli-sum-label">Cobrado este mes</div>
+        </div>
+        <div class="cli-sum-box">
+          <div class="cli-sum-num" id="cli-pendiente" style="color:var(--amber)">$0</div>
+          <div class="cli-sum-label">Pendiente de cobro</div>
+        </div>
       </div>
       <div class="client-list" id="client-list">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
@@ -1883,7 +1975,7 @@ async function initApp(){
   setInterval(checkDateReset, 60000)
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
   await loadTareasHoy() // primero: hoyFocusItems disponible antes de cualquier render
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadAgendaForDate(getAgendaDateStr())])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadAgendaForDate(getAgendaDateStr()), loadClientesDashboard()])
   renderTasks() // render final con todos los datos disponibles
   loadFacturas()
   loadTimerFromStorage()
@@ -1941,6 +2033,7 @@ function showSection(id, btn){
   if(id === 'actividades') initTaskSections()
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
+  if(id === 'clientes') loadClientesDashboard()
   if(window.innerWidth <= 768) closeSidebar()
   if(!_isPopState) history.pushState({section: id}, '', '#'+id)
 }
@@ -1985,7 +2078,7 @@ function toggleNavGroup(name){
 })()
 
 // --- SECCIÓN DINERO ---
-const DINERO_TABS = ['cuentas','gastos','facturas','cobros']
+const DINERO_TABS = ['cuentas','gastos','facturas','escanear','cobros']
 let _dineroTab = 'cuentas'
 let _isPopState = false
 
@@ -6930,7 +7023,6 @@ async function generateScriptWithAI(){
 async function loadClients(){
   const { data } = await SB_I.from('clients').select('*').order('created_at',{ascending:false})
   allClients = data||[]
-  renderClients()
   const sel = document.getElementById('p-client')
   sel.innerHTML = '<option value="">Seleccionar cliente...</option>' +
     allClients.map(c=>`<option value="${c.id}">${c.name} — ${c.business||''}</option>`).join('')
@@ -6953,6 +7045,140 @@ function renderClients(){
     </div>`).join('')
 }
 
+// --- CLIENTES DASHBOARD (SB_P) ---
+let allClientsP = []
+let allProjectsP = []
+let allPaymentsP = []
+let allInvoicesP = []
+
+async function loadClientesDashboard(){
+  if(!USER_ID) return
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth()+1).padStart(2,'0')
+  const monthStart = `${y}-${m}-01`
+  const monthEnd   = `${y}-${m}-31`
+
+  const [
+    { data: clients },
+    { data: projects },
+    { data: payments },
+    { data: invoices }
+  ] = await Promise.all([
+    SB_P.from('clients').select('*').eq('user_id', USER_ID).order('created_at',{ascending:false}),
+    SB_P.from('projects').select('*').eq('user_id', USER_ID),
+    SB_P.from('payments').select('*').eq('user_id', USER_ID).order('paid_date',{ascending:false}),
+    SB_P.from('invoices').select('*').eq('user_id', USER_ID).order('due_date',{ascending:true})
+  ])
+
+  allClientsP  = clients  || []
+  allProjectsP = projects || []
+  allPaymentsP = payments || []
+  allInvoicesP = invoices || []
+
+  const cobrado = allPaymentsP
+    .filter(p => p.status === 'pagado' && p.paid_date >= monthStart && p.paid_date <= monthEnd)
+    .reduce((a, p) => a + (p.amount || 0), 0)
+
+  const pendiente = allInvoicesP
+    .filter(i => i.status === 'pendiente' || i.status === 'vencido')
+    .reduce((a, i) => a + (i.amount || 0), 0)
+
+  const summaryEl = document.getElementById('cli-summary')
+  if(allClientsP.length && summaryEl){
+    summaryEl.style.display = 'grid'
+    document.getElementById('cli-cobrado').textContent  = '$'+cobrado.toLocaleString('es-CO')
+    document.getElementById('cli-pendiente').textContent = '$'+pendiente.toLocaleString('es-CO')
+  } else if(summaryEl){
+    summaryEl.style.display = 'none'
+  }
+
+  renderClientesDashboard()
+}
+
+function renderClientesDashboard(){
+  const el = document.getElementById('client-list')
+  if(!el) return
+  if(!allClientsP.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">◆</div>Sin clientes todavía — cierra tu primer deal 🎯</div>'
+    return
+  }
+
+  const statusColors = { activo:'var(--green)', inactivo:'var(--text-muted)', pausado:'var(--amber)' }
+  const statusBg     = { activo:'rgba(93,202,165,0.1)', inactivo:'rgba(85,80,80,0.2)', pausado:'rgba(239,159,39,0.1)' }
+
+  el.innerHTML = allClientsP.map(c => {
+    const st = c.status || 'activo'
+    const proyecto   = allProjectsP.find(p => p.client_id === c.id && p.status === 'activo')
+    const totalPag   = allPaymentsP.filter(p => p.client_id === c.id && p.status === 'pagado').reduce((a,p)=>a+(p.amount||0),0)
+    const invPend    = allInvoicesP.filter(i => i.client_id === c.id && (i.status === 'pendiente' || i.status === 'vencido'))
+    const totalPend  = invPend.reduce((a,i)=>a+(i.amount||0),0)
+
+    const pagoRows = allPaymentsP.filter(p => p.client_id === c.id).slice(0,8)
+    const histHTML = pagoRows.length
+      ? pagoRows.map(p => {
+          const cls = p.status==='pagado'?'badge-paid':p.status==='vencido'?'badge-overdue':'badge-pending'
+          const fecha = p.paid_date||p.due_date||'—'
+          return `<div class="cli-hist-row">
+            <span class="cli-hist-date">${fecha}</span>
+            <span class="cli-hist-desc">${p.notes||'—'}</span>
+            <span class="cli-hist-amount">$${(p.amount||0).toLocaleString('es-CO')}</span>
+            <span class="payment-badge ${cls}">${p.status}</span>
+          </div>`
+        }).join('')
+      : '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">Sin pagos registrados</div>'
+
+    const invHTML = invPend.slice(0,8).length
+      ? invPend.slice(0,8).map(i => {
+          const cls = i.status==='vencido'?'badge-overdue':'badge-pending'
+          return `<div class="cli-hist-row">
+            <span class="cli-hist-date">${i.due_date||'—'}</span>
+            <span class="cli-hist-desc">${i.description||'—'}</span>
+            <span class="cli-hist-amount">$${(i.amount||0).toLocaleString('es-CO')}</span>
+            <span class="payment-badge ${cls}">${i.status}</span>
+          </div>`
+        }).join('')
+      : '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">Sin invoices pendientes 🎉</div>'
+
+    return `<div class="cli-card2" id="clicard-${c.id}">
+      <div class="cli-card2-head">
+        <div class="client-avatar">${c.name.charAt(0).toUpperCase()}</div>
+        <div class="cli-card2-meta">
+          <div class="cli-card2-row1">
+            <span class="cli-card2-name">${c.name}</span>
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${statusBg[st]||statusBg.activo};color:${statusColors[st]||statusColors.activo}">${st}</span>
+          </div>
+          <div class="cli-card2-biz">${[c.business,c.service].filter(Boolean).join(' · ')||'—'}</div>
+          ${proyecto?`<div class="cli-card2-project">📁 ${proyecto.name}</div>`:''}
+          <div class="cli-card2-nums">
+            <span style="color:var(--green)">✅ $${totalPag.toLocaleString('es-CO')} pagado</span>
+            ${totalPend>0?`<span style="color:var(--amber)">⏳ $${totalPend.toLocaleString('es-CO')} pendiente</span>`:''}
+          </div>
+        </div>
+        <button class="cli-card2-toggle" onclick="toggleClientAccordion('${c.id}')">Ver ▾</button>
+      </div>
+      <div class="cli-accordion" id="cliaccordion-${c.id}">
+        <div class="cli-acc-section">
+          <div class="cli-acc-title">Historial de pagos</div>
+          ${histHTML}
+        </div>
+        <div class="cli-acc-section">
+          <div class="cli-acc-title">Invoices pendientes</div>
+          ${invHTML}
+        </div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function toggleClientAccordion(id){
+  const acc = document.getElementById('cliaccordion-'+id)
+  if(!acc) return
+  const btn = document.querySelector(`#clicard-${id} .cli-card2-toggle`)
+  const isOpen = acc.classList.toggle('open')
+  if(btn) btn.textContent = isOpen ? 'Cerrar ▴' : 'Ver ▾'
+}
+
 async function saveClient(){
   const name = document.getElementById('c-name').value.trim()
   if(!name) return
@@ -6968,6 +7194,7 @@ async function saveClient(){
   })
   closeModal('client')
   await loadClients()
+  await loadClientesDashboard()
 }
 
 // --- PAYMENTS ---
@@ -7752,6 +7979,167 @@ async function deleteGasto(id){
   await SB_P.from('expenses').delete().eq('id', id)
   allExpenses = allExpenses.filter(e => e.id !== id)
   renderExpenses()
+}
+
+// --- ESCANEAR ---
+let _scanData = null
+let _scanBase64 = null
+let _scanMediaType = null
+
+function resetScanTab(){
+  _scanData = null
+  _scanBase64 = null
+  _scanMediaType = null
+  const fi = document.getElementById('scan-file-input')
+  if(fi) fi.value = ''
+  document.getElementById('scan-drop-zone').style.display = 'block'
+  document.getElementById('scan-preview').style.display = 'none'
+  document.getElementById('scan-loading').style.display = 'none'
+  document.getElementById('scan-question-box').style.display = 'none'
+  document.getElementById('scan-form-box').style.display = 'none'
+}
+
+function handleScanDrop(event){
+  event.preventDefault()
+  document.getElementById('scan-drop-zone').style.borderColor = 'var(--border)'
+  const file = event.dataTransfer.files[0]
+  if(file) processScanFile(file)
+}
+
+function handleScanFileInput(event){
+  const file = event.target.files[0]
+  if(file) processScanFile(file)
+}
+
+function processScanFile(file){
+  if(!file.type.match(/^image\/(jpeg|png)$/)){
+    showToast('❌ Solo se aceptan JPG o PNG')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result
+    _scanBase64 = dataUrl.split(',')[1]
+    _scanMediaType = file.type
+    document.getElementById('scan-img').src = dataUrl
+    document.getElementById('scan-preview').style.display = 'block'
+    document.getElementById('scan-drop-zone').style.display = 'none'
+    document.getElementById('scan-loading').style.display = 'block'
+    await callScanAPI()
+  }
+  reader.readAsDataURL(file)
+}
+
+async function callScanAPI(extraContext = null){
+  try {
+    const body = { imageBase64: _scanBase64, mediaType: _scanMediaType }
+    if(extraContext) body.extraContext = extraContext
+    const res = await fetch('/api/scan-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const data = await res.json()
+    document.getElementById('scan-loading').style.display = 'none'
+    if(!res.ok){
+      showToast('❌ ' + (data.error || 'Error al analizar'))
+      document.getElementById('scan-drop-zone').style.display = 'block'
+      return
+    }
+    _scanData = data
+    renderScanResult(data)
+  } catch(err){
+    document.getElementById('scan-loading').style.display = 'none'
+    showToast('❌ Error al conectar con la IA')
+    document.getElementById('scan-drop-zone').style.display = 'block'
+  }
+}
+
+function renderScanResult(data){
+  if(data.pregunta){
+    document.getElementById('scan-question-text').textContent = data.pregunta
+    document.getElementById('scan-question-answer').value = ''
+    document.getElementById('scan-question-box').style.display = 'block'
+  } else {
+    document.getElementById('scan-question-box').style.display = 'none'
+  }
+
+  document.getElementById('scan-monto').value = data.monto || ''
+  document.getElementById('scan-fecha').value = data.fecha || TODAY
+  document.getElementById('scan-desc').value = data.descripcion || ''
+  document.getElementById('scan-cat').value = data.categoria || 'otros'
+
+  const esRecurrente = data.tipo === 'factura_recurrente'
+  document.getElementById('scan-tipo-badge').innerHTML = esRecurrente
+    ? `<span style="background:rgba(155,114,240,0.12);border:1px solid rgba(155,114,240,0.3);border-radius:6px;padding:4px 10px;font-size:11px;color:#9b72f0;font-weight:600">🔄 FACTURA RECURRENTE</span>`
+    : `<span style="background:rgba(93,202,165,0.1);border:1px solid rgba(93,202,165,0.3);border-radius:6px;padding:4px 10px;font-size:11px;color:#5DCAA5;font-weight:600">💸 GASTO PUNTUAL</span>`
+
+  if(esRecurrente){
+    document.getElementById('scan-factura-fields').style.display = 'block'
+    document.getElementById('scan-bill-name').value = data.descripcion || ''
+    if(data.fecha){
+      const d = new Date(data.fecha + 'T00:00:00')
+      if(!isNaN(d)) document.getElementById('scan-bill-day').value = d.getDate()
+    }
+  } else {
+    document.getElementById('scan-factura-fields').style.display = 'none'
+  }
+
+  const confColors = { alta:'#5DCAA5', media:'#EF9F27', baja:'#E24B4A' }
+  const confBg    = { alta:'rgba(93,202,165,0.08)', media:'rgba(239,159,39,0.08)', baja:'rgba(226,75,74,0.08)' }
+  const conf = data.confianza || 'media'
+  document.getElementById('scan-confianza-badge').innerHTML =
+    `<span style="background:${confBg[conf]};border:1px solid ${confColors[conf]}55;border-radius:6px;padding:4px 10px;font-size:11px;color:${confColors[conf]};font-weight:600">Confianza: ${conf.toUpperCase()}</span>`
+
+  document.getElementById('scan-form-box').style.display = 'block'
+}
+
+async function continueScanWithAnswer(){
+  const answer = document.getElementById('scan-question-answer').value.trim()
+  if(!answer){ showToast('❌ Escribe tu respuesta primero'); return }
+  document.getElementById('scan-question-box').style.display = 'none'
+  document.getElementById('scan-form-box').style.display = 'none'
+  document.getElementById('scan-loading').style.display = 'block'
+  await callScanAPI(answer)
+}
+
+async function registrarEscaneo(){
+  const monto = Number(document.getElementById('scan-monto').value)
+  const fecha = document.getElementById('scan-fecha').value || TODAY
+  const desc  = document.getElementById('scan-desc').value.trim()
+  const cat   = document.getElementById('scan-cat').value
+  if(!monto){ showToast('❌ Ingresa un monto'); return }
+  if(!desc)  { showToast('❌ Ingresa una descripción'); return }
+
+  const esRecurrente = _scanData?.tipo === 'factura_recurrente'
+
+  if(esRecurrente){
+    const billName = document.getElementById('scan-bill-name').value.trim() || desc
+    const billDay  = parseInt(document.getElementById('scan-bill-day').value)
+    if(!billDay || billDay < 1 || billDay > 28){ showToast('❌ El día debe ser entre 1 y 28'); return }
+    const { error: billErr } = await SB_P.from('bills').insert({
+      id: 'bill_'+Date.now(), user_id: USER_ID, name: billName,
+      estimated_amount: monto, due_day: billDay, category: cat,
+      is_active: true, created_at: new Date().toISOString()
+    })
+    if(billErr){ showToast('❌ Error al registrar factura: '+billErr.message); return }
+    await SB_P.from('expenses').insert({
+      id: 'exp_'+Date.now(), user_id: USER_ID, amount: monto,
+      category: cat, description: desc, date: fecha, created_at: new Date().toISOString()
+    })
+    showToast('✅ Factura y gasto registrados')
+    resetScanTab()
+    switchDineroTab('facturas')
+  } else {
+    const { error } = await SB_P.from('expenses').insert({
+      id: 'exp_'+Date.now(), user_id: USER_ID, amount: monto,
+      category: cat, description: desc, date: fecha, created_at: new Date().toISOString()
+    })
+    if(error){ showToast('❌ Error: '+error.message); return }
+    showToast('✅ Gasto registrado')
+    resetScanTab()
+    switchDineroTab('gastos')
+  }
 }
 
 // --- CITAS ---
