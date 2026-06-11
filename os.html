@@ -7091,10 +7091,9 @@ async function generarPresentacion(){
     if(!r.ok) throw new Error(data.error || 'Error del servidor')
 
     closeModal('presentacion')
-    const w = window.open('', '_blank')
-    w.document.open()
-    w.document.write(data.html)
-    w.document.close()
+    const blob = new Blob([data.html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
     showToast('✨ Presentación generada — abierta en nueva pestaña')
   } catch(e){
     showToast('❌ Error: ' + (e.message || 'Error desconocido'))
