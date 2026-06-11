@@ -1163,11 +1163,16 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
       <!-- Escanear -->
       <div id="dinero-tab-escanear" style="display:none">
-        <div id="scan-drop-zone" onclick="document.getElementById('scan-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleScanDrop(event)" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color .2s">
+        <div id="scan-drop-zone" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleScanDrop(event)" style="border:2px dashed var(--border);border-radius:12px;padding:32px 20px;text-align:center;transition:border-color .2s">
           <div style="font-size:36px;margin-bottom:10px">📷</div>
-          <div style="color:var(--text-muted);font-size:13px">Arrastra una imagen aquí o toca para seleccionar</div>
-          <div style="color:var(--text-muted);font-size:11px;margin-top:4px">JPG · PNG</div>
-          <input type="file" id="scan-file-input" accept="image/jpeg,image/png" style="display:none" onchange="handleScanFileInput(event)">
+          <div style="color:var(--text-muted);font-size:13px;margin-bottom:16px">Toca un botón para capturar o seleccionar imagen</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button onclick="document.getElementById('scan-camera-input').click()" style="background:rgba(196,163,90,0.12);border:1px solid rgba(196,163,90,0.35);border-radius:8px;padding:10px 18px;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">📷 Cámara</button>
+            <button onclick="document.getElementById('scan-gallery-input').click()" style="background:rgba(85,80,80,0.2);border:1px solid var(--border);border-radius:8px;padding:10px 18px;color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">📁 Galería</button>
+          </div>
+          <div style="color:var(--text-muted);font-size:11px;margin-top:12px">O arrastra una imagen aquí</div>
+          <input type="file" id="scan-camera-input"  accept="image/*" capture="environment" style="display:none" onchange="handleScanFileInput(event)">
+          <input type="file" id="scan-gallery-input" accept="image/*"                       style="display:none" onchange="handleScanFileInput(event)">
         </div>
         <div id="scan-preview" style="display:none;margin-top:12px;text-align:center">
           <img id="scan-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border)">
@@ -7996,8 +8001,9 @@ function resetScanTab(){
   _scanData = null
   _scanBase64 = null
   _scanMediaType = null
-  const fi = document.getElementById('scan-file-input')
-  if(fi) fi.value = ''
+  ;['scan-camera-input','scan-gallery-input'].forEach(id => {
+    const fi = document.getElementById(id); if(fi) fi.value = ''
+  })
   document.getElementById('scan-drop-zone').style.display = 'block'
   document.getElementById('scan-preview').style.display = 'none'
   document.getElementById('scan-loading').style.display = 'none'
