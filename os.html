@@ -992,6 +992,13 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="freq-tab" onclick="filterFreq('recurrente',this)">🔗 Recurrente</button>
       </div>
 
+      <!-- Date navigation (solo en diario) -->
+      <div id="habitos-nav" style="display:none;align-items:center;justify-content:space-between;margin-bottom:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:8px 14px">
+        <button onclick="navegarDia(-1)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);padding:4px 10px;cursor:pointer;font-size:14px;font-family:'Outfit',sans-serif">←</button>
+        <span id="habitos-nav-label" style="font-size:13px;color:var(--text);font-family:'Outfit',sans-serif"></span>
+        <button id="habitos-nav-next" onclick="navegarDia(1)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);padding:4px 10px;cursor:pointer;font-size:14px;font-family:'Outfit',sans-serif">→</button>
+      </div>
+
       <!-- Category filter (solo en diario) -->
       <div id="habitos-cat-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem">
         <button class="cat-filter active" onclick="filterHabitos('all',this)">Todos</button>
@@ -2113,6 +2120,7 @@ function showSection(id, btn){
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(id === 'clientes') loadClientesDashboard()
+  if(id === 'habitos' && selectedDate !== TODAY){ selectedDate = TODAY; loadHabitos() }
   if(window.innerWidth <= 768) closeSidebar()
   if(!_isPopState) history.pushState({section: id}, '', '#'+id)
 }
@@ -5165,6 +5173,7 @@ let showInactive = false
 let currentCatFilter = 'all'
 let currentFreqFilter = 'diaria'
 const TODAY = new Date().toLocaleDateString('en-CA')
+let selectedDate = TODAY
 
 async function loadHabitos(){
   const { data: acts } = await SB_P.from('activities').select('*').order('sort_order').order('name')
@@ -5172,7 +5181,7 @@ async function loadHabitos(){
 
   // Daily logs
   const { data: logs } = await SB_P.from('activity_logs')
-    .select('*').eq('user_id', USER_ID).eq('date', TODAY)
+    .select('*').eq('user_id', USER_ID).eq('date', selectedDate)
   habitLogs = {}
   foodLogs = {}
   extraLogs = []
@@ -5226,9 +5235,11 @@ async function loadHabitos(){
   })
 
   renderHabitos()
-  renderVicios()
-  update2020Widget()
-  renderAlimentacionDash()
+  if(selectedDate === TODAY){
+    renderVicios()
+    update2020Widget()
+    renderAlimentacionDash()
+  }
 }
 
 // --- VICIOS ---
@@ -5596,6 +5607,9 @@ function renderHabitos(){
   const isDaily = currentFreqFilter === 'diaria'
   catFilters.style.display = isDaily ? 'flex' : 'none'
   progressWrap.style.display = isDaily ? 'block' : 'none'
+  const navEl = document.getElementById('habitos-nav')
+  if(navEl) navEl.style.display = isDaily ? 'flex' : 'none'
+  if(isDaily) renderHabitosNav()
 
   // Botón agregar por pestaña
   const FREQ_LABELS = { diaria:'Diario', semanal:'Semanal', mensual:'Mensual', unica:'Único', recurrente:'Recurrente' }
@@ -5799,6 +5813,42 @@ async function archiveActivity(activityId){
   renderHabitos()
 }
 
+function renderHabitosNav(){
+  const label = document.getElementById('habitos-nav-label')
+  const nextBtn = document.getElementById('habitos-nav-next')
+  if(!label || !nextBtn) return
+
+  const sel = new Date(selectedDate + 'T12:00:00')
+  const tod = new Date(TODAY + 'T12:00:00')
+  const diffDays = Math.round((tod - sel) / 86400000)
+
+  let text
+  if(diffDays === 0){
+    text = 'Hoy, ' + sel.toLocaleDateString('es-CO', { day:'numeric', month:'short' })
+  } else if(diffDays === 1){
+    text = 'Ayer, ' + sel.toLocaleDateString('es-CO', { day:'numeric', month:'short' })
+  } else {
+    const dow = sel.toLocaleDateString('es-CO', { weekday:'short' })
+    text = dow.charAt(0).toUpperCase() + dow.slice(1) + ', ' + sel.toLocaleDateString('es-CO', { day:'numeric', month:'short' })
+  }
+  label.textContent = text
+  nextBtn.disabled = selectedDate >= TODAY
+  nextBtn.style.opacity = selectedDate >= TODAY ? '0.3' : '1'
+  nextBtn.style.cursor = selectedDate >= TODAY ? 'default' : 'pointer'
+
+  const progressLabel = document.querySelector('#habitos-progress-wrap span:first-child')
+  if(progressLabel) progressLabel.textContent = diffDays === 0 ? 'Progreso de hoy' : 'Progreso del día'
+}
+
+async function navegarDia(delta){
+  const d = new Date(selectedDate + 'T12:00:00')
+  d.setDate(d.getDate() + delta)
+  const nuevo = d.toLocaleDateString('en-CA')
+  if(nuevo > TODAY) return
+  selectedDate = nuevo
+  await loadHabitos()
+}
+
 function filterFreq(freq, btn){
   currentFreqFilter = freq
   document.querySelectorAll('.freq-tab').forEach(b => b.classList.remove('active'))
@@ -5882,7 +5932,7 @@ async function incrementHabito(activityId){
     await SB_P.from('activity_logs').update({ value: newVal }).eq('id', log.id)
     habitLogs[activityId] = { ...log, value: newVal }
   } else {
-    const newLog = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: newVal, date: TODAY }
+    const newLog = { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: newVal, date: selectedDate }
     await SB_P.from('activity_logs').insert(newLog)
     habitLogs[activityId] = newLog
   }
@@ -5911,10 +5961,10 @@ async function toggleHabito(activityId){
     const { data: existing } = await SB_P.from('activity_logs')
       .select('id')
       .eq('activity_id', activityId)
-      .eq('date', TODAY)
+      .eq('date', selectedDate)
       .eq('user_id', USER_ID)
       .single()
-    const log = existing || { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: TODAY }
+    const log = existing || { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: selectedDate }
     if(!existing) await SB_P.from('activity_logs').insert(log)
     habitLogs[activityId] = log
     if(activityId === 'a68'){
@@ -5927,7 +5977,7 @@ async function toggleHabito(activityId){
   const trioCompleto = trio.every(id => !!habitLogs[id])
 
   if(trioCompleto && !habitLogs['a70']){
-    const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: TODAY }
+    const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: selectedDate }
     await SB_P.from('activity_logs').insert(log70)
     habitLogs['a70'] = log70
     showToast('🔥 ¡20/20/20 completado! Cuerpo y mente listos. A trabajar.')
