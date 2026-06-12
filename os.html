@@ -1835,8 +1835,15 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="spinner" style="margin:0 auto 8px"></div>
       Generando presentación con IA...
     </div>
+    <div id="pres-result" style="display:none;padding:12px 16px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:8px;display:none;align-items:center;justify-content:space-between;gap:12px">
+      <span style="font-size:13px;color:var(--purple-light);font-family:'Outfit',sans-serif">✨ Presentación lista</span>
+      <div style="display:flex;gap:8px">
+        <button id="pres-preview-btn" onclick="presPreview()" style="padding:7px 14px;font-size:12px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:var(--purple-light);cursor:pointer;font-family:'Outfit',sans-serif">👁 Ver</button>
+        <button id="pres-download-btn" onclick="presDownload()" style="padding:7px 14px;font-size:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:'Outfit',sans-serif">⬇ Descargar</button>
+      </div>
+    </div>
     <div class="btn-row">
-      <button class="btn-cancel" onclick="closeModal('presentacion')">Cancelar</button>
+      <button class="btn-cancel" onclick="closeModal('presentacion')">Cerrar</button>
       <button class="btn-save" id="pres-generate-btn" onclick="generarPresentacion()" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">✨ Generar</button>
     </div>
   </div>
@@ -7044,17 +7051,39 @@ function openAIScriptModal(){
   openModal('ai-script')
 }
 
+let _presHtml = ''
+let _presFilename = ''
+
 function openPresentacionModal(tipo){
   const isGuion = tipo !== 'propuesta'
   document.getElementById('pres-title').textContent = isGuion ? '🎨 Generar presentación de guión' : '📄 Generar propuesta comercial'
   document.getElementById('pres-form-guion').style.display = isGuion ? '' : 'none'
   document.getElementById('pres-form-propuesta').style.display = isGuion ? 'none' : ''
   document.getElementById('pres-loading').style.display = 'none'
+  document.getElementById('pres-result').style.display = 'none'
   document.getElementById('pres-generate-btn').disabled = false
+  document.getElementById('pres-generate-btn').style.display = ''
   document.getElementById('pres-generate-btn').dataset.tipo = tipo
+  _presHtml = ''
   if(isGuion){ document.getElementById('pres-idea').value = ''; document.getElementById('pres-canal').value = 'iarcania' }
   else { ['nombre','empresa','problema','solucion','precio','pago'].forEach(f => document.getElementById('pres-cli-'+f).value = '') }
   openModal('presentacion')
+}
+
+function presPreview(){
+  if(!_presHtml) return
+  const blob = new Blob([_presHtml], { type: 'text/html' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+}
+
+function presDownload(){
+  if(!_presHtml) return
+  const blob = new Blob([_presHtml], { type: 'text/html' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = _presFilename; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 async function generarPresentacion(){
@@ -7090,16 +7119,19 @@ async function generarPresentacion(){
     const data = await r.json()
     if(!r.ok) throw new Error(data.error || 'Error del servidor')
 
-    closeModal('presentacion')
-    const blob = new Blob([data.html], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    showToast('✨ Presentación generada — abierta en nueva pestaña')
+    _presHtml = data.html
+    _presFilename = tipo === 'propuesta'
+      ? `propuesta-${(body.cliente?.nombre||'cliente').toLowerCase().replace(/\s+/g,'-')}-${new Date().toISOString().slice(0,10)}.html`
+      : `guion-${(body.canal||'iarcania')}-${new Date().toISOString().slice(0,10)}.html`
+
+    document.getElementById('pres-loading').style.display = 'none'
+    document.getElementById('pres-generate-btn').style.display = 'none'
+    document.getElementById('pres-result').style.display = 'flex'
+    showToast('✨ Presentación lista — descarga o abre en nueva pestaña')
   } catch(e){
     showToast('❌ Error: ' + (e.message || 'Error desconocido'))
   }
 
-  document.getElementById('pres-loading').style.display = 'none'
   document.getElementById('pres-generate-btn').disabled = false
 }
 
