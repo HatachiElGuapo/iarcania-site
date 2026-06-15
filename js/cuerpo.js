@@ -41,7 +41,7 @@ async function _cLoadEjercicios() {
 async function _cLoadWorkoutLogs() {
   const { data, error } = await SB_P
     .from('workout_logs')
-    .select('*, exercises(name, type, muscle_group)')
+    .select('*')
     .eq('user_id', USER_ID).eq('date', _cDate())
     .order('created_at')
   if (error) throw error
@@ -239,7 +239,7 @@ function _cRenderRegistro(el) {
   // Agrupar logs por ejercicio
   const grupos = {}
   _cWorkoutLogs.forEach(l => {
-    if (!grupos[l.exercise_id]) grupos[l.exercise_id] = { ex: l.exercises, logs: [] }
+    if (!grupos[l.exercise_id]) grupos[l.exercise_id] = { ex: _cEjercicios.find(e => e.id === l.exercise_id) || null, logs: [] }
     grupos[l.exercise_id].logs.push(l)
   })
 
