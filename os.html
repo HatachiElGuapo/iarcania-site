@@ -422,6 +422,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" onclick="showSection('vicios',this)">
           <span class="nav-icon">⚠️</span>Vicios
         </button>
+        <button class="nav-item" onclick="showSection('cuerpo',this)">
+          <span class="nav-icon">🏋️</span>Cuerpo
+        </button>
         <button class="nav-item" onclick="showSection('hogar',this)">
           <span class="nav-icon">🏠</span>Hogar
         </button>
@@ -1241,6 +1244,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     </div>
 
     <!-- CLIENTES -->
+    <!-- CUERPO -->
+    <div class="section" id="section-cuerpo"></div>
+
     <div class="section" id="section-clientes">
       <div class="page-header">
         <div>
@@ -2120,6 +2126,7 @@ function showSection(id, btn){
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(id === 'clientes') loadClientesDashboard()
+  if(id === 'cuerpo') loadCuerpo()
   if(id === 'habitos' && selectedDate !== TODAY){ selectedDate = TODAY; loadHabitos() }
   if(window.innerWidth <= 768) closeSidebar()
   if(!_isPopState) history.pushState({section: id}, '', '#'+id)
@@ -8690,6 +8697,7 @@ async function saveNuevaTareaFromSelector(){
   showToast('✅ Tarea creada')
 }
 </script>
+<script src="js/cuerpo.js"></script>
 <script src="js/slides.js"></script>
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>
