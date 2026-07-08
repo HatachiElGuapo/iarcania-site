@@ -2353,7 +2353,7 @@ function renderTasks(){
   }).filter(Boolean)
   renderDashTasksSection('extra-tasks', extraTasks, 'extra')
   // Sección Tareas: lista sin vencidas + grupos especiales
-  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy' && t.status !== 'archivada')
+  const overdue = allTasks.filter(t => t.due_date && (t.due_date||'').slice(0,10) < todayBogota() && t.status !== 'completada' && t.status !== 'hoy' && t.status !== 'archivada')
   const overdueIds = new Set(overdue.map(t => t.id))
   renderTaskList('all-tasks', allTasks.filter(t => !overdueIds.has(t.id) && t.status !== 'archivada'))
   renderArchivedTasks()
@@ -3667,7 +3667,7 @@ function renderDashTasksSection(elId, tasks, listKey){
     const cat  = CATS[t.category] || CATS.habitos
     const fc   = isHoy ? (t._focusCompleted || t.status === 'completada') : (t.status === 'completada')
     const fn   = isHoy ? (t._focusNote || '') : ''
-    const isOverdue = t.due_date && t.due_date < TODAY && !fc
+    const isOverdue = t.due_date && (t.due_date||'').slice(0,10) < todayBogota() && !fc
     const horaTask = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
     const fecha = t.due_date || null
     const checkClick = isHoy ? `event.stopPropagation();toggleFocusCheck('${t.id}')` : `toggleTask('${t.id}')`
@@ -4388,7 +4388,7 @@ function renderTareasConFecha(tasks){
   el.innerHTML = withDate.map(t => {
     const cat = CATS[t.category] || CATS.habitos
     const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
-    const isOverdue = t.due_date < TODAY
+    const isOverdue = (t.due_date||'').slice(0,10) < todayBogota()
     return `<div class="task-item" data-id="${t.id}" style="border-left-color:${isOverdue?'var(--red)':cat.color}">
       <div class="task-check" onclick="toggleTask('${t.id}')" style="cursor:pointer"></div>
       <div class="task-text" onclick="toggleTask('${t.id}')" style="cursor:pointer">
@@ -4462,7 +4462,7 @@ async function completarTareaVencida(id){
 }
 
 function openBulkReassign(){
-  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy')
+  const overdue = allTasks.filter(t => t.due_date && (t.due_date||'').slice(0,10) < todayBogota() && t.status !== 'completada' && t.status !== 'hoy')
   if(!overdue.length){ showToast('No hay tareas vencidas'); return }
   document.getElementById('bulk-new-date').value = ''
   openModal('bulk-reassign')
@@ -4471,7 +4471,7 @@ function openBulkReassign(){
 async function saveBulkReassign(){
   const newDate = document.getElementById('bulk-new-date').value
   if(!newDate){ showToast('Elige una fecha'); return }
-  const overdue = allTasks.filter(t => t.due_date && t.due_date < TODAY && t.status !== 'completada' && t.status !== 'hoy')
+  const overdue = allTasks.filter(t => t.due_date && (t.due_date||'').slice(0,10) < todayBogota() && t.status !== 'completada' && t.status !== 'hoy')
   await Promise.all(overdue.map(t => SB_P.from('tasks').update({ due_date: newDate }).eq('id', t.id)))
   overdue.forEach(t => { t.due_date = newDate })
   closeModal('bulk-reassign')
@@ -5179,7 +5179,9 @@ let monthlyLogs = {}
 let showInactive = false
 let currentCatFilter = 'all'
 let currentFreqFilter = 'diaria'
-const TODAY = new Date().toLocaleDateString('en-CA')
+const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+// Siempre usa timezone de Bogotá y normaliza a YYYY-MM-DD (por si due_date viene como timestamp de Supabase)
+function todayBogota() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 let selectedDate = TODAY
 
 async function loadHabitos(){
@@ -5410,7 +5412,7 @@ async function loadHogar(){
   })
 
   const d7 = new Date(); d7.setDate(d7.getDate()-6)
-  const weekStart = d7.toISOString().split('T')[0]
+  const weekStart = d7.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
   const { data: hist } = await SB_P.from('chores').select('*').gte('date', weekStart).lte('date', TODAY).order('date',{ascending:false})
   choreHistory = hist || []
 
