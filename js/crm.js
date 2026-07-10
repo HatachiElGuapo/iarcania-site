@@ -402,14 +402,23 @@ function _crmRenderPipeline(el) {
     const total = items.reduce((sum, d) => sum + (d.value || 0), 0)
     const cards = items.map(d => {
       const client = _crmClients.find(c => c.id === d.client_id)
+      const anticipo = d.value ? Math.round(d.value * (d.anticipo_pct || 50) / 100) : null
+      const faltante = d.value && anticipo ? d.value - anticipo : null
       return `
         <div class="crm-card" style="padding:.75rem;margin-bottom:8px">
           <div style="font-weight:600;font-size:.82rem;margin-bottom:2px">${d.name || client?.name || 'Sin nombre'}</div>
           ${client?.name && d.name ? `<div style="color:#a09ab8;font-size:.72rem">${client.name}</div>` : ''}
           ${d.value ? `<div style="color:#c9a84c;font-weight:700;font-size:.82rem;margin-top:4px">${_cop(d.value)}</div>` : ''}
+          ${anticipo && s.key !== 'lost' ? `<div style="font-size:.68rem;color:#a09ab8;margin-top:2px">
+            Anticipo: ${_cop(anticipo)} · Resta: ${_cop(faltante)}
+            ${d.anticipo_paid ? '<span style="color:#4caf7d">✓ pagado</span>' : ''}
+          </div>` : ''}
           ${d.service_type ? `<div style="color:#9b72f0;font-size:.68rem;margin-top:2px">${d.service_type === 'family_os' ? 'Family OS' : 'Agente custom'}</div>` : ''}
-          <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
-            ${STAGE_CFG.filter(x => x.key !== s.key).map(x => `<button onclick="crmMoveStage('${d.id}','${x.key}')" style="font-size:.65rem;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#a09ab8;cursor:pointer">${x.label}</button>`).join('')}
+          <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+            ${STAGE_CFG.filter(x => x.key !== s.key).map(x => `<button onclick="crmMoveStage('${d.id}','${x.key}',this)" style="font-size:.65rem;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#a09ab8;cursor:pointer">${x.label}</button>`).join('')}
+          </div>
+          <div style="margin-top:6px">
+            <button onclick="crmAbrirPago('${d.id}')" style="font-size:.7rem;padding:3px 8px;border-radius:4px;border:1px solid rgba(201,168,76,0.3);background:rgba(201,168,76,0.08);color:#c9a84c;cursor:pointer;width:100%">💰 Registrar pago</button>
           </div>
         </div>`
     }).join('')
@@ -435,12 +444,112 @@ function _crmRenderPipeline(el) {
 }
 
 async function crmMoveStage(dealId, stage) {
+  if (stage === 'won') {
+    // Abrir modal de anticipo antes de mover
+    crmAbrirPago(dealId, true)
+    return
+  }
   const update = { stage }
-  if (stage === 'won' || stage === 'lost') update.closed_at = new Date().toISOString()
+  if (stage === 'lost') update.closed_at = new Date().toISOString()
   await SB_P.from('projects').update(update).eq('id', dealId)
-  showToast(`Deal movido a ${stage}`)
+  showToast(`Deal movido a ${STAGE_CFG.find(s=>s.key===stage)?.label || stage}`)
   await _crmLoadDeals()
   _crmRenderTab()
+}
+
+function crmAbrirPago(dealId, markWon = false) {
+  const deal = _crmDeals.find(d => d.id === dealId)
+  if (!deal) return
+  const client = _crmClients.find(c => c.id === deal.client_id)
+  const sugerido = deal.value ? Math.round(deal.value * (deal.anticipo_pct || 50) / 100) : ''
+  const titulo = markWon ? '🏆 Marcar como ganado + registrar anticipo' : '💰 Registrar pago de cliente'
+
+  const SOURCES = [['iarcania','IArcanIA'],['la_segunda','La Segunda'],['family_help','Ayuda familiar'],['other','Otro']]
+
+  document.getElementById('crm-deal-form').innerHTML = `
+    <div class="crm-card crm-card-gold" style="margin-top:20px">
+      <div style="font-weight:700;margin-bottom:4px;color:#c9a84c">${titulo}</div>
+      <div style="font-size:.78rem;color:#a09ab8;margin-bottom:16px">
+        ${deal.name || 'Sin nombre'}${client ? ' · ' + client.name : ''}
+        ${deal.value ? ' · Valor total: ' + _cop(deal.value) : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="crm-label">Monto recibido (COP)</label>
+          <input id="cp-amount" type="number" value="${sugerido}" placeholder="1500000">
+        </div>
+        <div>
+          <label class="crm-label">Fuente</label>
+          <select id="cp-source">${SOURCES.map(([v,l])=>`<option value="${v}"${v==='iarcania'?' selected':''}>${l}</option>`).join('')}</select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="crm-label">Descripción</label>
+          <input id="cp-desc" type="text" value="${markWon ? 'Anticipo: ' + (deal.name||'') : ''}" placeholder="Anticipo, saldo, cuota…">
+        </div>
+        <div>
+          <label class="crm-label">¿Ver distribución automática?</label>
+          <select id="cp-dist"><option value="1">Sí, distribuir en presupuesto</option><option value="0">No, solo registrar</option></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn-save" style="flex:1" onclick="crmConfirmarPago('${dealId}',${markWon})">
+          ${markWon ? 'Confirmar ganado + guardar pago' : 'Guardar pago'}
+        </button>
+        <button class="btn-cancel" onclick="document.getElementById('crm-deal-form').innerHTML=''">Cancelar</button>
+      </div>
+    </div>`
+  document.getElementById('crm-deal-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+async function crmConfirmarPago(dealId, markWon) {
+  const amount = parseFloat(document.getElementById('cp-amount').value)
+  const source = document.getElementById('cp-source').value
+  const description = document.getElementById('cp-desc').value
+  const distribuir = document.getElementById('cp-dist').value === '1'
+  if (!amount || isNaN(amount)) { showToast('Ingresa un monto'); return }
+
+  const deal = _crmDeals.find(d => d.id === dealId)
+
+  // Registrar ingreso vinculado al deal y cliente
+  const incId = 'inc_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
+  const { error } = await SB_P.from('income').insert({
+    id: incId, user_id: CRM_USER, amount, source,
+    description: description || null,
+    client_id: deal?.client_id || null,
+    project_id: dealId,
+    distribution_applied: false,
+    created_at: new Date().toISOString()
+  })
+  if (error) { showToast('Error: ' + error.message); return }
+
+  // Distribución automática si se pidió
+  if (distribuir) {
+    const { previews } = _crmPreviewDistribution(amount)
+    const distRows = previews.filter(p => p.assign > 0).map(p => ({
+      id: 'bd_' + Date.now() + '_' + Math.floor(Math.random() * 1000) + '_' + p.budget_id,
+      income_id: incId, budget_id: p.budget_id, amount_assigned: p.assign
+    }))
+    if (distRows.length > 0) {
+      await SB_P.from('budget_distributions').insert(distRows)
+      await SB_P.from('income').update({ distribution_applied: true }).eq('id', incId)
+    }
+  }
+
+  // Mover deal a ganado si aplica
+  if (markWon) {
+    const anticipo_pct = deal?.value ? Math.round((amount / deal.value) * 100) : deal?.anticipo_pct || 50
+    await SB_P.from('projects').update({
+      stage: 'won',
+      anticipo_paid: true,
+      anticipo_pct,
+      closed_at: new Date().toISOString()
+    }).eq('id', dealId)
+  }
+
+  showToast(markWon ? '🏆 Deal ganado y pago registrado' : '✓ Pago registrado')
+  document.getElementById('crm-deal-form').innerHTML = ''
+  await Promise.all([_crmLoadDeals(), _crmLoadIncome(), _crmLoadBudgets()])
+  renderCRM()
 }
 
 function crmAbrirNuevoDeal() {
