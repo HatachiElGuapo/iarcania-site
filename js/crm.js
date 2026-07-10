@@ -133,7 +133,7 @@ function _crmPreviewDistribution(amount) {
     const already = _crmBudgetSpent(b.id)
     const gap = Math.max(0, b.amount - already)
     const assign = Math.min(remaining, gap)
-    previews.push({ budget_id: b.id, name: b.name, priority: b.priority, needed: b.amount, already, assign })
+    previews.push({ budget_id: b.id, name: b.category, priority: b.priority, needed: b.amount, already, assign })
     remaining -= assign
     if (remaining <= 0) break
   }
@@ -155,7 +155,7 @@ function renderCRM() {
   const alerts = []
   if (deficit > 0) alerts.push({ msg: `Déficit del mes: ${_cop(deficit)}`, sev: 'red' })
   for (const b of _crmBudgets) {
-    if (_crmBudgetSpent(b.id) === 0 && b.priority <= 3) alerts.push({ msg: `Sin cubrir: ${b.name}`, sev: 'red' })
+    if (_crmBudgetSpent(b.id) === 0 && b.priority <= 3) alerts.push({ msg: `Sin cubrir: ${b.category}`, sev: 'red' })
   }
   for (const d of _crmDebts) {
     if (d.due_date && d.due_date <= today) alerts.push({ msg: `Deuda vencida: ${d.creditor} — ${_cop(d.remaining_amount)}`, sev: 'red' })
@@ -232,7 +232,7 @@ function _crmRenderPresupuesto(el) {
     return `
       <tr>
         <td style="color:#a09ab8;padding:10px 0">${b.priority}</td>
-        <td style="padding:10px 8px">${b.name}</td>
+        <td style="padding:10px 8px">${b.category}</td>
         <td style="text-align:right;color:#a09ab8">${_cop(b.amount)}</td>
         <td style="text-align:right">
           <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
