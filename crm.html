@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IArcanIA CRM</title>
+  <link rel="icon" href="/icons/favicon.ico">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #060609;
+      --bg2:      #0d0d14;
+      --bg3:      #13131e;
+      --bg4:      #1a1a28;
+      --gold:     #c9a84c;
+      --gold-l:   #e0c06a;
+      --bone:     #f0eeff;
+      --dim:      #a09ab8;
+      --purple:   #9b72f0;
+      --green:    #4caf7d;
+      --red:      #e24b4a;
+      --yellow:   #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--bone); font-family: 'Outfit', sans-serif; min-height: 100vh; }
+
+    /* ── Layout ── */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 220px; min-height: 100vh; background: var(--bg2);
+      border-right: 1px solid rgba(201,168,76,0.15);
+      padding: 1.5rem 0; position: fixed; top: 0; left: 0;
+    }
+    .sidebar-logo { padding: 0 1.25rem 1.5rem; border-bottom: 1px solid rgba(201,168,76,0.12); }
+    .sidebar-logo-name { font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--gold); letter-spacing: .08em; }
+    .sidebar-logo-sub  { font-size: .72rem; color: var(--dim); margin-top: 2px; }
+    .sidebar-nav { margin-top: 1rem; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px; padding: .65rem 1.25rem;
+      color: var(--dim); text-decoration: none; font-size: .875rem;
+      border-right: 2px solid transparent; transition: all .15s;
+    }
+    .sidebar-link:hover { color: var(--bone); }
+    .sidebar-link.active { color: var(--gold); background: rgba(201,168,76,.08); border-right-color: var(--gold); font-weight: 600; }
+    .sidebar-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+    .main { margin-left: 220px; padding: 2rem; flex: 1; }
+
+    /* ── Login ── */
+    #login-screen {
+      display: none; position: fixed; inset: 0; background: var(--bg);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    .login-box {
+      background: var(--bg3); border: 1px solid rgba(201,168,76,.25);
+      border-radius: 16px; padding: 2.5rem; width: 360px;
+    }
+    .login-title { font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold); margin-bottom: .5rem; }
+    .login-sub   { color: var(--dim); font-size: .85rem; margin-bottom: 1.5rem; }
+
+    /* ── Cards / componentes ── */
+    .crm-card {
+      background: var(--bg3); border: 1px solid rgba(201,168,76,.12);
+      border-radius: 12px; padding: 1.25rem;
+    }
+    .crm-card-gold { border-color: rgba(201,168,76,.35); }
+
+    .crm-stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+    .stat-box { background: var(--bg3); border: 1px solid rgba(201,168,76,.12); border-radius: 12px; padding: 1.1rem; }
+    .stat-num { font-size: 1.35rem; font-weight: 700; }
+
+    .crm-badge {
+      display: inline-block; font-size: .7rem; padding: .18rem .55rem;
+      border-radius: 20px; font-weight: 600;
+    }
+    .crm-badge.green  { background: rgba(76,175,125,.2);  color: var(--green);  border: 1px solid rgba(76,175,125,.3); }
+    .crm-badge.yellow { background: rgba(245,158,11,.2);  color: var(--yellow); border: 1px solid rgba(245,158,11,.3); }
+    .crm-badge.red    { background: rgba(226,75,74,.2);   color: var(--red);    border: 1px solid rgba(226,75,74,.3); }
+    .crm-badge.gold   { background: rgba(201,168,76,.15); color: var(--gold);   border: 1px solid rgba(201,168,76,.25); }
+
+    .crm-alert-bar {
+      background: rgba(226,75,74,.1); border: 1px solid rgba(226,75,74,.3);
+      border-radius: 10px; padding: .75rem 1rem; margin-bottom: 18px;
+    }
+    .crm-alert-bar strong { color: var(--red); font-size: .8rem; display: block; margin-bottom: 4px; }
+    .crm-alert-item { font-size: .82rem; color: #f0aaaa; padding-left: 8px; }
+
+    .crm-label { font-size: .75rem; color: var(--dim); display: block; margin-bottom: 4px; }
+
+    /* ── Tabs (reutilizo estilo del OS) ── */
+    .freq-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .freq-tab {
+      background: var(--bg3); border: 1px solid rgba(255,255,255,.08);
+      color: var(--dim); padding: .45rem 1rem; border-radius: 8px;
+      cursor: pointer; font-size: .82rem; font-family: inherit; transition: all .15s;
+    }
+    .freq-tab:hover { border-color: var(--gold); color: var(--bone); }
+    .freq-tab.active { background: rgba(201,168,76,.12); border-color: var(--gold); color: var(--gold); font-weight: 600; }
+
+    /* ── Botones ── */
+    .btn-add {
+      background: rgba(201,168,76,.15); color: var(--gold); border: 1px solid rgba(201,168,76,.3);
+      padding: .45rem 1rem; border-radius: 8px; cursor: pointer; font-size: .82rem;
+      font-family: inherit; transition: all .15s;
+    }
+    .btn-add:hover { background: rgba(201,168,76,.25); }
+    .btn-save {
+      background: var(--gold); color: var(--bg); font-weight: 600;
+      padding: .5rem 1.25rem; border-radius: 8px; border: none; cursor: pointer;
+      font-family: inherit; font-size: .85rem; transition: background .15s;
+    }
+    .btn-save:hover { background: var(--gold-l); }
+    .btn-cancel {
+      background: transparent; color: var(--dim); border: 1px solid rgba(255,255,255,.12);
+      padding: .5rem 1.1rem; border-radius: 8px; cursor: pointer;
+      font-family: inherit; font-size: .85rem; transition: all .15s;
+    }
+    .btn-cancel:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Inputs ── */
+    input, select, textarea {
+      background: var(--bg4); border: 1px solid rgba(255,255,255,.12);
+      color: var(--bone); border-radius: 8px; padding: .5rem .75rem;
+      outline: none; width: 100%; font-family: inherit; font-size: .85rem;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+
+    /* ── Toast ── */
+    #crm-toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 999;
+      background: var(--bg3); border: 1px solid rgba(201,168,76,.35);
+      color: var(--bone); padding: .75rem 1.25rem; border-radius: 10px;
+      font-size: .85rem; opacity: 0; transform: translateY(8px);
+      transition: all .25s; pointer-events: none;
+    }
+    #crm-toast.show { opacity: 1; transform: translateY(0); }
+
+    .loading { text-align: center; padding: 3rem; color: var(--dim); }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(201,168,76,.2);
+      border-top-color: var(--gold); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .page-title  { font-family: 'Cinzel', serif; font-size: 1.4rem; color: var(--gold); letter-spacing: .04em; }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen" style="display:flex">
+  <div class="login-box">
+    <div class="login-title">IArcanIA CRM</div>
+    <div class="login-sub">Ingresa con tu cuenta</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="crm-label">Email</label>
+        <input id="l-email" type="email" placeholder="correo@…" autocomplete="email">
+      </div>
+      <div>
+        <label class="crm-label">Contraseña</label>
+        <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-save" style="margin-top:4px" onclick="doLogin()">Entrar</button>
+      <div id="l-err" style="color:var(--red);font-size:.8rem;display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app" id="app" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-name">IArcanIA</div>
+      <div class="sidebar-logo-sub">CRM & Finanzas</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="sidebar-link active" data-tab="presupuesto" onclick="navTo('presupuesto',this)">
+        <span class="sidebar-icon">💰</span> Presupuesto
+      </a>
+      <a class="sidebar-link" data-tab="pipeline" onclick="navTo('pipeline',this)">
+        <span class="sidebar-icon">📊</span> Pipeline
+      </a>
+      <a class="sidebar-link" data-tab="clientes" onclick="navTo('clientes',this)">
+        <span class="sidebar-icon">👥</span> Clientes
+      </a>
+      <a class="sidebar-link" data-tab="deudas" onclick="navTo('deudas',this)">
+        <span class="sidebar-icon">🔴</span> Deudas
+      </a>
+      <a class="sidebar-link" href="/os.html" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.06);padding-top:1rem">
+        <span class="sidebar-icon">↩</span> OS Personal
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div id="section-crm"></div>
+  </main>
+</div>
+
+<div id="crm-toast"></div>
+
+<script>
+const { createClient } = supabase
+const SB_P = createClient(
+  'https://gpfidxxawcwsbuzsbeob.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZmlkeHhhd2N3c2J1enNiZW9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjgxOTksImV4cCI6MjA4ODMwNDE5OX0.i96CvvseJCPSvEveUCx2FWECNKEuWHj51EP_3b2mCkc'
+)
+
+let USER_ID = null
+
+function showToast(msg) {
+  const t = document.getElementById('crm-toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 2800)
+}
+
+function navTo(tab, el) {
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'))
+  if (el) el.classList.add('active')
+  _crmTab = tab
+  _crmRenderTab()
+}
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value
+  const pass  = document.getElementById('l-pass').value
+  const err   = document.getElementById('l-err')
+  err.style.display = 'none'
+  const { data, error } = await SB_P.auth.signInWithPassword({ email, password: pass })
+  if (error) { err.textContent = error.message; err.style.display = 'block'; return }
+  await _initSession(data.session)
+}
+
+async function _initSession(session) {
+  if (!session) return
+  const { data } = await SB_P.from('users').select('id').eq('auth_id', session.user.id).single()
+  USER_ID = data?.id || null
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'flex'
+  loadCRM()
+}
+
+// Arrancar
+;(async () => {
+  const { data: { session } } = await SB_P.auth.getSession()
+  if (session) {
+    await _initSession(session)
+  } else {
+    document.getElementById('login-screen').style.display = 'flex'
+  }
+})()
+</script>
+<script src="js/crm.js"></script>
+</body>
+</html>
