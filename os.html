@@ -461,6 +461,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" id="nav-slides" onclick="showSection('slides',this)">
           <span class="nav-icon">🖼️</span>Slides
         </button>
+        <button class="nav-item" id="nav-estudio" onclick="showSection('estudio',this)">
+          <span class="nav-icon">🎙️</span>Estudio
+        </button>
         <button class="nav-item" id="nav-workspace" onclick="showSection('workspace',this)">
           <span class="nav-icon">🖥️</span>Workspace
         </button>
@@ -1112,6 +1115,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 
     <!-- SLIDES -->
     <div class="section" id="section-slides"></div>
+    <div class="section" id="section-estudio"></div>
 
     <div class="section" id="section-workspace">
       <div class="page-header">
@@ -2027,7 +2031,7 @@ function applyRoleRestrictions(role) {
   if (role === 'family') {
     hide('nav-trabajo')
     hide('nav-sep-dinero', 'group-dinero')
-    hide('nav-libros', 'nav-guiones')
+    hide('nav-libros', 'nav-guiones', 'nav-estudio', 'nav-slides')
     hide('nav-workspace')
   }
 }
@@ -2122,6 +2126,7 @@ function showSection(id, btn){
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(id === 'slides') onSlidesEnter()
+  if(id === 'estudio') loadEstudio()
   if(id === 'actividades') initTaskSections()
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
@@ -8701,6 +8706,7 @@ async function saveNuevaTareaFromSelector(){
 </script>
 <script src="js/cuerpo.js"></script>
 <script src="js/slides.js"></script>
+<script src="js/estudio.js"></script>
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>
 </html>
