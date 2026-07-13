@@ -7181,7 +7181,7 @@ function renderScripts(){
           </div>
           <div style="display:flex;flex-direction:column;gap:2px">
             <label style="font-size:10px;color:#5a5870;font-family:Outfit,sans-serif;letter-spacing:.4px">🚀 PUBLICACIÓN</label>
-            <input type="date" id="se-fechapub-${s.id}" value="${s.fecha_publicacion||''}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none" title="Fecha de publicación">
+            <input type="datetime-local" id="se-fechapub-${s.id}" value="${(s.fecha_publicacion||'').slice(0,16)}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none" title="Fecha y hora de publicación">
           </div>
           <button class="btn-save" onclick="saveScript('${s.id}')">Guardar</button>
           <button onclick="deleteScript('${s.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
