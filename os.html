@@ -7112,6 +7112,60 @@ function renderScripts(){
           <div style="font-size:11px;color:${clBarC};margin-top:8px">${clDone}/6 completados</div>
         </div>
         ${scriptBlockUI}
+        ${(()=>{
+          const plats  = s.plataformas || []
+          const pubSt  = s.pub_status  || {}
+          const ST_COLOR = { pendiente:'#EF9F27', publicado:'#5DCAA5', error:'#E24B4A' }
+          const ST_LABEL = { pendiente:'⏳ Pendiente', publicado:'✅ Publicado', error:'❌ Error' }
+          const ytSt   = pubSt.youtube   || (plats.includes('youtube')   ? 'pendiente' : null)
+          const igSt   = pubSt.instagram || (plats.includes('instagram') ? 'pendiente' : null)
+          const stRow  = [
+            ytSt ? `<span style="font-size:11px;color:${ST_COLOR[ytSt]||'#888'};font-family:Outfit,sans-serif">YT ${ST_LABEL[ytSt]||ytSt}</span>` : '',
+            igSt ? `<span style="font-size:11px;color:${ST_COLOR[igSt]||'#888'};font-family:Outfit,sans-serif">IG ${ST_LABEL[igSt]||igSt}</span>` : ''
+          ].filter(Boolean).join(' · ')
+          return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">🚀 Publicar</div>
+              ${stRow ? `<div style="display:flex;gap:10px">${stRow}</div>` : ''}
+            </div>
+            <div>
+              <label style="${lStyle}">Link del video (Google Drive)</label>
+              <input id="pub-url-${s.id}" type="url" placeholder="https://drive.google.com/file/d/..." value="${(s.video_url||'').replace(/"/g,'&quot;')}" style="${iStyle}">
+            </div>
+            <div>
+              <label style="${lStyle}">Publicar en</label>
+              <div style="display:flex;gap:12px;margin-top:4px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);font-family:Outfit,sans-serif">
+                  <input type="checkbox" id="pub-yt-${s.id}" ${plats.includes('youtube')?'checked':''} style="width:15px;height:15px;accent-color:#E24B4A;cursor:pointer"> YouTube
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);font-family:Outfit,sans-serif">
+                  <input type="checkbox" id="pub-ig-${s.id}" ${plats.includes('instagram')?'checked':''} style="width:15px;height:15px;accent-color:#8B6CF6;cursor:pointer"> Instagram
+                </label>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <label style="${lStyle};margin-bottom:0">Copy</label>
+                <button id="pub-copy-btn-${s.id}" onclick="generarCopyPublicacion('${s.id}')" style="padding:5px 12px;font-size:11px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#a78bfa;cursor:pointer;font-family:Outfit,sans-serif">✨ Generar con IA</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div>
+                  <label style="${lStyle}">YouTube — Título</label>
+                  <input id="pub-yt-titulo-${s.id}" type="text" placeholder="Título del video" value="${(s.copy_yt_titulo||'').replace(/"/g,'&quot;')}" style="${iStyle}">
+                </div>
+                <div>
+                  <label style="${lStyle}">YouTube — Descripción</label>
+                  <textarea id="pub-yt-desc-${s.id}" placeholder="Descripción con timestamps, links, etc." style="${tStyle};min-height:90px">${s.copy_yt_descripcion||''}</textarea>
+                </div>
+                <div>
+                  <label style="${lStyle}">Instagram — Caption</label>
+                  <textarea id="pub-ig-caption-${s.id}" placeholder="Caption con hashtags para Instagram" style="${tStyle};min-height:70px">${s.copy_ig_caption||''}</textarea>
+                </div>
+              </div>
+            </div>
+            <button onclick="savePublicacion('${s.id}')" style="padding:9px 18px;border-radius:8px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">Guardar publicación</button>
+          </div>`
+        })()}
         <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;align-items:center">
           <select id="se-status-${s.id}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
             <option value="borrador" ${s.status==='borrador'?'selected':''}>Borrador</option>
@@ -7181,6 +7235,53 @@ async function saveScript(scriptId){
   showToast('✅ Guión guardado')
   renderScripts()
   loadProyectoDia()
+}
+
+async function savePublicacion(scriptId){
+  await ensureSBI()
+  const plataformas = []
+  if(document.getElementById('pub-yt-'+scriptId)?.checked) plataformas.push('youtube')
+  if(document.getElementById('pub-ig-'+scriptId)?.checked) plataformas.push('instagram')
+  const data = {
+    video_url:           document.getElementById('pub-url-'+scriptId)?.value.trim() || null,
+    plataformas,
+    copy_yt_titulo:      document.getElementById('pub-yt-titulo-'+scriptId)?.value.trim() || null,
+    copy_yt_descripcion: document.getElementById('pub-yt-desc-'+scriptId)?.value.trim()   || null,
+    copy_ig_caption:     document.getElementById('pub-ig-caption-'+scriptId)?.value.trim()|| null
+  }
+  const { error } = await SB_P.from('scripts').update(data).eq('id', scriptId)
+  if(error){ showToast('❌ ' + error.message); return }
+  allScripts = allScripts.map(s => s.id === scriptId ? {...s, ...data} : s)
+  showToast('✅ Publicación guardada')
+  renderScripts()
+}
+
+async function generarCopyPublicacion(scriptId){
+  const s = allScripts.find(x => x.id === scriptId)
+  if(!s){ showToast('❌ Guión no encontrado'); return }
+  const contenido = [s.title, s.hook, s.body, s.cta].filter(Boolean).join('\n\n')
+  if(!contenido.trim()){ showToast('❌ El guión no tiene contenido'); return }
+  const btn = document.getElementById('pub-copy-btn-'+scriptId)
+  if(btn){ btn.disabled = true; btn.textContent = 'Generando...' }
+  try {
+    const r = await fetch('/api/generar-copy', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ canal: s.canal, contenido })
+    })
+    const data = await r.json()
+    if(!r.ok) throw new Error(data.error || 'Error del servidor')
+    const t = document.getElementById('pub-yt-titulo-'+scriptId)
+    const d = document.getElementById('pub-yt-desc-'+scriptId)
+    const c = document.getElementById('pub-ig-caption-'+scriptId)
+    if(t) t.value = data.yt_titulo      || ''
+    if(d) d.value = data.yt_descripcion || ''
+    if(c) c.value = data.ig_caption     || ''
+    showToast('✨ Copy generado — revísalo y guarda')
+  } catch(e){
+    showToast('❌ Error: ' + (e.message || 'Error desconocido'))
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '✨ Generar con IA' }
+  }
 }
 
 function getChecklist(s){
