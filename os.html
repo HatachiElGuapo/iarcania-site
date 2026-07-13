@@ -6898,11 +6898,12 @@ function renderScripts(){
     const PH = isPA
       ? {q1:'ej: mi agente de WhatsApp respondiendo mensajes',q2:'ej: que no es un chatbot, es un agente con herramientas',q3:'ej: dejarían de responder WhatsApp manualmente'}
       : {q1:'ej: tengo todo organizado y no lo cumplo',q2:'ej: saber y hacer son cosas diferentes',q3:'ej: decidí que el tema de mañana se decide hoy en la noche'}
-    // Toggle de 3 modos
+    // Toggle de 4 modos
     const toggleBar = `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
       <button onclick="switchEditorModo('${s.id}','libre')" style="${editorModo==='libre'?tBtnA:tBtnI}">✏️ Libre</button>
       <button onclick="switchEditorModo('${s.id}','bloques')" style="${(editorModo==='bloques'||editorModo==='bloques_prompt')?tBtnA:tBtnI}">🧩 Bloques</button>
       <button onclick="switchEditorModo('${s.id}','ia')" style="${editorModo==='ia'?tBtnA:tBtnI}">✨ IA</button>
+      <button onclick="switchEditorModo('${s.id}','presentacion')" style="${editorModo==='presentacion'?tBtnA:tBtnI}">🎨 Presentación</button>
     </div>`
     // Modo Libre
     const libreHTML = `<div style="display:flex;flex-direction:column;gap:10px">
@@ -6943,7 +6944,47 @@ function renderScripts(){
       <div id="ai-load-${s.id}" style="display:none;font-size:12px;color:#888;font-family:Outfit,sans-serif;align-items:center;gap:6px"><span class="ai-dot-anim">●</span>&nbsp;Generando...</div>
       <button id="ai-gen-btn-${s.id}" onclick="generateScriptInline('${s.id}')" style="padding:10px 20px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">✨ Generar guión</button>
     </div>`
-    const editorContent  = editorModo === 'libre' ? libreHTML : editorModo === 'ia' ? iaHTML : bloquesHTML
+    // Modo Presentación — inline, sin modal
+    const presGen   = _scriptGen[s.id]
+    const presHTML  = `<div style="border:1px solid #2a2a2a;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:12px;color:#888;font-family:Outfit,sans-serif;line-height:1.5">
+        Genera el documento HTML del guión — con diseño visual listo para compartir o revisar.
+        El contenido se pre-rellena desde los bloques del guión.
+      </div>
+      <div><label style="${lStyle}">Tema / idea del video</label>
+        <textarea id="pres-inline-idea-${s.id}" style="${tStyle};min-height:70px">${[s.title,s.hook].filter(Boolean).join('\n\n').replace(/</g,'&lt;')}</textarea>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px"><label style="${lStyle}">Canal</label>
+          <select id="pres-inline-canal-${s.id}" style="${iStyle}">
+            <option value="iarcania" ${s.canal==='iarcania'?'selected':''}>IArcanIA</option>
+            <option value="voidstoic" ${s.canal==='voidstoic'?'selected':''}>Void Stoic</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:120px"><label style="${lStyle}">Formato</label>
+          <select id="pres-inline-formato-${s.id}" style="${iStyle}">
+            <option value="largo">Video largo (YouTube)</option>
+            <option value="corto">Short / Reels</option>
+          </select>
+        </div>
+      </div>
+      <div id="pres-inline-load-${s.id}" style="display:none;font-size:12px;color:#888;font-family:Outfit,sans-serif;align-items:center;gap:6px">
+        <span class="ai-dot-anim">●</span>&nbsp;Generando presentación...
+      </div>
+      ${presGen ? `
+      <div style="padding:12px 14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <span style="font-size:13px;color:#a78bfa;font-family:Outfit,sans-serif">✨ Presentación lista</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="presInlineVer('${s.id}')" style="padding:6px 14px;font-size:12px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#a78bfa;cursor:pointer;font-family:Outfit,sans-serif">👁 Ver</button>
+          <button onclick="presInlineDescargar('${s.id}')" style="padding:6px 14px;font-size:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:Outfit,sans-serif">⬇ Descargar</button>
+        </div>
+      </div>` : ''}
+      <button id="pres-inline-btn-${s.id}" onclick="generarPresentacionInline('${s.id}')"
+        style="padding:10px 20px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">
+        🎨 ${presGen ? 'Regenerar' : 'Generar presentación'}
+      </button>
+    </div>`
+    const editorContent  = editorModo === 'libre' ? libreHTML : editorModo === 'ia' ? iaHTML : editorModo === 'presentacion' ? presHTML : bloquesHTML
     const scriptBlockUI  = `<div>${toggleBar}${editorContent}</div>`
     return `<div class="script-card${isActive?' active':''}" style="border-left-color:${cColor}">
       <div onclick="openScriptDetail('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
@@ -6979,7 +7020,6 @@ function renderScripts(){
           </select>
           <input type="date" id="se-fecha-${s.id}" value="${s.fecha_grabacion||''}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none" title="Fecha de grabación">
           <button class="btn-save" onclick="saveScript('${s.id}')">Guardar</button>
-          <button onclick="openPresentacionModal('guion','${s.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(124,58,237,0.4);background:transparent;color:var(--purple-light);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">🎨 Presentación</button>
           <button onclick="deleteScript('${s.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
         </div>
       </div>` : ''}
@@ -7210,6 +7250,57 @@ async function generarPresentacion(){
   }
 
   document.getElementById('pres-generate-btn').disabled = false
+}
+
+// ── Presentación inline (dentro del tab del guion) ────────────
+async function generarPresentacionInline(scriptId){
+  const idea   = document.getElementById('pres-inline-idea-'+scriptId)?.value.trim()
+  const canal  = document.getElementById('pres-inline-canal-'+scriptId)?.value || 'iarcania'
+  const formato = document.getElementById('pres-inline-formato-'+scriptId)?.value || 'largo'
+  if(!idea){ showToast('❌ Escribe el tema primero'); return }
+
+  const btn  = document.getElementById('pres-inline-btn-'+scriptId)
+  const load = document.getElementById('pres-inline-load-'+scriptId)
+  if(btn)  { btn.disabled = true; btn.textContent = 'Generando...' }
+  if(load) load.style.display = 'flex'
+
+  try {
+    const r = await fetch('/api/generar-presentacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'guion', idea, canal, formato })
+    })
+    const data = await r.json()
+    if(!r.ok) throw new Error(data.error || 'Error del servidor')
+    _scriptGen[scriptId] = {
+      html: data.html,
+      filename: `guion-${canal}-${new Date().toISOString().slice(0,10)}.html`
+    }
+    showToast('✨ Presentación lista')
+    renderScripts()
+  } catch(e){
+    showToast('❌ Error: ' + (e.message || 'Error desconocido'))
+    if(btn) { btn.disabled = false; btn.textContent = '🎨 Generar presentación' }
+    if(load) load.style.display = 'none'
+  }
+}
+
+function presInlineVer(scriptId){
+  const gen = _scriptGen[scriptId]
+  if(!gen) return
+  const blob = new Blob([gen.html], { type: 'text/html' })
+  const url  = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+}
+
+function presInlineDescargar(scriptId){
+  const gen = _scriptGen[scriptId]
+  if(!gen) return
+  const blob = new Blob([gen.html], { type: 'text/html' })
+  const url  = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = gen.filename; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 async function generateScriptWithAI(){
