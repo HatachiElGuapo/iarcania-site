@@ -1099,7 +1099,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-add" style="border-color:rgba(201,168,76,0.4);color:var(--gold)" onclick="openAIScriptModal()">✨ Crear con IA</button>
-          <button class="btn-add" style="border-color:rgba(124,58,237,0.5);color:var(--purple-light)" onclick="openPresentacionModal('guion')">🎨 Presentación</button>
           <button class="btn-add" onclick="openNewScript()">+ Nuevo guión</button>
         </div>
       </div>
@@ -6980,6 +6979,7 @@ function renderScripts(){
           </select>
           <input type="date" id="se-fecha-${s.id}" value="${s.fecha_grabacion||''}" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none" title="Fecha de grabación">
           <button class="btn-save" onclick="saveScript('${s.id}')">Guardar</button>
+          <button onclick="openPresentacionModal('guion','${s.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(124,58,237,0.4);background:transparent;color:var(--purple-light);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">🎨 Presentación</button>
           <button onclick="deleteScript('${s.id}')" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Eliminar</button>
         </div>
       </div>` : ''}
@@ -7118,7 +7118,7 @@ function openAIScriptModal(){
 let _presHtml = ''
 let _presFilename = ''
 
-function openPresentacionModal(tipo){
+function openPresentacionModal(tipo, scriptId){
   const isGuion = tipo !== 'propuesta'
   document.getElementById('pres-title').textContent = isGuion ? '🎨 Generar presentación de guión' : '📄 Generar propuesta comercial'
   document.getElementById('pres-form-guion').style.display = isGuion ? '' : 'none'
@@ -7129,8 +7129,21 @@ function openPresentacionModal(tipo){
   document.getElementById('pres-generate-btn').style.display = ''
   document.getElementById('pres-generate-btn').dataset.tipo = tipo
   _presHtml = ''
-  if(isGuion){ document.getElementById('pres-idea').value = ''; document.getElementById('pres-canal').value = 'iarcania' }
-  else { ['nombre','empresa','problema','solucion','precio','pago'].forEach(f => document.getElementById('pres-cli-'+f).value = '') }
+  if(isGuion){
+    // Si viene de un guion específico, pre-rellenar con su contenido
+    const script = scriptId ? allScripts.find(s => s.id === scriptId) : null
+    if(script){
+      // Construir la idea combinando título + hook para dar contexto a la IA
+      const idea = [script.title, script.hook].filter(Boolean).join('\n\n')
+      document.getElementById('pres-idea').value = idea
+      document.getElementById('pres-canal').value = script.canal || 'iarcania'
+    } else {
+      document.getElementById('pres-idea').value = ''
+      document.getElementById('pres-canal').value = 'iarcania'
+    }
+  } else {
+    ;['nombre','empresa','problema','solucion','precio','pago'].forEach(f => document.getElementById('pres-cli-'+f).value = '')
+  }
   openModal('presentacion')
 }
 
