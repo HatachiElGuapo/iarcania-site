@@ -81,7 +81,27 @@ Genera un HTML completo que incluya:
 
 Responde SOLO con el HTML completo. Sin explicaciones. Sin backticks. Empieza con <!DOCTYPE html>`
 
-    userContent = `Canal: ${canal || 'iarcania'}\nFormato: ${formato || 'largo'}\nTema/idea: ${idea}`
+    userContent = `Canal: ${canal || 'iarcania'}\nFormato: ${formato || 'largo'}\nContenido del guión:\n${idea}`
+
+  } else if (tipo === 'audiencia') {
+    const isVoidStoic = canal === 'voidstoic'
+    systemPrompt = `Eres el generador de presentaciones visuales HTML de IArcanIA. Generas un HTML elegante, limpio y visualmente impactante — pensado para que el PÚBLICO lo vea, no para el presentador.
+
+${DESIGN_TOKENS}
+
+Reglas estrictas para la vista de audiencia:
+- Sin notas de producción, sin tiempos, sin bloques internos — solo lo que el espectador debe ver y sentir
+- Máximo 15-20 palabras por slide/sección
+- Usa tipografía grande, espaciado generoso, mucho aire
+- Estructura: portada impactante → 4-6 secciones visuales → slide de cierre con CTA
+- Cada sección tiene: un número/icono, una frase corta con gradient-text en el punto clave, y 2-3 líneas de apoyo
+- Colores según canal: ${isVoidStoic ? 'Void Stoic usa el mismo sistema visual de IArcanIA pero el tono es más filosófico, introspectivo' : 'IArcanIA — tecnología, IA, automatización'}
+- Añade separadores visuales (.sep o .sep-purple) entre secciones
+- El resultado debe verse profesional en pantalla — como las diapositivas de una charla TED
+
+Responde SOLO con el HTML completo. Sin explicaciones. Sin backticks. Empieza con <!DOCTYPE html>`
+
+    userContent = `Canal: ${canal || 'iarcania'}\nFormato: ${formato || 'largo'}\nContenido del guión:\n${idea}`
 
   } else if (tipo === 'propuesta') {
     systemPrompt = `Eres el generador de propuestas comerciales HTML de IArcanIA. Generas un HTML completo y auto-contenido con la propuesta comercial y la marca visual exacta de IArcanIA.

@@ -6946,13 +6946,24 @@ function renderScripts(){
     </div>`
     // Modo Presentación — inline, sin modal
     const presGen   = _scriptGen[s.id]
+    const scriptContent = [s.title, s.hook, s.body, s.cta].filter(Boolean).join('\n\n')
+    const presResultRow = (vista, label, icon) => {
+      const gen = presGen?.[vista]
+      return gen ? `
+      <div style="padding:10px 14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <span style="font-size:12px;color:#a78bfa;font-family:Outfit,sans-serif">${icon} ${label} <span style="color:#5a5870">lista</span></span>
+        <div style="display:flex;gap:8px">
+          <button onclick="presInlineVer('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#a78bfa;cursor:pointer;font-family:Outfit,sans-serif">👁 Ver</button>
+          <button onclick="presInlineDescargar('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:Outfit,sans-serif">⬇ Descargar</button>
+        </div>
+      </div>` : ''
+    }
     const presHTML  = `<div style="border:1px solid #2a2a2a;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
       <div style="font-size:12px;color:#888;font-family:Outfit,sans-serif;line-height:1.5">
-        Genera el documento HTML del guión — con diseño visual listo para compartir o revisar.
-        El contenido se pre-rellena desde los bloques del guión.
+        Genera dos versiones HTML: una para ti (con estructura, bloques y notas) y otra para tu audiencia (visual, limpia, lista para mostrar).
       </div>
-      <div><label style="${lStyle}">Tema / idea del video</label>
-        <textarea id="pres-inline-idea-${s.id}" style="${tStyle};min-height:70px">${[s.title,s.hook].filter(Boolean).join('\n\n').replace(/</g,'&lt;')}</textarea>
+      <div style="padding:10px 12px;background:#111;border:1px solid #2a2a2a;border-radius:6px;font-size:11px;color:#5a5870;font-family:Outfit,sans-serif;line-height:1.6;max-height:80px;overflow:hidden">
+        ${scriptContent ? scriptContent.substring(0,200).replace(/</g,'&lt;') + (scriptContent.length > 200 ? '…' : '') : '<em>Sin contenido en el guión aún</em>'}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:120px"><label style="${lStyle}">Canal</label>
@@ -6969,19 +6980,13 @@ function renderScripts(){
         </div>
       </div>
       <div id="pres-inline-load-${s.id}" style="display:none;font-size:12px;color:#888;font-family:Outfit,sans-serif;align-items:center;gap:6px">
-        <span class="ai-dot-anim">●</span>&nbsp;Generando presentación...
+        <span class="ai-dot-anim">●</span>&nbsp;Generando ambas presentaciones...
       </div>
-      ${presGen ? `
-      <div style="padding:12px 14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span style="font-size:13px;color:#a78bfa;font-family:Outfit,sans-serif">✨ Presentación lista</span>
-        <div style="display:flex;gap:8px">
-          <button onclick="presInlineVer('${s.id}')" style="padding:6px 14px;font-size:12px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#a78bfa;cursor:pointer;font-family:Outfit,sans-serif">👁 Ver</button>
-          <button onclick="presInlineDescargar('${s.id}')" style="padding:6px 14px;font-size:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:Outfit,sans-serif">⬇ Descargar</button>
-        </div>
-      </div>` : ''}
+      ${presResultRow('presentador', 'Vista presentador', '📋')}
+      ${presResultRow('audiencia', 'Vista audiencia', '👥')}
       <button id="pres-inline-btn-${s.id}" onclick="generarPresentacionInline('${s.id}')"
         style="padding:10px 20px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">
-        🎨 ${presGen ? 'Regenerar' : 'Generar presentación'}
+        🎨 ${presGen ? 'Regenerar ambas' : 'Generar presentaciones'}
       </button>
     </div>`
     const editorContent  = editorModo === 'libre' ? libreHTML : editorModo === 'ia' ? iaHTML : editorModo === 'presentacion' ? presHTML : bloquesHTML
@@ -7254,39 +7259,42 @@ async function generarPresentacion(){
 
 // ── Presentación inline (dentro del tab del guion) ────────────
 async function generarPresentacionInline(scriptId){
-  const idea   = document.getElementById('pres-inline-idea-'+scriptId)?.value.trim()
-  const canal  = document.getElementById('pres-inline-canal-'+scriptId)?.value || 'iarcania'
+  const s = allScripts.find(x => x.id === scriptId)
+  if(!s){ showToast('❌ Guión no encontrado'); return }
+  const idea    = [s.title, s.hook, s.body, s.cta].filter(Boolean).join('\n\n')
+  const canal   = document.getElementById('pres-inline-canal-'+scriptId)?.value || s.canal || 'iarcania'
   const formato = document.getElementById('pres-inline-formato-'+scriptId)?.value || 'largo'
-  if(!idea){ showToast('❌ Escribe el tema primero'); return }
+  if(!idea.trim()){ showToast('❌ El guión no tiene contenido aún'); return }
 
   const btn  = document.getElementById('pres-inline-btn-'+scriptId)
   const load = document.getElementById('pres-inline-load-'+scriptId)
   if(btn)  { btn.disabled = true; btn.textContent = 'Generando...' }
   if(load) load.style.display = 'flex'
 
+  const callAPI = (tipo) => fetch('/api/generar-presentacion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tipo, idea, canal, formato })
+  }).then(r => r.json().then(d => { if(!r.ok) throw new Error(d.error || 'Error del servidor'); return d }))
+
   try {
-    const r = await fetch('/api/generar-presentacion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: 'guion', idea, canal, formato })
-    })
-    const data = await r.json()
-    if(!r.ok) throw new Error(data.error || 'Error del servidor')
+    const [dataPres, dataAud] = await Promise.all([callAPI('guion'), callAPI('audiencia')])
+    const ts = new Date().toISOString().slice(0,10)
     _scriptGen[scriptId] = {
-      html: data.html,
-      filename: `guion-${canal}-${new Date().toISOString().slice(0,10)}.html`
+      presentador: { html: dataPres.html, filename: `presentador-${canal}-${ts}.html` },
+      audiencia:   { html: dataAud.html,  filename: `audiencia-${canal}-${ts}.html`   }
     }
-    showToast('✨ Presentación lista')
+    showToast('✨ Ambas presentaciones listas')
     renderScripts()
   } catch(e){
     showToast('❌ Error: ' + (e.message || 'Error desconocido'))
-    if(btn) { btn.disabled = false; btn.textContent = '🎨 Generar presentación' }
+    if(btn) { btn.disabled = false; btn.textContent = '🎨 Generar presentaciones' }
     if(load) load.style.display = 'none'
   }
 }
 
-function presInlineVer(scriptId){
-  const gen = _scriptGen[scriptId]
+function presInlineVer(scriptId, vista){
+  const gen = _scriptGen[scriptId]?.[vista]
   if(!gen) return
   const blob = new Blob([gen.html], { type: 'text/html' })
   const url  = URL.createObjectURL(blob)
@@ -7294,8 +7302,8 @@ function presInlineVer(scriptId){
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
-function presInlineDescargar(scriptId){
-  const gen = _scriptGen[scriptId]
+function presInlineDescargar(scriptId, vista){
+  const gen = _scriptGen[scriptId]?.[vista]
   if(!gen) return
   const blob = new Blob([gen.html], { type: 'text/html' })
   const url  = URL.createObjectURL(blob)
