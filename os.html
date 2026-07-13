@@ -6461,6 +6461,8 @@ function filterGuionesDash(canal, btn){
 async function loadScripts(){
   const { data } = await SB_P.from('scripts').select('*').order('created_at',{ascending:false})
   allScripts = data || []
+  // Restaurar presentaciones guardadas en Supabase
+  allScripts.forEach(s => { if(s.pres_data) _scriptGen[s.id] = s.pres_data })
   renderScripts()
 }
 
@@ -6949,14 +6951,19 @@ function renderScripts(){
     const scriptContent = [s.title, s.hook, s.body, s.cta].filter(Boolean).join('\n\n')
     const presResultRow = (vista, label, icon) => {
       const gen = presGen?.[vista]
-      return gen ? `
+      if(!gen) return ''
+      const fechaStr = presGen.generado_en ? new Date(presGen.generado_en).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) : ''
+      return `
       <div style="padding:10px 14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span style="font-size:12px;color:#a78bfa;font-family:Outfit,sans-serif">${icon} ${label} <span style="color:#5a5870">lista</span></span>
+        <div>
+          <span style="font-size:12px;color:#a78bfa;font-family:Outfit,sans-serif">${icon} ${label}</span>
+          ${fechaStr ? `<span style="font-size:10px;color:#5a5870;font-family:Outfit,sans-serif;margin-left:8px">${fechaStr}</span>` : ''}
+        </div>
         <div style="display:flex;gap:8px">
           <button onclick="presInlineVer('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#a78bfa;cursor:pointer;font-family:Outfit,sans-serif">👁 Ver</button>
           <button onclick="presInlineDescargar('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:Outfit,sans-serif">⬇ Descargar</button>
         </div>
-      </div>` : ''
+      </div>`
     }
     const presHTML  = `<div style="border:1px solid #2a2a2a;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
       <div style="font-size:12px;color:#888;font-family:Outfit,sans-serif;line-height:1.5">
@@ -7280,10 +7287,16 @@ async function generarPresentacionInline(scriptId){
   try {
     const [dataPres, dataAud] = await Promise.all([callAPI('guion'), callAPI('audiencia')])
     const ts = new Date().toISOString().slice(0,10)
-    _scriptGen[scriptId] = {
+    const presData = {
       presentador: { html: dataPres.html, filename: `presentador-${canal}-${ts}.html` },
-      audiencia:   { html: dataAud.html,  filename: `audiencia-${canal}-${ts}.html`   }
+      audiencia:   { html: dataAud.html,  filename: `audiencia-${canal}-${ts}.html`   },
+      generado_en: new Date().toISOString()
     }
+    _scriptGen[scriptId] = presData
+    // Persistir en Supabase para sobrevivir recargas
+    await SB_P.from('scripts').update({ pres_data: presData }).eq('id', scriptId)
+    const sc = allScripts.find(x => x.id === scriptId)
+    if(sc) sc.pres_data = presData
     showToast('✨ Ambas presentaciones listas')
     renderScripts()
   } catch(e){
