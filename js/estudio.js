@@ -17,9 +17,9 @@ let _presIdx      = 0
 let _presFading   = false
 
 // ── Constantes ────────────────────────────────────────────────
-const ESTADOS = ['idea', 'borrador', 'aprobado', 'grabado', 'publicado']
-const PLATAFORMAS = ['tiktok', 'reels', 'youtube', 'linkedin']
-const TIPOS_SLIDE = ['portada', 'punto', 'cita', 'dato', 'cierre']
+const ESTADOS      = ['idea', 'borrador', 'aprobado', 'grabado', 'publicado']
+const PLATAFORMAS  = ['tiktok', 'reels', 'youtube', 'linkedin']
+const TIPOS_SLIDE  = ['portada', 'punto', 'cita', 'dato', 'cierre']
 
 const ESTADO_COLORS = {
   idea:      '#64748B',
@@ -30,176 +30,265 @@ const ESTADO_COLORS = {
 }
 
 // ── Utilidades ────────────────────────────────────────────────
-const $    = id => document.getElementById(id)
-const esc  = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-const uid  = () => typeof crypto !== 'undefined' && crypto.randomUUID
+const $      = id => document.getElementById(id)
+const esc    = s  => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+const uid    = () => typeof crypto !== 'undefined' && crypto.randomUUID
   ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-      const r = Math.random() * 16 | 0
-      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+      const r = Math.random() * 16 | 0; return (c==='x'?r:(r&0x3|0x8)).toString(16)
     })
-const fmtDate  = d => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : ''
+const fmtDate  = d  => d ? new Date(d).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : ''
 const brand    = id => _brands.find(b => b.id === id)
-const capFirst = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
+const capFirst = s  => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
 
-// ── CSS ───────────────────────────────────────────────────────
+// Luminancia relativa — determina si un color hex es oscuro
+function isDark(hex) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return true
+  const r = parseInt(hex.slice(1,3),16)/255
+  const g = parseInt(hex.slice(3,5),16)/255
+  const b = parseInt(hex.slice(5,7),16)/255
+  return 0.299*r + 0.587*g + 0.114*b < 0.5
+}
+
+// hex → rgba string
+function rgba(hex, a) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return `rgba(120,120,120,${a})`
+  const r = parseInt(hex.slice(1,3),16)
+  const g = parseInt(hex.slice(3,5),16)
+  const b = parseInt(hex.slice(5,7),16)
+  return `rgba(${r},${g},${b},${a})`
+}
+
+// Carga una fuente de Google Fonts si no está ya cargada
+const _loadedFonts = new Set()
+function ensureFont(family) {
+  if (!family || _loadedFonts.has(family)) return
+  _loadedFonts.add(family)
+  const link = document.createElement('link')
+  link.rel  = 'stylesheet'
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@300;400;500;600;700&display=swap`
+  document.head.appendChild(link)
+}
+
+// ── CSS base (estático — no depende de marca) ──────────────────
 function injectStyles() {
   if ($('est-styles')) return
   const s = document.createElement('style')
   s.id = 'est-styles'
   s.textContent = `
 /* ── Layout ── */
-#section-estudio { overflow-y: auto; }
-.est-wrap { padding: 24px; max-width: 940px; }
+#section-estudio { overflow-y:auto; }
+.est-wrap { padding:24px; max-width:960px; }
 
-/* ── Header ── */
+/* ── Lista ── */
 .est-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .est-page-title { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); }
 .est-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
 .est-filter-sel { height:30px; padding:0 10px; border-radius:6px; border:1px solid var(--border);
-  background:#111; color:var(--text-muted); font-family:'Outfit',sans-serif; font-size:12px; outline:none; cursor:pointer; }
+  background:#111; color:var(--text-muted); font-family:'Outfit',sans-serif; font-size:12px;
+  outline:none; cursor:pointer; }
 .est-filter-sel:focus { border-color:#333; color:var(--text); }
-
-/* ── Cards ── */
 .est-grid { display:flex; flex-direction:column; gap:8px; }
 .est-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
   padding:14px 16px; cursor:pointer; transition:border-color .15s; }
 .est-card:hover { border-color:#2a2a2a; }
 .est-card-top { display:flex; align-items:center; gap:10px; margin-bottom:5px; }
 .est-brand-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.est-card-title { font-size:14px; font-weight:600; color:var(--text); flex:1; white-space:nowrap;
-  overflow:hidden; text-overflow:ellipsis; }
+.est-card-title { font-size:14px; font-weight:600; color:var(--text); flex:1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .est-badge { display:inline-block; font-size:10px; font-weight:600; letter-spacing:.5px;
   padding:2px 8px; border-radius:100px; white-space:nowrap; }
 .est-card-meta { font-size:11px; color:var(--text-muted); display:flex; gap:10px;
   margin-left:18px; flex-wrap:wrap; }
 
-/* ── Buttons ── */
+/* ── Botones base ── */
 .est-btn { height:34px; padding:0 16px; border-radius:7px; border:none;
   font-family:'Outfit',sans-serif; font-size:13px; font-weight:500; cursor:pointer;
   display:inline-flex; align-items:center; gap:6px; transition:opacity .12s; }
-.est-btn-primary  { background:var(--purple); color:#fff; }
-.est-btn-primary:hover  { opacity:.85; }
-.est-btn-ghost    { background:transparent; border:1px solid var(--border); color:var(--text-muted); }
-.est-btn-ghost:hover    { border-color:#333; color:var(--text); }
-.est-btn-present  { background:linear-gradient(135deg,#7C3AED 0%,#22D3EE 100%); color:#fff; font-weight:600; }
-.est-btn-present:hover  { opacity:.88; }
-.est-btn-danger   { background:transparent; border:1px solid rgba(226,75,74,0.3); color:#E24B4A; }
 .est-btn-sm { height:28px; padding:0 10px; font-size:11px; }
+.est-btn-ghost  { background:transparent; border:1px solid var(--border); color:var(--text-muted); }
+.est-btn-ghost:hover { border-color:#444; color:var(--text); }
+.est-btn-danger { background:transparent; border:1px solid rgba(226,75,74,.3); color:#E24B4A; }
+.est-btn-danger:hover { background:rgba(226,75,74,.08); }
 
 /* ── Back ── */
-.est-back { display:inline-flex; align-items:center; gap:6px; color:var(--text-muted);
-  font-size:12px; cursor:pointer; padding:0; background:none; border:none; margin-bottom:16px; }
-.est-back:hover { color:var(--text); }
+.est-back { display:inline-flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;
+  padding:0; background:none; border:none; margin-bottom:20px; opacity:.6;
+  transition:opacity .15s; font-family:'Outfit',sans-serif; }
+.est-back:hover { opacity:1; }
+
+/* ── Editor branded container ── */
+.est-editor-branded {
+  --ed-fondo:    #0a0a0a;
+  --ed-primario: #7C3AED;
+  --ed-texto:    #FFFFFF;
+  --ed-acento:   #22D3EE;
+  --ed-surface:  #111111;
+  --ed-border:   rgba(124,58,237,.25);
+  --ed-muted:    rgba(255,255,255,.5);
+  background: var(--ed-fondo);
+  color: var(--ed-texto);
+  border-radius: 14px;
+  padding: 24px;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  border: 1px solid var(--ed-border);
+  position: relative;
+}
+.est-editor-branded * { transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+
+/* Logo de marca en corner */
+.est-brand-logo-corner {
+  position:absolute; top:20px; right:20px;
+  max-height:32px; max-width:100px; opacity:.7;
+  object-fit:contain; pointer-events:none;
+}
 
 /* ── Detail grid ── */
 .est-detail { display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
 @media(max-width:760px){ .est-detail{ grid-template-columns:1fr; } }
 
-/* ── Form ── */
-.est-form { display:flex; flex-direction:column; gap:12px; }
+/* ── Form dentro del editor branded ── */
+.est-form { display:flex; flex-direction:column; gap:14px; }
 .est-field { display:flex; flex-direction:column; gap:4px; }
-.est-label { font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); }
-.est-input { background:#0C0C0C; border:1px solid var(--border); border-radius:8px;
-  padding:9px 11px; color:var(--text); font-family:'Outfit',sans-serif; font-size:13px;
-  outline:none; width:100%; box-sizing:border-box; }
-.est-input:focus { border-color:rgba(139,108,246,.4); }
+.est-label {
+  font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color: var(--ed-muted);
+}
+.est-input {
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-border);
+  border-radius: 8px; padding: 9px 11px;
+  color: var(--ed-texto);
+  font-family: inherit; font-size: 13px;
+  outline: none; width: 100%; box-sizing: border-box;
+}
+.est-input:focus { border-color: var(--ed-primario); }
 .est-textarea { resize:vertical; min-height:80px; }
 .est-select { cursor:pointer; }
 .est-form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.est-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.est-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
 
-/* ── Slides panel ── */
-.est-slides-panel { background:var(--bg-card); border:1px solid var(--border);
-  border-radius:10px; padding:16px; position:sticky; top:20px; }
-.est-slides-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.est-slides-label { font-size:12px; font-weight:600; color:var(--text); }
-.est-slide-item { background:#0a0a0a; border:1px solid var(--border); border-radius:8px;
-  padding:10px 12px; margin-bottom:6px; position:relative; }
-.est-slide-item:hover .est-sl-ctrl { opacity:1; }
-.est-tipo-tag { display:inline-block; font-size:9px; font-weight:700; letter-spacing:1px;
-  text-transform:uppercase; padding:2px 7px; border-radius:100px;
-  background:rgba(139,108,246,.1); border:1px solid rgba(139,108,246,.2);
-  color:var(--purple); margin-bottom:4px; }
-.est-slide-main { font-size:12px; color:var(--text-muted); line-height:1.5;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.est-slide-sec  { font-size:11px; color:var(--text-muted); opacity:.55; margin-top:1px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.est-sl-ctrl { position:absolute; top:6px; right:6px; display:flex; gap:2px; opacity:0; transition:opacity .12s; }
-.est-sl-ctrl button { background:none; border:none; color:var(--text-muted); cursor:pointer;
-  font-size:12px; padding:2px 4px; line-height:1; border-radius:4px; }
-.est-sl-ctrl button:hover { color:var(--text); background:#1a1a1a; }
-.est-sl-del { color:rgba(226,75,74,.5) !important; }
-.est-sl-del:hover { color:#E24B4A !important; }
+/* Botones que usan los colores de marca */
+.est-btn-branded {
+  background: var(--ed-primario); color: var(--ed-texto);
+  font-family:'Outfit',sans-serif;
+}
+.est-btn-branded:hover { opacity:.85; }
+.est-btn-accent {
+  background: var(--ed-acento); color: #000;
+  font-family:'Outfit',sans-serif;
+}
+.est-btn-accent:hover { opacity:.85; }
+.est-btn-present {
+  background: linear-gradient(135deg, var(--ed-primario) 0%, var(--ed-acento) 100%);
+  color: var(--ed-texto); font-weight:600;
+  font-family:'Outfit',sans-serif;
+}
+.est-btn-present:hover { opacity:.88; }
 
-/* ── Add slide ── */
-.est-add-form { background:#0a0a0a; border:1px dashed #2a2a2a; border-radius:8px;
-  padding:12px; margin-top:8px; display:flex; flex-direction:column; gap:8px; }
+/* Título del guion en el editor */
+.est-script-title {
+  font-family: 'Playfair Display', serif; font-size: 18px;
+  color: var(--ed-texto); margin-bottom: 16px; display:flex;
+  align-items:center; gap:10px;
+}
+.est-script-title .dot {
+  width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  background: var(--ed-primario);
+}
+
+/* ── Panel de slides (columna derecha) ── */
+.est-slides-panel {
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-border);
+  border-radius: 10px; padding: 14px;
+  position: sticky; top: 20px;
+}
+.est-slides-hdr {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;
+}
+.est-slides-label { font-size:12px; font-weight:600; color: var(--ed-texto); }
+.est-slides-hdr-btns { display:flex; gap:6px; }
+
+/* ── Miniatura de slide (16:9) ── */
+.est-slide-thumb {
+  position:relative; width:100%; aspect-ratio:16/9;
+  border-radius:6px; overflow:hidden; margin-bottom:8px;
+  cursor:default;
+}
+.est-slide-thumb-inner {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:8%;
+}
+.est-slide-thumb-ctrl {
+  position:absolute; top:4px; right:4px;
+  display:flex; gap:2px; opacity:0; transition:opacity .12s;
+}
+.est-slide-thumb:hover .est-slide-thumb-ctrl { opacity:1; }
+.est-slide-thumb-ctrl button {
+  background:rgba(0,0,0,.55); border:none; color:#fff; cursor:pointer;
+  font-size:11px; padding:2px 5px; border-radius:3px; line-height:1;
+}
+.est-slide-thumb-ctrl button:hover { background:rgba(0,0,0,.85); }
+.est-slide-thumb-del { color:#ff6b6b !important; }
+.est-slide-thumb-num {
+  position:absolute; bottom:4px; left:6px;
+  font-size:9px; opacity:.4; font-family:'Outfit',sans-serif;
+}
+
+/* ── Add slide form ── */
+.est-add-form {
+  border: 1px dashed var(--ed-border);
+  border-radius: 8px; padding:12px; margin-top:8px;
+  display:flex; flex-direction:column; gap:8px;
+}
 
 /* ─────────────────────────────────────────────────────────────
    PRESENTER
 ───────────────────────────────────────────────────────────── */
 #est-presenter {
-  display: none; position: fixed; inset: 0; z-index: 9999;
-  flex-direction: column; background: var(--pres-bg, #0A0A0A);
-  color: var(--pres-texto, #fff);
+  display:none; position:fixed; inset:0; z-index:9999;
+  flex-direction:column;
+  background: var(--pres-bg,#0A0A0A);
+  color: var(--pres-texto,#fff);
 }
-#est-presenter.pres-open { display: flex; }
+#est-presenter.pres-open { display:flex; }
 .est-pres-body {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 48px 80px; overflow: hidden;
+  flex:1; display:flex; align-items:center; justify-content:center;
+  padding:48px 80px; overflow:hidden;
 }
-.est-pres-body.fading { opacity: 0; transition: opacity .15s; }
 .est-pres-foot {
-  height: 4px; background: rgba(255,255,255,.07); flex-shrink: 0; position: relative;
+  height:4px; background:rgba(255,255,255,.07); flex-shrink:0; position:relative;
 }
-.est-pres-bar { height: 100%; transition: width .3s ease; }
+.est-pres-bar  { height:100%; transition:width .3s ease; }
 .est-pres-counter {
-  position: absolute; bottom: 10px; right: 18px;
-  font-size: 11px; font-family: 'Outfit',sans-serif; color: rgba(255,255,255,.2);
+  position:absolute; bottom:10px; right:18px;
+  font-size:11px; font-family:'Outfit',sans-serif; color:rgba(255,255,255,.2);
 }
 .est-pres-hint {
-  position: absolute; bottom: 10px; left: 18px;
-  font-size: 11px; font-family: 'Outfit',sans-serif; color: rgba(255,255,255,.15);
+  position:absolute; bottom:10px; left:18px;
+  font-size:11px; font-family:'Outfit',sans-serif; color:rgba(255,255,255,.15);
 }
-
-/* ── Slide layouts ── */
-.sl-portada {
-  text-align: center; display: flex; flex-direction: column;
-  align-items: center; gap: 28px; max-width: 800px; width: 100%;
-}
-.sl-portada .logo { max-height: 64px; opacity: .9; }
-.sl-portada .tit  {
-  font-size: clamp(34px, 5.5vw, 72px); font-weight: 700; line-height: 1.12; letter-spacing: -.5px;
-}
-.sl-portada .sub  { font-size: clamp(16px,2.2vw,26px); opacity: .6; }
-
-.sl-punto { display: flex; flex-direction: column; gap: 20px; max-width: 800px; width: 100%; }
-.sl-punto .main { font-size: clamp(28px,4.5vw,60px); font-weight: 700; line-height: 1.18; }
-.sl-punto .sub  { font-size: clamp(16px,2.2vw,26px); opacity: .65; line-height: 1.55; }
-
-.sl-cita {
-  max-width: 780px; text-align: center;
-  display: flex; flex-direction: column; align-items: center; gap: 16px;
-}
-.sl-cita .qmark  { font-size: 96px; line-height: .7; opacity: .2; font-family: Georgia,serif; }
-.sl-cita .main   { font-size: clamp(22px,3.5vw,48px); font-style: italic; font-weight: 500; line-height: 1.38; }
-.sl-cita .author { font-size: clamp(14px,1.6vw,22px); opacity: .5; margin-top: 6px; }
-
-.sl-dato {
-  text-align: center; display: flex; flex-direction: column;
-  align-items: center; gap: 14px;
-}
-.sl-dato .num { font-size: clamp(64px,12vw,140px); font-weight: 800; line-height: 1; }
-.sl-dato .ctx { font-size: clamp(16px,2.2vw,28px); opacity: .6; max-width: 600px; }
-
-.sl-cierre {
-  text-align: center; display: flex; flex-direction: column;
-  align-items: center; gap: 22px; max-width: 780px; width: 100%;
-}
-.sl-cierre .cta  { font-size: clamp(24px,4vw,56px); font-weight: 700; line-height: 1.25; }
-.sl-cierre .sub  { font-size: clamp(14px,1.8vw,24px); opacity: .55; }
-.sl-cierre .logo { max-height: 54px; opacity: .8; margin-top: 8px; }
+/* Slide layouts fullscreen */
+.sl-portada { text-align:center; display:flex; flex-direction:column; align-items:center; gap:28px; max-width:800px; width:100%; }
+.sl-portada .logo { max-height:64px; opacity:.9; }
+.sl-portada .tit  { font-size:clamp(34px,5.5vw,72px); font-weight:700; line-height:1.12; letter-spacing:-.5px; }
+.sl-portada .sub  { font-size:clamp(16px,2.2vw,26px); opacity:.6; }
+.sl-punto { display:flex; flex-direction:column; gap:20px; max-width:800px; width:100%; }
+.sl-punto .main { font-size:clamp(28px,4.5vw,60px); font-weight:700; line-height:1.18; }
+.sl-punto .sub  { font-size:clamp(16px,2.2vw,26px); opacity:.65; line-height:1.55; }
+.sl-cita { max-width:780px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:16px; }
+.sl-cita .qmark  { font-size:96px; line-height:.7; opacity:.2; font-family:Georgia,serif; }
+.sl-cita .main   { font-size:clamp(22px,3.5vw,48px); font-style:italic; font-weight:500; line-height:1.38; }
+.sl-cita .author { font-size:clamp(14px,1.6vw,22px); opacity:.5; margin-top:6px; }
+.sl-dato { text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px; }
+.sl-dato .num { font-size:clamp(64px,12vw,140px); font-weight:800; line-height:1; }
+.sl-dato .ctx { font-size:clamp(16px,2.2vw,28px); opacity:.6; max-width:600px; }
+.sl-cierre { text-align:center; display:flex; flex-direction:column; align-items:center; gap:22px; max-width:780px; width:100%; }
+.sl-cierre .cta  { font-size:clamp(24px,4vw,56px); font-weight:700; line-height:1.25; }
+.sl-cierre .sub  { font-size:clamp(14px,1.8vw,24px); opacity:.55; }
+.sl-cierre .logo { max-height:54px; opacity:.8; margin-top:8px; }
 `
   document.head.appendChild(s)
 }
@@ -233,7 +322,7 @@ async function loadEstudio() {
 
   const [brandsRes, scriptsRes] = await Promise.all([
     SB_P.from('brands').select('*').order('nombre'),
-    SB_P.from('scripts').select('*').eq('user_id', USER_ID).order('created_at', { ascending: false }),
+    SB_P.from('scripts').select('*').eq('user_id', USER_ID).order('created_at',{ascending:false}),
   ])
   _brands  = brandsRes.data  || []
   _scripts = scriptsRes.data || []
@@ -259,7 +348,8 @@ function renderList() {
   el.innerHTML = `<div class="est-wrap">
     <div class="est-hdr">
       <div class="est-page-title">Estudio</div>
-      <button class="est-btn est-btn-primary" onclick="_est.newScript()">+ Nuevo guion</button>
+      <button class="est-btn est-btn-branded" style="background:var(--purple);color:#fff"
+        onclick="_est.newScript()">+ Nuevo guion</button>
     </div>
     <div class="est-filters">
       <select class="est-filter-sel" onchange="_est.filterBrand(this.value)">
@@ -280,9 +370,9 @@ function renderList() {
 }
 
 function cardHTML(s) {
-  const b     = brand(s.brand_id)
-  const dot   = b?.colores?.primario || '#555'
-  const ec    = ESTADO_COLORS[s.estado] || '#555'
+  const b   = brand(s.brand_id)
+  const dot = b?.colores?.primario || '#555'
+  const ec  = ESTADO_COLORS[s.estado] || '#555'
   return `<div class="est-card" onclick="_est.openScript('${s.id}')">
     <div class="est-card-top">
       <div class="est-brand-dot" style="background:${esc(dot)}"></div>
@@ -315,134 +405,302 @@ function renderDetail() {
   const el = $('section-estudio')
   if (!el) return
 
-  const b      = brand(s.brand_id)
-  const dot    = b?.colores?.primario || '#555'
+  const b       = brand(s.brand_id)
+  const colores = b?.colores || {}
 
-  const bOpts  = _brands.map(b2 =>
+  const bOpts = _brands.map(b2 =>
     `<option value="${esc(b2.id)}" ${s.brand_id===b2.id?'selected':''}>${esc(b2.nombre)}</option>`
   ).join('')
-  const platOpts = [['', '— Plataforma —'], ...PLATAFORMAS.map(p => [p, p])].map(([v,l]) =>
+  const platOpts = [['','— Plataforma —'], ...PLATAFORMAS.map(p=>[p,p])].map(([v,l]) =>
     `<option value="${v}" ${s.plataforma===v?'selected':''}>${esc(l)}</option>`
   ).join('')
   const estOpts = ESTADOS.map(e =>
     `<option value="${e}" ${s.estado===e?'selected':''}>${capFirst(e)}</option>`
   ).join('')
 
+  const logoCorner = b?.logo_url
+    ? `<img class="est-brand-logo-corner" src="${esc(b.logo_url)}" alt="${esc(b.nombre)}" onerror="this.style.display='none'">`
+    : ''
+
   el.innerHTML = `<div class="est-wrap">
-    <button class="est-back" onclick="_est.backToList()">← Estudio</button>
-    <div class="est-detail">
+    <button class="est-back" onclick="_est.backToList()" id="est-back-btn">← Estudio</button>
 
-      <!-- Formulario -->
-      <div class="est-form">
-        <div class="est-card-top" style="margin-bottom:8px">
-          <div class="est-brand-dot" style="background:${esc(dot)};width:10px;height:10px"></div>
-          <div style="font-family:'Playfair Display',serif;font-size:17px;color:var(--text)">
-            ${esc(s.titulo || 'Sin título')}
-          </div>
-        </div>
+    <div id="est-editor-branded" class="est-editor-branded">
+      ${logoCorner}
 
-        <div class="est-form-row">
-          <div class="est-field">
-            <div class="est-label">Marca</div>
-            <select class="est-input est-select" onchange="_est.setField('brand_id',this.value)">
-              ${bOpts}
-            </select>
-          </div>
-          <div class="est-field">
-            <div class="est-label">Plataforma</div>
-            <select class="est-input est-select" onchange="_est.setField('plataforma',this.value)">
-              ${platOpts}
-            </select>
-          </div>
-        </div>
-
-        <div class="est-form-row">
-          <div class="est-field">
-            <div class="est-label">Título</div>
-            <input class="est-input" value="${esc(s.titulo)}"
-              oninput="_est.setField('titulo',this.value)">
-          </div>
-          <div class="est-field">
-            <div class="est-label">Estado</div>
-            <select class="est-input est-select" onchange="_est.setField('estado',this.value)">
-              ${estOpts}
-            </select>
-          </div>
-        </div>
-
-        <div class="est-field">
-          <div class="est-label">Tema</div>
-          <input class="est-input" value="${esc(s.tema)}"
-            oninput="_est.setField('tema',this.value)" placeholder="Tema central del video">
-        </div>
-
-        <div class="est-field">
-          <div class="est-label">Hook</div>
-          <textarea class="est-input est-textarea"
-            oninput="_est.setField('hook',this.value)">${esc(s.hook)}</textarea>
-        </div>
-
-        <div class="est-field">
-          <div class="est-label">Contenido</div>
-          <textarea class="est-input est-textarea" style="min-height:120px"
-            oninput="_est.setField('contenido',this.value)">${esc(s.contenido)}</textarea>
-        </div>
-
-        <div class="est-field">
-          <div class="est-label">CTA</div>
-          <input class="est-input" value="${esc(s.cta)}"
-            oninput="_est.setField('cta',this.value)" placeholder="Llamada a la acción">
-        </div>
-
-        <div class="est-actions">
-          <button class="est-btn est-btn-primary" onclick="_est.saveScript()">Guardar</button>
-          <button class="est-btn est-btn-present" onclick="_est.openPresenter()">▶ Presentar</button>
-          <button class="est-btn est-btn-danger" onclick="_est.deleteScript()">Eliminar</button>
-        </div>
+      <div class="est-script-title" id="est-script-title-hdr">
+        <div class="dot"></div>
+        <span>${esc(s.titulo || 'Sin título')}</span>
       </div>
 
-      <!-- Panel de slides -->
-      <div class="est-slides-panel">
-        <div class="est-slides-hdr">
-          <div class="est-slides-label">Slides <span id="est-sl-count">(${_slides.length})</span></div>
-          <button class="est-btn est-btn-ghost est-btn-sm"
-            onclick="_est.toggleAddSlide()">+ Agregar</button>
-        </div>
-        <div id="est-slides-list">${renderSlidesListHTML()}</div>
-        <div id="est-add-form" style="display:none" class="est-add-form">
-          ${addSlideFormHTML()}
-        </div>
-      </div>
+      <div class="est-detail">
 
+        <!-- ── Formulario ── -->
+        <div class="est-form">
+
+          <div class="est-form-row">
+            <div class="est-field">
+              <div class="est-label">Marca</div>
+              <select class="est-input est-select" id="est-brand-sel"
+                onchange="_est.changeBrand(this.value)">
+                ${bOpts}
+              </select>
+            </div>
+            <div class="est-field">
+              <div class="est-label">Plataforma</div>
+              <select class="est-input est-select"
+                onchange="_est.setField('plataforma',this.value)">
+                ${platOpts}
+              </select>
+            </div>
+          </div>
+
+          <div class="est-form-row">
+            <div class="est-field">
+              <div class="est-label">Título</div>
+              <input class="est-input" id="est-titulo-input" value="${esc(s.titulo)}"
+                oninput="_est.setField('titulo',this.value)">
+            </div>
+            <div class="est-field">
+              <div class="est-label">Estado</div>
+              <select class="est-input est-select"
+                onchange="_est.setField('estado',this.value)">
+                ${estOpts}
+              </select>
+            </div>
+          </div>
+
+          <div class="est-field">
+            <div class="est-label">Tema</div>
+            <input class="est-input" value="${esc(s.tema)}"
+              oninput="_est.setField('tema',this.value)" placeholder="Tema central del video">
+          </div>
+
+          <div class="est-field">
+            <div class="est-label">Hook</div>
+            <textarea class="est-input est-textarea" id="est-hook-input"
+              oninput="_est.setField('hook',this.value)">${esc(s.hook)}</textarea>
+          </div>
+
+          <div class="est-field">
+            <div class="est-label">Contenido</div>
+            <textarea class="est-input est-textarea" style="min-height:130px"
+              id="est-contenido-input"
+              oninput="_est.setField('contenido',this.value)">${esc(s.contenido)}</textarea>
+          </div>
+
+          <div class="est-field">
+            <div class="est-label">CTA</div>
+            <input class="est-input" id="est-cta-input" value="${esc(s.cta)}"
+              oninput="_est.setField('cta',this.value)" placeholder="Llamada a la acción">
+          </div>
+
+          <div class="est-actions">
+            <button class="est-btn est-btn-branded" onclick="_est.saveScript()">Guardar</button>
+            <button class="est-btn est-btn-present" onclick="_est.openPresenter()">▶ Presentar</button>
+            <button class="est-btn est-btn-danger est-btn-sm" style="margin-left:auto"
+              onclick="_est.deleteScript()">Eliminar</button>
+          </div>
+        </div>
+
+        <!-- ── Panel de slides ── -->
+        <div class="est-slides-panel" id="est-slides-panel">
+          <div class="est-slides-hdr">
+            <div class="est-slides-label">
+              Slides <span id="est-sl-count" style="opacity:.5">(${_slides.length})</span>
+            </div>
+            <div class="est-slides-hdr-btns">
+              <button class="est-btn est-btn-accent est-btn-sm"
+                style="color:#000" onclick="_est.generateSlides()" title="Generar slides desde el guion">
+                ✨ Generar
+              </button>
+              <button class="est-btn est-btn-ghost est-btn-sm"
+                onclick="_est.toggleAddSlide()">+ Agregar</button>
+            </div>
+          </div>
+          <div id="est-slides-list">${renderSlidesListHTML()}</div>
+          <div id="est-add-form" style="display:none" class="est-add-form">
+            ${addSlideFormHTML()}
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>`
+
+  // Aplicar tema de la marca al editor
+  applyEditorTheme(s.brand_id, false)
 }
 
+// ── Branding dinámico del editor ──────────────────────────────
+function applyEditorTheme(brandId, animate) {
+  const b  = brand(brandId)
+  const el = $('est-editor-branded')
+  if (!el || !b) return
+
+  const c      = b.colores || {}
+  const fondo  = c.fondo    || '#0a0a0a'
+  const prim   = c.primario || '#7C3AED'
+  const texto  = c.texto    || '#FFFFFF'
+  const acento = c.acento   || '#22D3EE'
+  const dark   = isDark(fondo)
+  // surface: ligeramente distinto del fondo para que los inputs sean legibles
+  const surface = dark
+    ? lighten(fondo, 0.06)
+    : darken(fondo, 0.06)
+
+  if (!animate) {
+    el.style.transition = 'none'
+    el.querySelectorAll('*').forEach(n => { n.style.transition = 'none' })
+    // Forzar reflow para que la transición none surta efecto
+    void el.offsetWidth
+    el.style.transition = ''
+  }
+
+  el.style.setProperty('--ed-fondo',    fondo)
+  el.style.setProperty('--ed-primario', prim)
+  el.style.setProperty('--ed-texto',    texto)
+  el.style.setProperty('--ed-acento',   acento)
+  el.style.setProperty('--ed-surface',  surface)
+  el.style.setProperty('--ed-border',   rgba(prim, 0.25))
+  el.style.setProperty('--ed-muted',    rgba(texto, 0.5))
+
+  // Fondo y color de texto del contenedor raíz
+  el.style.background  = fondo
+  el.style.color       = texto
+  el.style.borderColor = rgba(prim, 0.2)
+
+  // Tipografía de la marca
+  if (b.tipografia) {
+    ensureFont(b.tipografia)
+    el.style.fontFamily = `'${b.tipografia}', sans-serif`
+  } else {
+    el.style.fontFamily = ''
+  }
+
+  // Logo en corner
+  const logoEl = el.querySelector('.est-brand-logo-corner')
+  if (logoEl) {
+    if (b.logo_url) { logoEl.src = b.logo_url; logoEl.style.display = '' }
+    else logoEl.style.display = 'none'
+  }
+
+  // Botón back con color de marca
+  const back = $('est-back-btn')
+  if (back) back.style.color = prim
+
+  // Refrescar thumbnails con los nuevos colores
+  refreshSlidesList()
+}
+
+// Helpers para aclarar/oscurecer hex
+function lighten(hex, amount) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return '#1a1a1a'
+  let r = Math.min(255, parseInt(hex.slice(1,3),16) + Math.round(255*amount))
+  let g = Math.min(255, parseInt(hex.slice(3,5),16) + Math.round(255*amount))
+  let b = Math.min(255, parseInt(hex.slice(5,7),16) + Math.round(255*amount))
+  return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('')
+}
+function darken(hex, amount) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return '#e0e0e0'
+  let r = Math.max(0, parseInt(hex.slice(1,3),16) - Math.round(255*amount))
+  let g = Math.max(0, parseInt(hex.slice(3,5),16) - Math.round(255*amount))
+  let b = Math.max(0, parseInt(hex.slice(5,7),16) - Math.round(255*amount))
+  return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('')
+}
+
+// Cambio de marca en vivo con transición
+function changeBrand(brandId) {
+  if (!_activeScript) return
+  _activeScript.brand_id = brandId
+  applyEditorTheme(brandId, true)
+}
+
+// ── Miniaturas de slides con branding ────────────────────────
 function renderSlidesListHTML() {
   if (!_slides.length)
-    return `<div style="font-size:11px;color:var(--text-muted);padding:6px 0">Sin slides — agrega el primero</div>`
-  return _slides.map((sl, i) => slideItemHTML(sl, i)).join('')
+    return `<div style="font-size:11px;color:var(--ed-muted);padding:6px 0">Sin slides — usa ✨ Generar o + Agregar</div>`
+  return _slides.map((sl, i) => slideThumbnailHTML(sl, i)).join('')
 }
 
-function slideItemHTML(sl, i) {
+function slideThumbnailHTML(sl, i) {
+  const b      = brand(_activeScript?.brand_id)
+  const c      = b?.colores || {}
+  const fondo  = c.fondo    || '#0a0a0a'
+  const prim   = c.primario || '#7C3AED'
+  const texto  = c.texto    || '#FFFFFF'
+  const acento = c.acento   || '#22D3EE'
   const isFirst = i === 0
   const isLast  = i === _slides.length - 1
-  return `<div class="est-slide-item" id="est-sl-${sl.id}">
-    <div class="est-tipo-tag">${esc(sl.tipo)}</div>
-    <div class="est-slide-main">${esc(sl.texto_principal)}</div>
-    ${sl.texto_secundario ? `<div class="est-slide-sec">${esc(sl.texto_secundario)}</div>` : ''}
-    <div class="est-sl-ctrl">
-      ${!isFirst ? `<button title="Subir" onclick="_est.moveSlide('${sl.id}',-1)">↑</button>` : ''}
-      ${!isLast  ? `<button title="Bajar" onclick="_est.moveSlide('${sl.id}',1)">↓</button>`  : ''}
-      <button class="est-sl-del" title="Eliminar" onclick="_est.deleteSlide('${sl.id}')">✕</button>
+  const logo    = b?.logo_url || ''
+  const logoHtml = logo
+    ? `<img src="${esc(logo)}" style="max-height:12%;max-width:40%;object-fit:contain;opacity:.85;margin-bottom:4%" onerror="this.style.display='none'">`
+    : ''
+
+  let inner = ''
+  switch (sl.tipo) {
+    case 'portada':
+      inner = `<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:6%;width:100%">
+        ${logoHtml}
+        <div style="font-size:1.4em;font-weight:700;line-height:1.2;color:${esc(texto)}">${esc(sl.texto_principal)}</div>
+        ${sl.texto_secundario ? `<div style="font-size:.9em;opacity:.55;color:${esc(texto)}">${esc(sl.texto_secundario)}</div>` : ''}
+      </div>`
+      break
+    case 'punto':
+      inner = `<div style="display:flex;flex-direction:column;gap:6%;width:100%">
+        <div style="font-size:1.5em;font-weight:700;line-height:1.2;color:${esc(texto)}">${esc(sl.texto_principal)}</div>
+        ${sl.texto_secundario ? `<div style="font-size:.9em;opacity:.55;color:${esc(texto)}">${esc(sl.texto_secundario)}</div>` : ''}
+      </div>`
+      break
+    case 'cita':
+      inner = `<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:4%;width:100%">
+        <div style="font-size:2.5em;line-height:.7;color:${esc(prim)};opacity:.4;font-family:Georgia,serif">"</div>
+        <div style="font-size:1.1em;font-style:italic;line-height:1.35;color:${esc(texto)}">${esc(sl.texto_principal)}</div>
+        ${sl.texto_secundario ? `<div style="font-size:.8em;opacity:.5;color:${esc(texto)}">— ${esc(sl.texto_secundario)}</div>` : ''}
+      </div>`
+      break
+    case 'dato':
+      inner = `<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:4%;width:100%">
+        <div style="font-size:2.8em;font-weight:800;line-height:1;color:${esc(prim)}">${esc(sl.texto_principal)}</div>
+        ${sl.texto_secundario ? `<div style="font-size:.9em;opacity:.55;color:${esc(texto)}">${esc(sl.texto_secundario)}</div>` : ''}
+      </div>`
+      break
+    case 'cierre':
+      inner = `<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:6%;width:100%">
+        <div style="font-size:1.3em;font-weight:700;line-height:1.25;color:${esc(texto)}">${esc(_activeScript?.cta || sl.texto_principal)}</div>
+        ${sl.texto_secundario ? `<div style="font-size:.8em;opacity:.5;color:${esc(texto)}">${esc(sl.texto_secundario)}</div>` : ''}
+        ${logoHtml}
+      </div>`
+      break
+    default:
+      inner = `<div style="font-size:1.2em;color:${esc(texto)}">${esc(sl.texto_principal)}</div>`
+  }
+
+  // Tipo badge con color de acento
+  const tipoBadge = `<div style="
+    position:absolute;top:5px;left:6px;
+    font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    padding:1px 5px;border-radius:3px;
+    background:${rgba(prim,.15)};border:1px solid ${rgba(prim,.3)};color:${esc(prim)};
+    font-family:'Outfit',sans-serif;
+  ">${esc(sl.tipo)}</div>`
+
+  return `<div class="est-slide-thumb" id="est-sl-${sl.id}" style="background:${esc(fondo)};border:1px solid ${rgba(prim,.2)}">
+    <div class="est-slide-thumb-inner" style="font-family:${b?.tipografia?`'${b.tipografia}',`:''}sans-serif;font-size:11px">
+      ${inner}
+    </div>
+    ${tipoBadge}
+    <div class="est-slide-thumb-num">${i+1}</div>
+    <div class="est-slide-thumb-ctrl">
+      ${!isFirst ? `<button onclick="_est.moveSlide('${sl.id}',-1)" title="Subir">↑</button>` : ''}
+      ${!isLast  ? `<button onclick="_est.moveSlide('${sl.id}',1)"  title="Bajar">↓</button>`  : ''}
+      <button class="est-slide-thumb-del" onclick="_est.deleteSlide('${sl.id}')" title="Eliminar">✕</button>
     </div>
   </div>`
 }
 
 function addSlideFormHTML() {
-  const tipoOpts = TIPOS_SLIDE.map(t =>
-    `<option value="${t}">${capFirst(t)}</option>`
-  ).join('')
+  const tipoOpts = TIPOS_SLIDE.map(t => `<option value="${t}">${capFirst(t)}</option>`).join('')
   return `
     <div class="est-field">
       <div class="est-label">Tipo</div>
@@ -451,14 +709,14 @@ function addSlideFormHTML() {
     <div class="est-field">
       <div class="est-label">Texto principal</div>
       <textarea class="est-input est-textarea" id="new-sl-main"
-        style="min-height:56px" placeholder="Texto principal del slide"></textarea>
+        style="min-height:52px" placeholder="Texto principal del slide"></textarea>
     </div>
     <div class="est-field">
       <div class="est-label">Texto secundario (opcional)</div>
       <input class="est-input" id="new-sl-sec" placeholder="Subtítulo, contexto…">
     </div>
     <div style="display:flex;gap:6px;margin-top:4px">
-      <button class="est-btn est-btn-primary est-btn-sm" onclick="_est.addSlide()">Agregar</button>
+      <button class="est-btn est-btn-branded est-btn-sm" onclick="_est.addSlide()">Agregar</button>
       <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.toggleAddSlide()">Cancelar</button>
     </div>`
 }
@@ -478,7 +736,13 @@ async function newScript() {
 }
 
 function setField(key, val) {
-  if (_activeScript) _activeScript[key] = val
+  if (!_activeScript) return
+  _activeScript[key] = val
+  // Actualizar el título visible en el header del editor
+  if (key === 'titulo') {
+    const hdr = $('est-script-title-hdr')
+    if (hdr) hdr.querySelector('span').textContent = val || 'Sin título'
+  }
 }
 
 async function saveScript() {
@@ -493,9 +757,6 @@ async function saveScript() {
   const idx = _scripts.findIndex(x => x.id === s.id)
   if (idx >= 0) _scripts[idx] = { ..._scripts[idx], ...s }
   showToast('✅ Guion guardado')
-  // Refresh title in detail header
-  const hdr = document.querySelector('.est-detail .est-card-top div:last-child')
-  if (hdr) hdr.textContent = s.titulo || 'Sin título'
 }
 
 async function deleteScript() {
@@ -557,19 +818,113 @@ async function moveSlide(id, dir) {
   if (next < 0 || next >= _slides.length) return
   ;[_slides[idx], _slides[next]] = [_slides[next], _slides[idx]]
   await Promise.all([
-    SB_P.from('script_slides').update({ orden: idx  }).eq('id', _slides[idx].id),
-    SB_P.from('script_slides').update({ orden: next }).eq('id', _slides[next].id),
+    SB_P.from('script_slides').update({orden:idx }).eq('id', _slides[idx].id),
+    SB_P.from('script_slides').update({orden:next}).eq('id', _slides[next].id),
   ])
-  _slides[idx].orden = idx
+  _slides[idx].orden  = idx
   _slides[next].orden = next
   refreshSlidesList()
 }
 
 function refreshSlidesList() {
-  const el = $('est-slides-list')
+  const el  = $('est-slides-list')
   if (el) el.innerHTML = renderSlidesListHTML()
   const cnt = $('est-sl-count')
   if (cnt) cnt.textContent = `(${_slides.length})`
+}
+
+// ── Generador automático de slides ───────────────────────────
+async function generateSlides() {
+  if (!_activeScript) return
+  const s = _activeScript
+
+  // Leer los valores actuales de los textareas (pueden haber cambiado sin guardar)
+  const hook      = ($('est-hook-input')?.value     || s.hook     || '').trim()
+  const contenido = ($('est-contenido-input')?.value || s.contenido || '').trim()
+  const cta       = ($('est-cta-input')?.value       || s.cta      || '').trim()
+  const titulo    = ($('est-titulo-input')?.value    || s.titulo   || 'Sin título').trim()
+
+  if (!hook && !contenido && !cta) {
+    showToast('⚠️ Escribe el hook, contenido o CTA antes de generar slides')
+    return
+  }
+  if (_slides.length && !confirm('¿Reemplazar los slides actuales con los generados?')) return
+
+  const sugeridos = []
+  let orden = 0
+
+  // 1. Portada — siempre
+  sugeridos.push({ tipo:'portada', texto_principal: titulo, texto_secundario: null })
+
+  // 2. Hook → cita
+  if (hook) {
+    sugeridos.push({ tipo:'cita', texto_principal: hook, texto_secundario: null })
+  }
+
+  // 3. Parsear párrafos del contenido
+  if (contenido) {
+    const parrafos = contenido
+      .split(/\n{2,}|\n(?=[-•\d])/)
+      .map(p => p.replace(/^[-•]\s*/, '').trim())
+      .filter(p => p.length > 0)
+
+    for (const p of parrafos) {
+      // Párrafo con número/estadística → dato
+      const numMatch = p.match(/^([\d,.%$]+[%x]?)\s*[-–—:]\s*(.+)$/) ||
+                       p.match(/^(.+)[:]\s*([\d,.%$]+[%x]?)$/)
+      if (numMatch) {
+        sugeridos.push({
+          tipo: 'dato',
+          texto_principal: numMatch[1].trim(),
+          texto_secundario: numMatch[2].trim(),
+        })
+        continue
+      }
+      // Párrafo corto con número al inicio
+      if (/^[\d,.%$]+/.test(p) && p.length < 30) {
+        sugeridos.push({ tipo:'dato', texto_principal: p, texto_secundario: null })
+        continue
+      }
+      // Párrafo con pregunta → punto
+      if (p.startsWith('¿') || p.startsWith('?') || p.endsWith('?')) {
+        sugeridos.push({ tipo:'punto', texto_principal: p, texto_secundario: null })
+        continue
+      }
+      // Párrafo largo (>100 chars) — dividir en principal + secundario
+      if (p.length > 100) {
+        const sentences = p.split(/(?<=[.!?])\s+/)
+        sugeridos.push({
+          tipo: 'punto',
+          texto_principal: sentences[0],
+          texto_secundario: sentences.slice(1).join(' ') || null,
+        })
+      } else {
+        sugeridos.push({ tipo:'punto', texto_principal: p, texto_secundario: null })
+      }
+    }
+  }
+
+  // 4. CTA → cierre
+  if (cta) {
+    sugeridos.push({ tipo:'cierre', texto_principal: cta, texto_secundario: null })
+  }
+
+  // Eliminar slides anteriores y guardar los nuevos
+  await SB_P.from('script_slides').delete().eq('script_id', s.id)
+
+  const inserts = sugeridos.map((sl, i) => ({
+    id: uid(), script_id: s.id, orden: i,
+    tipo: sl.tipo, texto_principal: sl.texto_principal,
+    texto_secundario: sl.texto_secundario || null,
+    created_at: new Date().toISOString(),
+  }))
+
+  const { data, error } = await SB_P.from('script_slides').insert(inserts).select()
+  if (error) { showToast('❌ ' + error.message); return }
+
+  _slides = (data || []).sort((a,b) => a.orden - b.orden)
+  showToast(`✅ ${_slides.length} slides generados`)
+  refreshSlidesList()
 }
 
 // ── Navegación ────────────────────────────────────────────────
@@ -578,34 +933,29 @@ function filterBrand(v)  { _filterBrand  = v; renderList() }
 function filterEstado(v) { _filterEstado = v; renderList() }
 
 // ── Presenter ─────────────────────────────────────────────────
-function applyBrandVars(b) {
+function applyPresenterVars(b) {
   const pres = $('est-presenter')
-  if (!pres) return
-  const c = b?.colores || {}
+  if (!pres || !b) return
+  const c = b.colores || {}
   pres.style.setProperty('--pres-bg',      c.fondo    || '#0A0A0A')
   pres.style.setProperty('--pres-primario', c.primario || '#7C3AED')
   pres.style.setProperty('--pres-texto',   c.texto    || '#FFFFFF')
   pres.style.setProperty('--pres-acento',  c.acento   || '#22D3EE')
   pres.style.background = c.fondo || '#0A0A0A'
   pres.style.color      = c.texto || '#FFFFFF'
-  pres.style.fontFamily = b?.tipografia
-    ? `'${b.tipografia}', sans-serif`
-    : "'Inter', system-ui, sans-serif"
+  pres.style.fontFamily = b.tipografia ? `'${b.tipografia}', sans-serif` : "'Inter', system-ui, sans-serif"
 }
 
 async function openPresenter() {
   if (!_activeScript) return
   if (!_slides.length) { showToast('⚠️ Agrega al menos un slide antes de presentar'); return }
-
   const b = brand(_activeScript.brand_id)
-  applyBrandVars(b)
-
+  applyPresenterVars(b)
   _presIdx = 0
   const pres = $('est-presenter')
   pres.classList.add('pres-open')
   _presOpen = true
   renderPresSlide()
-
   try {
     const fn = pres.requestFullscreen || pres.webkitRequestFullscreen || pres.mozRequestFullScreen
     if (fn) await fn.call(pres)
@@ -618,80 +968,60 @@ function closePresenter() {
   pres.classList.remove('pres-open')
   _presOpen = false
   try {
-    ;(document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen
-    )?.call(document)
+    ;(document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen)?.call(document)
   } catch {}
 }
 
 function renderPresSlide() {
-  const sl  = _slides[_presIdx]
-  const b   = brand(_activeScript?.brand_id)
+  const sl   = _slides[_presIdx]
+  const b    = brand(_activeScript?.brand_id)
   const body = $('est-pres-body')
   if (!body || !sl) return
-
   body.innerHTML = buildSlideHTML(sl, _activeScript, b)
-
   const bar = $('est-pres-bar')
   if (bar) {
     bar.style.background = b?.colores?.primario || '#7C3AED'
-    bar.style.width = (((_presIdx + 1) / _slides.length) * 100) + '%'
+    bar.style.width = (((_presIdx+1) / _slides.length) * 100) + '%'
   }
   const cnt = $('est-pres-counter')
-  if (cnt) cnt.textContent = `${_presIdx + 1} / ${_slides.length}`
+  if (cnt) cnt.textContent = `${_presIdx+1} / ${_slides.length}`
 }
 
 function buildSlideHTML(sl, script, b) {
   const primario = b?.colores?.primario || '#7C3AED'
   const logoUrl  = b?.logo_url || ''
   const logoHtml = logoUrl
-    ? `<img class="logo" src="${esc(logoUrl)}" alt="${esc(b?.nombre || '')}" onerror="this.style.display='none'">`
+    ? `<img class="logo" src="${esc(logoUrl)}" alt="${esc(b?.nombre||'')}" onerror="this.style.display='none'">`
     : ''
-
   switch (sl.tipo) {
-
     case 'portada':
-      return `<div class="sl-portada">
-        ${logoHtml}
+      return `<div class="sl-portada">${logoHtml}
         <div class="tit">${esc(sl.texto_principal)}</div>
-        ${sl.texto_secundario ? `<div class="sub">${esc(sl.texto_secundario)}</div>` : ''}
-      </div>`
-
+        ${sl.texto_secundario?`<div class="sub">${esc(sl.texto_secundario)}</div>`:''}</div>`
     case 'punto':
       return `<div class="sl-punto">
         <div class="main">${esc(sl.texto_principal)}</div>
-        ${sl.texto_secundario ? `<div class="sub">${esc(sl.texto_secundario)}</div>` : ''}
-      </div>`
-
+        ${sl.texto_secundario?`<div class="sub">${esc(sl.texto_secundario)}</div>`:''}</div>`
     case 'cita':
       return `<div class="sl-cita">
         <div class="qmark" style="color:${esc(primario)}">"</div>
         <div class="main">${esc(sl.texto_principal)}</div>
-        ${sl.texto_secundario
-          ? `<div class="author">— ${esc(sl.texto_secundario)}</div>`
-          : ''}
-      </div>`
-
+        ${sl.texto_secundario?`<div class="author">— ${esc(sl.texto_secundario)}</div>`:''}</div>`
     case 'dato':
       return `<div class="sl-dato">
         <div class="num" style="color:${esc(primario)}">${esc(sl.texto_principal)}</div>
-        ${sl.texto_secundario ? `<div class="ctx">${esc(sl.texto_secundario)}</div>` : ''}
-      </div>`
-
+        ${sl.texto_secundario?`<div class="ctx">${esc(sl.texto_secundario)}</div>`:''}</div>`
     case 'cierre':
       return `<div class="sl-cierre">
         <div class="cta">${esc(script?.cta || sl.texto_principal)}</div>
-        ${sl.texto_secundario ? `<div class="sub">${esc(sl.texto_secundario)}</div>` : ''}
-        ${logoHtml}
-      </div>`
-
+        ${sl.texto_secundario?`<div class="sub">${esc(sl.texto_secundario)}</div>`:''}
+        ${logoHtml}</div>`
     default:
-      return `<div class="sl-punto">
-        <div class="main">${esc(sl.texto_principal)}</div>
-      </div>`
+      return `<div class="sl-punto"><div class="main">${esc(sl.texto_principal)}</div></div>`
   }
 }
 
-function presNext() { if (_presIdx < _slides.length - 1) { _presIdx++; fadeToSlide() } }
+function presNext() { if (_presIdx < _slides.length-1) { _presIdx++; fadeToSlide() } }
 function presPrev() { if (_presIdx > 0) { _presIdx--; fadeToSlide() } }
 
 function fadeToSlide() {
@@ -701,11 +1031,7 @@ function fadeToSlide() {
   if (body) {
     body.style.opacity = '0'
     body.style.transition = 'opacity .15s'
-    setTimeout(() => {
-      renderPresSlide()
-      body.style.opacity = '1'
-      _presFading = false
-    }, 160)
+    setTimeout(() => { renderPresSlide(); body.style.opacity = '1'; _presFading = false }, 160)
   }
 }
 
@@ -719,8 +1045,10 @@ function onPresKey(ev) {
 // ── API pública ───────────────────────────────────────────────
 window._est = {
   newScript, openScript, saveScript, deleteScript, setField,
+  changeBrand,
   backToList, filterBrand, filterEstado,
   addSlide, deleteSlide, moveSlide, toggleAddSlide,
+  generateSlides,
   openPresenter,
 }
 window.loadEstudio = loadEstudio
