@@ -2056,23 +2056,16 @@ document.getElementById('auth-pass').addEventListener('keydown', e => { if(e.key
 
 // --- MIDNIGHT RESET ---
 async function checkDateReset(){
-  const now = new Date().toLocaleDateString('en-CA')
+  const now = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
   const saved = localStorage.getItem('last_date')
   console.log('last_date:', saved, 'TODAY:', now)
-  const changed = saved && saved !== now
-  const firstRun = !saved
-  if(changed || firstRun){
-    // Guardar IDs de tareas de ayer para la alerta post-20/20/20
+  if(saved && saved !== now){
     localStorage.setItem('tareas_hoy_ayer', JSON.stringify(hoyFocusItems.map(x => x.task_id)))
-    const ayer = new Date(); ayer.setDate(ayer.getDate()-1)
-    const ayerStr = ayer.toLocaleDateString('en-CA')
-    const deleteDate = changed ? saved : ayerStr
-    await SB_P.from('activity_logs').delete().eq('user_id', USER_ID).eq('date', deleteDate)
     habitLogs = {}
     loadHabitos()
     loadTasks()
     loadTareasHoy()
-    showToast('☀️ Nuevo día — hábitos reiniciados')
+    showToast('☀️ Nuevo día')
   }
   localStorage.setItem('last_date', now)
 }
