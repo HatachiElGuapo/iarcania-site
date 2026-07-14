@@ -315,6 +315,7 @@ function buildPresenterDOM() {
   document.body.appendChild(div)
   document.addEventListener('keydown', onPresKey)
   window.addEventListener('message', onPresMessage)
+  window.addEventListener('message', onDeckMessage)
 }
 
 // ── Entry point ───────────────────────────────────────────────
@@ -508,6 +509,16 @@ function renderDetail() {
             <button class="est-btn est-btn-present" onclick="_est.openPresenter()">▶ Presentar</button>
             <button class="est-btn est-btn-danger est-btn-sm" style="margin-left:auto"
               onclick="_est.deleteScript()">Eliminar</button>
+          </div>
+          <div class="est-actions" style="margin-top:6px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px">
+            ${s.deck_data
+              ? `<button class="est-btn est-btn-branded" style="background:var(--ed-acento,#22D3EE);color:#000"
+                   onclick="_est.abrirDeck()">🔎 Abrir deck</button>
+                 <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.descargarDeck()">⬇ Descargar .html</button>
+                 <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.regenerarDeck()"
+                   title="Sobrescribe el deck con los slides actuales">↻ Regenerar</button>`
+              : `<button class="est-btn est-btn-accent est-btn-sm" onclick="_est.generarDeck()">⚡ Generar deck</button>`
+            }
           </div>
         </div>
 
@@ -1086,6 +1097,348 @@ function openDirector() {
   _directorWin = window.open(url, 'director', 'width=1100,height=720')
 }
 
+// ── Deck HTML ─────────────────────────────────────────────────
+function slidesToDeckData(slides) {
+  return slides.map(sl => ({
+    tipo:  sl.tipo              || 'punto',
+    p:     sl.texto_principal   || '',
+    s:     sl.texto_secundario  || '',
+    notas: sl.notas             || '',
+  }))
+}
+
+async function generarDeck() {
+  if (!_activeScript || !_slides.length) {
+    showToast('⚠️ Agrega al menos un slide antes de generar el deck'); return
+  }
+  const deckData = slidesToDeckData(_slides)
+  const { error } = await SB_P.from('scripts').update({
+    deck_data: deckData,
+    deck_generado_at: new Date().toISOString(),
+  }).eq('id', _activeScript.id)
+  if (error) { showToast('❌ ' + error.message); return }
+  _activeScript.deck_data = deckData
+  showToast('✅ Deck generado')
+  renderDetail()
+  abrirDeck()
+}
+
+async function regenerarDeck() {
+  if (!confirm('¿Regenerar el deck desde los slides actuales? Esto sobrescribe las ediciones que hayas hecho dentro del deck.')) return
+  await generarDeck()
+}
+
+function _buildDeckBlob() {
+  const b    = brand(_activeScript.brand_id)
+  const html = generarDeckHTML(_activeScript.deck_data, b, _activeScript.titulo)
+  return new Blob([html], { type: 'text/html' })
+}
+
+function abrirDeck() {
+  if (!_activeScript?.deck_data) return
+  window.open(URL.createObjectURL(_buildDeckBlob()), '_blank')
+}
+
+function descargarDeck() {
+  if (!_activeScript?.deck_data) return
+  const a  = document.createElement('a')
+  a.href   = URL.createObjectURL(_buildDeckBlob())
+  a.download = (_activeScript.titulo || 'deck').replace(/[^a-z0-9\-_]/gi,'_') + '.html'
+  a.click()
+}
+
+async function onDeckMessage(ev) {
+  const d = ev.data || {}
+  if (d.type !== 'guardar-deck' || !d.scriptId || !d.slides) return
+  const { error } = await SB_P.from('scripts')
+    .update({ deck_data: d.slides })
+    .eq('id', d.scriptId)
+  if (!error && _activeScript?.id === d.scriptId) {
+    _activeScript.deck_data = d.slides
+  }
+}
+
+function generarDeckHTML(deckData, b, titulo) {
+  const scriptId = _activeScript?.id || ''
+  const c        = b?.colores || {}
+  const bg       = c.fondo    || '#0A0A0A'
+  const prim     = c.primario || '#7C3AED'
+  const texto    = c.texto    || '#FFFFFF'
+  const acento   = c.acento   || '#22D3EE'
+  const font     = b?.tipografia ? `'${b.tipografia}', sans-serif` : "'Inter', sans-serif"
+  const logoUrl  = b?.logo_url || ''
+  const brandNom = b?.nombre || ''
+
+  const isDarkBg = (hex) => {
+    if (!hex || !hex.startsWith('#') || hex.length < 7) return true
+    const r = parseInt(hex.slice(1,3),16)/255
+    const g = parseInt(hex.slice(3,5),16)/255
+    const bv = parseInt(hex.slice(5,7),16)/255
+    return 0.299*r + 0.587*g + 0.114*bv < 0.5
+  }
+  const textOnPrim = isDarkBg(prim) ? '#fff' : '#000'
+
+  const slidesJson = JSON.stringify(deckData)
+    .replace(/<\/script>/gi, '<\\/script>')
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${titulo.replace(/</g,'&lt;')} — Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:${bg};--prim:${prim};--texto:${texto};--acento:${acento};
+  --prim-on:${textOnPrim};--font:${font};
+}
+body{background:var(--bg);color:var(--texto);font-family:var(--font);
+  height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+
+/* ── Toolbar ── */
+#toolbar{
+  display:flex;align-items:center;gap:10px;padding:8px 16px;
+  background:rgba(0,0,0,.35);backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;z-index:10;
+}
+#toolbar-title{font-size:12px;font-weight:600;color:rgba(255,255,255,.5);flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-btn{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.8);border-radius:6px;padding:4px 11px;font-size:11px;
+  font-family:var(--font);cursor:pointer;white-space:nowrap;
+}
+.tb-btn:hover{background:rgba(255,255,255,.15)}
+#btn-save{background:var(--prim);color:var(--prim-on);border-color:transparent}
+#btn-save:hover{opacity:.88}
+#btn-edit.active{background:var(--acento);color:#000;border-color:transparent}
+#slide-count{font-size:11px;color:rgba(255,255,255,.3);font-variant-numeric:tabular-nums}
+
+/* ── Slide area ── */
+#slide-wrap{flex:1;display:flex;align-items:stretch;overflow:hidden;position:relative}
+#slide-stage{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:60px 10%;position:relative;overflow:hidden;
+}
+#slide-content{
+  max-width:880px;width:100%;text-align:center;
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Slide layouts ── */
+.sl-portada .logo{max-height:64px;max-width:220px;object-fit:contain;margin-bottom:6%;opacity:.9}
+.sl-portada .tit{font-size:clamp(28px,5vw,64px);font-weight:700;line-height:1.15;margin-bottom:4%}
+.sl-portada .sub{font-size:clamp(14px,2vw,22px);opacity:.55}
+.sl-punto .main{font-size:clamp(22px,4vw,52px);font-weight:700;line-height:1.2;margin-bottom:5%}
+.sl-punto .sub{font-size:clamp(14px,1.8vw,24px);opacity:.55}
+.sl-cita .qmark{font-size:clamp(60px,10vw,120px);line-height:.6;color:var(--prim);opacity:.35;font-family:Georgia,serif}
+.sl-cita .main{font-size:clamp(18px,3vw,40px);font-style:italic;line-height:1.4;margin:5% 0 3%}
+.sl-cita .author{font-size:clamp(12px,1.5vw,20px);opacity:.5}
+.sl-dato .num{font-size:clamp(50px,10vw,120px);font-weight:800;line-height:1;color:var(--prim);margin-bottom:4%}
+.sl-dato .ctx{font-size:clamp(14px,2vw,28px);opacity:.55}
+.sl-cierre .cta{font-size:clamp(22px,4vw,54px);font-weight:700;line-height:1.2;margin-bottom:5%}
+.sl-cierre .sub{font-size:clamp(14px,1.8vw,24px);opacity:.55;margin-bottom:6%}
+.sl-cierre .logo{max-height:54px;max-width:180px;object-fit:contain;opacity:.8}
+
+/* ── Progress bar ── */
+#progress{position:absolute;bottom:0;left:0;height:3px;background:var(--prim);transition:width .25s ease}
+
+/* ── Nav buttons (hover) ── */
+.nav-arrow{
+  position:absolute;top:50%;transform:translateY(-50%);
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.5);border-radius:8px;padding:14px 10px;
+  font-size:20px;cursor:pointer;z-index:5;transition:all .15s;
+}
+.nav-arrow:hover{background:rgba(255,255,255,.15);color:#fff}
+#btn-prev{left:12px}
+#btn-next{right:12px}
+.nav-arrow:disabled{opacity:.15;cursor:default}
+
+/* ── Edit panel ── */
+#edit-panel{
+  width:320px;background:#0D1526;border-left:1px solid rgba(255,255,255,.08);
+  display:none;flex-direction:column;flex-shrink:0;overflow-y:auto;padding:16px;gap:12px;
+}
+#edit-panel.open{display:flex}
+.ep-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:#475569;margin-bottom:4px}
+.ep-field{display:flex;flex-direction:column;gap:4px}
+.ep-input,.ep-ta{
+  background:#0A1018;border:1px solid rgba(255,255,255,.1);color:#E2E8F0;
+  border-radius:6px;padding:8px 10px;font-family:var(--font);font-size:13px;
+  resize:vertical;line-height:1.5;
+}
+.ep-input:focus,.ep-ta:focus{outline:none;border-color:var(--acento)}
+.ep-ta{min-height:70px}
+.ep-ta.notas{min-height:110px;font-size:12px;color:#94A3B8}
+.ep-tipo-badge{
+  display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;padding:2px 8px;border-radius:4px;
+  background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);margin-bottom:8px;
+}
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <div id="toolbar-title">${titulo.replace(/</g,'&lt;')} ${brandNom ? '· ' + brandNom : ''}</div>
+  <span id="slide-count">1 / 1</span>
+  <button class="tb-btn" id="btn-edit" onclick="toggleEdit()">✏️ Editar</button>
+  <button class="tb-btn" id="btn-save" onclick="guardar()">💾 Guardar</button>
+  <button class="tb-btn" onclick="descargar()">⬇ .html</button>
+</div>
+
+<!-- Main -->
+<div id="slide-wrap">
+  <div id="slide-stage">
+    <button class="nav-arrow" id="btn-prev" onclick="nav(-1)">&#8592;</button>
+    <div id="slide-content"></div>
+    <button class="nav-arrow" id="btn-next" onclick="nav(1)">&#8594;</button>
+    <div id="progress"></div>
+  </div>
+  <div id="edit-panel">
+    <div class="ep-tipo-badge" id="ep-tipo"></div>
+    <div class="ep-field">
+      <div class="ep-label">Texto principal</div>
+      <textarea class="ep-ta" id="ep-p" oninput="updateSlide('p',this.value)" rows="3"></textarea>
+    </div>
+    <div class="ep-field">
+      <div class="ep-label">Texto secundario</div>
+      <textarea class="ep-ta" id="ep-s" oninput="updateSlide('s',this.value)" rows="2"></textarea>
+    </div>
+    <div class="ep-field">
+      <div class="ep-label">Notas del orador</div>
+      <textarea class="ep-ta notas" id="ep-notas" oninput="updateSlide('notas',this.value)" rows="5"
+        placeholder="Lo que vas a decir en este slide…"></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_ID = ${JSON.stringify(scriptId)};
+const DECK_ID   = 'deck-' + SCRIPT_ID;
+const LOGO_URL  = ${JSON.stringify(logoUrl)};
+let slides = ${slidesJson};
+let cur    = 0;
+let edited = false;
+
+const logoHtml = LOGO_URL
+  ? '<img class="logo" src="' + LOGO_URL + '" onerror="this.style.display=\'none\'">'
+  : '';
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function buildSlide(sl){
+  switch(sl.tipo){
+    case 'portada':
+      return '<div class="sl-portada">' + logoHtml +
+        '<div class="tit">' + esc(sl.p) + '</div>' +
+        (sl.s ? '<div class="sub">' + esc(sl.s) + '</div>' : '') + '</div>';
+    case 'cita':
+      return '<div class="sl-cita"><div class="qmark">"</div>' +
+        '<div class="main">' + esc(sl.p) + '</div>' +
+        (sl.s ? '<div class="author">— ' + esc(sl.s) + '</div>' : '') + '</div>';
+    case 'dato':
+      return '<div class="sl-dato"><div class="num">' + esc(sl.p) + '</div>' +
+        (sl.s ? '<div class="ctx">' + esc(sl.s) + '</div>' : '') + '</div>';
+    case 'cierre':
+      return '<div class="sl-cierre"><div class="cta">' + esc(sl.p) + '</div>' +
+        (sl.s ? '<div class="sub">' + esc(sl.s) + '</div>' : '') + logoHtml + '</div>';
+    default:
+      return '<div class="sl-punto"><div class="main">' + esc(sl.p) + '</div>' +
+        (sl.s ? '<div class="sub">' + esc(sl.s) + '</div>' : '') + '</div>';
+  }
+}
+
+function render(){
+  const sl = slides[cur];
+  document.getElementById('slide-content').innerHTML = buildSlide(sl);
+  document.getElementById('slide-count').textContent = (cur+1) + ' / ' + slides.length;
+  document.getElementById('btn-prev').disabled = cur === 0;
+  document.getElementById('btn-next').disabled = cur === slides.length - 1;
+  document.getElementById('progress').style.width = ((cur+1)/slides.length*100) + '%';
+
+  // edit panel
+  document.getElementById('ep-tipo').textContent  = sl.tipo || '';
+  document.getElementById('ep-p').value           = sl.p     || '';
+  document.getElementById('ep-s').value           = sl.s     || '';
+  document.getElementById('ep-notas').value       = sl.notas || '';
+}
+
+function nav(dir){
+  const next = cur + dir;
+  if (next < 0 || next >= slides.length) return;
+  cur = next;
+  render();
+}
+
+function toggleEdit(){
+  const panel = document.getElementById('edit-panel');
+  const btn   = document.getElementById('btn-edit');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('active', open);
+}
+
+function updateSlide(key, val){
+  slides[cur][key] = val;
+  // re-render slide without touching edit panel
+  document.getElementById('slide-content').innerHTML = buildSlide(slides[cur]);
+  edited = true;
+}
+
+function guardar(){
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type:'guardar-deck', scriptId: SCRIPT_ID, slides }, '*');
+    showFlash('💾 Guardado en el guion');
+  } else {
+    try { localStorage.setItem(DECK_ID, JSON.stringify(slides)); } catch(e){}
+    showFlash('💾 Guardado localmente');
+  }
+  edited = false;
+}
+
+function descargar(){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([document.documentElement.outerHTML],{type:'text/html'}));
+  a.download = ${JSON.stringify((titulo||'deck').replace(/[^a-z0-9\-_]/gi,'_') + '.html')};
+  a.click();
+}
+
+function showFlash(msg){
+  let el = document.getElementById('flash');
+  if (!el){ el = document.createElement('div'); el.id='flash';
+    Object.assign(el.style,{position:'fixed',bottom:'20px',left:'50%',transform:'translateX(-50%)',
+      background:'rgba(0,0,0,.85)',color:'#fff',padding:'8px 18px',borderRadius:'8px',
+      fontSize:'13px',fontFamily:'Outfit,sans-serif',zIndex:'999',transition:'opacity .3s'});
+    document.body.appendChild(el); }
+  el.textContent = msg; el.style.opacity = '1';
+  clearTimeout(el._t); el._t = setTimeout(() => el.style.opacity='0', 2000);
+}
+
+document.addEventListener('keydown', ev => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+  if (ev.key === 'ArrowRight' || ev.key === ' ') { ev.preventDefault(); nav(1); }
+  if (ev.key === 'ArrowLeft')                    { ev.preventDefault(); nav(-1); }
+  if (ev.key === 's' && (ev.ctrlKey||ev.metaKey)){ ev.preventDefault(); guardar(); }
+});
+
+window.addEventListener('beforeunload', ev => {
+  if (edited){ ev.preventDefault(); ev.returnValue=''; }
+});
+
+render();
+</script>
+</body>
+</html>`
+}
+
 // ── API pública ───────────────────────────────────────────────
 window._est = {
   newScript, openScript, saveScript, deleteScript, setField,
@@ -1094,6 +1447,7 @@ window._est = {
   addSlide, deleteSlide, moveSlide, toggleAddSlide,
   generateSlides,
   openPresenter, openDirector,
+  generarDeck, abrirDeck, descargarDeck, regenerarDeck,
 }
 window.loadEstudio = loadEstudio
 
