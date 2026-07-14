@@ -2046,8 +2046,15 @@ function applyRoleRestrictions(role) {
     hide('nav-sep-dinero', 'group-dinero')
     hide('nav-libros', 'nav-guiones', 'nav-estudio', 'nav-slides')
     hide('nav-workspace', 'nav-escuela')
+  } else if (role === 'cliente' || role === 'estudiante') {
+    hide('nav-trabajo', 'nav-sep-dinero', 'group-dinero', 'nav-libros', 'nav-guiones', 'nav-slides', 'nav-estudio', 'nav-escuela', 'nav-workspace')
+    const main = document.getElementById('main-content') || document.querySelector('.main') || document.body
+    const banner = document.createElement('div')
+    banner.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0f;gap:16px;font-family:Outfit,sans-serif'
+    banner.innerHTML = `<div style="font-size:32px">🎓</div><div style="font-size:18px;font-weight:600;color:#f1f0f7">Tu espacio es la Escuela</div><div style="font-size:14px;color:#9896b0">Este panel es para uso interno del equipo.</div><a href="/escuela.html" style="margin-top:8px;padding:10px 24px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">Ir a IArcanIA Escuela →</a>`
+    document.body.appendChild(banner)
   } else {
-    // cualquier otro rol no ve escuela admin
+    // rol desconocido — misma red de seguridad que cliente/estudiante
     hide('nav-escuela')
   }
 }
@@ -5867,7 +5874,7 @@ function renderHabitosNav(){
 async function navegarDia(delta){
   const d = new Date(selectedDate + 'T12:00:00')
   d.setDate(d.getDate() + delta)
-  const nuevo = d.toLocaleDateString('en-CA')
+  const nuevo = d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
   if(nuevo > TODAY) return
   selectedDate = nuevo
   await loadHabitos()
