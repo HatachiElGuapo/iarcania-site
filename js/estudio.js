@@ -15,6 +15,7 @@ let _initialized  = false
 let _presOpen     = false
 let _presIdx      = 0
 let _presFading   = false
+let _directorWin  = null
 
 // ── Constantes ────────────────────────────────────────────────
 const ESTADOS      = ['idea', 'borrador', 'aprobado', 'grabado', 'publicado']
@@ -299,6 +300,12 @@ function buildPresenterDOM() {
   const div = document.createElement('div')
   div.id = 'est-presenter'
   div.innerHTML = `
+    <button id="est-director-btn" onclick="_est.openDirector()" style="
+      position:absolute;top:12px;right:16px;z-index:10;
+      background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+      color:#fff;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;
+      font-family:'Outfit',sans-serif;letter-spacing:.03em;
+    ">🎬 Vista Director</button>
     <div class="est-pres-body" id="est-pres-body"></div>
     <div class="est-pres-foot">
       <div class="est-pres-bar" id="est-pres-bar"></div>
@@ -307,6 +314,7 @@ function buildPresenterDOM() {
     </div>`
   document.body.appendChild(div)
   document.addEventListener('keydown', onPresKey)
+  window.addEventListener('message', onPresMessage)
 }
 
 // ── Entry point ───────────────────────────────────────────────
@@ -715,6 +723,11 @@ function addSlideFormHTML() {
       <div class="est-label">Texto secundario (opcional)</div>
       <input class="est-input" id="new-sl-sec" placeholder="Subtítulo, contexto…">
     </div>
+    <div class="est-field">
+      <div class="est-label">Notas del orador (solo tú las ves)</div>
+      <textarea class="est-input est-textarea" id="new-sl-notas"
+        style="min-height:60px;font-size:12px;opacity:.8" placeholder="Lo que vas a decir en este slide…"></textarea>
+    </div>
     <div style="display:flex;gap:6px;margin-top:4px">
       <button class="est-btn est-btn-branded est-btn-sm" onclick="_est.addSlide()">Agregar</button>
       <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.toggleAddSlide()">Cancelar</button>
@@ -781,16 +794,17 @@ function toggleAddSlide() {
 
 async function addSlide() {
   if (!_activeScript) return
-  const tipo = $('new-sl-tipo')?.value || 'punto'
-  const main = ($('new-sl-main')?.value || '').trim()
-  const sec  = ($('new-sl-sec')?.value  || '').trim() || null
+  const tipo  = $('new-sl-tipo')?.value || 'punto'
+  const main  = ($('new-sl-main')?.value   || '').trim()
+  const sec   = ($('new-sl-sec')?.value    || '').trim() || null
+  const notas = ($('new-sl-notas')?.value  || '').trim() || null
   if (!main) { showToast('⚠️ El texto principal es obligatorio'); return }
 
   const maxOrden = _slides.length ? Math.max(..._slides.map(s => s.orden)) : -1
   const { data, error } = await SB_P.from('script_slides').insert({
     id: uid(), script_id: _activeScript.id,
     orden: maxOrden + 1, tipo,
-    texto_principal: main, texto_secundario: sec,
+    texto_principal: main, texto_secundario: sec, notas,
     created_at: new Date().toISOString(),
   }).select().single()
   if (error) { showToast('❌ ' + error.message); return }
@@ -798,8 +812,9 @@ async function addSlide() {
   showToast('✅ Slide agregado')
   refreshSlidesList()
   toggleAddSlide()
-  if ($('new-sl-main')) $('new-sl-main').value = ''
-  if ($('new-sl-sec'))  $('new-sl-sec').value  = ''
+  if ($('new-sl-main'))  $('new-sl-main').value  = ''
+  if ($('new-sl-sec'))   $('new-sl-sec').value   = ''
+  if ($('new-sl-notas')) $('new-sl-notas').value = ''
 }
 
 async function deleteSlide(id) {
@@ -1021,8 +1036,18 @@ function buildSlideHTML(sl, script, b) {
   }
 }
 
-function presNext() { if (_presIdx < _slides.length-1) { _presIdx++; fadeToSlide() } }
-function presPrev() { if (_presIdx > 0) { _presIdx--; fadeToSlide() } }
+function syncDirector() {
+  if (_directorWin && !_directorWin.closed) {
+    _directorWin.postMessage({ type: 'sync', cur: _presIdx }, location.origin)
+  }
+}
+
+function presNext() {
+  if (_presIdx < _slides.length - 1) { _presIdx++; fadeToSlide(); syncDirector() }
+}
+function presPrev() {
+  if (_presIdx > 0) { _presIdx--; fadeToSlide(); syncDirector() }
+}
 
 function fadeToSlide() {
   if (_presFading) return
@@ -1042,6 +1067,25 @@ function onPresKey(ev) {
   if (ev.key === 'Escape')                       { ev.preventDefault(); closePresenter() }
 }
 
+function onPresMessage(ev) {
+  if (ev.origin !== location.origin) return
+  const d = ev.data
+  if (!d || !_presOpen) return
+  if (d.type === 'nav') {
+    if (d.dir === 'next') presNext()
+    else if (d.dir === 'prev') presPrev()
+  }
+  if (d.type === 'ready') {
+    syncDirector()
+  }
+}
+
+function openDirector() {
+  if (!_activeScript) return
+  const url = `/director.html?scriptId=${_activeScript.id}`
+  _directorWin = window.open(url, 'director', 'width=1100,height=720')
+}
+
 // ── API pública ───────────────────────────────────────────────
 window._est = {
   newScript, openScript, saveScript, deleteScript, setField,
@@ -1049,7 +1093,7 @@ window._est = {
   backToList, filterBrand, filterEstado,
   addSlide, deleteSlide, moveSlide, toggleAddSlide,
   generateSlides,
-  openPresenter,
+  openPresenter, openDirector,
 }
 window.loadEstudio = loadEstudio
 

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vista Director — IArcanIA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0B1220;
+    color: #E2E8F0;
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Barra superior ── */
+  #top-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    background: #0D1526;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    flex-shrink: 0;
+  }
+  #script-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #94A3B8;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #clock {
+    font-size: 22px;
+    font-weight: 700;
+    color: #F1F5F9;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .03em;
+  }
+  #timer-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #timer-display {
+    font-size: 18px;
+    font-weight: 600;
+    color: #7DD3FC;
+    font-variant-numeric: tabular-nums;
+    min-width: 52px;
+    text-align: right;
+  }
+  #timer-btn {
+    background: rgba(125,211,252,.15);
+    border: 1px solid rgba(125,211,252,.3);
+    color: #7DD3FC;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #timer-btn:hover { background: rgba(125,211,252,.25); }
+
+  /* ── Cuerpo principal ── */
+  #main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── Columna izquierda: Ahora en pantalla ── */
+  #col-now {
+    padding: 20px 24px;
+    overflow-y: auto;
+    border-right: 1px solid rgba(255,255,255,.07);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .col-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #475569;
+    margin-bottom: 4px;
+  }
+  #now-tipo {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(139,92,246,.2);
+    color: #A78BFA;
+    border: 1px solid rgba(139,92,246,.3);
+  }
+  #now-main {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #F1F5F9;
+  }
+  #now-sec {
+    font-size: 16px;
+    color: #94A3B8;
+    line-height: 1.4;
+  }
+  #now-notas {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #CBD5E1;
+    white-space: pre-wrap;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 8px;
+    padding: 14px 16px;
+    flex: 1;
+    min-height: 120px;
+  }
+  #now-notas.empty { color: #475569; font-style: italic; }
+
+  /* ── Columna derecha: Siguiente ── */
+  #col-next {
+    padding: 20px 18px;
+    background: #0A101C;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+  }
+  #next-preview {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 8px;
+    padding: 14px;
+    flex: 1;
+  }
+  #next-tipo {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(71,85,105,.4);
+    color: #94A3B8;
+    border: 1px solid rgba(71,85,105,.5);
+    margin-bottom: 8px;
+  }
+  #next-main {
+    font-size: 16px;
+    font-weight: 600;
+    color: #CBD5E1;
+    line-height: 1.35;
+  }
+  #next-sec {
+    font-size: 13px;
+    color: #64748B;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  #end-notice {
+    font-size: 13px;
+    color: #475569;
+    font-style: italic;
+    padding: 12px;
+  }
+
+  /* ── Barra inferior ── */
+  #bottom-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: #0D1526;
+    border-top: 1px solid rgba(255,255,255,.08);
+    flex-shrink: 0;
+  }
+  .nav-btn {
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #CBD5E1;
+    border-radius: 8px;
+    padding: 7px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,.14); }
+  .nav-btn:disabled { opacity: .3; cursor: default; }
+  #slide-counter {
+    font-size: 13px;
+    color: #64748B;
+    font-variant-numeric: tabular-nums;
+    flex: 1;
+    text-align: center;
+  }
+
+  /* ── Loading / Error ── */
+  #loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-size: 14px;
+    color: #475569;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid rgba(255,255,255,.1);
+    border-top-color: #7DD3FC;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin-right: 10px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div>Cargando…</div>
+
+<div id="app" style="display:none;flex:1;flex-direction:column;height:100vh">
+
+  <!-- Barra superior -->
+  <div id="top-bar">
+    <span id="script-title">—</span>
+    <div id="timer-wrap">
+      <span id="timer-display">00:00</span>
+      <button id="timer-btn" onclick="toggleTimer()">▶</button>
+    </div>
+    <div id="clock">00:00:00</div>
+  </div>
+
+  <!-- Cuerpo -->
+  <div id="main">
+    <!-- Ahora en pantalla -->
+    <div id="col-now">
+      <div>
+        <div class="col-label">Ahora en pantalla</div>
+        <span id="now-tipo"></span>
+      </div>
+      <div id="now-main"></div>
+      <div id="now-sec"></div>
+      <div id="now-notas" class="empty">Sin notas del orador para este slide.</div>
+    </div>
+
+    <!-- Siguiente slide -->
+    <div id="col-next">
+      <div class="col-label">Siguiente</div>
+      <div id="next-preview">
+        <div id="next-tipo"></div>
+        <div id="next-main"></div>
+        <div id="next-sec"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra inferior -->
+  <div id="bottom-bar">
+    <button class="nav-btn" id="btn-prev" onclick="navDir('prev')">← Anterior</button>
+    <div id="slide-counter">— / —</div>
+    <button class="nav-btn" id="btn-next" onclick="navDir('next')">Siguiente →</button>
+  </div>
+
+</div>
+
+<script>
+const { createClient } = supabase
+
+const SB = createClient(
+  'https://gpfidxxawcwsbuzsbeob.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZmlkeHhhd2N3c2J1enNiZW9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjgxOTksImV4cCI6MjA4ODMwNDE5OX0.i96CvvseJCPSvEveUCx2FWECNKEuWHj51EP_3b2mCkc'
+)
+
+const params   = new URLSearchParams(location.search)
+const scriptId = params.get('scriptId')
+
+let _slides  = []
+let _script  = null
+let _cur     = 0
+
+// ── Timer ─────────────────────────────────────────────────────
+let _timerRunning = false
+let _timerSecs    = 0
+let _timerInt     = null
+
+function toggleTimer() {
+  if (_timerRunning) {
+    clearInterval(_timerInt)
+    _timerRunning = false
+    document.getElementById('timer-btn').textContent = '▶'
+  } else {
+    _timerRunning = true
+    document.getElementById('timer-btn').textContent = '⏹'
+    _timerInt = setInterval(() => {
+      _timerSecs++
+      const m = String(Math.floor(_timerSecs / 60)).padStart(2, '0')
+      const s = String(_timerSecs % 60).padStart(2, '0')
+      document.getElementById('timer-display').textContent = `${m}:${s}`
+    }, 1000)
+  }
+}
+
+// ── Reloj ─────────────────────────────────────────────────────
+function tickClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-CO')
+}
+tickClock()
+setInterval(tickClock, 1000)
+
+// ── Render ────────────────────────────────────────────────────
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function render() {
+  const sl   = _slides[_cur]
+  const next = _slides[_cur + 1]
+  if (!sl) return
+
+  document.getElementById('now-tipo').textContent = sl.tipo || ''
+  document.getElementById('now-main').textContent = sl.texto_principal || ''
+
+  const secEl = document.getElementById('now-sec')
+  secEl.textContent = sl.texto_secundario || ''
+  secEl.style.display = sl.texto_secundario ? '' : 'none'
+
+  const notasEl = document.getElementById('now-notas')
+  if (sl.notas) {
+    notasEl.textContent = sl.notas
+    notasEl.classList.remove('empty')
+  } else {
+    notasEl.textContent = 'Sin notas del orador para este slide.'
+    notasEl.classList.add('empty')
+  }
+
+  if (next) {
+    document.getElementById('end-notice')?.remove()
+    document.getElementById('next-tipo').textContent = next.tipo || ''
+    document.getElementById('next-main').textContent = next.texto_principal || ''
+    const nsec = document.getElementById('next-sec')
+    nsec.textContent = next.texto_secundario || ''
+    nsec.style.display = next.texto_secundario ? '' : 'none'
+    document.getElementById('next-preview').style.display = ''
+  } else {
+    document.getElementById('next-preview').style.display = 'none'
+    if (!document.getElementById('end-notice')) {
+      const n = document.createElement('div')
+      n.id = 'end-notice'
+      n.className = ''
+      n.style.cssText = 'font-size:13px;color:#475569;font-style:italic;padding:12px'
+      n.textContent = '— Último slide —'
+      document.getElementById('col-next').appendChild(n)
+    }
+  }
+
+  document.getElementById('slide-counter').textContent = `${_cur + 1} / ${_slides.length}`
+  document.getElementById('btn-prev').disabled = _cur === 0
+  document.getElementById('btn-next').disabled = _cur === _slides.length - 1
+}
+
+// ── Navegación via opener ─────────────────────────────────────
+function navDir(dir) {
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type: 'nav', dir }, location.origin)
+  }
+  // Movemos localmente también (se corregirá con el 'sync' que responde el opener)
+  if (dir === 'next' && _cur < _slides.length - 1) { _cur++; render() }
+  if (dir === 'prev' && _cur > 0) { _cur--; render() }
+}
+
+// ── Teclado ───────────────────────────────────────────────────
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'ArrowRight' || ev.key === ' ') { ev.preventDefault(); navDir('next') }
+  if (ev.key === 'ArrowLeft')                    { ev.preventDefault(); navDir('prev') }
+})
+
+// ── postMessage desde el presenter ───────────────────────────
+window.addEventListener('message', ev => {
+  if (ev.origin !== location.origin) return
+  const d = ev.data
+  if (!d) return
+  if (d.type === 'sync' && typeof d.cur === 'number') {
+    _cur = d.cur
+    render()
+  }
+})
+
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+  if (!scriptId) {
+    document.getElementById('loading').innerHTML = '<span style="color:#EF4444">Falta scriptId en la URL</span>'
+    return
+  }
+
+  const [scriptRes, slidesRes] = await Promise.all([
+    SB.from('scripts').select('*, brands(*)').eq('id', scriptId).single(),
+    SB.from('script_slides').select('*').eq('script_id', scriptId).order('orden'),
+  ])
+
+  if (scriptRes.error || !scriptRes.data) {
+    document.getElementById('loading').innerHTML = '<span style="color:#EF4444">No se encontró el guion</span>'
+    return
+  }
+
+  _script = scriptRes.data
+  _slides = slidesRes.data || []
+
+  document.getElementById('script-title').textContent = _script.titulo || 'Sin título'
+  document.getElementById('loading').style.display = 'none'
+  const app = document.getElementById('app')
+  app.style.display = 'flex'
+
+  render()
+
+  // Pedirle al opener el cur actual
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type: 'ready' }, location.origin)
+  }
+}
+
+init()
+</script>
+</body>
+</html>
