@@ -510,15 +510,40 @@ function renderDetail() {
             <button class="est-btn est-btn-danger est-btn-sm" style="margin-left:auto"
               onclick="_est.deleteScript()">Eliminar</button>
           </div>
-          <div class="est-actions" style="margin-top:6px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px">
-            ${s.deck_data
-              ? `<button class="est-btn est-btn-branded" style="background:var(--ed-acento,#22D3EE);color:#000"
-                   onclick="_est.abrirDeck()">🔎 Abrir deck</button>
-                 <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.descargarDeck()">⬇ Descargar .html</button>
-                 <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.regenerarDeck()"
-                   title="Sobrescribe el deck con los slides actuales">↻ Regenerar</button>`
-              : `<button class="est-btn est-btn-accent est-btn-sm" onclick="_est.generarDeck()">⚡ Generar deck</button>`
-            }
+          <div style="margin-top:8px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+            <!-- ── Presentación (espectador) ── -->
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ed-acento,#22D3EE);opacity:.7">📽 Presentación</div>
+              ${s.deck_data
+                ? `<div style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:2px">Generado ${fmtDate(s.deck_generado_at)}</div>
+                   <div style="display:flex;gap:5px;flex-wrap:wrap">
+                     <button class="est-btn est-btn-branded est-btn-sm" style="background:var(--ed-acento,#22D3EE);color:#000"
+                       onclick="_est.abrirDeckEspectador()">🔎 Abrir</button>
+                     <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.descargarDeckEspectador()">⬇</button>
+                     <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.regenerarDeckEspectador()"
+                       title="Sobrescribe la presentación con el contenido actual">↻</button>
+                   </div>`
+                : `<button class="est-btn est-btn-accent est-btn-sm" onclick="_est.generarDeckEspectador()">⚡ Generar presentación</button>`
+              }
+            </div>
+
+            <!-- ── Guion (para el director) ── -->
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94A3B8;opacity:.7">📖 Guion para mí</div>
+              ${s.deck_guion
+                ? `<div style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:2px">Generado ${fmtDate(s.deck_guion_at)}</div>
+                   <div style="display:flex;gap:5px;flex-wrap:wrap">
+                     <button class="est-btn est-btn-ghost est-btn-sm" style="border-color:rgba(148,163,184,.3)"
+                       onclick="_est.abrirDeckGuion()">🔎 Abrir</button>
+                     <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.descargarDeckGuion()">⬇</button>
+                     <button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.regenerarDeckGuion()"
+                       title="Sobrescribe el guion con el contenido actual">↻</button>
+                   </div>`
+                : `<button class="est-btn est-btn-ghost est-btn-sm" onclick="_est.generarDeckGuion()" style="border-color:rgba(148,163,184,.25)">⚡ Generar guion</button>`
+              }
+            </div>
+
           </div>
         </div>
 
@@ -1098,67 +1123,164 @@ function openDirector() {
 }
 
 // ── Deck HTML ─────────────────────────────────────────────────
+
 function slidesToDeckData(slides) {
   return slides.map(sl => ({
-    tipo:  sl.tipo              || 'punto',
-    p:     sl.texto_principal   || '',
-    s:     sl.texto_secundario  || '',
-    notas: sl.notas             || '',
+    tipo:  sl.tipo             || 'punto',
+    p:     sl.texto_principal  || '',
+    s:     sl.texto_secundario || '',
+    notas: sl.notas            || '',
   }))
 }
 
-async function generarDeck() {
-  if (!_activeScript || !_slides.length) {
-    showToast('⚠️ Agrega al menos un slide antes de generar el deck'); return
+// Slides cortas para el espectador: una idea por pantalla
+function trocearEnSlides(texto) {
+  if (!texto?.trim()) return []
+  const partes = texto
+    .split(/\n{2,}|\n(?=[-•])/)
+    .flatMap(bloque => {
+      const limpio = bloque.replace(/^[-•]\s*/, '').trim()
+      if (!limpio) return []
+      // dividir bloques largos en oraciones si superan ~120 chars
+      if (limpio.length > 120) {
+        return limpio.split(/(?<=[.!?])\s+/).map(o => o.trim()).filter(o => o.length > 8)
+      }
+      return [limpio]
+    })
+    .filter(p => p.length > 8)
+
+  const slides = []
+  for (const p of partes) {
+    // unir fragmentos muy cortos al slide anterior
+    if (slides.length && p.length < 30 && slides[slides.length - 1].p.length < 70) {
+      slides[slides.length - 1].p += ' ' + p
+    } else {
+      slides.push({ tipo: 'punto', p, s: '', notas: '' })
+    }
   }
-  const deckData = slidesToDeckData(_slides)
-  const { error } = await SB_P.from('scripts').update({
-    deck_data: deckData,
-    deck_generado_at: new Date().toISOString(),
-  }).eq('id', _activeScript.id)
-  if (error) { showToast('❌ ' + error.message); return }
-  _activeScript.deck_data = deckData
-  showToast('✅ Deck generado')
-  renderDetail()
-  abrirDeck()
+  return slides
 }
 
-async function regenerarDeck() {
-  if (!confirm('¿Regenerar el deck desde los slides actuales? Esto sobrescribe las ediciones que hayas hecho dentro del deck.')) return
-  await generarDeck()
+// Páginas de teleprompter: ~90 palabras por hoja
+function trocearEnPaginas(texto, wpp = 90) {
+  if (!texto?.trim()) return []
+  const words = texto.trim().split(/\s+/)
+  const pages = []
+  for (let i = 0; i < words.length; i += wpp) {
+    pages.push({ tipo: 'pagina', p: words.slice(i, i + wpp).join(' '), s: '', notas: '' })
+  }
+  return pages
 }
 
-function _buildDeckBlob() {
+function _textoCompleto(s) {
+  return [s.hook, s.contenido, s.cta].filter(Boolean).join('\n\n')
+}
+
+function _buildEspectadorData() {
+  const s = _activeScript
+  if (_slides.length) return slidesToDeckData(_slides)
+  const texto = _textoCompleto(s)
+  const slides = [{ tipo: 'portada', p: s.titulo || '', s: '', notas: '' }]
+  slides.push(...trocearEnSlides(texto))
+  return slides
+}
+
+function _buildGuionData() {
+  const texto = _textoCompleto(_activeScript)
+  return trocearEnPaginas(texto)
+}
+
+function _makeBlob(data, modo) {
   const b    = brand(_activeScript.brand_id)
-  const html = generarDeckHTML(_activeScript.deck_data, b, _activeScript.titulo)
+  const html = generarDeckHTML(data, b, _activeScript.titulo, modo)
   return new Blob([html], { type: 'text/html' })
 }
 
-function abrirDeck() {
-  if (!_activeScript?.deck_data) return
-  window.open(URL.createObjectURL(_buildDeckBlob()), '_blank')
+async function generarDeckEspectador() {
+  if (!_activeScript) return
+  const data = _buildEspectadorData()
+  if (!data.length) { showToast('⚠️ Escribe el contenido antes de generar'); return }
+  const { error } = await SB_P.from('scripts').update({
+    deck_data: data, deck_generado_at: new Date().toISOString(),
+  }).eq('id', _activeScript.id)
+  if (error) { showToast('❌ ' + error.message); return }
+  _activeScript.deck_data = data
+  _activeScript.deck_generado_at = new Date().toISOString()
+  showToast('✅ Presentación generada')
+  renderDetail()
+  abrirDeckEspectador()
 }
 
-function descargarDeck() {
+async function regenerarDeckEspectador() {
+  if (!confirm('¿Regenerar la presentación? Sobrescribe las ediciones hechas dentro del deck.')) return
+  await generarDeckEspectador()
+}
+
+function abrirDeckEspectador() {
   if (!_activeScript?.deck_data) return
-  const a  = document.createElement('a')
-  a.href   = URL.createObjectURL(_buildDeckBlob())
-  a.download = (_activeScript.titulo || 'deck').replace(/[^a-z0-9\-_]/gi,'_') + '.html'
+  window.open(URL.createObjectURL(_makeBlob(_activeScript.deck_data, 'espectador')), '_blank')
+}
+
+function descargarDeckEspectador() {
+  if (!_activeScript?.deck_data) return
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(_makeBlob(_activeScript.deck_data, 'espectador'))
+  a.download = (_activeScript.titulo || 'deck').replace(/[^a-z0-9\-_]/gi, '_') + '-presentacion.html'
+  a.click()
+}
+
+async function generarDeckGuion() {
+  if (!_activeScript) return
+  const data = _buildGuionData()
+  if (!data.length) { showToast('⚠️ Escribe el contenido antes de generar'); return }
+  const { error } = await SB_P.from('scripts').update({
+    deck_guion: data, deck_guion_at: new Date().toISOString(),
+  }).eq('id', _activeScript.id)
+  if (error) { showToast('❌ ' + error.message); return }
+  _activeScript.deck_guion = data
+  _activeScript.deck_guion_at = new Date().toISOString()
+  showToast('✅ Guion generado')
+  renderDetail()
+  abrirDeckGuion()
+}
+
+async function regenerarDeckGuion() {
+  if (!confirm('¿Regenerar el guion? Sobrescribe las ediciones hechas dentro del deck.')) return
+  await generarDeckGuion()
+}
+
+function abrirDeckGuion() {
+  if (!_activeScript?.deck_guion) return
+  window.open(URL.createObjectURL(_makeBlob(_activeScript.deck_guion, 'guion')), '_blank')
+}
+
+function descargarDeckGuion() {
+  if (!_activeScript?.deck_guion) return
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(_makeBlob(_activeScript.deck_guion, 'guion'))
+  a.download = (_activeScript.titulo || 'guion').replace(/[^a-z0-9\-_]/gi, '_') + '-guion.html'
   a.click()
 }
 
 async function onDeckMessage(ev) {
   const d = ev.data || {}
   if (d.type !== 'guardar-deck' || !d.scriptId || !d.slides) return
+  const col = d.cual === 'guion' ? 'deck_guion' : 'deck_data'
   const { error } = await SB_P.from('scripts')
-    .update({ deck_data: d.slides })
+    .update({ [col]: d.slides })
     .eq('id', d.scriptId)
   if (!error && _activeScript?.id === d.scriptId) {
-    _activeScript.deck_data = d.slides
+    _activeScript[col] = d.slides
   }
 }
 
-function generarDeckHTML(deckData, b, titulo) {
+function generarDeckHTML(deckData, b, titulo, modo) {
+  modo = modo || 'espectador'
+  if (modo === 'guion') return _generarGuionHTML(deckData, b, titulo)
+  return _generarEspectadorHTML(deckData, b, titulo)
+}
+
+function _generarEspectadorHTML(deckData, b, titulo) {
   const scriptId = _activeScript?.id || ''
   const c        = b?.colores || {}
   const bg       = c.fondo    || '#0A0A0A'
@@ -1322,7 +1444,8 @@ body{background:var(--bg);color:var(--texto);font-family:var(--font);
 
 <script>
 const SCRIPT_ID = ${JSON.stringify(scriptId)};
-const DECK_ID   = 'deck-' + SCRIPT_ID;
+const MODO      = 'espectador';
+const DECK_ID   = 'deck-' + MODO + '-' + SCRIPT_ID;
 const LOGO_URL  = ${JSON.stringify(logoUrl)};
 let slides = ${slidesJson};
 let cur    = 0;
@@ -1394,7 +1517,7 @@ function updateSlide(key, val){
 
 function guardar(){
   if (window.opener && !window.opener.closed) {
-    window.opener.postMessage({ type:'guardar-deck', scriptId: SCRIPT_ID, slides }, '*');
+    window.opener.postMessage({ type:'guardar-deck', scriptId: SCRIPT_ID, cual: MODO, slides }, '*');
     showFlash('💾 Guardado en el guion');
   } else {
     try { localStorage.setItem(DECK_ID, JSON.stringify(slides)); } catch(e){}
@@ -1439,6 +1562,222 @@ render();
 </html>`
 }
 
+function _generarGuionHTML(deckData, b, titulo) {
+  const scriptId  = _activeScript?.id || ''
+  const c         = b?.colores || {}
+  const bg        = c.fondo    || '#0A0A0A'
+  const prim      = c.primario || '#7C3AED'
+  const texto     = c.texto    || '#FFFFFF'
+  const font      = b?.tipografia ? `'${b.tipografia}', sans-serif` : "'Outfit', sans-serif"
+  const brandNom  = b?.nombre || ''
+
+  const slidesJson = JSON.stringify(deckData)
+    .replace(/<\/script>/gi, '<\\/script>')
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${titulo.replace(/</g,'&lt;')} — Guion</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:${bg};--prim:${prim};--texto:${texto};--font:${font}}
+body{background:var(--bg);color:var(--texto);font-family:var(--font);
+  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+#toolbar{
+  display:flex;align-items:center;gap:10px;padding:8px 18px;
+  background:rgba(0,0,0,.4);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;
+}
+#tbar-title{font-size:12px;font-weight:600;color:rgba(255,255,255,.4);flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.8);border-radius:6px;padding:4px 12px;font-size:11px;
+  font-family:var(--font);cursor:pointer}
+.tb-btn:hover{background:rgba(255,255,255,.16)}
+#btn-save{background:var(--prim);border-color:transparent;color:#fff}
+
+#stage{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:48px 10%;position:relative;overflow:hidden;
+}
+#page-text{
+  max-width:860px;width:100%;
+  font-size:clamp(20px,2.8vw,36px);line-height:1.8;font-weight:400;
+  text-align:left;white-space:pre-wrap;word-break:break-word;
+  animation:fi .2s ease;
+}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+#page-counter{
+  position:absolute;top:14px;right:20px;
+  font-size:11px;color:rgba(255,255,255,.25);font-variant-numeric:tabular-nums;
+}
+#progress{position:absolute;bottom:0;left:0;height:3px;background:var(--prim);transition:width .25s}
+
+.nav-arrow{
+  position:absolute;top:50%;transform:translateY(-50%);
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.4);border-radius:8px;padding:16px 10px;
+  font-size:20px;cursor:pointer;transition:all .15s;
+}
+.nav-arrow:hover{background:rgba(255,255,255,.14);color:#fff}
+.nav-arrow:disabled{opacity:.12;cursor:default}
+#btn-prev{left:12px}
+#btn-next{right:12px}
+
+#edit-panel{
+  width:300px;background:#080D16;border-left:1px solid rgba(255,255,255,.08);
+  display:none;flex-shrink:0;flex-direction:column;padding:16px;
+}
+#edit-panel.open{display:flex}
+#ep-ta{
+  flex:1;background:#0A1018;border:1px solid rgba(255,255,255,.1);color:#E2E8F0;
+  border-radius:6px;padding:10px 12px;font-family:var(--font);font-size:14px;
+  line-height:1.7;resize:none;height:100%;
+}
+#ep-ta:focus{outline:none;border-color:var(--prim)}
+.ep-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:#475569;margin-bottom:6px}
+
+#bottom-bar{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  padding:8px 20px;background:rgba(0,0,0,.3);border-top:1px solid rgba(255,255,255,.06);
+  flex-shrink:0;
+}
+.bb-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.7);border-radius:8px;padding:6px 20px;font-size:13px;
+  font-family:var(--font);font-weight:600;cursor:pointer;transition:background .15s}
+.bb-btn:hover{background:rgba(255,255,255,.14)}
+.bb-btn:disabled{opacity:.2;cursor:default}
+#counter-bot{font-size:12px;color:rgba(255,255,255,.3);
+  font-variant-numeric:tabular-nums;min-width:70px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <div id="tbar-title">📖 ${titulo.replace(/</g,'&lt;')}${brandNom ? ' · ' + brandNom : ''}</div>
+  <button class="tb-btn" id="btn-edit" onclick="toggleEdit()">✏️ Editar</button>
+  <button class="tb-btn" id="btn-save" onclick="guardar()">💾 Guardar</button>
+  <button class="tb-btn" onclick="descargar()">⬇ .html</button>
+</div>
+
+<div style="flex:1;display:flex;overflow:hidden">
+  <div id="stage">
+    <div id="page-counter"></div>
+    <button class="nav-arrow" id="btn-prev" onclick="nav(-1)">&#8592;</button>
+    <div id="page-text"></div>
+    <button class="nav-arrow" id="btn-next" onclick="nav(1)">&#8594;</button>
+    <div id="progress"></div>
+  </div>
+  <div id="edit-panel">
+    <div class="ep-lbl">Texto de esta hoja</div>
+    <textarea id="ep-ta" oninput="updatePage(this.value)"></textarea>
+  </div>
+</div>
+
+<div id="bottom-bar">
+  <button class="bb-btn" id="bb-prev" onclick="nav(-1)">← Anterior</button>
+  <span id="counter-bot">1 / 1</span>
+  <button class="bb-btn" id="bb-next" onclick="nav(1)">Siguiente →</button>
+</div>
+
+<script>
+const SCRIPT_ID = ${JSON.stringify(scriptId)};
+const MODO      = 'guion';
+const DECK_ID   = 'deck-guion-' + SCRIPT_ID;
+let slides = ${slidesJson};
+let cur    = 0;
+let edited = false;
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function render(){
+  const sl = slides[cur];
+  document.getElementById('page-text').textContent    = sl.p || '';
+  document.getElementById('page-counter').textContent = 'Hoja ' + (cur+1) + ' / ' + slides.length;
+  document.getElementById('counter-bot').textContent  = (cur+1) + ' / ' + slides.length;
+  document.getElementById('progress').style.width     = ((cur+1)/slides.length*100) + '%';
+  document.getElementById('btn-prev').disabled  = cur === 0;
+  document.getElementById('btn-next').disabled  = cur === slides.length - 1;
+  document.getElementById('bb-prev').disabled   = cur === 0;
+  document.getElementById('bb-next').disabled   = cur === slides.length - 1;
+  if (document.getElementById('edit-panel').classList.contains('open')) {
+    document.getElementById('ep-ta').value = sl.p || '';
+  }
+}
+
+function nav(dir){
+  const next = cur + dir;
+  if (next < 0 || next >= slides.length) return;
+  cur = next; render();
+}
+
+function toggleEdit(){
+  const p   = document.getElementById('edit-panel');
+  const btn = document.getElementById('btn-edit');
+  const open = p.classList.toggle('open');
+  btn.style.background = open ? 'var(--prim)' : '';
+  btn.style.borderColor = open ? 'transparent' : '';
+  if (open) document.getElementById('ep-ta').value = slides[cur].p || '';
+}
+
+function updatePage(val){
+  slides[cur].p = val;
+  document.getElementById('page-text').textContent = val;
+  edited = true;
+}
+
+function guardar(){
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type:'guardar-deck', scriptId: SCRIPT_ID, cual: MODO, slides }, '*');
+    showFlash('💾 Guardado en el guion');
+  } else {
+    try { localStorage.setItem(DECK_ID, JSON.stringify(slides)); } catch(e){}
+    showFlash('💾 Guardado localmente');
+  }
+  edited = false;
+}
+
+function descargar(){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([document.documentElement.outerHTML],{type:'text/html'}));
+  a.download = ${JSON.stringify((titulo||'guion').replace(/[^a-z0-9\-_]/gi,'_') + '-guion.html')};
+  a.click();
+}
+
+function showFlash(msg){
+  let el = document.getElementById('flash');
+  if (!el){ el = document.createElement('div'); el.id='flash';
+    Object.assign(el.style,{position:'fixed',bottom:'20px',left:'50%',transform:'translateX(-50%)',
+      background:'rgba(0,0,0,.9)',color:'#fff',padding:'8px 18px',borderRadius:'8px',
+      fontSize:'13px',fontFamily:getComputedStyle(document.body).fontFamily,zIndex:'999',transition:'opacity .3s'});
+    document.body.appendChild(el); }
+  el.textContent = msg; el.style.opacity='1';
+  clearTimeout(el._t); el._t = setTimeout(() => el.style.opacity='0', 2000);
+}
+
+document.addEventListener('keydown', ev => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'TEXTAREA' || tag === 'INPUT') return;
+  if (ev.key === 'ArrowRight' || ev.key === ' ') { ev.preventDefault(); nav(1); }
+  if (ev.key === 'ArrowLeft')                    { ev.preventDefault(); nav(-1); }
+  if (ev.key === 's' && (ev.ctrlKey||ev.metaKey)){ ev.preventDefault(); guardar(); }
+});
+
+window.addEventListener('beforeunload', ev => {
+  if (edited){ ev.preventDefault(); ev.returnValue=''; }
+});
+
+render();
+</script>
+</body>
+</html>`
+}
+
 // ── API pública ───────────────────────────────────────────────
 window._est = {
   newScript, openScript, saveScript, deleteScript, setField,
@@ -1447,7 +1786,8 @@ window._est = {
   addSlide, deleteSlide, moveSlide, toggleAddSlide,
   generateSlides,
   openPresenter, openDirector,
-  generarDeck, abrirDeck, descargarDeck, regenerarDeck,
+  generarDeckEspectador, abrirDeckEspectador, descargarDeckEspectador, regenerarDeckEspectador,
+  generarDeckGuion, abrirDeckGuion, descargarDeckGuion, regenerarDeckGuion,
 }
 window.loadEstudio = loadEstudio
 
