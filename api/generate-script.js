@@ -22,7 +22,7 @@ Responde SOLO en JSON sin backticks:
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 1200,
           system: systemPrompt,
           messages: [{ role: 'user', content: libre_text }]
@@ -68,7 +68,7 @@ Formato de respuesta — JSON estricto, sin backticks, sin texto extra:
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 1200,
           system: systemPrompt,
           messages: [{ role: 'user', content: `1. ${q1}\n2. ${q2}\n3. ${q3}` }]
@@ -100,7 +100,7 @@ Formato de respuesta — JSON estricto, sin backticks, sin texto extra:
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 300,
           messages: [{ role: 'user', content: `Estructura esta idea en máximo 2 oraciones claras y accionables. Sin preámbulos, solo el resultado:\n\n"${raw}"` }]
         })
@@ -129,7 +129,7 @@ Formato de respuesta — JSON estricto, sin backticks, sin texto extra:
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 300,
           system: 'Devuelve SOLO datos en formato Etiqueta, Valor — una por línea, sin texto adicional, sin explicaciones. Los valores deben ser números. Máximo 8 filas. Si no tienes datos exactos, usa estimaciones razonables.',
           messages: [{ role: 'user', content: `Genera datos para una gráfica sobre: ${tema}` }]
@@ -166,7 +166,7 @@ Formato de respuesta — JSON estricto, sin backticks, sin texto extra:
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: `Crea un guión de ${formato || 'Video largo'} sobre: ${idea}` }]
