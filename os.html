@@ -7616,6 +7616,9 @@ async function generarPresentacion(){
     body.idea = idea
     body.canal = document.getElementById('pres-canal').value
     body.formato = document.getElementById('pres-formato').value
+    const mb = allBrands.find(b => b.nombre === body.canal) || allBrands.find(b => b.nombre === 'iarcania') || {}
+    body.brandColores = mb.colores || null
+    body.brandConfig  = mb.config  || null
   } else {
     const nombre = document.getElementById('pres-cli-nombre').value.trim()
     const problema = document.getElementById('pres-cli-problema').value.trim()
@@ -7675,10 +7678,11 @@ async function generarPresentacionInline(scriptId, vista = null){
   if(load) load.style.display = 'flex'
   if(loadTxt) loadTxt.textContent = spinnerMsg
 
+  const brand = allBrands.find(b => (b.nombre||'') === (s.canal||'iarcania')) || allBrands.find(b => b.nombre === 'iarcania') || {}
   const callAPI = (tipo) => fetch('/api/generar-presentacion', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tipo, idea, canal, formato })
+    body: JSON.stringify({ tipo, idea, canal, formato, brandColores: brand.colores || null, brandConfig: brand.config || null })
   }).then(r => r.json().then(d => { if(!r.ok) throw new Error(d.error || 'Error del servidor'); return d }))
 
   try {

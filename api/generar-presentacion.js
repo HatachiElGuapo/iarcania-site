@@ -146,18 +146,20 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
 
-  const { tipo, idea, canal, formato, cliente } = req.body || {}
+  const { tipo, idea, canal, formato, cliente, brandColores, brandConfig } = req.body || {}
 
+  // Brand data viene del frontend (allBrands ya cargado) — no fetcheamos Supabase aquí
   const canalNorm  = normCanal(canal)
-  const brandRow   = await fetchBrand(canalNorm)
-  const cfg        = brandRow?.config || {}
-  const col        = brandRow?.colores || {}
+  const cfg        = brandConfig  || {}
+  const col        = brandColores || {}
   const logoSvg    = cfg.logo_svg || ''
   const copyPerfil = cfg.copy_perfil || ''
   const copyEstr   = cfg.copy_estructura || ''
   const nombreCanal = canalNorm === 'void_stoic' ? 'Void Stoic' : 'IArcanIA'
   const primario   = col.primario || '#7c3aed'
   const acento     = col.acento   || '#d4af37'
+  // brandRow sintético para buildHead y wrapContent
+  const brandRow   = { colores: col, config: cfg }
 
   // Clases CSS disponibles (el modelo las usa para estructura, no decide colores)
   const cssGuide = `
