@@ -7,7 +7,9 @@ async function fetchBrand(nombre) {
     { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
   )
   const rows = await r.json()
-  return Array.isArray(rows) ? rows[0] : null
+  const row = Array.isArray(rows) ? rows[0] : null
+  console.log('[brands] fetch nombre=%s status=%s row_nombre=%s colores=%s', nombre, r.status, row?.nombre, JSON.stringify(row?.colores))
+  return row
 }
 
 // Mapea los valores del dropdown (sin guion bajo) al nombre exacto en brands (con guion bajo)
@@ -93,6 +95,9 @@ function wrapContent(head, logoSvg, innerContent) {
 
   // Si el contenido ya tiene <div class="page"> propio (el modelo a veces lo añade), quitarlo
   content = content.replace(/^<div[^>]+class="page"[^>]*>/i, '').replace(/<\/div>\s*$/, '').trim()
+
+  // Strip cualquier <style> que el modelo haya añadido — los colores los impone buildHead
+  content = content.replace(/<style[\s\S]*?<\/style>/gi, '')
 
   return `${head}</head><body><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="page">
 ${logoSvg ? `<div style="margin-bottom:32px">${logoSvg}</div>` : ''}
