@@ -80,35 +80,63 @@ h3,h4,h5,h6,p,li,span,td,th{color:inherit}
 </style>`
 }
 
-// Envuelve el contenido generado por el modelo con el shell HTML de la marca
-function wrapContent(head, logoSvg, innerContent) {
-  // Guard: si el modelo devolvió HTML completo, extraer solo lo que va dentro de <body>
+// Envuelve el contenido generado por el modelo con el shell HTML de la marca.
+// brand se pasa para poder inyectar el override CSS al final del documento.
+function wrapContent(head, logoSvg, innerContent, brand) {
   let content = innerContent
 
   // Quitar posible ```html ... ``` wrapper
   content = content.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim()
 
-  // Si el modelo ignoró las instrucciones y devolvió HTML completo, extraer el interior de <body>
+  // Si el modelo devolvió HTML completo, extraer solo lo que va dentro de <body>
   if (/<html[\s>]/i.test(content)) {
-    const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+    const bodyMatch = content.match(/<body[^>]*>([\s\S]*)<\/body>/i)  // greedy: toma el body completo
     if (bodyMatch) {
       content = bodyMatch[1]
     } else {
-      // Quitar todo hasta y después de </head> si no hay </body>
       content = content.replace(/[\s\S]*?<\/head>/i, '').replace(/<\/?body[^>]*>/gi, '').trim()
     }
   }
 
-  // Si el contenido ya tiene <div class="page"> propio (el modelo a veces lo añade), quitarlo
-  content = content.replace(/^<div[^>]+class="page"[^>]*>/i, '').replace(/<\/div>\s*$/, '').trim()
-
-  // Strip cualquier <style> que el modelo haya añadido — los colores los impone buildHead
+  // Strip TODO <style> que el modelo haya generado — los colores los impone buildHead + override final
   content = content.replace(/<style[\s\S]*?<\/style>/gi, '')
+
+  // Strip atributos style con colores de fondo oscuro hardcodeados que el modelo genera
+  content = content.replace(/\s*style="[^"]*background\s*:\s*#0[0-9a-fA-F]{5}[^"]*"/gi, '')
+  content = content.replace(/\s*style="[^"]*background\s*:\s*#1[0-9a-fA-F]{5}[^"]*"/gi, '')
+
+  // Si el contenido tiene <div class="page"> propio, quitarlo para no anidar
+  content = content.replace(/^[\s\S]*?(<div[^>]+class="page"[^>]*>)/i, '').replace(/<\/div>\s*<\/body[\s\S]*$/i, '').trim()
+
+  // Override CSS al final del documento — gana sobre cualquier cosa que el modelo haya generado
+  const col = brand?.colores || {}
+  const cfg = brand?.config  || {}
+  const bodyBg   = col.fondo    || '#090910'
+  const bodyColor = col.texto   || '#f1f0f7'
+  const primario  = col.primario || '#7c3aed'
+  const acento    = col.acento   || '#d4af37'
+  const cardBg    = cfg.card_bg  || (cfg.dark_mode === false ? '#eef0ea' : '#13131f')
+  const cardBorder = cfg.card_border || 'rgba(168,85,247,0.15)'
+  const gradText   = cfg.gradient_text || `linear-gradient(135deg,${primario} 0%,${acento} 100%)`
+  const labelColor = cfg.section_label_color || acento
+  const orb1 = cfg.orb_1_color || primario
+  const orb2 = cfg.orb_2_color || acento
+
+  const overrideCSS = `<style id="brand-override">
+html,body{background:${bodyBg}!important;color:${bodyColor}!important}
+.orb-1{background:${orb1}!important}
+.orb-2{background:${orb2}!important}
+h1,h2,h3,h4,h5,h6{color:${bodyColor}!important}
+.section-label,.section-label *{color:${labelColor}!important}
+.section-label::before{background:${labelColor}!important}
+.card{background:${cardBg}!important;border-color:${cardBorder}!important}
+.gradient-text{background:${gradText}!important;-webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;background-clip:text!important}
+</style>`
 
   return `${head}</head><body><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="page">
 ${logoSvg ? `<div style="margin-bottom:32px">${logoSvg}</div>` : ''}
 ${content}
-</div></body></html>`
+</div>${overrideCSS}</body></html>`
 }
 
 export default async function handler(req, res) {
@@ -239,7 +267,7 @@ Incluir oferta fundadora: ${cliente?.fundadora ? 'Sí' : 'No'}`
       })
       const data = await r.json()
       if (!r.ok) { res.status(r.status).json({ error: data.error?.message || 'Error de API' }); return }
-      const html = wrapContent(iaHead, iaLogoSvg, data.content?.[0]?.text || '')
+      const html = wrapContent(iaHead, iaLogoSvg, data.content?.[0]?.text || '', iaBrand)
       res.status(200).json({ html })
     } catch (e) { res.status(500).json({ error: e.message || 'Error interno' }) }
     return
@@ -255,7 +283,7 @@ Incluir oferta fundadora: ${cliente?.fundadora ? 'Sí' : 'No'}`
     const data = await r.json()
     if (!r.ok) { res.status(r.status).json({ error: data.error?.message || 'Error de API' }); return }
     const head = buildHead(brandRow, 'Guión')
-    const html = wrapContent(head, logoSvg, data.content?.[0]?.text || '')
+    const html = wrapContent(head, logoSvg, data.content?.[0]?.text || '', brandRow)
     res.status(200).json({ html })
   } catch (e) {
     res.status(500).json({ error: e.message || 'Error interno' })
