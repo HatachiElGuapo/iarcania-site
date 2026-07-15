@@ -7084,7 +7084,7 @@ function renderScripts(){
       notesVal = (s.notes && !s.notes.startsWith('{')) ? s.notes : ''
     }
     const libreText  = _scriptLibre[s.id] !== undefined ? _scriptLibre[s.id] : [b1,b2,b3,b4].filter(Boolean).join('\n\n')
-    const iaModo     = _scriptModo[s.id] || (s.canal==='voidstoic' ? 'camara' : 'pantalla')
+    const iaModo     = _scriptModo[s.id] || (normMarca(s.canal)==='voidstoic' ? 'camara' : 'pantalla')
     const iaInputs   = _scriptInputs[s.id] || {}
     const iStyle = 'width:100%;background:var(--sg-surface,#161616);border:1px solid var(--sg-border,#2a2a2a);border-radius:6px;padding:9px 12px;color:var(--sg-texto,#e8e8e8);font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box'
     const tStyle = 'width:100%;background:var(--sg-surface,#161616);border:1px solid var(--sg-border,#2a2a2a);border-radius:6px;padding:9px 12px;color:var(--sg-texto,#e8e8e8);font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box;resize:vertical'
@@ -7177,8 +7177,8 @@ function renderScripts(){
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:120px"><label style="${lStyle}">Canal</label>
           <select id="pres-inline-canal-${s.id}" style="${iStyle}">
-            <option value="iarcania" ${s.canal==='iarcania'?'selected':''}>IArcanIA</option>
-            <option value="voidstoic" ${s.canal==='voidstoic'?'selected':''}>Void Stoic</option>
+            <option value="iarcania" ${normMarca(s.canal)==='iarcania'?'selected':''}>IArcanIA</option>
+            <option value="voidstoic" ${normMarca(s.canal)==='voidstoic'?'selected':''}>Void Stoic</option>
           </select>
         </div>
         <div style="flex:1;min-width:120px"><label style="${lStyle}">Formato</label>
