@@ -78,7 +78,7 @@ h3,h4,h5,h6,p,li,span,td,th{color:inherit}
 // Envuelve el contenido interno generado por el modelo.
 // STRIP NUCLEAR: elimina TODO CSS que el modelo haya generado — los estilos
 // los impone únicamente buildHead + el override final con !important.
-function wrapContent(head, logoSvg, rawContent, brand) {
+function wrapContent(head, logoSvg, rawContent, brand, tipo) {
   // Log para diagnóstico — muestra si el modelo mete <style> o colores inline
   console.log('[model-raw] primeros 500 chars:', rawContent.slice(0, 500))
 
@@ -132,10 +132,165 @@ p,li,span,td,th{color:${bodyColor}!important}
 .gradient-text{background:${gradText}!important;-webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;background-clip:text!important}
 </style>`
 
+  const navScript = buildNavScript(tipo, brand)
+
   return `${head}</head><body><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="page">
 ${logoSvg ? `<div style="margin-bottom:32px">${logoSvg}</div>` : ''}
 ${content}
-</div>${overrideCSS}</body></html>`
+</div>${overrideCSS}${navScript}</body></html>`
+}
+
+// ─── NAV SCRIPTS ──────────────────────────────────────────────────────────────
+function buildNavScript(tipo, brand) {
+  const col      = brand?.colores || {}
+  const cfg      = brand?.config  || {}
+  const bodyBg   = col.fondo    || '#090910'
+  const bodyColor = col.texto   || '#f1f0f7'
+  const primario  = col.primario || '#7c3aed'
+  const darkMode  = cfg.dark_mode !== false
+
+  // ── Presentador: sticky nav con anclas a cada sección ──────────────────────
+  if (tipo === 'guion') {
+    return `<script>
+(function(){
+  document.addEventListener('DOMContentLoaded', function(){
+    var labels = document.querySelectorAll('.section-label')
+    if(!labels.length) return
+
+    labels.forEach(function(el, i){ el.id = 'sec-' + i })
+
+    var nav = document.createElement('nav')
+    nav.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:${bodyBg}ee;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(128,128,128,0.12);display:flex;align-items:center;gap:6px;padding:8px 20px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch'
+
+    var anchors = []
+    labels.forEach(function(el, i){
+      var a = document.createElement('a')
+      a.href = '#sec-' + i
+      a.textContent = el.textContent.trim().replace(/^[—–-]+\\s*/, '').slice(0, 28)
+      a.style.cssText = 'font-size:10px;font-weight:600;letter-spacing:.06em;text-decoration:none;color:${bodyColor};opacity:.5;white-space:nowrap;padding:4px 10px;border-radius:20px;border:1px solid rgba(128,128,128,0.2);transition:all .15s;flex-shrink:0'
+      a.addEventListener('mouseenter', function(){ if(!a._active){ a.style.opacity='0.85' } })
+      a.addEventListener('mouseleave', function(){ if(!a._active){ a.style.opacity='0.5' } })
+      nav.appendChild(a)
+      anchors.push(a)
+    })
+
+    document.body.prepend(nav)
+    var page = document.querySelector('.page')
+    if(page) page.style.paddingTop = '72px'
+
+    function setActive(idx){
+      anchors.forEach(function(a, i){
+        a._active = i === idx
+        a.style.opacity      = i === idx ? '1' : '.5'
+        a.style.background   = i === idx ? '${primario}22' : 'transparent'
+        a.style.borderColor  = i === idx ? '${primario}88' : 'rgba(128,128,128,0.2)'
+        a.style.color        = i === idx ? '${primario}' : '${bodyColor}'
+      })
+    }
+
+    setActive(0)
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          var idx = parseInt(e.target.id.replace('sec-',''))
+          setActive(idx)
+          var a = anchors[idx]
+          if(a) a.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'})
+        }
+      })
+    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 })
+
+    labels.forEach(function(el){ io.observe(el) })
+  })
+})()
+</script>`
+  }
+
+  // ── Audiencia: slides con flechas y teclado ─────────────────────────────────
+  if (tipo === 'audiencia') {
+    return `<style>
+@keyframes _sIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.slide-active{animation:_sIn .25s ease}
+</style>
+<script>
+(function(){
+  document.addEventListener('DOMContentLoaded', function(){
+    var page = document.querySelector('.page')
+    if(!page) return
+
+    // Agrupar nodos entre .sep / .sep-purple en slides
+    var nodes = Array.from(page.childNodes)
+    var groups = [], buf = []
+    nodes.forEach(function(n){
+      var isSep = n.nodeType === 1 && (n.classList.contains('sep') || n.classList.contains('sep-purple') || (n.tagName === 'HR'))
+      if(isSep){ if(buf.length){ groups.push(buf); buf=[] } }
+      else { buf.push(n) }
+    })
+    if(buf.length) groups.push(buf)
+
+    // Filtrar grupos vacíos
+    groups = groups.filter(function(g){ return g.some(function(n){ return n.nodeType===1 || (n.nodeType===3 && n.textContent.trim()) }) })
+    if(groups.length <= 1) return
+
+    page.innerHTML = ''
+    var slideEls = groups.map(function(nodes, i){
+      var div = document.createElement('div')
+      div.className = 'slide' + (i===0 ? ' slide-active' : '')
+      div.style.cssText = 'display:' + (i===0?'flex':'none') + ';flex-direction:column;justify-content:center;min-height:calc(100vh - 160px);padding-bottom:80px'
+      nodes.forEach(function(n){ div.appendChild(n) })
+      page.appendChild(div)
+      return div
+    })
+
+    var cur = 0
+    var total = slideEls.length
+
+    // UI
+    var ui = document.createElement('div')
+    ui.style.cssText = 'position:fixed;bottom:24px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:14px;z-index:999'
+
+    var btnP = document.createElement('button')
+    btnP.innerHTML = '&#8592;'
+    btnP.style.cssText = 'width:42px;height:42px;border-radius:50%;border:1px solid rgba(128,128,128,0.25);background:transparent;color:${bodyColor};font-size:20px;cursor:pointer;transition:all .15s;opacity:.4'
+
+    var counter = document.createElement('span')
+    counter.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:.12em;color:${bodyColor};opacity:.4;min-width:44px;text-align:center;font-family:system-ui,sans-serif'
+
+    var btnN = document.createElement('button')
+    btnN.innerHTML = '&#8594;'
+    btnN.style.cssText = 'width:42px;height:42px;border-radius:50%;border:none;background:${primario};color:#fff;font-size:20px;cursor:pointer;transition:all .15s'
+
+    function go(n){
+      slideEls[cur].style.display = 'none'
+      slideEls[cur].classList.remove('slide-active')
+      cur = ((n % total) + total) % total
+      slideEls[cur].style.display = 'flex'
+      slideEls[cur].classList.add('slide-active')
+      counter.textContent = (cur+1) + ' / ' + total
+      btnP.style.opacity  = cur === 0 ? '.25' : '1'
+      btnP.style.borderColor = cur === 0 ? 'rgba(128,128,128,0.2)' : '${primario}66'
+      btnN.style.background  = cur === total-1 ? 'transparent' : '${primario}'
+      btnN.style.borderColor = cur === total-1 ? 'rgba(128,128,128,0.25)' : '${primario}'
+      btnN.style.color       = cur === total-1 ? '${bodyColor}' : '#fff'
+      btnN.style.opacity     = cur === total-1 ? '.3' : '1'
+    }
+
+    btnP.onclick = function(){ go(cur-1) }
+    btnN.onclick = function(){ go(cur+1) }
+    document.addEventListener('keydown', function(e){
+      if(e.key==='ArrowRight'||e.key==='ArrowDown') go(cur+1)
+      if(e.key==='ArrowLeft'||e.key==='ArrowUp')   go(cur-1)
+    })
+
+    ui.append(btnP, counter, btnN)
+    document.body.appendChild(ui)
+    go(0)
+  })
+})()
+</script>`
+  }
+
+  return ''
 }
 
 // ─── HANDLER ─────────────────────────────────────────────────────────────────
@@ -258,7 +413,7 @@ Responde SOLO con el HTML interno (sin <!DOCTYPE> ni <html>).`
     const data = await r.json()
     if (!r.ok) { res.status(r.status).json({ error: data.error?.message || 'Error de API' }); return }
     const head = buildHead(brandRow, 'Guión')
-    const html = wrapContent(head, logoSvg, data.content?.[0]?.text || '', brandRow)
+    const html = wrapContent(head, logoSvg, data.content?.[0]?.text || '', brandRow, tipo)
     res.status(200).json({ html })
   } catch (e) {
     res.status(500).json({ error: e.message || 'Error interno' })
