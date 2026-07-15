@@ -467,6 +467,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" id="nav-escuela" onclick="showSection('escuela',this)">
           <span class="nav-icon">🎓</span>Escuela
         </button>
+        <button class="nav-item" id="nav-recursos" onclick="showSection('recursos',this)">
+          <span class="nav-icon">📚</span>Recursos
+        </button>
         <button class="nav-item" id="nav-workspace" onclick="showSection('workspace',this)">
           <span class="nav-icon">🖥️</span>Workspace
         </button>
@@ -1123,6 +1126,20 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div class="section" id="section-slides"></div>
     <div class="section" id="section-estudio"></div>
     <div class="section" id="section-escuela"></div>
+
+    <!-- RECURSOS -->
+    <div class="section" id="section-recursos">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Recursos</h1>
+          <div class="page-sub" id="recursos-sub">Cargando...</div>
+        </div>
+      </div>
+      <div id="recursos-type-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem"></div>
+      <div id="recursos-list" style="display:flex;flex-direction:column;gap:8px">
+        <div class="loading"><div class="spinner"></div><br>Cargando recursos...</div>
+      </div>
+    </div>
 
     <div class="section" id="section-workspace">
       <div class="page-header">
@@ -2045,7 +2062,7 @@ function applyRoleRestrictions(role) {
     hide('nav-trabajo')
     hide('nav-sep-dinero', 'group-dinero')
     hide('nav-libros', 'nav-guiones', 'nav-estudio', 'nav-slides')
-    hide('nav-workspace', 'nav-escuela')
+    hide('nav-workspace', 'nav-escuela', 'nav-recursos')
   } else if (role === 'cliente' || role === 'estudiante') {
     hide('nav-trabajo', 'nav-sep-dinero', 'group-dinero', 'nav-libros', 'nav-guiones', 'nav-slides', 'nav-estudio', 'nav-escuela', 'nav-workspace')
     const main = document.getElementById('main-content') || document.querySelector('.main') || document.body
@@ -2144,6 +2161,7 @@ function showSection(id, btn){
   if(id === 'slides') onSlidesEnter()
   if(id === 'estudio') loadEstudio()
   if(id === 'escuela') loadEscAdmin()
+  if(id === 'recursos') loadRecursos()
   if(id === 'actividades') initTaskSections()
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
@@ -9127,5 +9145,103 @@ async function saveNuevaTareaFromSelector(){
 <script src="js/estudio.js"></script>
 <script src="js/escuela-admin.js"></script>
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+<script>
+// ─── MÓDULO RECURSOS ────────────────────────────────────────────────────────
+const RECURSOS_TIPOS = {
+  curso:       { label: 'Curso',       icon: '🎓' },
+  sop:         { label: 'SOP',         icon: '📋' },
+  prompt:      { label: 'Prompt',      icon: '💬' },
+  workflow:    { label: 'Workflow',    icon: '⚙️' },
+  plantilla:   { label: 'Plantilla',  icon: '📄' },
+  entregable:  { label: 'Entregable', icon: '📦' },
+}
+const RECURSOS_ESTADO_COLOR = {
+  borrador:   '#888',
+  activo:     '#5DCAA5',
+  archivado:  '#444',
+}
+
+let _recursos = []
+let _recursosTipoFilter = 'all'
+
+async function loadRecursos() {
+  document.getElementById('recursos-list').innerHTML =
+    '<div class="loading"><div class="spinner"></div><br>Cargando recursos...</div>'
+
+  const { data, error } = await SB_P.from('recursos')
+    .select('id, titulo, tipo, estado, visible_para, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    document.getElementById('recursos-list').innerHTML =
+      `<div class="empty-state"><div class="empty-icon">⚠️</div>${error.message}</div>`
+    return
+  }
+
+  _recursos = data || []
+  renderRecursosFiltros()
+  renderRecursosList()
+
+  const sub = document.getElementById('recursos-sub')
+  if (sub) sub.textContent = `${_recursos.length} recurso${_recursos.length !== 1 ? 's' : ''}`
+}
+
+function renderRecursosFiltros() {
+  const el = document.getElementById('recursos-type-filters')
+  if (!el) return
+  const counts = {}
+  _recursos.forEach(r => { counts[r.tipo] = (counts[r.tipo] || 0) + 1 })
+  const btnStyle = active =>
+    `padding:5px 14px;font-size:12px;font-family:'Outfit',sans-serif;border-radius:20px;cursor:pointer;border:1px solid ${active ? 'var(--gold)' : 'var(--border)'};background:${active ? 'rgba(196,163,90,.12)' : 'transparent'};color:${active ? 'var(--gold)' : 'var(--text-muted)'};transition:all .15s`
+  const all = _recursosTipoFilter === 'all'
+  let html = `<button onclick="filtrarRecursosTipo('all')" style="${btnStyle(all)}">Todos (${_recursos.length})</button>`
+  Object.entries(RECURSOS_TIPOS).forEach(([key, { label, icon }]) => {
+    if (!counts[key]) return
+    const active = _recursosTipoFilter === key
+    html += `<button onclick="filtrarRecursosTipo('${key}')" style="${btnStyle(active)}">${icon} ${label} (${counts[key]})</button>`
+  })
+  el.innerHTML = html
+}
+
+function filtrarRecursosTipo(tipo) {
+  _recursosTipoFilter = tipo
+  renderRecursosFiltros()
+  renderRecursosList()
+}
+
+function renderRecursosList() {
+  const el = document.getElementById('recursos-list')
+  if (!el) return
+  const lista = _recursosTipoFilter === 'all'
+    ? _recursos
+    : _recursos.filter(r => r.tipo === _recursosTipoFilter)
+
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div>Sin recursos en esta categoría</div>'
+    return
+  }
+
+  el.innerHTML = lista.map(r => {
+    const { label, icon } = RECURSOS_TIPOS[r.tipo] || { label: r.tipo, icon: '📄' }
+    const estadoColor = RECURSOS_ESTADO_COLOR[r.estado] || '#888'
+    const rolesStr = Array.isArray(r.visible_para) ? r.visible_para.join(', ') : (r.visible_para || '—')
+    const fecha = new Date(r.created_at).toLocaleDateString('es-CO', {
+      timeZone: 'America/Bogota', day: 'numeric', month: 'short', year: 'numeric'
+    })
+    return `<div class="script-card" style="display:flex;align-items:center;gap:14px;padding:12px 16px">
+      <div style="font-size:22px;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.titulo}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
+          <span>${label}</span>
+          <span style="color:${estadoColor}">● ${r.estado}</span>
+          <span>Roles: ${rolesStr}</span>
+          <span>${fecha}</span>
+        </div>
+      </div>
+    </div>`
+  }).join('')
+}
+</script>
 </body>
 </html>
