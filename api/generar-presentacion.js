@@ -10,8 +10,11 @@ async function fetchBrand(nombre) {
   return Array.isArray(rows) ? rows[0] : null
 }
 
+// Mapea los valores del dropdown (sin guion bajo) al nombre exacto en brands (con guion bajo)
+const CANAL_MAP = { voidstoic: 'void_stoic', iarcania: 'iarcania' }
 function normCanal(canal) {
-  return (canal || 'iarcania').toLowerCase().replace(/\s+/g, '_')
+  const bare = (canal || 'iarcania').toLowerCase().replace(/[\s_-]+/g, '')
+  return CANAL_MAP[bare] || bare
 }
 
 // Construye el <head> completo con los colores de brands — el modelo nunca lo toca
