@@ -1138,10 +1138,102 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Recursos</h1>
           <div class="page-sub" id="recursos-sub">Cargando...</div>
         </div>
+        <button id="btn-nuevo-recurso" onclick="abrirRecursoNuevo()" style="display:none;padding:8px 18px;background:linear-gradient(135deg,var(--gold),#a87c2a);color:#0a0a0f;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer">+ Nuevo recurso</button>
       </div>
       <div id="recursos-type-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem"></div>
       <div id="recursos-list" style="display:flex;flex-direction:column;gap:8px">
         <div class="loading"><div class="spinner"></div><br>Cargando recursos...</div>
+      </div>
+    </div>
+
+    <!-- Modal: crear / editar recurso -->
+    <div id="recurso-modal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(10,10,15,.82);backdrop-filter:blur(4px);overflow-y:auto;padding:40px 16px">
+      <div class="card" style="max-width:680px;margin:0 auto;padding:28px 28px 24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h2 id="recurso-modal-title" style="font-size:18px;font-weight:700;color:var(--text);margin:0">Nuevo recurso</h2>
+          <button onclick="cerrarRecursoModal()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1">✕</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- título -->
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">Título *</label>
+            <input id="rec-titulo" type="text" placeholder="Nombre del recurso"
+              style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none">
+          </div>
+
+          <!-- tipo + estado -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">Tipo *</label>
+              <select id="rec-tipo" style="width:100%;padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none">
+                <option value="curso">🎓 Curso</option>
+                <option value="sop">📋 SOP</option>
+                <option value="prompt">💬 Prompt</option>
+                <option value="workflow">⚙️ Workflow</option>
+                <option value="plantilla">📄 Plantilla</option>
+                <option value="entregable">📦 Entregable</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">Estado *</label>
+              <select id="rec-estado" style="width:100%;padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none">
+                <option value="vivo">Vivo</option>
+                <option value="en-progreso">En progreso</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="archivado">Archivado</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- nivel_min -->
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">Nivel mínimo</label>
+            <select id="rec-nivel" style="width:100%;padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none">
+              <option value="">— Ninguno —</option>
+              <option value="aprendiz">Aprendiz</option>
+              <option value="operativo">Operativo</option>
+              <option value="senior">Senior</option>
+              <option value="gratis">Gratis</option>
+              <option value="plus">Plus</option>
+              <option value="pro">Pro</option>
+              <option value="fundador">Fundador</option>
+            </select>
+          </div>
+
+          <!-- visible_para -->
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:8px">Visible para</label>
+            <div style="display:flex;gap:14px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="vp-admin" value="admin" style="accent-color:var(--gold)"> Admin</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="vp-employee" value="employee" style="accent-color:var(--gold)"> Employee</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="vp-family" value="family" style="accent-color:var(--gold)"> Family</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="vp-cliente" value="cliente" style="accent-color:var(--gold)"> Cliente</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer"><input type="checkbox" id="vp-estudiante" value="estudiante" style="accent-color:var(--gold)"> Estudiante</label>
+            </div>
+          </div>
+
+          <!-- contenido -->
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">Contenido (markdown)</label>
+            <textarea id="rec-contenido" rows="8" placeholder="Cuerpo público del recurso..."
+              style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;resize:vertical;line-height:1.6"></textarea>
+          </div>
+
+          <!-- contenido_sensible — solo admin -->
+          <div id="rec-sensible-wrap" style="display:none">
+            <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px">
+              <label style="font-size:12px;color:#E24B4A;display:block;margin-bottom:5px">🔒 Contenido sensible (solo admins — se guarda en tabla separada)</label>
+              <textarea id="rec-sensible" rows="5" placeholder="Notas internas, credenciales, contexto privado..."
+                style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.3);border-radius:8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;resize:vertical;line-height:1.6"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px">
+          <button onclick="cerrarRecursoModal()" style="padding:9px 20px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer">Cancelar</button>
+          <button onclick="guardarRecurso()" style="padding:9px 22px;background:linear-gradient(135deg,var(--gold),#a87c2a);border:none;border-radius:8px;color:#0a0a0f;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Guardar</button>
+        </div>
       </div>
     </div>
 
@@ -1945,6 +2037,7 @@ const CATS = {
 }
 
 let USER_ID = null
+let USER_ROLE = null
 let USER_NAME = null
 let PARTNER_ID = null
 let PARTNER_NAME = null
@@ -2033,6 +2126,7 @@ async function loadCurrentUserSlug() {
   }
 
   USER_ID = data.id // 'u1', 'u2', etc.
+  USER_ROLE = data.role
 
   if (data.name) {
     USER_NAME = data.name
@@ -9265,9 +9359,10 @@ const RECURSOS_TIPOS = {
   entregable:  { label: 'Entregable', icon: '📦' },
 }
 const RECURSOS_ESTADO_COLOR = {
-  borrador:   '#888',
-  activo:     '#5DCAA5',
-  archivado:  '#444',
+  'vivo':        '#5DCAA5',
+  'en-progreso': '#c4a35a',
+  'pendiente':   '#888',
+  'archivado':   '#444',
 }
 
 let _recursos = []
@@ -9278,7 +9373,7 @@ async function loadRecursos() {
     '<div class="loading"><div class="spinner"></div><br>Cargando recursos...</div>'
 
   const { data, error } = await SB_P.from('recursos')
-    .select('id, titulo, tipo, estado, visible_para, created_at')
+    .select('id, titulo, tipo, estado, visible_para, owner_id, created_at')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -9288,6 +9383,7 @@ async function loadRecursos() {
   }
 
   _recursos = data || []
+  _mostrarBtnNuevoRecurso()
   renderRecursosFiltros()
   renderRecursosList()
 
@@ -9330,6 +9426,7 @@ function renderRecursosList() {
     return
   }
 
+  const canEdit = USER_ROLE === 'admin'
   el.innerHTML = lista.map(r => {
     const { label, icon } = RECURSOS_TIPOS[r.tipo] || { label: r.tipo, icon: '📄' }
     const estadoColor = RECURSOS_ESTADO_COLOR[r.estado] || '#888'
@@ -9337,6 +9434,9 @@ function renderRecursosList() {
     const fecha = new Date(r.created_at).toLocaleDateString('es-CO', {
       timeZone: 'America/Bogota', day: 'numeric', month: 'short', year: 'numeric'
     })
+    const editBtn = (canEdit || (USER_ROLE === 'employee' && r.owner_id === USER_ID))
+      ? `<button onclick="abrirRecursoEditar('${r.id}')" title="Editar" style="background:none;border:none;color:var(--text-muted);font-size:15px;cursor:pointer;padding:4px 6px;flex-shrink:0;opacity:.7" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✏️</button>`
+      : ''
     return `<div class="script-card" style="display:flex;align-items:center;gap:14px;padding:12px 16px">
       <div style="font-size:22px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -9348,8 +9448,142 @@ function renderRecursosList() {
           <span>${fecha}</span>
         </div>
       </div>
+      ${editBtn}
     </div>`
   }).join('')
+}
+
+// ── Formulario crear / editar ────────────────────────────────────────────────
+
+let _recursoEditId = null // null = modo INSERT, string = modo UPDATE
+
+function _mostrarBtnNuevoRecurso() {
+  if (USER_ROLE === 'admin' || USER_ROLE === 'employee') {
+    const btn = document.getElementById('btn-nuevo-recurso')
+    if (btn) btn.style.display = 'block'
+  }
+}
+
+function _resetRecursoForm() {
+  document.getElementById('rec-titulo').value = ''
+  document.getElementById('rec-tipo').value = 'curso'
+  document.getElementById('rec-estado').value = 'vivo'
+  document.getElementById('rec-nivel').value = ''
+  ;['admin','employee','family','cliente','estudiante'].forEach(r => {
+    const cb = document.getElementById('vp-' + r)
+    if (cb) cb.checked = false
+  })
+  document.getElementById('rec-contenido').value = ''
+  document.getElementById('rec-sensible').value = ''
+  const sensWrap = document.getElementById('rec-sensible-wrap')
+  if (sensWrap) sensWrap.style.display = USER_ROLE === 'admin' ? 'block' : 'none'
+}
+
+function abrirRecursoNuevo() {
+  _recursoEditId = null
+  _resetRecursoForm()
+  document.getElementById('recurso-modal-title').textContent = 'Nuevo recurso'
+  document.getElementById('recurso-modal').style.display = 'block'
+}
+
+async function abrirRecursoEditar(id) {
+  _recursoEditId = id
+  _resetRecursoForm()
+  document.getElementById('recurso-modal-title').textContent = 'Editar recurso'
+  document.getElementById('recurso-modal').style.display = 'block'
+
+  const { data, error } = await SB_P.from('recursos')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error || !data) { alert('No se pudo cargar el recurso.'); cerrarRecursoModal(); return }
+
+  document.getElementById('rec-titulo').value = data.titulo || ''
+  document.getElementById('rec-tipo').value = data.tipo || 'curso'
+  document.getElementById('rec-estado').value = data.estado || 'vivo'
+  document.getElementById('rec-nivel').value = data.nivel_min || ''
+  const vp = Array.isArray(data.visible_para) ? data.visible_para : []
+  ;['admin','employee','family','cliente','estudiante'].forEach(r => {
+    const cb = document.getElementById('vp-' + r)
+    if (cb) cb.checked = vp.includes(r)
+  })
+  document.getElementById('rec-contenido').value = data.contenido || ''
+
+  if (USER_ROLE === 'admin') {
+    const { data: sens } = await SB_P
+      .from('recursos_sensible')
+      .select('contenido')
+      .eq('recurso_id', id)
+      .maybeSingle()
+    document.getElementById('rec-sensible').value = sens?.contenido || ''
+  }
+}
+
+function cerrarRecursoModal() {
+  document.getElementById('recurso-modal').style.display = 'none'
+  _recursoEditId = null
+}
+
+async function guardarRecurso() {
+  const titulo = document.getElementById('rec-titulo').value.trim()
+  if (!titulo) { alert('El título es obligatorio.'); return }
+
+  const vp = ['admin','employee','family','cliente','estudiante']
+    .filter(r => document.getElementById('vp-' + r)?.checked)
+  const nivel = document.getElementById('rec-nivel').value || null
+  const sensible = USER_ROLE === 'admin'
+    ? document.getElementById('rec-sensible').value.trim()
+    : null
+
+  const payload = {
+    titulo,
+    tipo:        document.getElementById('rec-tipo').value,
+    estado:      document.getElementById('rec-estado').value,
+    nivel_min:   nivel,
+    visible_para: vp,
+    contenido:   document.getElementById('rec-contenido').value.trim() || null,
+  }
+
+  const saveBtn = document.querySelector('#recurso-modal button[onclick="guardarRecurso()"]')
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando…' }
+
+  try {
+    if (_recursoEditId) {
+      // UPDATE
+      const { error } = await SB_P.from('recursos').update(payload).eq('id', _recursoEditId)
+      if (error) throw error
+
+      if (USER_ROLE === 'admin' && sensible !== null) {
+        const { error: se } = await SB_P
+          .from('recursos_sensible')
+          .upsert({ recurso_id: _recursoEditId, contenido: sensible }, { onConflict: 'recurso_id' })
+        if (se) throw se
+      }
+    } else {
+      // INSERT
+      payload.owner_id = USER_ID
+      const { data: inserted, error } = await SB_P
+        .from('recursos')
+        .insert(payload)
+        .select('id')
+        .single()
+      if (error) throw error
+
+      if (USER_ROLE === 'admin' && sensible) {
+        const { error: se } = await SB_P
+          .from('recursos_sensible')
+          .insert({ recurso_id: inserted.id, contenido: sensible })
+        if (se) throw se
+      }
+    }
+
+    cerrarRecursoModal()
+    await loadRecursos()
+  } catch (err) {
+    alert('Error al guardar: ' + err.message)
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Guardar' }
+  }
 }
 </script>
 </body>
