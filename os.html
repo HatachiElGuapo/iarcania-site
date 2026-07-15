@@ -6924,7 +6924,7 @@ function renderScriptsCalendario(filtered){
       const isToday = new Date(y,m,d).getTime()===today.getTime()
       const items   = byDate[dateStr]||[]
       const dots    = items.map(({s,tipo})=>{
-        const c = tipo==='grab'?'#EF9F27':(CANAL_COLORS[s.canal]||'#8B6CF6')
+        const c = tipo==='grab'?'#EF9F27':(CANAL_COLORS[normMarca(s.canal)]||'#8B6CF6')
         const ic = tipo==='grab'?'📹':'🚀'
         return `<div title="${ic} ${s.title}" style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${c};cursor:pointer" onclick="openScriptDetail('${s.id}');setScriptsVista('lista')">${ic} ${s.title}</div>`
       }).join('')
@@ -6948,7 +6948,7 @@ function renderScriptsCalendario(filtered){
     ${upcoming.map(([date,items])=>items.map(({s,tipo})=>{
       const label = tipo==='grab'?'Grabación':'Publicación'
       const ic    = tipo==='grab'?'📹':'🚀'
-      const c     = CANAL_COLORS[s.canal]||'#8B6CF6'
+      const c     = CANAL_COLORS[normMarca(s.canal)]||'#8B6CF6'
       const d     = new Date(date+'T12:00:00').toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'})
       return `<div onclick="openScriptDetail('${s.id}');setScriptsVista('lista')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #1a1a1a;border-radius:8px;cursor:pointer;margin-bottom:4px">
         <span style="font-size:16px">${ic}</span>
@@ -6962,10 +6962,12 @@ function renderScriptsCalendario(filtered){
   return months.join('') + upcomingHtml
 }
 
+const normMarca = v => (v || '').toString().toLowerCase().replace(/[\s_\-]+/g, '')
+
 function renderScripts(){
   const el = document.getElementById('scripts-list')
   if(!el) return
-  const filtered = scriptsFilter === 'all' ? allScripts : allScripts.filter(s => s.canal === scriptsFilter)
+  const filtered = scriptsFilter === 'all' ? allScripts : allScripts.filter(s => normMarca(s.canal) === normMarca(scriptsFilter))
   if(scriptsVista === 'calendario'){
     el.innerHTML = renderScriptsCalendario(filtered)
     return
@@ -6983,8 +6985,9 @@ function renderScripts(){
   const STATUS_COLORS = { borrador:'var(--text-muted)', en_progreso:'#EF9F27', listo_grabar:'#5DCAA5', grabado:'#378ADD', publicado:'#8B6CF6' }
   const STATUS_LABELS = { borrador:'Borrador', en_progreso:'En progreso', listo_grabar:'Listo para grabar', grabado:'Grabado', publicado:'Publicado' }
   el.innerHTML = filtered.map(s => {
-    const cColor = CANAL_COLORS[s.canal] || '#8B6CF6'
-    const cLabel = CANAL_LABELS[s.canal] || s.canal
+    const cKey   = normMarca(s.canal)
+    const cColor = CANAL_COLORS[cKey] || '#8B6CF6'
+    const cLabel = CANAL_LABELS[cKey] || s.canal
     const stColor = STATUS_COLORS[s.status] || STATUS_COLORS.borrador
     const stLabel = STATUS_LABELS[s.status] || 'Borrador'
     const isActive = s.id === activeScriptId
@@ -7325,6 +7328,7 @@ function renderPublicar(scriptId){
   const s = allScripts.find(x => x.id === scriptId)
   if(!s) return '<div style="color:var(--text-muted);font-family:Outfit,sans-serif">Guión no encontrado</div>'
   const CANAL_COLORS = { iarcania:'#E24B4A', voidstoic:'#8B6CF6' }
+  const CANAL_LABELS = { iarcania:'IArcanIA', voidstoic:'Void Stoic' }
   const plats  = s.plataformas || []
   const pubSt  = s.pub_status  || {}
   const ST_COLOR = { pendiente:'#EF9F27', publicado:'#5DCAA5', error:'#E24B4A' }
@@ -7334,13 +7338,14 @@ function renderPublicar(scriptId){
   const iStyle = 'width:100%;background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;color:#e8e8e8;font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box'
   const tStyle = 'width:100%;background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;color:#e8e8e8;font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box;resize:vertical'
   const lStyle = 'font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block'
-  const cColor = CANAL_COLORS[s.canal] || '#8B6CF6'
+  const cColor = CANAL_COLORS[normMarca(s.canal)] || '#8B6CF6'
+  const cLabel = CANAL_LABELS[normMarca(s.canal)] || s.canal
   return `<div style="display:flex;flex-direction:column;gap:20px;max-width:680px">
     <div style="display:flex;align-items:center;gap:12px">
       <button onclick="setScriptsVista('lista')" style="padding:7px 14px;font-size:12px;font-family:Outfit,sans-serif;border:1px solid #2a2a2a;border-radius:8px;background:transparent;color:#888;cursor:pointer">← Volver</button>
       <div>
         <div style="font-size:15px;font-weight:600;color:var(--text);font-family:Outfit,sans-serif">${s.title}</div>
-        <div style="font-size:11px;color:${cColor};font-family:Outfit,sans-serif;margin-top:2px">${s.canal === 'iarcania' ? 'IArcanIA' : 'Void Stoic'}</div>
+        <div style="font-size:11px;color:${cColor};font-family:Outfit,sans-serif;margin-top:2px">${cLabel}</div>
       </div>
     </div>
 
