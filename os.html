@@ -7153,8 +7153,7 @@ function renderScripts(){
     const scriptContent = [s.title, s.hook, s.body, s.cta].filter(Boolean).join('\n\n')
     const presResultRow = (vista, label, icon) => {
       const gen = presGen?.[vista]
-      if(!gen) return ''
-      const fechaStr = presGen.generado_en ? new Date(presGen.generado_en).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) : ''
+      const fechaStr = gen && presGen.generado_en ? new Date(presGen.generado_en).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) : ''
       return `
       <div style="padding:10px 14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
@@ -7162,9 +7161,13 @@ function renderScripts(){
           ${fechaStr ? `<span style="font-size:10px;color:#5a5870;font-family:Outfit,sans-serif;margin-left:8px">${fechaStr}</span>` : ''}
         </div>
         <div style="display:flex;gap:8px">
+          ${gen ? `
           <button onclick="presInlineVer('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#a78bfa;cursor:pointer;font-family:Outfit,sans-serif">👁 Ver</button>
           <button onclick="presInlineDescargar('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:Outfit,sans-serif">⬇ Descargar</button>
           <button onclick="generarPresentacionInline('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#888;cursor:pointer;font-family:Outfit,sans-serif">↺ Regenerar</button>
+          ` : `
+          <button onclick="generarPresentacionInline('${s.id}','${vista}')" style="padding:5px 14px;font-size:11px;background:#fff;border:none;border-radius:6px;color:#000;cursor:pointer;font-family:Outfit,sans-serif;font-weight:600">✦ Generar</button>
+          `}
         </div>
       </div>`
     }
@@ -7195,8 +7198,8 @@ function renderScripts(){
       ${presResultRow('presentador', 'Vista presentador', '📋')}
       ${presResultRow('audiencia', 'Vista audiencia', '👥')}
       <button id="pres-inline-btn-${s.id}" onclick="generarPresentacionInline('${s.id}')"
-        style="padding:10px 20px;border-radius:6px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">
-        🎨 ${presGen ? 'Regenerar ambas' : 'Generar presentaciones'}
+        style="padding:7px 16px;border-radius:6px;background:transparent;color:#555;border:1px solid #333;font-family:Outfit,sans-serif;font-size:12px;cursor:pointer;align-self:flex-start">
+        🎨 Generar ambas
       </button>
     </div>`
     // Modo Publicar
