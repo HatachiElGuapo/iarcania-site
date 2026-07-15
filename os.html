@@ -326,6 +326,11 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .script-card{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s}
 .script-card:hover{border-color:#2a2a2a}
 .script-card.active{background:#0e0e0e}
+/* Editor branded de Guiones */
+.sg-branded-editor{--sg-fondo:#0d0d0d;--sg-primario:#7C3AED;--sg-texto:#e8e8e8;--sg-acento:#22D3EE;--sg-surface:#1a1a1a;--sg-border:rgba(124,58,237,.22);--sg-muted:rgba(232,232,232,.45);position:relative;border-radius:10px;padding:16px;border:1px solid var(--sg-border);background:var(--sg-fondo);transition:background .3s,border-color .3s,color .3s}
+.sg-branded-editor input,.sg-branded-editor textarea,.sg-branded-editor select{background:var(--sg-surface)!important;border-color:var(--sg-border)!important;color:var(--sg-texto)!important}
+.sg-branded-editor input:focus,.sg-branded-editor textarea:focus,.sg-branded-editor select:focus{border-color:var(--sg-primario)!important;outline:none}
+.sg-brand-logo{position:absolute;top:12px;right:12px;max-height:26px;max-width:88px;opacity:.55;object-fit:contain;pointer-events:none;z-index:1}
 .script-editor-field{width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;resize:vertical;outline:none;min-height:80px;box-sizing:border-box}
 .script-editor-field:focus{border-color:rgba(155,114,240,0.5)}
 @keyframes dotpulse{0%,100%{opacity:.3}50%{opacity:1}}
@@ -1956,6 +1961,7 @@ let allBirthdays = []
 let allClients = []
 let allBooks = []
 let allScripts = []
+let allBrands  = []
 let activeBookId = null
 let activeBookTab = 'capitulos'
 let expandedChapters = {}
@@ -6495,14 +6501,81 @@ function filterGuionesDash(canal, btn){
 }
 
 async function loadScripts(){
-  const { data } = await SB_P.from('scripts').select('*').order('created_at',{ascending:false})
-  allScripts = data || []
-  // Restaurar presentaciones guardadas en Supabase
+  const [scriptsRes, brandsRes] = await Promise.all([
+    SB_P.from('scripts').select('*').order('created_at',{ascending:false}),
+    SB_P.from('brands').select('*').order('nombre'),
+  ])
+  allScripts = scriptsRes.data || []
+  allBrands  = brandsRes.data  || []
   allScripts.forEach(s => { if(s.pres_data) _scriptGen[s.id] = s.pres_data })
   renderScripts()
 }
 
 async function loadGuionDelDia(){ await loadProyectoDia() }
+
+// ── Branding dinámico del editor de Guiones ───────────────────
+const _sgLoadedFonts = new Set()
+function _sgEnsureFont(family) {
+  if (!family || _sgLoadedFonts.has(family)) return
+  _sgLoadedFonts.add(family)
+  const lk = document.createElement('link')
+  lk.rel  = 'stylesheet'
+  lk.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@300;400;500;600;700&display=swap`
+  document.head.appendChild(lk)
+}
+function _sgIsDark(hex) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return true
+  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
+  return 0.299*r + 0.587*g + 0.114*b < 0.5
+}
+function _sgLighten(hex, amt) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return '#1a1a1a'
+  return '#' + ['1','3','5'].map(i => Math.min(255, parseInt(hex.slice(+i,+i+2),16) + Math.round(255*amt)).toString(16).padStart(2,'0')).join('')
+}
+function _sgDarken(hex, amt) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return '#e0e0e0'
+  return '#' + ['1','3','5'].map(i => Math.max(0, parseInt(hex.slice(+i,+i+2),16) - Math.round(255*amt)).toString(16).padStart(2,'0')).join('')
+}
+function _sgRgba(hex, a) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return `rgba(120,120,120,${a})`
+  return `rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`
+}
+function _sgBrandForScript(s) {
+  if (s.brand_id) return allBrands.find(b => b.id === s.brand_id) || null
+  const canal = (s.canal || '').toLowerCase().replace(/\s/g,'')
+  return allBrands.find(b => (b.nombre||'').toLowerCase().replace(/\s/g,'') === canal) || null
+}
+function applyScriptBranding(scriptId) {
+  const el = document.getElementById('sg-editor-' + scriptId)
+  if (!el) return
+  const s = allScripts.find(x => x.id === scriptId)
+  const b = s ? _sgBrandForScript(s) : null
+  const c = b?.colores || {}
+  const fondo  = c.fondo    || '#0d0d0d'
+  const prim   = c.primario || '#7C3AED'
+  const texto  = c.texto    || '#e8e8e8'
+  const acento = c.acento   || '#22D3EE'
+  const dark   = _sgIsDark(fondo)
+  const surface = dark ? _sgLighten(fondo, 0.07) : _sgDarken(fondo, 0.07)
+  el.style.setProperty('--sg-fondo',    fondo)
+  el.style.setProperty('--sg-primario', prim)
+  el.style.setProperty('--sg-texto',    texto)
+  el.style.setProperty('--sg-acento',   acento)
+  el.style.setProperty('--sg-surface',  surface)
+  el.style.setProperty('--sg-border',   _sgRgba(prim, 0.22))
+  el.style.setProperty('--sg-muted',    _sgRgba(texto, 0.45))
+  el.style.background  = fondo
+  el.style.borderColor = _sgRgba(prim, 0.18)
+  if (b?.tipografia) {
+    _sgEnsureFont(b.tipografia)
+    el.style.fontFamily = `'${b.tipografia}', sans-serif`
+  }
+  const logoEl = el.querySelector('.sg-brand-logo')
+  if (logoEl) {
+    if (b?.logo_url) { logoEl.src = b.logo_url; logoEl.style.display = '' }
+    else logoEl.style.display = 'none'
+  }
+}
 
 async function loadWorkNotes(canal){
   const { data } = await SB_P.from('work_notes')
@@ -7013,9 +7086,9 @@ function renderScripts(){
     const libreText  = _scriptLibre[s.id] !== undefined ? _scriptLibre[s.id] : [b1,b2,b3,b4].filter(Boolean).join('\n\n')
     const iaModo     = _scriptModo[s.id] || (s.canal==='voidstoic' ? 'camara' : 'pantalla')
     const iaInputs   = _scriptInputs[s.id] || {}
-    const iStyle = 'width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:9px 12px;color:#e8e8e8;font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box'
-    const tStyle = 'width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:9px 12px;color:#e8e8e8;font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box;resize:vertical'
-    const lStyle = 'font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block'
+    const iStyle = 'width:100%;background:var(--sg-surface,#161616);border:1px solid var(--sg-border,#2a2a2a);border-radius:6px;padding:9px 12px;color:var(--sg-texto,#e8e8e8);font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box'
+    const tStyle = 'width:100%;background:var(--sg-surface,#161616);border:1px solid var(--sg-border,#2a2a2a);border-radius:6px;padding:9px 12px;color:var(--sg-texto,#e8e8e8);font-family:Outfit,sans-serif;font-size:13px;outline:none;box-sizing:border-box;resize:vertical'
+    const lStyle = 'font-size:11px;font-weight:600;color:var(--sg-muted,#888);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block'
     const mBtnA  = 'padding:7px 14px;border-radius:6px;font-family:Outfit,sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid #444;background:#1e1e1e;color:#e8e8e8'
     const mBtnI  = 'padding:7px 14px;border-radius:6px;font-family:Outfit,sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid #2a2a2a;background:transparent;color:#888'
     const tBtnA  = 'padding:6px 14px;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #444;background:#1e1e1e;color:#e8e8e8'
@@ -7175,7 +7248,7 @@ function renderScripts(){
       <button onclick="savePublicacion('${s.id}')" style="padding:9px 20px;border-radius:8px;background:#fff;color:#000;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">Guardar publicación</button>
     </div>`
     const editorContent  = editorModo === 'libre' ? libreHTML : editorModo === 'ia' ? iaHTML : editorModo === 'presentacion' ? presHTML : editorModo === 'publicar' ? publicarHTML : bloquesHTML
-    const scriptBlockUI  = `<div>${toggleBar}${editorContent}</div>`
+    const scriptBlockUI  = `<div id="sg-editor-${s.id}" class="sg-branded-editor"><img class="sg-brand-logo" src="" alt="" style="display:none">${toggleBar}${editorContent}</div>`
     return `<div class="script-card${isActive?' active':''}" style="border-left-color:${cColor}">
       <div onclick="openScriptDetail('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
         <div style="flex:1;min-width:0">
@@ -7222,6 +7295,7 @@ function renderScripts(){
       </div>` : ''}
     </div>`
   }).join('')
+  if (activeScriptId) requestAnimationFrame(() => applyScriptBranding(activeScriptId))
 }
 
 function openScriptDetail(scriptId){
