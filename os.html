@@ -7255,7 +7255,7 @@ function renderScripts(){
     return `<div class="script-card${isActive?' active':''}" style="border-left-color:${cColor}">
       <div onclick="openScriptDetail('${s.id}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${s.title}</div>
+          <input id="se-title-${s.id}" value="${(s.title||'').replace(/"/g,'&quot;')}" onclick="event.stopPropagation()" style="font-size:14px;font-weight:600;color:var(--text);background:transparent;border:none;border-bottom:1px solid transparent;outline:none;width:100%;font-family:Outfit,sans-serif;padding:0" onfocus="this.style.borderBottomColor='var(--border)'" onblur="this.style.borderBottomColor='transparent'">
           <div style="font-size:11px;margin-top:4px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span style="color:${cColor};font-weight:600">${cLabel}</span>
             <span style="color:${stColor}">${stLabel}</span>
@@ -7332,6 +7332,7 @@ async function saveScript(scriptId){
   const bl = _scriptBloques[scriptId] || {}
   const fechaVal = document.getElementById('se-fecha-'+scriptId)?.value || ''
   const data = {
+    title:           document.getElementById('se-title-'+scriptId)?.value?.trim() || '',
     hook:            bl.b1 || '',
     body:            [bl.b2, bl.b3].filter(Boolean).join('\n\n'),
     cta:             bl.b4 || '',
