@@ -2153,6 +2153,11 @@ function applyRoleRestrictions(role) {
     if (el) el.style.display = 'none'
   })
 
+  if (role === 'admin' || role === 'employee') {
+    const btnNuevo = document.getElementById('btn-nuevo-recurso')
+    if (btnNuevo) btnNuevo.style.display = 'block'
+  }
+
   if (role === 'admin') {
     // admin ve todo — sin restricciones
   } else if (role === 'employee') {
@@ -9383,7 +9388,6 @@ async function loadRecursos() {
   }
 
   _recursos = data || []
-  _mostrarBtnNuevoRecurso()
   renderRecursosFiltros()
   renderRecursosList()
 
