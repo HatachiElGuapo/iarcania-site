@@ -7679,6 +7679,8 @@ async function generarPresentacionInline(scriptId, vista = null){
   if(loadTxt) loadTxt.textContent = spinnerMsg
 
   const brand = allBrands.find(b => (b.nombre||'') === (s.canal||'iarcania')) || allBrands.find(b => b.nombre === 'iarcania') || {}
+  console.log('[brand-debug] s.canal=%s | brand.nombre=%s | colores=%s | config_keys=%s',
+    s.canal, brand.nombre, JSON.stringify(brand.colores), Object.keys(brand.config||{}).join(','))
   const callAPI = (tipo) => fetch('/api/generar-presentacion', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
