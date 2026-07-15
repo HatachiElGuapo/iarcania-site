@@ -56,21 +56,27 @@ function buildHead(brand, title = 'TITULO') {
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:'${fontCuerpo}',system-ui,sans-serif;background:${bodyBg};color:${bodyColor};line-height:1.6;overflow-x:hidden;position:relative}
+body{font-family:'${fontCuerpo}',system-ui,sans-serif;background:${bodyBg}!important;color:${bodyColor}!important;line-height:1.6;overflow-x:hidden;position:relative}
 ${noiseRule}
 .orb{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;opacity:0.15}
-.orb-1{width:500px;height:500px;background:${orb1};top:-150px;right:-80px}
-.orb-2{width:350px;height:350px;background:${orb2};bottom:5%;left:-80px}
+.orb-1{width:500px;height:500px;background:${orb1}!important;top:-150px;right:-80px}
+.orb-2{width:350px;height:350px;background:${orb2}!important;bottom:5%;left:-80px}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:${bodyBg}}::-webkit-scrollbar-thumb{background:${scrollbar};border-radius:3px}
 .page{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:64px 56px 80px}
-.section-label{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:${labelColor};margin-bottom:18px}
-.section-label::before{content:'';display:block;width:24px;height:1px;background:${labelColor}}
-h1,h2{font-family:'${fontTitulo}',Georgia,serif;letter-spacing:-0.3px;color:${bodyColor}}
-.gradient-text{background:${gradText};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.card{background:${cardBg};border:1px solid ${cardBorder};border-radius:16px;padding:28px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:${cardTop}}
-.sep{height:1px;background:${sep};border:none;margin:48px 0}
-.sep-purple{height:1px;background:${sep2};border:none}
+.section-label{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:${labelColor}!important;margin-bottom:18px}
+.section-label::before{content:'';display:block;width:24px;height:1px;background:${labelColor}!important}
+h1,h2{font-family:'${fontTitulo}',Georgia,serif;letter-spacing:-0.3px;color:${bodyColor}!important}
+h3,h4,h5,h6,p,li,span,td,th{color:inherit}
+.gradient-text{background:${gradText}!important;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.card{background:${cardBg}!important;border:1px solid ${cardBorder}!important;border-radius:16px;padding:28px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:${cardTop}!important}
+.sep{height:1px;background:${sep}!important;border:none;margin:48px 0}
+.sep-purple{height:1px;background:${sep2}!important;border:none}
+/* Override cualquier color inline que el modelo haya generado */
+[style*="background:#090910"],[style*="background: #090910"]{background:${bodyBg}!important}
+[style*="background:#13131f"],[style*="background: #13131f"]{background:${cardBg}!important}
+[style*="color:#f1f0f7"],[style*="color: #f1f0f7"]{color:${bodyColor}!important}
+[style*="color:#7c3aed"],[style*="color: #7c3aed"]{color:${primario}!important}
 </style>`
 }
 
