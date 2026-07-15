@@ -2138,7 +2138,7 @@ async function loadCurrentUserSlug() {
     .from('users')
     .select('id, name')
     .neq('id', USER_ID)
-    .single()
+    .maybeSingle()
   if (partner) {
     PARTNER_ID = partner.id
     PARTNER_NAME = partner.name
@@ -7936,9 +7936,9 @@ async function loadClientesDashboard(){
   try {
     const [r1, r2, r3, r4] = await Promise.all([
       SB_P.from('clients').select('*').eq('user_id', USER_ID).order('created_at',{ascending:false}),
-      SB_P.from('projects').select('*').eq('user_id', USER_ID),
-      SB_P.from('payments').select('*').eq('user_id', USER_ID).order('paid_date',{ascending:false}),
-      SB_P.from('invoices').select('*').eq('user_id', USER_ID).order('due_date',{ascending:true})
+      SB_P.from('projects').select('*'),
+      SB_P.from('payments').select('*').order('date',{ascending:false}),
+      SB_P.from('invoices').select('*').order('due_date',{ascending:true})
     ])
 
     allClientsP  = r1.data || []
