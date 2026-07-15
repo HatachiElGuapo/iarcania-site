@@ -7164,6 +7164,7 @@ function renderScripts(){
         <div style="display:flex;gap:8px">
           <button onclick="presInlineVer('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:transparent;border:1px solid rgba(124,58,237,0.4);border-radius:6px;color:#a78bfa;cursor:pointer;font-family:Outfit,sans-serif">👁 Ver</button>
           <button onclick="presInlineDescargar('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:6px;color:#fff;cursor:pointer;font-family:Outfit,sans-serif">⬇ Descargar</button>
+          <button onclick="generarPresentacionInline('${s.id}','${vista}')" style="padding:5px 12px;font-size:11px;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#888;cursor:pointer;font-family:Outfit,sans-serif">↺ Regenerar</button>
         </div>
       </div>`
     }
@@ -7189,7 +7190,7 @@ function renderScripts(){
         </div>
       </div>
       <div id="pres-inline-load-${s.id}" style="display:none;font-size:12px;color:#888;font-family:Outfit,sans-serif;align-items:center;gap:6px">
-        <span class="ai-dot-anim">●</span>&nbsp;Generando ambas presentaciones...
+        <span class="ai-dot-anim">●</span>&nbsp;<span id="pres-inline-load-txt-${s.id}">Generando ambas presentaciones...</span>
       </div>
       ${presResultRow('presentador', 'Vista presentador', '📋')}
       ${presResultRow('audiencia', 'Vista audiencia', '👥')}
@@ -7655,7 +7656,8 @@ async function generarPresentacion(){
 }
 
 // ── Presentación inline (dentro del tab del guion) ────────────
-async function generarPresentacionInline(scriptId){
+// vista: null = ambas, 'presentador' = solo lectura, 'audiencia' = solo navegable
+async function generarPresentacionInline(scriptId, vista = null){
   const s = allScripts.find(x => x.id === scriptId)
   if(!s){ showToast('❌ Guión no encontrado'); return }
   const idea    = [s.title, s.hook, s.body, s.cta].filter(Boolean).join('\n\n')
@@ -7665,8 +7667,13 @@ async function generarPresentacionInline(scriptId){
 
   const btn  = document.getElementById('pres-inline-btn-'+scriptId)
   const load = document.getElementById('pres-inline-load-'+scriptId)
+  const loadTxt = document.getElementById('pres-inline-load-txt-'+scriptId)
+  const spinnerMsg = vista === 'presentador' ? 'Regenerando vista presentador...'
+                   : vista === 'audiencia'   ? 'Regenerando vista audiencia...'
+                   : 'Generando ambas presentaciones...'
   if(btn)  { btn.disabled = true; btn.textContent = 'Generando...' }
   if(load) load.style.display = 'flex'
+  if(loadTxt) loadTxt.textContent = spinnerMsg
 
   const callAPI = (tipo) => fetch('/api/generar-presentacion', {
     method: 'POST',
@@ -7675,19 +7682,31 @@ async function generarPresentacionInline(scriptId){
   }).then(r => r.json().then(d => { if(!r.ok) throw new Error(d.error || 'Error del servidor'); return d }))
 
   try {
-    const [dataPres, dataAud] = await Promise.all([callAPI('guion'), callAPI('audiencia')])
     const ts = new Date().toISOString().slice(0,10)
-    const presData = {
-      presentador: { html: dataPres.html, filename: `presentador-${canal}-${ts}.html` },
-      audiencia:   { html: dataAud.html,  filename: `audiencia-${canal}-${ts}.html`   },
-      generado_en: new Date().toISOString()
+    // Base: preservar pres_data existente para no perder la vista que no se regenera
+    const existing = _scriptGen[scriptId] || s.pres_data || {}
+    let presData = { ...existing, generado_en: new Date().toISOString() }
+
+    if(vista === 'presentador'){
+      const data = await callAPI('guion')
+      presData.presentador = { html: data.html, filename: `presentador-${canal}-${ts}.html` }
+    } else if(vista === 'audiencia'){
+      const data = await callAPI('audiencia')
+      presData.audiencia = { html: data.html, filename: `audiencia-${canal}-${ts}.html` }
+    } else {
+      const [dataPres, dataAud] = await Promise.all([callAPI('guion'), callAPI('audiencia')])
+      presData.presentador = { html: dataPres.html, filename: `presentador-${canal}-${ts}.html` }
+      presData.audiencia   = { html: dataAud.html,  filename: `audiencia-${canal}-${ts}.html`   }
     }
+
     _scriptGen[scriptId] = presData
-    // Persistir en Supabase para sobrevivir recargas
     await SB_P.from('scripts').update({ pres_data: presData }).eq('id', scriptId)
     const sc = allScripts.find(x => x.id === scriptId)
     if(sc) sc.pres_data = presData
-    showToast('✨ Ambas presentaciones listas')
+    const toastMsg = vista === 'presentador' ? '✨ Vista presentador regenerada'
+                   : vista === 'audiencia'   ? '✨ Vista audiencia regenerada'
+                   : '✨ Ambas presentaciones listas'
+    showToast(toastMsg)
     renderScripts()
   } catch(e){
     showToast('❌ Error: ' + (e.message || 'Error desconocido'))
