@@ -222,6 +222,16 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .habito-toggle{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0}
 .habito-toggle:hover{border-color:var(--gold-dim);color:var(--gold)}
 .habito-group{margin-bottom:1.25rem}
+.habito-item.panel-open{border-radius:8px 8px 0 0}
+.habito-progress-panel{background:var(--bg-card);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:12px 14px}
+.hp-grid{display:grid;gap:2px}
+.hp-cell{border-radius:2px;aspect-ratio:1}
+.hp-cell.done{background:var(--hp-color,#f97316)}
+.hp-cell.fail{background:#c0392b}
+.hp-cell.gray{background:var(--border)}
+.hp-cell.empty{background:transparent;pointer-events:none}
+.hp-list-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.hp-list-row:last-child{border-bottom:none}
 .tl-task-name{font-size:13px;flex:1;color:var(--text)}
 .tl-task-check{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px}
 .tl-add-btn{font-size:11px;color:var(--text-muted);background:transparent;border:1px dashed var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;width:100%;text-align:left;margin-top:2px}
@@ -4638,15 +4648,271 @@ function alertarTareasIncompletas(){
 // --- HÁBITOS RECURRENTES ---
 function habitoRecurrenteHTML(a){
   const color = CAT_COLORS[a.category] || '#555'
-  return `<div class="habito-item" style="border-left-color:${color}">
-    <div style="flex:1">
+  return `<div id="hw-${a.id}">
+  <div class="habito-item" style="border-left-color:${color}">
+    <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
       <div class="habito-name">${a.name}</div>
       <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
     </div>
     <button class="btn-add" onclick="convertirEnTarea('${a.id}')" style="font-size:11px;padding:5px 10px;color:#9b72f0;border-color:rgba(155,114,240,0.3)">→ Crear tarea</button>
     <button class="habito-toggle" onclick="openActivityModal('${a.id}')">✏️</button>
+  </div>
+  <div id="hp-${a.id}" style="display:none"></div>
   </div>`
 }
+
+// ─── Progreso por hábito (inline panel) ──────────────────────────────────────
+
+function toggleHabitoProgress(activityId){
+  if(openProgressId === activityId){
+    openProgressId = null
+    const panel = document.getElementById('hp-'+activityId)
+    if(panel){ panel.style.display='none'; panel.innerHTML='' }
+    const item = panel?.previousElementSibling
+    if(item) item.classList.remove('panel-open')
+    return
+  }
+  if(openProgressId){
+    const prev = document.getElementById('hp-'+openProgressId)
+    if(prev){ prev.style.display='none'; prev.innerHTML='' }
+    const prevItem = prev?.previousElementSibling
+    if(prevItem) prevItem.classList.remove('panel-open')
+  }
+  openProgressId = activityId
+  const panel = document.getElementById('hp-'+activityId)
+  if(!panel) return
+  panel.style.display = 'block'
+  panel.innerHTML = '<div style="padding:10px;text-align:center;font-size:12px;color:var(--text-muted)">Cargando historial…</div>'
+  const item = panel.previousElementSibling
+  if(item) item.classList.add('panel-open')
+  renderHabitoProgressPanel(activityId)
+}
+
+async function renderHabitoProgressPanel(activityId, customAnchor){
+  const panel = document.getElementById('hp-'+activityId)
+  if(!panel) return
+  const act = allActivities.find(a => a.id === activityId)
+  if(!act) return
+
+  const freq = act.frequency
+  const habitColor = act.color || '#f97316'
+
+  const { data: logs } = await SB_P.from('activity_logs')
+    .select('date')
+    .eq('activity_id', activityId)
+    .eq('user_id', USER_ID)
+    .order('date')
+
+  const allLogDates = (logs||[]).map(l => l.date).sort()
+  const logSet = new Set(allLogDates)
+  const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
+
+  if(customAnchor) progressAnchorDates[activityId] = customAnchor
+  if(!progressAnchorDates[activityId]){
+    const d = new Date(TODAY); d.setMonth(d.getMonth()-3)
+    progressAnchorDates[activityId] = d.toISOString().slice(0,10)
+  }
+  const anchorDate = progressAnchorDates[activityId]
+
+  let gridHTML = '', listHTML = ''
+
+  if(freq === 'diaria' || freq === 'recurrente'){
+    const cells = _hpDayCells(anchorDate, firstLogDate, logSet, freq)
+    gridHTML = _hpDayGrid(cells, habitColor)
+    listHTML = _hpDayList(cells, habitColor, firstLogDate)
+  } else if(freq === 'semanal'){
+    const cells = _hpWeekCells(anchorDate, firstLogDate, logSet)
+    gridHTML = _hpWeekGrid(cells, habitColor)
+    listHTML = _hpWeekList(cells, habitColor)
+  } else if(freq === 'mensual'){
+    const cells = _hpMonthCells(anchorDate, firstLogDate, logSet)
+    gridHTML = _hpMonthGrid(cells, habitColor)
+    listHTML = _hpMonthList(cells, habitColor)
+  }
+
+  panel.innerHTML = `<div class="habito-progress-panel" style="--hp-color:${habitColor}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Historial · ${freq}</span>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)">
+        desde <input type="date" value="${anchorDate}"
+          onchange="renderHabitoProgressPanel('${activityId}',this.value)"
+          style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:11px;font-family:'Outfit',sans-serif">
+      </label>
+    </div>
+    ${gridHTML}
+    <div style="margin-top:10px">${listHTML}</div>
+  </div>`
+}
+
+function _hpDayCells(anchorDate, firstLogDate, logSet, freq){
+  const cells = []
+  const d = new Date(anchorDate), end = new Date(TODAY)
+  while(d <= end){
+    const ds = d.toISOString().slice(0,10)
+    const hasLog = logSet.has(ds)
+    const before = ds < firstLogDate
+    let status
+    if(before) status = 'gray'
+    else if(hasLog) status = 'done'
+    else if(freq === 'recurrente') status = 'gray'
+    else if(ds < TODAY) status = 'fail'
+    else status = 'gray'
+    cells.push({ds, status})
+    d.setDate(d.getDate()+1)
+  }
+  return cells
+}
+
+function _hpDayGrid(cells, habitColor){
+  const padded = []
+  if(cells.length){
+    const first = new Date(cells[0].ds)
+    const dow = first.getDay()===0 ? 6 : first.getDay()-1
+    for(let i=0;i<dow;i++) padded.push({ds:'',status:'empty'})
+  }
+  padded.push(...cells)
+  while(padded.length%7!==0) padded.push({ds:'',status:'empty'})
+  const labels = ['L','M','X','J','V','S','D']
+  return `<div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:2px">
+      ${labels.map(l=>`<div style="font-size:8px;color:var(--text-muted);text-align:center">${l}</div>`).join('')}
+    </div>
+    <div class="hp-grid" style="grid-template-columns:repeat(7,1fr)">
+      ${padded.map(c=>`<div class="hp-cell ${c.status}" title="${c.ds}"></div>`).join('')}
+    </div>
+  </div>`
+}
+
+function _hpDayList(cells, habitColor, firstLogDate){
+  const weekMap = {}
+  for(const c of cells){
+    if(!c.ds || c.ds < firstLogDate) continue
+    const d = new Date(c.ds)
+    const dow = d.getDay()===0?6:d.getDay()-1
+    const mon = new Date(d); mon.setDate(d.getDate()-dow)
+    const wk = mon.toISOString().slice(0,10)
+    if(!weekMap[wk]) weekMap[wk]=[]
+    weekMap[wk].push(c)
+  }
+  const weeks = Object.keys(weekMap).sort().reverse().slice(0,4)
+  if(!weeks.length) return '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:6px 0">Sin datos</div>'
+  return weeks.map(wk => {
+    const wCells = weekMap[wk]
+    const done = wCells.filter(c=>c.status==='done').length
+    const total = wCells.length
+    const d = new Date(wk), sun = new Date(d); sun.setDate(d.getDate()+6)
+    const fmt = dt => `${dt.getDate()}/${dt.getMonth()+1}`
+    const color = done===0 ? '#c0392b' : habitColor
+    return `<div class="hp-list-row">
+      <span style="color:var(--text-muted)">${fmt(d)} – ${fmt(sun)}</span>
+      <span style="font-weight:500;color:${color}">${done}/${total} días</span>
+    </div>`
+  }).join('')
+}
+
+function _hpWeekCells(anchorDate, firstLogDate, logSet){
+  const cells = []
+  const d = new Date(anchorDate)
+  const dow = d.getDay()===0?6:d.getDay()-1
+  d.setDate(d.getDate()-dow)
+  const today = new Date(TODAY)
+  while(d<=today){
+    const monStr = d.toISOString().slice(0,10)
+    const sun = new Date(d); sun.setDate(d.getDate()+6)
+    const sunStr = sun.toISOString().slice(0,10)
+    let hasLog = false
+    for(const ld of logSet){ if(ld>=monStr&&ld<=sunStr){hasLog=true;break} }
+    const passed = sunStr < TODAY
+    const before = sunStr < firstLogDate
+    let status
+    if(before) status='gray'
+    else if(hasLog) status='done'
+    else if(passed) status='fail'
+    else status='gray'
+    cells.push({monStr,sunStr,status})
+    d.setDate(d.getDate()+7)
+  }
+  return cells
+}
+
+function _hpWeekGrid(cells, habitColor){
+  const cols = Math.min(cells.length, 14)
+  const html = cells.map(c => {
+    const label = new Date(c.monStr).getDate()
+    const txtColor = c.status==='done'?'#000':c.status==='fail'?'#fff':'var(--text-muted)'
+    return `<div class="hp-cell ${c.status}" style="aspect-ratio:unset;height:26px;display:flex;align-items:center;justify-content:center;font-size:9px;color:${txtColor}" title="${c.monStr} – ${c.sunStr}">${label}</div>`
+  }).join('')
+  return `<div class="hp-grid" style="grid-template-columns:repeat(${cols},1fr)">${html}</div>`
+}
+
+function _hpWeekList(cells, habitColor){
+  const recent = [...cells].reverse().slice(0,4)
+  return recent.map(c => {
+    const d = new Date(c.monStr), sun = new Date(c.sunStr)
+    const fmt = dt => `${dt.getDate()}/${dt.getMonth()+1}`
+    const isCurrent = c.sunStr >= TODAY
+    let badge, color
+    if(c.status==='done'){badge='✓ cumplido';color=habitColor}
+    else if(c.status==='fail'){badge='✗ no hecho';color='#c0392b'}
+    else{badge=isCurrent?'En curso':'—';color='var(--text-muted)'}
+    return `<div class="hp-list-row">
+      <span style="color:var(--text-muted)">Sem ${fmt(d)} – ${fmt(sun)}</span>
+      <span style="font-weight:500;color:${color}">${badge}</span>
+    </div>`
+  }).join('')
+}
+
+function _hpMonthCells(anchorDate, firstLogDate, logSet){
+  const cells = []
+  const d = new Date(anchorDate.slice(0,7)+'-01')
+  const today = new Date(TODAY)
+  while(d<=today){
+    const monthStr = d.toISOString().slice(0,7)
+    const last = new Date(d.getFullYear(), d.getMonth()+1, 0)
+    const lastStr = last.toISOString().slice(0,10)
+    let hasLog = false
+    for(const ld of logSet){ if(ld.startsWith(monthStr)){hasLog=true;break} }
+    const passed = lastStr < TODAY
+    const before = lastStr < firstLogDate
+    let status
+    if(before) status='gray'
+    else if(hasLog) status='done'
+    else if(passed) status='fail'
+    else status='gray'
+    cells.push({monthStr,lastStr,status})
+    d.setMonth(d.getMonth()+1)
+  }
+  return cells
+}
+
+function _hpMonthGrid(cells, habitColor){
+  const MN = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const html = cells.map(c => {
+    const m = parseInt(c.monthStr.slice(5,7))-1
+    const txtColor = c.status==='done'?'#000':c.status==='fail'?'#fff':'var(--text-muted)'
+    return `<div class="hp-cell ${c.status}" style="aspect-ratio:unset;height:36px;display:flex;align-items:center;justify-content:center;font-size:10px;color:${txtColor}" title="${c.monthStr}">${MN[m]}</div>`
+  }).join('')
+  return `<div class="hp-grid" style="grid-template-columns:repeat(${cells.length},1fr)">${html}</div>`
+}
+
+function _hpMonthList(cells, habitColor){
+  const MN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  return [...cells].reverse().slice(0,3).map(c => {
+    const m = parseInt(c.monthStr.slice(5,7))-1
+    const y = c.monthStr.slice(0,4)
+    const isCurrent = c.lastStr >= TODAY
+    let badge, color
+    if(c.status==='done'){badge='✓ cumplido';color=habitColor}
+    else if(c.status==='fail'){badge='✗ no hecho';color='#c0392b'}
+    else{badge=isCurrent?'En curso':'—';color='var(--text-muted)'}
+    return `<div class="hp-list-row">
+      <span style="color:var(--text-muted)">${MN[m]} ${y}</span>
+      <span style="font-weight:500;color:${color}">${badge}</span>
+    </div>`
+  }).join('')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function convertirEnTarea(activityId){
   const act = allActivities.find(a => a.id === activityId)
@@ -5320,6 +5586,8 @@ const MEALS = [
 ]
 let weeklyLogs = {}
 let monthlyLogs = {}
+let openProgressId = null
+let progressAnchorDates = {}
 let showInactive = false
 let currentCatFilter = 'all'
 let currentFreqFilter = 'diaria'
@@ -5808,16 +6076,19 @@ function renderHabitos(){
     el.innerHTML = toShow.length
       ? toShow.map(a => habitoRecurrenteHTML(a)).join('')
       : '<div class="empty-state"><div class="empty-icon">🔗</div>No hay hábitos recurrentes. Agrega con "+ Nueva" y elige frecuencia Recurrente.</div>'
+    _reopenProgressPanel()
     return
   }
 
   if(currentFreqFilter === 'semanal'){
     el.innerHTML = toShow.map(a => habitoPeriodicoHTML(a, 'semanal')).join('')
+    _reopenProgressPanel()
     return
   }
 
   if(currentFreqFilter === 'mensual'){
     el.innerHTML = toShow.map(a => habitoPeriodicoHTML(a, 'mensual')).join('')
+    _reopenProgressPanel()
     return
   }
 
@@ -5838,10 +6109,22 @@ function renderHabitos(){
         <div style="display:flex;flex-direction:column;gap:5px">${grouped[cat].map(a => habitoHTML(a)).join('')}</div>
       </div>`
     }).join('')
+    _reopenProgressPanel()
     return
   }
 
   el.innerHTML = toShow.map(a => habitoHTML(a)).join('')
+  _reopenProgressPanel()
+}
+
+function _reopenProgressPanel(){
+  if(!openProgressId) return
+  const panel = document.getElementById('hp-'+openProgressId)
+  if(!panel) return
+  panel.style.display = 'block'
+  const item = panel.previousElementSibling
+  if(item) item.classList.add('panel-open')
+  renderHabitoProgressPanel(openProgressId)
 }
 
 function habitoHTML(a){
@@ -5854,30 +6137,36 @@ function habitoHTML(a){
     const isDone = val >= 1
     const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
     const btnBase = `font-size:15px;width:26px;height:26px;border-radius:6px;border:1px solid ${color}44;background:transparent;color:${color};cursor:pointer;font-family:'Outfit',sans-serif;line-height:1;flex-shrink:0`
-    return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+    return `<div id="hw-${a.id}">
+    <div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
       <div class="habito-check" style="${checkStyle};cursor:default">${val>0?val:''}</div>
-      <div style="flex:1">
+      <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
         <div class="habito-name">${a.name}${val>0?` <span style="font-size:11px;color:${color}">(${val}x)</span>`:''}</div>
       </div>
       <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:4px">${CAT_LABELS[a.category]||''}</span>
       <button onclick="decrementHabito('${a.id}')" style="${btnBase}" ${val===0?'disabled':''}">−</button>
       <button onclick="incrementHabito('${a.id}')" style="${btnBase}" ${val>=3?'disabled':''}">+</button>
       <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
+    </div>
+    <div id="hp-${a.id}" style="display:none"></div>
     </div>`
   }
 
   const isDone = !!habitLogs[a.id]
   const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
   const onclick = is2020 ? '' : `onclick="toggleHabito('${a.id}')"`
-  return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+  return `<div id="hw-${a.id}">
+  <div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
     <div class="habito-check" ${onclick} style="${checkStyle}${is2020?';cursor:default':''}">
       ${isDone?'✓':''}
     </div>
-    <div style="flex:1">
+    <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
       <div class="habito-name">${a.name}${is2020?' <span style="font-size:10px;color:var(--text-muted)">(auto)</span>':''}</div>
     </div>
     <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:8px">${CAT_LABELS[a.category]||''}</span>
     <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
+  </div>
+  <div id="hp-${a.id}" style="display:none"></div>
   </div>`
 }
 
@@ -5932,14 +6221,17 @@ function habitoUnicoHTML(a){
 function habitoPeriodicoHTML(a, freq){
   const color    = CAT_COLORS[a.category] || '#555'
   const relTasks = tareasDeHabito(a.name)
-  return `<div class="habito-item" style="border-left-color:${a.is_active?color:'var(--border)'}">
-    <div style="flex:1">
+  return `<div id="hw-${a.id}">
+  <div class="habito-item" style="border-left-color:${a.is_active?color:'var(--border)'}">
+    <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
       <div class="habito-name">${a.name}</div>
       <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
       ${tareasHabitoMiniHTML(relTasks)}
     </div>
     <button class="btn-add" onclick="convertirEnTarea('${a.id}')" style="font-size:11px;padding:5px 10px;color:#9b72f0;border-color:rgba(155,114,240,0.3)">→ Crear tarea</button>
     <button class="habito-toggle" onclick="openActivityModal('${a.id}')">✏️</button>
+  </div>
+  <div id="hp-${a.id}" style="display:none"></div>
   </div>`
 }
 
