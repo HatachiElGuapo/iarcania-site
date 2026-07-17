@@ -9927,8 +9927,9 @@ async function loadCitas(){
   renderTasks()
 }
 
-function _agendaSlotKey(totalMinutes){
-  const snapped = Math.round(totalMinutes/20)*20
+function _agendaSlotKey(totalMinutes, snapDir='round'){
+  const fn = snapDir==='floor' ? Math.floor : snapDir==='ceil' ? Math.ceil : Math.round
+  const snapped = fn(totalMinutes/20)*20
   const h = Math.floor(snapped/60) % 24
   const m = snapped % 60
   return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`
@@ -9945,9 +9946,9 @@ function _syncCitaConViajes(cita){
   const tBefore = cita.travel_before_minutes || 0
   const tAfter  = cita.travel_after_minutes  || 0
 
-  // Bloque de viaje de ida
+  // Bloque de viaje de ida — floor garantiza que quede ANTES del slot de la cita
   if(tBefore > 0){
-    const sk = _agendaSlotKey(citaMin - tBefore)
+    const sk = _agendaSlotKey(citaMin - tBefore, 'floor')
     if(!raw[sk]) raw[sk] = []
     if(!raw[sk].find(x => x.id === cita.id+'_ida')){
       raw[sk].push({ id: cita.id+'_ida', dur: tBefore, type: 'cita', title: '🚗 Viaje ida — '+cita.title, color: '#64748B' })
@@ -9959,9 +9960,9 @@ function _syncCitaConViajes(cita){
   if(!raw[citaSk].find(x => x.id === cita.id)){
     raw[citaSk].push({ id: cita.id, dur: durMin, type: 'cita', title: cita.title, color: '#EF9F27' })
   }
-  // Bloque de viaje de vuelta
+  // Bloque de viaje de vuelta — ceil garantiza que quede DESPUÉS del slot de la cita
   if(tAfter > 0){
-    const sk = _agendaSlotKey(citaMin + durMin)
+    const sk = _agendaSlotKey(citaMin + durMin, 'ceil')
     if(!raw[sk]) raw[sk] = []
     if(!raw[sk].find(x => x.id === cita.id+'_vuelta')){
       raw[sk].push({ id: cita.id+'_vuelta', dur: tAfter, type: 'cita', title: '🚗 Viaje vuelta — '+cita.title, color: '#64748B' })
