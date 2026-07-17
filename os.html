@@ -3191,6 +3191,27 @@ function renderAgenda(){
   for(let h=0; h<24; h++) for(let m=0; m<60; m+=AGENDA_SLOT) blocks.push(agendaFromMin(h*60+m))
   _agendaAllBlocks = blocks
 
+  // Pre-proceso: fusionar entradas consecutivas del mismo id sin rutina intermedia
+  const _absorbedKeys = new Set() // "slotKey|itemId"
+  blocks.forEach((bk, idx) => {
+    (data[bk]||[]).forEach(item => {
+      const key = bk + '|' + String(item.id)
+      if(_absorbedKeys.has(key)) return
+      let extraSlots = 0
+      let ni = idx + 1
+      while(ni < blocks.length){
+        const nbk = blocks[ni]
+        if(schedMap[nbk]) break // rutina fija, no fusionar
+        const sameNext = (data[nbk]||[]).find(x => String(x.id) === String(item.id) && x.type === item.type)
+        if(!sameNext) break
+        _absorbedKeys.add(nbk + '|' + String(item.id))
+        extraSlots++
+        ni++
+      }
+      if(extraSlots > 0) item.dur = (item.dur || AGENDA_SLOT) + extraSlots * AGENDA_SLOT
+    })
+  })
+
   let html = '<div class="agenda-timeline-wrap">'
   blocks.forEach(bk => {
     const bMin    = agendaToMin(bk)
@@ -3209,7 +3230,7 @@ function renderAgenda(){
     // IDs que tienen bloque de continuación en el slot siguiente
     const nextBk = agendaFromMin(agendaToMin(bk)+AGENDA_SLOT)
     const hasContinuation = new Set((contMap[nextBk]||[]).map(c=>c.taskId))
-    const pinned  = items.filter(x=>!autoIds.has(x.id))
+    const pinned  = items.filter(x=>!autoIds.has(x.id) && !_absorbedKeys.has(bk+'|'+String(x.id)))
     const pinnedItems = pinned.map(x => {
       if(x.type === 'habit'){
         const act = allActivities.find(a=>a.id===x.id)
