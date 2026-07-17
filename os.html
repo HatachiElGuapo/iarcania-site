@@ -1002,8 +1002,11 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="page-header">
         <div>
           <h1 class="page-title">Hábitos</h1>
-          <div class="page-sub" id="habitos-sub" onclick="document.getElementById('habitos-date-pick').showPicker?document.getElementById('habitos-date-pick').showPicker():document.getElementById('habitos-date-pick').click()" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px">Hoy <span style="font-size:10px;opacity:.5">▾</span></div>
-          <input type="date" id="habitos-date-pick" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" onchange="irAFechaHabitos(this.value)">
+          <div class="page-sub" style="position:relative;display:inline-flex;align-items:center;gap:5px;cursor:pointer">
+            <span id="habitos-sub">Hoy</span>
+            <span style="font-size:10px;opacity:.5">▾</span>
+            <input type="date" id="habitos-date-pick" onchange="irAFechaHabitos(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0;margin:0">
+          </div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-add" onclick="toggleShowAll()" id="btn-show-all">Ver inactivos</button>
@@ -6433,7 +6436,7 @@ function renderHabitosNav(){
   }
   label.textContent = text
   const subEl = document.getElementById('habitos-sub')
-  if(subEl) subEl.firstChild.textContent = text+' '
+  if(subEl) subEl.textContent = text
   const picker = document.getElementById('habitos-date-pick')
   if(picker) picker.value = selectedDate
   nextBtn.disabled = selectedDate >= TODAY
