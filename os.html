@@ -10114,8 +10114,8 @@ function renderCitas(){
       </div>
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         ${isPendiente ? `
-        <button onclick="completarCita('${c.id}')" style="padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid rgba(93,202,165,0.4);background:transparent;color:#5DCAA5;cursor:pointer;font-family:'Outfit',sans-serif">✓ Completar</button>
-        <button onclick="cancelarCita('${c.id}')" style="padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid rgba(239,159,39,0.3);background:transparent;color:#EF9F27;cursor:pointer;font-family:'Outfit',sans-serif">✗ Cancelar</button>` : ''}
+        <button onclick="completarCita('${c.id}')" style="flex:1;padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid rgba(93,202,165,0.4);background:transparent;color:#5DCAA5;cursor:pointer;font-family:'Outfit',sans-serif">✓ Completar</button>
+        <button onclick="confirmarCancelarCita('${c.id}')" style="flex:1;padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid rgba(239,159,39,0.3);background:transparent;color:#EF9F27;cursor:pointer;font-family:'Outfit',sans-serif">✗ Cancelar</button>` : ''}
         <button onclick="confirmarEliminarCita('${c.id}')" style="padding:5px 10px;font-size:12px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif">🗑️</button>
       </div>
     </div>`
@@ -10172,6 +10172,12 @@ function verCitaEnAgenda(citaId, dateKey){
     const slotEl = document.querySelector(`.agenda-slot[data-slot="${hh}:${mm}"], [data-time="${hh}:${mm}"]`)
     if(slotEl) slotEl.scrollIntoView({behavior:'smooth', block:'center'})
   }, 400)
+}
+
+function confirmarCancelarCita(id){
+  const cita = allCitas.find(c => c.id === id)
+  const nombre = cita?.title || 'esta cita'
+  showToastAction(`¿Cancelar "${nombre}"? La cita quedará guardada en tu historial como cancelada, no se borrará.`, 'Sí, cancelar', () => cancelarCita(id))
 }
 
 function confirmarEliminarCita(id){
