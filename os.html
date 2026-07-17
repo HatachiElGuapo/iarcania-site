@@ -3018,7 +3018,7 @@ function openRoutineEditModal(originalSlot){
   if(!modal) return
   document.getElementById('aedit-dur-row').style.display = 'none'
   document.getElementById('aedit-note-row').style.display = 'none'
-  document.getElementById('aedit-del-btn').style.display = 'none'
+  document.getElementById('aedit-del-btn').style.display = ''
   const overrides = getRoutineOverrides()
   _populateAgendaSlotSelect('aedit-slot', overrides[originalSlot] || originalSlot)
   modal.style.display = 'flex'
@@ -3032,6 +3032,14 @@ function closeAgendaEditModal(){
 
 function eliminarAgendaEdit(){
   if(!_agendaEditSlot || !_agendaEditId) return
+  if(_agendaEditType === 'routine'){
+    const overrides = getRoutineOverrides()
+    overrides[_agendaEditId] = '__hidden__'
+    setRoutineOverrides(overrides)
+    closeAgendaEditModal()
+    renderAgenda()
+    return
+  }
   removeAgendaTask(_agendaEditSlot, _agendaEditId)
   closeAgendaEditModal()
 }
@@ -3122,6 +3130,7 @@ function renderAgenda(){
   const schedMap = {}
   AGENDA_SCHEDULE.forEach(s => {
     const effectiveSlot = routineOverrides[s.time] || s.time
+    if(effectiveSlot === '__hidden__') return
     schedMap[effectiveSlot] = {label: s.label, originalSlot: s.time}
   })
 
