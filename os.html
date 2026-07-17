@@ -5264,6 +5264,45 @@ let _editingOccId       = null
 let _occTargetTypeId    = null
 let _selectedMood       = null
 
+async function seedEventosDefaults(){
+  const defaults = [
+    // Cultural
+    { category:'cultural', name:'Cine',           description:'Película en sala' },
+    { category:'cultural', name:'Concierto',       description:'Show en vivo — música' },
+    { category:'cultural', name:'Teatro / Stand up', description:'Obra, comedia o show en escenario' },
+    { category:'cultural', name:'Museo / Exposición', description:'Arte, ciencia o historia' },
+    // Amigos
+    { category:'amigos',   name:'Salida con amigos', description:'Plan informal con el grupo' },
+    { category:'amigos',   name:'Fiesta / Rumba',    description:'Celebración o noche de rumba' },
+    { category:'amigos',   name:'Videollamada grupal', description:'Cuando la distancia manda' },
+    // Familia
+    { category:'familia',  name:'Reunión familiar',  description:'Toda la familia junta' },
+    { category:'familia',  name:'Cena en familia',   description:'Comida especial en casa o restaurante' },
+    { category:'familia',  name:'Visita a familiares', description:'Ir a ver a alguien de la familia' },
+    // Visita / Lugar
+    { category:'visita',   name:'Restaurante nuevo',  description:'Probar un lugar por primera vez' },
+    { category:'visita',   name:'Café de trabajo',    description:'Sesión de trabajo fuera de casa' },
+    { category:'visita',   name:'Viaje / Escapada',   description:'Salir de la ciudad aunque sea un día' },
+    { category:'visita',   name:'Bar / Tertulia',     description:'Conversación tranquila con algo de tomar' },
+  ]
+  const rows = defaults.map(d => ({
+    id: 'et_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    user_id: USER_ID,
+    name: d.name,
+    category: d.category,
+    description: d.description,
+  }))
+  // Insertar uno por uno con pequeño delay para evitar colisión de ids por Date.now()
+  for(const row of rows){
+    await new Promise(r => setTimeout(r, 2))
+    row.id = 'et_' + Date.now() + '_' + Math.random().toString(36).slice(2,6)
+    await SB_P.from('event_types').insert(row)
+  }
+  await loadEventos()
+  renderEventos()
+  showToast('✅ Tipos básicos cargados')
+}
+
 async function loadEventos(){
   const { data } = await SB_P.from('event_types').select('*').eq('user_id', USER_ID).order('name')
   allEventTypes = data || []
@@ -5320,7 +5359,10 @@ function renderEventos(){
   const el = document.getElementById('eventos-list')
   if(!el) return
   if(!allEventTypes.length){
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div>Sin tipos de evento todavía. Crea el primero.</div>'
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div>
+      <div style="margin-bottom:14px">Sin tipos de evento todavía.</div>
+      <button onclick="seedEventosDefaults()" style="background:rgba(139,108,246,0.15);border:1px solid rgba(139,108,246,0.4);border-radius:8px;padding:10px 18px;color:#8B6CF6;font-size:13px;font-family:'Outfit',sans-serif;cursor:pointer">🌱 Cargar tipos básicos</button>
+    </div>`
     return
   }
   const collapsed = JSON.parse(localStorage.getItem('eventos_groups_collapsed') || '{}')
