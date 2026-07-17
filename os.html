@@ -6205,7 +6205,7 @@ function renderHabitos(){
   // Botón agregar por pestaña
   const FREQ_LABELS = { diaria:'Diario', semanal:'Semanal', mensual:'Mensual', unica:'Único', recurrente:'Recurrente' }
   const addWrap = document.getElementById('habitos-add-btn-wrap')
-  if(addWrap) addWrap.innerHTML = `<button class="btn-add" onclick="openActivityModal()" style="width:100%;justify-content:center;padding:10px 14px;color:var(--gold);border-color:var(--border-gold)">+ Agregar hábito ${FREQ_LABELS[currentFreqFilter]||''}</button>`
+  if(addWrap) addWrap.innerHTML = ''
 
   let toShow
 
