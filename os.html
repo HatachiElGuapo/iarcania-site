@@ -1002,7 +1002,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="page-header">
         <div>
           <h1 class="page-title">Hábitos</h1>
-          <div class="page-sub" id="habitos-sub">Hoy</div>
+          <div class="page-sub" id="habitos-sub" onclick="document.getElementById('habitos-date-pick').showPicker?document.getElementById('habitos-date-pick').showPicker():document.getElementById('habitos-date-pick').click()" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px">Hoy <span style="font-size:10px;opacity:.5">▾</span></div>
+          <input type="date" id="habitos-date-pick" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" onchange="irAFechaHabitos(this.value)">
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-add" onclick="toggleShowAll()" id="btn-show-all">Ver inactivos</button>
@@ -6205,18 +6206,25 @@ function renderHabitos(){
   const addWrap = document.getElementById('habitos-add-btn-wrap')
   if(addWrap) addWrap.innerHTML = `<button class="btn-add" onclick="openActivityModal()" style="width:100%;justify-content:center;padding:10px 14px;color:var(--gold);border-color:var(--border-gold)">+ Agregar hábito ${FREQ_LABELS[currentFreqFilter]||''}</button>`
 
-  let toShow = allActivities.filter(a => {
-    const freq = a.frequency || 'diaria'
-    if(freq !== currentFreqFilter) return false
-    if(!showInactive && !a.is_active) return false
-    return true
-  })
+  let toShow
 
-  // Unique activities: show all including inactive for archiving
-  if(currentFreqFilter === 'unica') toShow = allActivities.filter(a => (a.frequency||'diaria') === 'unica')
-
-  // Category filter (only for daily)
-  if(isDaily && currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
+  // Vicios: categoría especial — muestra todos sin importar frecuencia
+  if(isDaily && currentCatFilter === 'vicios'){
+    toShow = allActivities.filter(a => a.category === 'vicios' && (showInactive || a.is_active))
+  } else {
+    toShow = allActivities.filter(a => {
+      const freq = a.frequency || 'diaria'
+      // Vicios aparecen siempre en la pestaña Diario independientemente de su frecuencia
+      if(a.category === 'vicios' && isDaily) return showInactive || a.is_active
+      if(freq !== currentFreqFilter) return false
+      if(!showInactive && !a.is_active) return false
+      return true
+    })
+    // Unique activities: show all including inactive for archiving
+    if(currentFreqFilter === 'unica') toShow = allActivities.filter(a => (a.frequency||'diaria') === 'unica')
+    // Category filter (only for daily)
+    if(isDaily && currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
+  }
 
   // Progress bar (daily only)
   if(isDaily){
@@ -6424,12 +6432,22 @@ function renderHabitosNav(){
     text = dow.charAt(0).toUpperCase() + dow.slice(1) + ', ' + sel.toLocaleDateString('es-CO', { day:'numeric', month:'short' })
   }
   label.textContent = text
+  const subEl = document.getElementById('habitos-sub')
+  if(subEl) subEl.firstChild.textContent = text+' '
+  const picker = document.getElementById('habitos-date-pick')
+  if(picker) picker.value = selectedDate
   nextBtn.disabled = selectedDate >= TODAY
   nextBtn.style.opacity = selectedDate >= TODAY ? '0.3' : '1'
   nextBtn.style.cursor = selectedDate >= TODAY ? 'default' : 'pointer'
 
   const progressLabel = document.querySelector('#habitos-progress-wrap span:first-child')
   if(progressLabel) progressLabel.textContent = diffDays === 0 ? 'Progreso de hoy' : 'Progreso del día'
+}
+
+async function irAFechaHabitos(dateStr){
+  if(!dateStr) return
+  selectedDate = dateStr
+  await loadHabitos()
 }
 
 async function navegarDia(delta){
