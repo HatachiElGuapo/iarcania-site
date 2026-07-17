@@ -3138,12 +3138,13 @@ function renderAgenda(){
         title = task?.title || 'Tarea'
       }
       const n = Math.ceil(dur/AGENDA_SLOT)
+      const totalConts = n - 1
       for(let i=1; i<n; i++){
         const bm = agendaToMin(sk)+i*AGENDA_SLOT
         if(bm>=24*60) break
         const bk = agendaFromMin(bm)
         if(!contMap[bk]) contMap[bk]=[]
-        contMap[bk].push({color, title, taskId:id, startKey:sk, isHabit, isCita, isEvent, note:x.note, dur})
+        contMap[bk].push({color, title, taskId:id, startKey:sk, isHabit, isCita, isEvent, note:x.note, dur, contIdx:i, totalConts})
       }
     })
   })
@@ -3205,6 +3206,9 @@ function renderAgenda(){
     const autos   = autoMap[bk]||[]
     const items   = data[bk]||[]
     const autoIds = new Set(autos.map(t=>t.id))
+    // IDs que tienen bloque de continuación en el slot siguiente
+    const nextBk = agendaFromMin(agendaToMin(bk)+AGENDA_SLOT)
+    const hasContinuation = new Set((contMap[nextBk]||[]).map(c=>c.taskId))
     const pinned  = items.filter(x=>!autoIds.has(x.id))
     const pinnedItems = pinned.map(x => {
       if(x.type === 'habit'){
@@ -3235,13 +3239,19 @@ function renderAgenda(){
     const nowLineHTML = isNow ? `<div class="agenda-now-line" style="top:${nowLineY}px"></div>` : ''
 
     const contHTML = conts.map(c => {
+      const isLast = c.contIdx === c.totalConts
+      const isMid  = c.contIdx < c.totalConts
+      const radius = isLast ? '0 0 6px 6px' : '0'
+      const borderT = 'none'
+      const borderB = isMid ? 'none' : ''
+      const contStyle = `border-radius:${radius};border-top:${borderT};${borderB?'border-bottom:'+borderB:''};margin-top:0`
       const dotEl = `<div style="width:12px;height:12px;border-radius:50%;background:${c.color};flex-shrink:0;opacity:0.8"></div>`
       const noteEl = c.note ? `<span style="font-size:9px;color:var(--text-muted);font-style:italic;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${c.note}</span>` : ''
       const durEl = `<span style="color:var(--text-muted);font-size:9px;flex-shrink:0">(${fmtDur(c.dur)})</span>`
       const editBtn = (c.isHabit||c.isCita||c.isEvent) ? '' :
         `<button onclick="event.stopPropagation();openAgendaEditModal('${c.startKey}','${c.taskId}')" style="font-size:11px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button>`
       const removeBtn = `<button onclick="removeAgendaTask('${c.startKey}','${c.taskId}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>`
-      return `<div class="agenda-chip" oncontextmenu="agendaChipRightClick(event,'${c.startKey}','${c.taskId}')" style="border-color:${c.color}44;background:${c.color}0D">
+      return `<div class="agenda-chip" oncontextmenu="agendaChipRightClick(event,'${c.startKey}','${c.taskId}')" style="border-color:${c.color}44;background:${c.color}0D;${contStyle}">
         ${dotEl}
         <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title}</span>
         ${noteEl}${durEl}${editBtn}${removeBtn}
@@ -3272,7 +3282,9 @@ function renderAgenda(){
       const checkEl = (isHabit || isCita)
         ? `<div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0;opacity:0.8"></div>`
         : chipCheck(task, {color})
-      return `<div class="agenda-chip" draggable="true" ondragstart="onAgendaChipDragStart(event,'${bk}','${id}')" oncontextmenu="agendaChipRightClick(event,'${bk}','${id}')" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''}">
+      const hasCont = hasContinuation.has(String(id))
+      const contStyle = hasCont ? 'border-radius:6px 6px 0 0;border-bottom:none;margin-bottom:0' : ''
+      return `<div class="agenda-chip" draggable="true" ondragstart="onAgendaChipDragStart(event,'${bk}','${id}')" oncontextmenu="agendaChipRightClick(event,'${bk}','${id}')" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''};${contStyle}">
         ${checkEl}
         <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''};">${title}</span>
         ${note?`<span style="font-size:9px;color:var(--text-muted);font-style:italic;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="${note}">${note}</span>`:''}
