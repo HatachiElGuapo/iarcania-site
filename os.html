@@ -947,7 +947,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           </div>
           <div style="display:flex;gap:8px">
             <button onclick="saveAgendaEdit()" style="flex:1;background:var(--purple);border:none;border-radius:8px;padding:11px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Guardar</button>
-            <button onclick="eliminarAgendaEdit()" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:11px 14px;color:#f87171;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif">🗑</button>
+            <button id="aedit-del-btn" onclick="eliminarAgendaEdit()" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:11px 14px;color:#f87171;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif">🗑</button>
           </div>
         </div>
       </div>
@@ -2992,6 +2992,7 @@ function openAgendaEditModal(slotKey, itemId){
   if(!modal) return
   document.getElementById('aedit-dur-row').style.display = ''
   document.getElementById('aedit-note-row').style.display = ''
+  document.getElementById('aedit-del-btn').style.display = ''
   _populateAgendaSlotSelect('aedit-slot', slotKey)
   const durSel = document.getElementById('aedit-dur')
   const durCust = document.getElementById('aedit-dur-cust')
@@ -3017,6 +3018,7 @@ function openRoutineEditModal(originalSlot){
   if(!modal) return
   document.getElementById('aedit-dur-row').style.display = 'none'
   document.getElementById('aedit-note-row').style.display = 'none'
+  document.getElementById('aedit-del-btn').style.display = 'none'
   const overrides = getRoutineOverrides()
   _populateAgendaSlotSelect('aedit-slot', overrides[originalSlot] || originalSlot)
   modal.style.display = 'flex'
@@ -3029,7 +3031,6 @@ function closeAgendaEditModal(){
 }
 
 function eliminarAgendaEdit(){
-  showToast('🔍 slot=' + _agendaEditSlot + ' id=' + _agendaEditId)
   if(!_agendaEditSlot || !_agendaEditId) return
   removeAgendaTask(_agendaEditSlot, _agendaEditId)
   closeAgendaEditModal()
