@@ -4779,12 +4779,12 @@ function _hpDayGrid(cells, habitColor){
   padded.push(...cells)
   while(padded.length%7!==0) padded.push({ds:'',status:'empty'})
   const labels = ['L','M','X','J','V','S','D']
-  return `<div style="overflow-x:auto">
-    <div style="display:grid;grid-template-columns:repeat(7,10px);gap:2px;margin-bottom:2px">
-      ${labels.map(l=>`<div style="font-size:7px;color:var(--text-muted);text-align:center;width:10px">${l}</div>`).join('')}
+  return `<div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">
+      ${labels.map(l=>`<div style="font-size:7px;color:var(--text-muted);text-align:center">${l}</div>`).join('')}
     </div>
-    <div class="hp-grid" style="grid-template-columns:repeat(7,10px)">
-      ${padded.map(c=>`<div class="hp-cell ${c.status}" style="width:10px;height:10px" title="${c.ds}"></div>`).join('')}
+    <div class="hp-grid" style="grid-template-columns:repeat(7,1fr)">
+      ${padded.map(c=>`<div class="hp-cell ${c.status}" style="aspect-ratio:1" title="${c.ds}"></div>`).join('')}
     </div>
   </div>`
 }
@@ -4847,9 +4847,9 @@ function _hpWeekGrid(cells, habitColor){
     const d = new Date(c.monStr)
     const label = d.getDate()===1||c===cells[0] ? MN[d.getMonth()] : d.getDate()
     const txtColor = c.status==='done'?'#000':c.status==='fail'?'#fff':'var(--text-muted)'
-    return `<div class="hp-cell ${c.status}" style="aspect-ratio:unset;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:7px;color:${txtColor}" title="${c.monStr} – ${c.sunStr}">${label}</div>`
+    return `<div class="hp-cell ${c.status}" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:7px;color:${txtColor}" title="${c.monStr} – ${c.sunStr}">${label}</div>`
   }).join('')
-  return `<div class="hp-grid" style="grid-template-columns:repeat(${cells.length},16px)">${html}</div>`
+  return `<div class="hp-grid" style="grid-template-columns:repeat(${cells.length},1fr)">${html}</div>`
 }
 
 function _hpWeekList(cells, habitColor){
@@ -4897,9 +4897,9 @@ function _hpMonthGrid(cells, habitColor){
   const html = cells.map(c => {
     const m = parseInt(c.monthStr.slice(5,7))-1
     const txtColor = c.status==='done'?'#000':c.status==='fail'?'#fff':'var(--text-muted)'
-    return `<div class="hp-cell ${c.status}" style="aspect-ratio:unset;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:8px;color:${txtColor}" title="${c.monthStr}">${MN[m]}</div>`
+    return `<div class="hp-cell ${c.status}" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:8px;color:${txtColor}" title="${c.monthStr}">${MN[m]}</div>`
   }).join('')
-  return `<div class="hp-grid" style="grid-template-columns:repeat(${cells.length},28px)">${html}</div>`
+  return `<div class="hp-grid" style="grid-template-columns:repeat(${cells.length},1fr)">${html}</div>`
 }
 
 function _hpMonthList(cells, habitColor){
