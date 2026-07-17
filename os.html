@@ -1032,12 +1032,15 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
 
       <!-- Frequency tabs -->
-      <div class="freq-tabs">
-        <button class="freq-tab active" onclick="filterFreq('diaria',this)">📅 Diario</button>
-        <button class="freq-tab" onclick="filterFreq('semanal',this)">📆 Semanal</button>
-        <button class="freq-tab" onclick="filterFreq('mensual',this)">🗓️ Mensual</button>
-        <button class="freq-tab" onclick="filterFreq('unica',this)">⭐ Único</button>
-        <button class="freq-tab" onclick="filterFreq('recurrente',this)">🔗 Recurrente</button>
+      <div class="freq-tabs" style="overflow-x:auto;flex-wrap:nowrap">
+        <button class="freq-tab active" onclick="filterFreq('todos_diarios',this)" style="flex-shrink:0">📅 Todos</button>
+        <button class="freq-tab" onclick="filterFreq('diaria',this)" style="flex-shrink:0">🎯 Diarios</button>
+        <button class="freq-tab" onclick="filterFreq('secundarios',this)" style="flex-shrink:0">☀️ Secundarios</button>
+        <button class="freq-tab" onclick="filterFreq('vicios_tab',this)" style="flex-shrink:0">⚠️ Vicios</button>
+        <button class="freq-tab" onclick="filterFreq('semanal',this)" style="flex-shrink:0">📆 Semanal</button>
+        <button class="freq-tab" onclick="filterFreq('mensual',this)" style="flex-shrink:0">🗓️ Mensual</button>
+        <button class="freq-tab" onclick="filterFreq('unica',this)" style="flex-shrink:0">⭐ Único</button>
+        <button class="freq-tab" onclick="filterFreq('recurrente',this)" style="flex-shrink:0">🔗 Recurrente</button>
       </div>
 
       <!-- Date navigation (solo en diario) -->
@@ -1058,8 +1061,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="cat-filter" onclick="filterHabitos('trabajo_profundo',this)">💼 Trabajo</button>
         <button class="cat-filter" onclick="filterHabitos('secundarios_tarde',this)">🌤️ Tarde</button>
         <button class="cat-filter" onclick="filterHabitos('rutina_nocturna',this)">🌙 Noche</button>
-        <button class="cat-filter" onclick="filterHabitos('vicios',this)">Vicios</button>
-        <button class="cat-filter" onclick="filterHabitos('expansion_fisica',this)">Física</button>
+        <button class="cat-filter" onclick="filterHabitos('expansion_fisica',this)">💪 Física</button>
       </div>
 
       <!-- Progress bar (solo en diario) -->
@@ -5737,7 +5739,7 @@ let openProgressId = null
 let progressAnchorDates = {}
 let showInactive = false
 let currentCatFilter = 'all'
-let currentFreqFilter = 'diaria'
+let currentFreqFilter = 'todos_diarios'
 const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
 // Siempre usa timezone de Bogotá y normaliza a YYYY-MM-DD (por si due_date viene como timestamp de Supabase)
 function todayBogota() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
@@ -6724,43 +6726,61 @@ function renderHabitos(){
   const catFilters = document.getElementById('habitos-cat-filters')
   const progressWrap = document.getElementById('habitos-progress-wrap')
 
-  // Show/hide elements based on frequency tab
-  const isDaily = currentFreqFilter === 'diaria'
-  catFilters.style.display = isDaily ? 'flex' : 'none'
-  progressWrap.style.display = isDaily ? 'block' : 'none'
-  const navEl = document.getElementById('habitos-nav')
-  if(navEl) navEl.style.display = isDaily ? 'flex' : 'none'
-  if(isDaily) renderHabitosNav()
+  const SECUNDARIOS_CATS = ['secundarios_manana', 'secundarios_tarde']
+  const isTodosDaily   = currentFreqFilter === 'todos_diarios'
+  const isDiarios      = currentFreqFilter === 'diaria'
+  const isSecundarios  = currentFreqFilter === 'secundarios'
+  const isViciosTab    = currentFreqFilter === 'vicios_tab'
+  const isDailyGroup   = isTodosDaily || isDiarios || isSecundarios || isViciosTab
 
-  // Botón agregar por pestaña
-  const FREQ_LABELS = { diaria:'Diario', semanal:'Semanal', mensual:'Mensual', unica:'Único', recurrente:'Recurrente' }
+  // Show/hide sub-filters y nav — solo en tabs con contexto diario
+  catFilters.style.display = (isTodosDaily || isDiarios) ? 'flex' : 'none'
+  progressWrap.style.display = isDailyGroup ? 'block' : 'none'
+  const navEl = document.getElementById('habitos-nav')
+  if(navEl) navEl.style.display = isDailyGroup ? 'flex' : 'none'
+  if(isDailyGroup) renderHabitosNav()
+
   const addWrap = document.getElementById('habitos-add-btn-wrap')
   if(addWrap) addWrap.innerHTML = ''
 
   let toShow
 
-  // Vicios: categoría especial — muestra todos sin importar frecuencia
-  if(isDaily && currentCatFilter === 'vicios'){
+  if(isTodosDaily){
+    // Todos los diarios: freq=diaria (incluyendo vicios y secundarios, excluyendo trabajo_profundo)
+    toShow = allActivities.filter(a => {
+      if(!showInactive && !a.is_active) return false
+      if(a.category === 'trabajo_profundo') return false
+      return (a.frequency || 'diaria') === 'diaria'
+    })
+    if(currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
+  } else if(isDiarios){
+    // Diarios puros: excluyendo vicios y secundarios
+    toShow = allActivities.filter(a => {
+      if(!showInactive && !a.is_active) return false
+      if(a.category === 'vicios') return false
+      if(SECUNDARIOS_CATS.includes(a.category)) return false
+      if(a.category === 'trabajo_profundo') return false
+      return (a.frequency || 'diaria') === 'diaria'
+    })
+    if(currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
+  } else if(isSecundarios){
+    toShow = allActivities.filter(a =>
+      SECUNDARIOS_CATS.includes(a.category) && (showInactive || a.is_active)
+    )
+  } else if(isViciosTab){
     toShow = allActivities.filter(a => a.category === 'vicios' && (showInactive || a.is_active))
   } else {
     toShow = allActivities.filter(a => {
       const freq = a.frequency || 'diaria'
-      // Vicios aparecen siempre en la pestaña Diario independientemente de su frecuencia
-      if(a.category === 'vicios' && isDaily) return showInactive || a.is_active
-      // trabajo_profundo solo aparece si se filtra explícitamente por esa categoría
-      if(a.category === 'trabajo_profundo' && isDaily && currentCatFilter !== 'trabajo_profundo') return false
       if(freq !== currentFreqFilter) return false
       if(!showInactive && !a.is_active) return false
       return true
     })
-    // Unique activities: show all including inactive for archiving
     if(currentFreqFilter === 'unica') toShow = allActivities.filter(a => (a.frequency||'diaria') === 'unica')
-    // Category filter (only for daily)
-    if(isDaily && currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
   }
 
-  // Progress bar (daily only)
-  if(isDaily){
+  // Progress bar (daily group only)
+  if(isDailyGroup){
     const active = toShow.filter(a => a.is_active)
     const done = active.filter(a => habitLogs[a.id])
     document.getElementById('habitos-progress-text').textContent = `${done.length} / ${active.length}`
