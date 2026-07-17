@@ -1998,6 +1998,19 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <option value="trabajo">💼 Trabajo</option>
       </select>
     </div>
+    <div style="margin-bottom:12px">
+      <div class="form-label">🎂 Cumpleaños (opcional)</div>
+      <div style="display:flex;gap:8px">
+        <select id="persona-bday-day" class="form-input" style="flex:1">
+          <option value="">Día</option>
+          ${Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}
+        </select>
+        <select id="persona-bday-month" class="form-input" style="flex:1">
+          <option value="">Mes</option>
+          ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m,i)=>`<option value="${i+1}">${m}</option>`).join('')}
+        </select>
+      </div>
+    </div>
     <div style="margin-bottom:18px">
       <div class="form-label">Nota (opcional)</div>
       <textarea id="persona-notes" rows="2" placeholder="Algo para recordar..." class="form-input" style="resize:none"></textarea>
@@ -5365,11 +5378,16 @@ function renderPersonas(){
   }
   el.innerHTML = list.map(p => {
     const rel = REL_LABELS[p.relationship] || '🤝 Conocido/a'
+    const bday = allBirthdays.find(b => b.person_id === p.id)
+    const bdayStr = bday ? `  ·  🎂 ${bday.day}/${bday.month}` : ''
+    const bdayDays = bday ? daysUntil(bday.day, bday.month) : null
+    const bdayPill = bdayDays !== null && bdayDays <= 7
+      ? `<span style="margin-left:6px;font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(196,163,90,0.2);color:#C4A35A">${bdayDays === 0 ? '¡Hoy!' : bdayDays === 1 ? 'Mañana' : bdayDays+' días'}</span>` : ''
     return `<div class="card" style="padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
       <div style="width:36px;height:36px;border-radius:50%;background:rgba(139,108,246,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${p.name.charAt(0).toUpperCase()}</div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:600;color:var(--text)">${p.name}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${rel}${p.notes ? '  ·  '+p.notes : ''}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${p.name}${bdayPill}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${rel}${bdayStr}${p.notes ? '  ·  '+p.notes : ''}</div>
       </div>
       <button onclick="openPersonaModal('${p.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:4px">✏️</button>
       <button onclick="deletePersona('${p.id}')" style="background:transparent;border:none;color:rgba(239,68,68,0.6);cursor:pointer;font-size:15px;padding:4px">×</button>
@@ -5381,30 +5399,60 @@ function openPersonaModal(id){
   _editingPersonaId = id || null
   const p = id ? allPeople.find(x => x.id === id) : null
   document.getElementById('persona-modal-title').textContent = p ? 'Editar persona' : 'Nueva persona'
-  document.getElementById('persona-id').value   = p?.id   || ''
-  document.getElementById('persona-name').value = p?.name || ''
-  document.getElementById('persona-rel').value  = p?.relationship || 'amigo'
+  document.getElementById('persona-id').value    = p?.id   || ''
+  document.getElementById('persona-name').value  = p?.name || ''
+  document.getElementById('persona-rel').value   = p?.relationship || 'amigo'
   document.getElementById('persona-notes').value = p?.notes || ''
+  // Cumpleaños: buscar en birthdays por person_id
+  const bday = p ? allBirthdays.find(b => b.person_id === p.id) : null
+  document.getElementById('persona-bday-day').value   = bday?.day   || ''
+  document.getElementById('persona-bday-month').value = bday?.month || ''
   openModal('persona')
 }
 
 async function savePersona(){
   const name = document.getElementById('persona-name').value.trim()
   if(!name){ showToast('⚠️ El nombre es obligatorio'); return }
+  const bdayDay   = parseInt(document.getElementById('persona-bday-day').value)   || null
+  const bdayMonth = parseInt(document.getElementById('persona-bday-month').value) || null
   const row = {
     name,
     relationship: document.getElementById('persona-rel').value,
     notes: document.getElementById('persona-notes').value.trim() || null,
     user_id: USER_ID,
   }
+  let personId = _editingPersonaId
   if(_editingPersonaId){
     await SB_P.from('people').update(row).eq('id', _editingPersonaId)
   } else {
-    row.id = 'per_' + Date.now()
+    personId = 'per_' + Date.now()
+    row.id = personId
     await SB_P.from('people').insert(row)
   }
+  // Sincronizar cumpleaños en birthdays
+  const existingBday = allBirthdays.find(b => b.person_id === personId)
+  if(bdayDay && bdayMonth){
+    const bdayRow = {
+      name,
+      day:   bdayDay,
+      month: bdayMonth,
+      type:  'cumpleanos',
+      relationship: row.relationship,
+      person_id: personId,
+      user_id: USER_ID,
+    }
+    if(existingBday){
+      await SB_P.from('birthdays').update(bdayRow).eq('id', existingBday.id)
+    } else {
+      bdayRow.id = 'bd_' + Date.now()
+      await SB_P.from('birthdays').insert(bdayRow)
+    }
+  } else if(existingBday){
+    // Se borró el cumpleaños
+    await SB_P.from('birthdays').delete().eq('id', existingBday.id)
+  }
   closeModal('persona')
-  await loadPersonas()
+  await Promise.all([loadPersonas(), loadBirthdays()])
   renderPersonas()
   showToast(_editingPersonaId ? '✅ Persona actualizada' : '✅ Persona guardada')
 }
