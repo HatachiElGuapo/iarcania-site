@@ -1587,7 +1587,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div class="form-row">
       <div class="field"><label>Tipo</label>
         <select id="bd-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
-          <option value="cumpleanos">🎂 Cumpleaños</option>
           <option value="especial">⭐ Especial</option>
           <option value="aniversario">💜 Aniversario</option>
           <option value="cita">🏥 Cita</option>
@@ -5807,6 +5806,8 @@ function renderBirthdays(bds){
   }
 
   // Agrupar por tipo, ordenar internamente por días hasta la fecha
+  // Cumpleaños vinculados a una persona viven en Personas, no aquí
+  bds = bds.filter(b => !(b.type === 'cumpleanos' && b.person_id))
   const TYPE_ORDER = ['cumpleanos','especial','aniversario','cita','pago','evento']
   const grouped = {}
   bds.forEach(b => {
