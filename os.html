@@ -434,8 +434,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" onclick="showSection('habitos',this)">
           <span class="nav-icon">🔥</span>Hábitos
         </button>
-        <button class="nav-item" onclick="showSection('vicios',this)">
-          <span class="nav-icon">⚠️</span>Vicios
+        <button class="nav-item" onclick="showSection('rachas',this)">
+          <span class="nav-icon">📈</span>Rachas
         </button>
         <button class="nav-item" onclick="showSection('cuerpo',this)">
           <span class="nav-icon">🏋️</span>Cuerpo
@@ -1056,17 +1056,24 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
     </div>
 
-    <!-- VICIOS -->
-    <div class="section" id="section-vicios">
+    <!-- RACHAS -->
+    <div class="section" id="section-rachas">
       <div class="page-header">
         <div>
-          <h1 class="page-title">⚠️ Vicios</h1>
-          <div class="page-sub" id="vicios-sub">Registros de hoy</div>
+          <h1 class="page-title">📈 Rachas</h1>
+          <div class="page-sub" id="rachas-sub">Panorama de hábitos</div>
         </div>
       </div>
-      <div id="vicios-list" style="display:flex;flex-direction:column;gap:10px">
-        <div class="loading"><div class="spinner"></div><br>Cargando vicios...</div>
+      <div id="rachas-panorama" style="display:flex;flex-direction:column;gap:8px">
+        <div class="loading"><div class="spinner"></div><br>Cargando rachas...</div>
       </div>
+      <div id="rachas-detalle" style="display:none;margin-top:1rem"></div>
+    </div>
+
+    <!-- VICIOS (oculta, mantiene su DOM por compatibilidad) -->
+    <div class="section" id="section-vicios" style="display:none!important">
+      <div id="vicios-list"></div>
+      <div id="vicios-sub"></div>
     </div>
 
     <!-- HOGAR -->
@@ -2266,7 +2273,7 @@ function showSection(id, btn){
   document.getElementById('section-'+id).classList.add('active')
   btn.classList.add('active')
   if(id === 'agenda') loadAndRenderAgenda()
-  if(id === 'vicios') renderVicios()
+  if(id === 'rachas') renderRachas()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
   if(id === 'trabajo') loadProyectoDia()
@@ -4648,16 +4655,13 @@ function alertarTareasIncompletas(){
 // --- HÁBITOS RECURRENTES ---
 function habitoRecurrenteHTML(a){
   const color = CAT_COLORS[a.category] || '#555'
-  return `<div id="hw-${a.id}">
-  <div class="habito-item" style="border-left-color:${color}">
-    <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
+  return `<div class="habito-item" style="border-left-color:${color}">
+    <div style="flex:1">
       <div class="habito-name">${a.name}</div>
       <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
     </div>
     <button class="btn-add" onclick="convertirEnTarea('${a.id}')" style="font-size:11px;padding:5px 10px;color:#9b72f0;border-color:rgba(155,114,240,0.3)">→ Crear tarea</button>
     <button class="habito-toggle" onclick="openActivityModal('${a.id}')">✏️</button>
-  </div>
-  <div id="hp-${a.id}" style="display:none"></div>
   </div>`
 }
 
@@ -5743,18 +5747,29 @@ function renderVicioWidget(a){
   </div>`
 }
 
+function _renderViciosCtx(){
+  // Si estamos en Hábitos (con filtro vicios o "todos"), re-render Hábitos
+  // Si estamos en Rachas, re-render Rachas
+  // Siempre re-render Vicios también (por si acaso)
+  const habitosActive = document.getElementById('section-habitos')?.classList.contains('active')
+  const rachasActive  = document.getElementById('section-rachas')?.classList.contains('active')
+  if(habitosActive) renderHabitos()
+  else if(rachasActive) renderRachas()
+  else renderVicios()
+}
+
 function abrirVicio(actId){
   _vicioAbierto = _vicioAbierto === actId ? null : actId
   _vicioEditId = null
   _vicioEditText = ''
-  renderVicios()
+  _renderViciosCtx()
 }
 
 function cerrarVicio(){
   _vicioAbierto = null
   _vicioEditId = null
   _vicioEditText = ''
-  renderVicios()
+  _renderViciosCtx()
 }
 
 async function guardarVicio(){
@@ -5781,7 +5796,7 @@ async function guardarVicio(){
   _vicioAbierto = null
   _vicioEditId = null
   _vicioEditText = ''
-  renderVicios()
+  _renderViciosCtx()
 }
 
 function editarVicioLog(logId, actId){
@@ -5791,7 +5806,7 @@ function editarVicioLog(logId, actId){
   _vicioAbierto = actId
   _vicioEditId = logId
   _vicioEditText = log.notes || ''
-  renderVicios()
+  _renderViciosCtx()
 }
 
 async function eliminarVicioLog(logId, actId){
@@ -5802,8 +5817,160 @@ async function eliminarVicioLog(logId, actId){
     vicioLogs[actId] = vicioLogs[actId].filter(l => l.id !== logId)
     if(!vicioLogs[actId].length) delete habitLogs[actId]
   }
-  renderVicios()
+  _renderViciosCtx()
 }
+
+// ─── RACHAS ──────────────────────────────────────────────────────────────────
+
+let _rachaDetalleId = null
+
+function renderRachas(){
+  const panorama = document.getElementById('rachas-panorama')
+  const detalle  = document.getElementById('rachas-detalle')
+  if(!panorama) return
+
+  const acts = allActivities.filter(a =>
+    a.is_active &&
+    (a.frequency||'diaria') !== 'unico' &&
+    (a.frequency||'diaria') !== 'unica'
+  )
+
+  if(!acts.length){
+    panorama.innerHTML = '<div class="empty-state"><div class="empty-icon">📈</div>No hay hábitos activos aún.</div>'
+    return
+  }
+
+  panorama.innerHTML = acts.map(a => _rachaCardHTML(a)).join('')
+
+  if(_rachaDetalleId){
+    detalle.style.display = 'block'
+    _abrirRachaDetalle(_rachaDetalleId, false)
+  }
+}
+
+function _rachaCardHTML(a){
+  const freq  = a.frequency || 'diaria'
+  const color = a.color || CAT_COLORS[a.category] || '#f97316'
+  const cat   = CAT_LABELS[a.category] || ''
+
+  // Racha actual: días/semanas/meses consecutivos con log hasta hoy
+  let rachaLabel = ''
+  if(freq === 'diaria'){
+    let n = 0
+    const d = new Date(TODAY)
+    while(true){
+      const ds = d.toISOString().slice(0,10)
+      if(!habitLogs[a.id] && ds === TODAY){ break } // hoy sin marcar aún
+      // Para la racha necesitamos saber si ese día tiene log — usamos vicioLogs o habitLogs solo para hoy
+      // Para días pasados no tenemos cache, así que mostramos "ver detalle"
+      break
+    }
+    rachaLabel = habitLogs[a.id] ? '✓ hoy' : '—'
+  } else if(freq === 'semanal'){
+    const wLogs = weeklyLogs[a.id] || []
+    rachaLabel = wLogs.length ? '✓ esta sem.' : '—'
+  } else if(freq === 'mensual'){
+    const mLogs = monthlyLogs[a.id] || []
+    rachaLabel = mLogs.length ? '✓ este mes' : '—'
+  } else if(freq === 'recurrente'){
+    rachaLabel = '∞'
+  }
+
+  const rachaColor = rachaLabel.startsWith('✓') ? color : rachaLabel === '∞' ? color : 'var(--text-muted)'
+
+  return `<div onclick="_abrirRachaDetalle('${a.id}',true)" style="background:var(--bg-card);border:1px solid var(--border);border-left:3px solid ${color};border-radius:8px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:border-color .15s" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor='var(--border)'">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${cat} · ${freq}</div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:${rachaColor};flex-shrink:0">${rachaLabel}</div>
+    <div style="font-size:11px;color:var(--text-muted);flex-shrink:0">▸</div>
+  </div>`
+}
+
+async function _abrirRachaDetalle(activityId, scroll){
+  _rachaDetalleId = activityId
+  const detalle = document.getElementById('rachas-detalle')
+  const act = allActivities.find(a => a.id === activityId)
+  if(!detalle || !act) return
+
+  detalle.style.display = 'block'
+  detalle.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div>
+      <div style="font-size:15px;font-weight:600;color:var(--text)">${act.name}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${CAT_LABELS[act.category]||''} · ${act.frequency||'diaria'}</div>
+    </div>
+    <button onclick="_cerrarRachaDetalle()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);padding:4px 10px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px">✕ Cerrar</button>
+  </div>
+  <div id="rachas-detalle-contenido"><div style="padding:14px;text-align:center;font-size:12px;color:var(--text-muted)">Cargando historial…</div></div>`
+
+  if(scroll) detalle.scrollIntoView({behavior:'smooth', block:'start'})
+
+  await _renderRachaDetalleContenido(activityId)
+}
+
+async function _renderRachaDetalleContenido(activityId, customAnchor){
+  const contenido = document.getElementById('rachas-detalle-contenido')
+  if(!contenido) return
+  const act = allActivities.find(a => a.id === activityId)
+  if(!act) return
+
+  const freq = act.frequency || 'diaria'
+  const habitColor = act.color || CAT_COLORS[act.category] || '#f97316'
+
+  const { data: logs } = await SB_P.from('activity_logs')
+    .select('date')
+    .eq('activity_id', activityId)
+    .eq('user_id', USER_ID)
+    .order('date')
+
+  const allLogDates = (logs||[]).map(l => l.date).sort()
+  const logSet = new Set(allLogDates)
+  const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
+
+  if(customAnchor) progressAnchorDates[activityId] = customAnchor
+  if(!progressAnchorDates[activityId]){
+    const d = new Date(TODAY); d.setMonth(d.getMonth()-3)
+    progressAnchorDates[activityId] = d.toISOString().slice(0,10)
+  }
+  const anchorDate = progressAnchorDates[activityId]
+
+  let gridHTML = '', listHTML = ''
+  if(freq === 'diaria' || freq === 'recurrente'){
+    const cells = _hpDayCells(anchorDate, firstLogDate, logSet, freq)
+    gridHTML = _hpDayGrid(cells, habitColor)
+    listHTML = _hpDayList(cells, habitColor, firstLogDate)
+  } else if(freq === 'semanal'){
+    const cells = _hpWeekCells(anchorDate, firstLogDate, logSet)
+    gridHTML = _hpWeekGrid(cells, habitColor)
+    listHTML = _hpWeekList(cells, habitColor)
+  } else if(freq === 'mensual'){
+    const cells = _hpMonthCells(anchorDate, firstLogDate, logSet)
+    gridHTML = _hpMonthGrid(cells, habitColor)
+    listHTML = _hpMonthList(cells, habitColor)
+  }
+
+  contenido.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Historial · ${freq}</span>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)">
+        desde <input type="date" value="${anchorDate}"
+          onchange="_renderRachaDetalleContenido('${activityId}',this.value)"
+          style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:11px;font-family:'Outfit',sans-serif">
+      </label>
+    </div>
+    <div style="--hp-color:${habitColor}">${gridHTML}</div>
+    <div style="margin-top:12px">${listHTML}</div>
+  </div>`
+}
+
+function _cerrarRachaDetalle(){
+  _rachaDetalleId = null
+  const detalle = document.getElementById('rachas-detalle')
+  if(detalle){ detalle.style.display='none'; detalle.innerHTML='' }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // --- HOGAR ---
 async function loadHogar(){
@@ -6077,19 +6244,16 @@ function renderHabitos(){
     el.innerHTML = toShow.length
       ? toShow.map(a => habitoRecurrenteHTML(a)).join('')
       : '<div class="empty-state"><div class="empty-icon">🔗</div>No hay hábitos recurrentes. Agrega con "+ Nueva" y elige frecuencia Recurrente.</div>'
-    _reopenProgressPanel()
     return
   }
 
   if(currentFreqFilter === 'semanal'){
     el.innerHTML = toShow.map(a => habitoPeriodicoHTML(a, 'semanal')).join('')
-    _reopenProgressPanel()
     return
   }
 
   if(currentFreqFilter === 'mensual'){
     el.innerHTML = toShow.map(a => habitoPeriodicoHTML(a, 'mensual')).join('')
-    _reopenProgressPanel()
     return
   }
 
@@ -6105,30 +6269,22 @@ function renderHabitos(){
     el.innerHTML = [...orderedCats, ...rest].map(cat => {
       const color = CAT_COLORS[cat] || '#555'
       const label = CAT_LABELS[cat] || cat
+      const gap = cat === 'vicios' ? '10px' : '5px'
       return `<div class="habito-group">
         <div class="habito-group-title" style="color:${color}">${label}<div class="habito-group-line"></div></div>
-        <div style="display:flex;flex-direction:column;gap:5px">${grouped[cat].map(a => habitoHTML(a)).join('')}</div>
+        <div style="display:flex;flex-direction:column;gap:${gap}">${grouped[cat].map(a => habitoHTML(a)).join('')}</div>
       </div>`
     }).join('')
-    _reopenProgressPanel()
     return
   }
 
   el.innerHTML = toShow.map(a => habitoHTML(a)).join('')
-  _reopenProgressPanel()
 }
-
-function _reopenProgressPanel(){
-  if(!openProgressId) return
-  const panel = document.getElementById('hp-'+openProgressId)
-  if(!panel) return
-  panel.style.display = 'block'
-  const item = panel.previousElementSibling
-  if(item) item.classList.add('panel-open')
-  renderHabitoProgressPanel(openProgressId)
 }
 
 function habitoHTML(a){
+  if(a.category === 'vicios') return renderVicioWidget(a)
+
   const isActive = a.is_active
   const color = CAT_COLORS[a.category] || '#555'
   const is2020 = a.id === 'a70'
@@ -6138,36 +6294,30 @@ function habitoHTML(a){
     const isDone = val >= 1
     const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
     const btnBase = `font-size:15px;width:26px;height:26px;border-radius:6px;border:1px solid ${color}44;background:transparent;color:${color};cursor:pointer;font-family:'Outfit',sans-serif;line-height:1;flex-shrink:0`
-    return `<div id="hw-${a.id}">
-    <div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+    return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
       <div class="habito-check" style="${checkStyle};cursor:default">${val>0?val:''}</div>
-      <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
+      <div style="flex:1">
         <div class="habito-name">${a.name}${val>0?` <span style="font-size:11px;color:${color}">(${val}x)</span>`:''}</div>
       </div>
       <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:4px">${CAT_LABELS[a.category]||''}</span>
       <button onclick="decrementHabito('${a.id}')" style="${btnBase}" ${val===0?'disabled':''}">−</button>
       <button onclick="incrementHabito('${a.id}')" style="${btnBase}" ${val>=3?'disabled':''}">+</button>
       <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
-    </div>
-    <div id="hp-${a.id}" style="display:none"></div>
     </div>`
   }
 
   const isDone = !!habitLogs[a.id]
   const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
   const onclick = is2020 ? '' : `onclick="toggleHabito('${a.id}')"`
-  return `<div id="hw-${a.id}">
-  <div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
+  return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
     <div class="habito-check" ${onclick} style="${checkStyle}${is2020?';cursor:default':''}">
       ${isDone?'✓':''}
     </div>
-    <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
+    <div style="flex:1">
       <div class="habito-name">${a.name}${is2020?' <span style="font-size:10px;color:var(--text-muted)">(auto)</span>':''}</div>
     </div>
     <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:8px">${CAT_LABELS[a.category]||''}</span>
     <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
-  </div>
-  <div id="hp-${a.id}" style="display:none"></div>
   </div>`
 }
 
@@ -6222,17 +6372,14 @@ function habitoUnicoHTML(a){
 function habitoPeriodicoHTML(a, freq){
   const color    = CAT_COLORS[a.category] || '#555'
   const relTasks = tareasDeHabito(a.name)
-  return `<div id="hw-${a.id}">
-  <div class="habito-item" style="border-left-color:${a.is_active?color:'var(--border)'}">
-    <div style="flex:1;cursor:pointer" onclick="toggleHabitoProgress('${a.id}')">
+  return `<div class="habito-item" style="border-left-color:${a.is_active?color:'var(--border)'}">
+    <div style="flex:1">
       <div class="habito-name">${a.name}</div>
       <div style="font-size:11px;color:${color};margin-top:2px">${CAT_LABELS[a.category]||a.category}</div>
       ${tareasHabitoMiniHTML(relTasks)}
     </div>
     <button class="btn-add" onclick="convertirEnTarea('${a.id}')" style="font-size:11px;padding:5px 10px;color:#9b72f0;border-color:rgba(155,114,240,0.3)">→ Crear tarea</button>
     <button class="habito-toggle" onclick="openActivityModal('${a.id}')">✏️</button>
-  </div>
-  <div id="hp-${a.id}" style="display:none"></div>
   </div>`
 }
 
