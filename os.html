@@ -1912,6 +1912,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </select>
     </div>
     <div class="field"><label>Fecha y hora *</label><input type="datetime-local" id="nc-datetime" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    <div class="field"><label>Duración (minutos)</label><input type="number" id="nc-duration" value="60" min="10" step="10" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
     <div class="field"><label>Lugar (opcional)</label><input type="text" id="nc-lugar" placeholder="Clínica, dirección..."/></div>
     <div class="field"><label>Doctor / persona (opcional)</label><input type="text" id="nc-doctor" placeholder="Dr. García..."/></div>
     <div class="form-row">
@@ -9936,7 +9937,7 @@ function syncCitaToAgenda(cita){
   )
   if(alreadyExists) return
   if(!raw[sk]) raw[sk] = []
-  raw[sk].push({id: cita.id, dur: 20, type: 'cita', title: cita.title, color: '#EF9F27'})
+  raw[sk].push({id: cita.id, dur: cita.duration_minutes||60, type: 'cita', title: cita.title, color: '#EF9F27'})
   localStorage.setItem(key, JSON.stringify(raw))
 }
 
@@ -9998,13 +9999,15 @@ function renderCitas(){
     const isPendiente = c.status === 'pendiente'
     const lugar  = c.location  ? `<span>📍 ${c.location}</span>`   : ''
     const doctor = c.doctor_name ? `<span>👨‍⚕️ ${c.doctor_name}</span>` : ''
+    const dateKey = c.datetime.slice(0,10)
     return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px${c.status==='cancelada'?';opacity:.5':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="verCitaEnAgenda('${c.id}','${dateKey}')">
           <div style="font-size:14px;font-weight:600;color:var(--text-primary)">${icon} ${c.title}</div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:5px;display:flex;flex-wrap:wrap;gap:8px">
             <span>📅 ${fecha.charAt(0).toUpperCase()+fecha.slice(1)}, ${hora}</span>
             ${lugar}${doctor}
+            <span style="color:var(--gold)">📋 Ver en agenda →</span>
           </div>
         </div>
         <span style="font-size:11px;color:${stC};font-weight:600;white-space:nowrap;flex-shrink:0">${stL}</span>
@@ -10054,10 +10057,29 @@ async function cancelarCita(id){
   showToast('✗ Cita cancelada')
 }
 
+function verCitaEnAgenda(citaId, dateKey){
+  jumpAgendaToDate(dateKey)
+  showSection('agenda', document.querySelector('[onclick*="showSection(\'agenda\'"]'))
+  // Scroll al slot de la cita después de que renderice
+  setTimeout(() => {
+    const cita = allCitas.find(c => c.id === citaId)
+    if(!cita) return
+    const d = new Date(cita.datetime)
+    const rawMin = d.getHours()*60 + d.getMinutes()
+    const snapped = Math.round(rawMin/20)*20
+    const hh = Math.floor(snapped/60).toString().padStart(2,'0')
+    const mm = (snapped%60).toString().padStart(2,'0')
+    const slotEl = document.querySelector(`.agenda-slot[data-slot="${hh}:${mm}"], [data-time="${hh}:${mm}"]`)
+    if(slotEl) slotEl.scrollIntoView({behavior:'smooth', block:'center'})
+  }, 400)
+}
+
 async function eliminarCita(id){
+  const cita = allCitas.find(c => c.id === id)
   const { error } = await SB_P.from('appointments').delete().eq('id',id)
   if(error){ showToast('❌ '+error.message); return }
-  removeCitaFromAgenda(id)
+  // Solo quitar de agenda si la cita aún no ha pasado
+  if(cita && new Date(cita.datetime) >= new Date()) removeCitaFromAgenda(id)
   allCitas = allCitas.filter(c => c.id!==id)
   renderCitas(); renderCitasAlert()
   showToast('🗑️ Cita eliminada')
@@ -10070,12 +10092,14 @@ async function guardarNuevaCita(){
   const dtMs = new Date(dt).getTime()
   const r1h  = parseFloat(document.getElementById('nc-r1').value) || 0
   const r2h  = parseFloat(document.getElementById('nc-r2').value) || 0
+  const durMin = parseInt(document.getElementById('nc-duration').value) || 60
   const rec  = {
     id:         'apt_'+Date.now(),
     user_id:    USER_ID,
     title,
     type:       document.getElementById('nc-type').value,
     datetime:   new Date(dt).toISOString(),
+    duration_minutes: durMin,
     location:   document.getElementById('nc-lugar').value.trim() || null,
     doctor_name: document.getElementById('nc-doctor').value.trim() || null,
     reminder_1: r1h > 0 ? new Date(dtMs - r1h*3600000).toISOString() : null,
@@ -10085,7 +10109,7 @@ async function guardarNuevaCita(){
   const { error } = await SB_P.from('appointments').insert(rec)
   if(error){ showToast('❌ '+error.message); return }
   allCitas = [...allCitas, rec].sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
-  // Guardar en agenda si tiene fecha y hora
+  // Guardar en agenda con duración real
   const dtObj = new Date(dt)
   const dateKey = dtObj.toLocaleDateString('en-CA')
   const hh = dtObj.getHours().toString().padStart(2,'0')
@@ -10095,12 +10119,13 @@ async function guardarNuevaCita(){
   const agData = JSON.parse(localStorage.getItem(agKey) || '{}')
   if(!agData[slotKey]) agData[slotKey] = []
   if(!agData[slotKey].find(x => x.id === rec.id)){
-    agData[slotKey].push({ id: rec.id, dur: 20, type: 'cita', title: rec.title, color: '#EF9F27' })
+    agData[slotKey].push({ id: rec.id, dur: durMin, type: 'cita', title: rec.title, color: '#EF9F27' })
   }
   localStorage.setItem(agKey, JSON.stringify(agData))
   closeModal('nueva-cita')
   document.getElementById('nc-title').value = ''
   document.getElementById('nc-datetime').value = ''
+  document.getElementById('nc-duration').value = '60'
   document.getElementById('nc-lugar').value = ''
   document.getElementById('nc-doctor').value = ''
   document.getElementById('nc-r1').value = '3'
