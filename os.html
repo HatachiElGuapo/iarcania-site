@@ -6280,7 +6280,6 @@ function renderHabitos(){
 
   el.innerHTML = toShow.map(a => habitoHTML(a)).join('')
 }
-}
 
 function habitoHTML(a){
   if(a.category === 'vicios') return renderVicioWidget(a)
