@@ -331,6 +331,11 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .agenda-routine-lbl{font-size:12px;color:var(--text-dim);font-weight:500}
 .agenda-routine-lbl.is-now{color:var(--gold);font-weight:600}
 .agenda-chip{display:flex;align-items:center;gap:6px;border-radius:6px;padding:4px 8px;font-size:11px;border:1px solid;overflow:hidden}
+.agenda-block.agenda-selected>.agenda-block-content{background:rgba(99,179,237,0.10);border-radius:6px;outline:1px solid rgba(99,179,237,0.35)}
+.agenda-select-toolbar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid rgba(99,179,237,0.4);border-radius:12px;padding:10px 16px;display:none;align-items:center;gap:10px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.6)}
+.agenda-sel-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;cursor:pointer;transition:all .15s}
+.agenda-sel-btn:hover{border-color:var(--gold);color:var(--gold)}
+.agenda-sel-btn.danger:hover{border-color:#c0392b;color:#c0392b}
 .agenda-block-content.drag-over{background:rgba(155,114,240,0.08);border-radius:6px;outline:1px dashed rgba(155,114,240,0.4)}
 .agenda-add-btn{font-size:11px;color:var(--text-muted);background:transparent;border:1px dashed var(--border);border-radius:6px;padding:2px 8px;cursor:pointer;align-self:flex-start;font-family:'Outfit',sans-serif;transition:all .15s}
 .agenda-add-btn:hover{color:var(--gold);border-color:rgba(201,168,76,0.4)}
@@ -2060,8 +2065,31 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 </div>
 
 <div id="toast"></div>
-<div id="agenda-ctx-menu" style="display:none;position:fixed;z-index:9999;background:#1a1a1a;border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.5);min-width:140px">
+<div id="agenda-select-toolbar" class="agenda-select-toolbar">
+  <span class="agenda-sel-count" style="font-size:11px;color:rgba(99,179,237,0.9);font-weight:600"></span>
+  <button class="agenda-sel-btn" onclick="agendaSelAdd()">+ Agregar</button>
+  <button class="agenda-sel-btn" onclick="agendaSelMove()">↔ Mover aquí</button>
+  <button class="agenda-sel-btn danger" onclick="agendaSelDelete()">🗑 Eliminar</button>
+  <button onclick="agendaClearSelection()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:0 4px;line-height:1">×</button>
+</div>
+
+<div id="agenda-multisel-panel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#141414;border:1px solid var(--border);border-radius:12px;padding:16px;z-index:1000;width:320px;max-height:420px;display:none;flex-direction:column;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.7)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-size:13px;font-weight:600;color:var(--text)">Agregar a <span id="multisel-slot-count"></span> slots</span>
+    <button onclick="document.getElementById('agenda-multisel-panel').style.display='none'" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:0">×</button>
+  </div>
+  <input type="text" id="multisel-search" placeholder="🔍 Buscar hábito o tarea..." oninput="renderMultiselList(this.value)" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none;width:100%;box-sizing:border-box">
+  <div style="display:flex;gap:6px;align-items:center">
+    <label style="font-size:11px;color:var(--text-muted)">Duración:</label>
+    <input type="number" id="multisel-dur" value="60" min="10" step="10" style="width:70px;background:#0C0C0C;border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;outline:none">
+    <span style="font-size:11px;color:var(--text-muted)">min</span>
+  </div>
+  <div id="multisel-list" style="overflow-y:auto;max-height:220px;border:1px solid var(--border);border-radius:8px"></div>
+</div>
+
+<div id="agenda-ctx-menu" style="display:none;position:fixed;z-index:9999;background:#1a1a1a;border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.5);min-width:180px">
   <button onclick="agendaCtxDuplicate()" style="display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;padding:8px 12px;border-radius:6px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">📋 Duplicar en otro slot</button>
+  <button onclick="agendaCtxMoverASeleccion()" id="ctx-mover-seleccion" style="display:none;width:100%;text-align:left;background:transparent;border:none;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;padding:8px 12px;border-radius:6px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">↔️ Mover a selección</button>
 </div>
 
 <script>
@@ -3160,6 +3188,7 @@ function renderAgenda(){
   // Generate 144 blocks (00:00 → 23:50, every 10 min)
   const blocks = []
   for(let h=0; h<24; h++) for(let m=0; m<60; m+=AGENDA_SLOT) blocks.push(agendaFromMin(h*60+m))
+  _agendaAllBlocks = blocks
 
   let html = '<div class="agenda-timeline-wrap">'
   blocks.forEach(bk => {
@@ -3253,11 +3282,12 @@ function renderAgenda(){
       </div>`
     }).join('')
 
-    html += `<div class="agenda-block${isNow?' is-now':''}${isPast?' is-past':''}" id="ablock-${domId}" style="position:relative">
+    const isSelected = _agendaSelectedSlots.has(bk)
+    html += `<div class="agenda-block${isNow?' is-now':''}${isPast?' is-past':''}${isSelected?' agenda-selected':''}" id="ablock-${domId}" style="position:relative" onmouseover="agendaSelMouseOver(event,'${bk}')">
       ${nowLineHTML}
       <div class="agenda-time-lbl${isHour?' is-hour':isHalf?' is-half':''}">${isHour||isHalf ? bk : ''}</div>
       <div class="agenda-block-line"></div>
-      <div class="agenda-block-content" onclick="if(_agendaPasteMode)agendaPaste('${bk}')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')" style="min-height:${minH}px">
+      <div class="agenda-block-content" onmousedown="agendaSelMouseDown(event,'${bk}')" onclick="if(_agendaPasteMode)agendaPaste('${bk}')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')" style="min-height:${minH}px">
         ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}" style="display:flex;align-items:center;gap:4px">${routine}<button onclick="event.stopPropagation();openRoutineEditModal('${routineOrig}')" style="font-size:10px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button></div>`:''}
         ${routineCont?`<div style="font-size:10px;color:var(--text-muted);padding-left:4px;font-style:italic">↳ ${routineCont}</div>`:''}
         ${contHTML}${autoHTML}${pinnedHTML}
@@ -10555,6 +10585,160 @@ async function guardarRecurso() {
   }
 }
 
+// ── Agenda multi-select ───────────────────────────────────────────────────────
+let _agendaSelectedSlots = new Set()
+let _agendaSelecting = false
+let _agendaSelectStartIdx = -1
+let _agendaAllBlocks = []
+
+function _agendaSlotIdx(sk){ return _agendaAllBlocks.indexOf(sk) }
+
+function agendaSelMouseDown(event, slotKey){
+  if(event.button !== 0) return
+  if(event.target.closest('.agenda-chip,button,a,input')) return
+  if(_agendaPasteMode) return
+  _agendaSelecting = true
+  _agendaSelectStartIdx = _agendaSlotIdx(slotKey)
+  _agendaSelectedSlots = new Set([slotKey])
+  _agendaUpdateSelectionUI()
+  event.preventDefault()
+}
+
+function agendaSelMouseOver(event, slotKey){
+  if(!_agendaSelecting) return
+  const endIdx = _agendaSlotIdx(slotKey)
+  const minI = Math.min(_agendaSelectStartIdx, endIdx)
+  const maxI = Math.max(_agendaSelectStartIdx, endIdx)
+  _agendaSelectedSlots = new Set(_agendaAllBlocks.slice(minI, maxI+1))
+  _agendaUpdateSelectionUI()
+}
+
+function _agendaUpdateSelectionUI(){
+  document.querySelectorAll('.agenda-block').forEach(el => {
+    const sk = el.id.replace('ablock-','').replace('_',':')
+    el.classList.toggle('agenda-selected', _agendaSelectedSlots.has(sk))
+  })
+  const toolbar = document.getElementById('agenda-select-toolbar')
+  const n = _agendaSelectedSlots.size
+  if(!toolbar) return
+  if(n > 0){
+    toolbar.style.display = 'flex'
+    toolbar.querySelector('.agenda-sel-count').textContent = `${n} slot${n>1?'s':''}`
+  } else {
+    toolbar.style.display = 'none'
+  }
+}
+
+function agendaClearSelection(){
+  _agendaSelectedSlots = new Set()
+  _agendaSelecting = false
+  _agendaUpdateSelectionUI()
+}
+
+// ── Acciones de selección múltiple ───────────────────────────────────────────
+
+function agendaSelAdd(){
+  if(!_agendaSelectedSlots.size) return
+  const panel = document.getElementById('agenda-multisel-panel')
+  document.getElementById('multisel-slot-count').textContent = _agendaSelectedSlots.size
+  document.getElementById('multisel-search').value = ''
+  renderMultiselList('')
+  panel.style.display = 'flex'
+  setTimeout(() => document.getElementById('multisel-search').focus(), 50)
+}
+
+function renderMultiselList(q){
+  const el = document.getElementById('multisel-list')
+  if(!el) return
+  const qLow = (q||'').toLowerCase()
+  const habits = allActivities.filter(a => a.is_active && (!qLow || a.name.toLowerCase().includes(qLow)))
+  const tasks  = allTasks.filter(t => t.status!=='completada' && (!qLow || t.title.toLowerCase().includes(qLow))).slice(0,10)
+  let html = ''
+  if(habits.length){
+    html += `<div style="padding:5px 10px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;background:#0C0C0C">Hábitos</div>`
+    html += habits.slice(0,12).map(a => {
+      const color = CAT_COLORS[a.category]||'#888'
+      return `<div class="asugg-row" onclick="agendaMultiselPick('habit','${a.id}','${a.name.replace(/'/g,"\\'")}')">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <span>${a.name}</span>
+      </div>`
+    }).join('')
+  }
+  if(tasks.length){
+    html += `<div style="padding:5px 10px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;background:#0C0C0C">Tareas</div>`
+    html += tasks.map(t => {
+      const cat = CATS[t.category]||CATS.habitos
+      return `<div class="asugg-row" onclick="agendaMultiselPick('task','${t.id}','${t.title.replace(/'/g,"\\'")}')">
+        <div style="width:8px;height:8px;border-radius:50%;background:${cat.color};flex-shrink:0"></div>
+        <span>${t.title}</span>
+      </div>`
+    }).join('')
+  }
+  el.innerHTML = html || `<div style="padding:12px;font-size:12px;color:var(--text-muted);text-align:center">Sin resultados</div>`
+}
+
+function agendaMultiselPick(type, id, title){
+  const dur = parseInt(document.getElementById('multisel-dur').value)||60
+  const dateStr = getAgendaDateStr()
+  const key = 'agenda_' + dateStr
+  const raw = JSON.parse(localStorage.getItem(key)||'{}')
+  const color = type==='habit'
+    ? (CAT_COLORS[(allActivities.find(a=>a.id===id)||{}).category]||'#888')
+    : ((CATS[(allTasks.find(t=>t.id===id)||{}).category]||CATS.habitos).color)
+  for(const sk of _agendaSelectedSlots){
+    if(!raw[sk]) raw[sk]=[]
+    if(!raw[sk].find(x=>x.id===id)){
+      raw[sk].push({id, dur, type, title, color})
+    }
+  }
+  localStorage.setItem(key, JSON.stringify(raw))
+  document.getElementById('agenda-multisel-panel').style.display='none'
+  agendaClearSelection()
+  renderAgenda()
+  showToast(`✅ "${title}" agregado a ${_agendaSelectedSlots.size||'los'} slots`)
+}
+
+function agendaSelDelete(){
+  if(!_agendaSelectedSlots.size) return
+  const dateStr = getAgendaDateStr()
+  const key = 'agenda_' + dateStr
+  const raw = JSON.parse(localStorage.getItem(key)||'{}')
+  let removed = 0
+  for(const sk of _agendaSelectedSlots){
+    if(raw[sk]){ removed += raw[sk].length; delete raw[sk] }
+  }
+  localStorage.setItem(key, JSON.stringify(raw))
+  agendaClearSelection()
+  renderAgenda()
+  showToast(`🗑️ ${removed} ítem${removed!==1?'s':''} eliminados`)
+}
+
+function agendaSelMove(){
+  if(!_agendaSelectedSlots.size){ showToast('⚠️ Selecciona slots primero'); return }
+  if(!_agendaClipboard){ showToast('⚠️ Haz click derecho en un bloque y usa "Duplicar" primero'); return }
+  const dateStr = getAgendaDateStr()
+  const key = 'agenda_' + dateStr
+  const raw = JSON.parse(localStorage.getItem(key)||'{}')
+  // Remove from original slot
+  const origSk = _agendaClipboard.slotKey
+  if(raw[origSk]){
+    raw[origSk] = raw[origSk].filter(x => x.id !== _agendaClipboard.item.id)
+    if(!raw[origSk].length) delete raw[origSk]
+  }
+  // Add to all selected slots
+  for(const sk of _agendaSelectedSlots){
+    if(!raw[sk]) raw[sk]=[]
+    if(!raw[sk].find(x=>x.id===_agendaClipboard.item.id)){
+      raw[sk].push({..._agendaClipboard.item})
+    }
+  }
+  localStorage.setItem(key, JSON.stringify(raw))
+  _agendaClipboard = null
+  agendaClearSelection()
+  renderAgenda()
+  showToast('↔️ Ítem movido a los slots seleccionados')
+}
+
 // ── Agenda copy/paste ─────────────────────────────────────────────────────────
 let _agendaClipboard = null  // {slotKey, item}
 let _agendaPasteMode = false
@@ -10564,10 +10748,24 @@ function agendaChipRightClick(event, slotKey, itemId){
   event.stopPropagation()
   const menu = document.getElementById('agenda-ctx-menu')
   menu.style.display = 'block'
-  menu.style.left = Math.min(event.clientX, window.innerWidth-160) + 'px'
-  menu.style.top  = Math.min(event.clientY, window.innerHeight-80) + 'px'
+  menu.style.left = Math.min(event.clientX, window.innerWidth-200) + 'px'
+  menu.style.top  = Math.min(event.clientY, window.innerHeight-100) + 'px'
   menu.dataset.slot   = slotKey
   menu.dataset.itemId = itemId
+  const moverBtn = document.getElementById('ctx-mover-seleccion')
+  if(moverBtn) moverBtn.style.display = _agendaSelectedSlots.size > 0 ? 'block' : 'none'
+}
+
+function agendaCtxMoverASeleccion(){
+  const menu = document.getElementById('agenda-ctx-menu')
+  const slotKey = menu.dataset.slot
+  const itemId  = menu.dataset.itemId
+  const data    = getAgendaData()
+  const item = (data[slotKey]||[]).find(x => String(x.id) === String(itemId))
+  if(!item){ agendaCtxClose(); return }
+  _agendaClipboard = { slotKey, item: {...item} }
+  agendaCtxClose()
+  agendaSelMove()
 }
 
 function agendaCtxDuplicate(){
@@ -10607,10 +10805,14 @@ function agendaPaste(destSlotKey){
   _agendaClipboard = null
 }
 
+document.addEventListener('mouseup', () => { _agendaSelecting = false })
+
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape'){
     if(_agendaPasteMode){ _agendaPasteMode=false; _agendaClipboard=null; showToast('❌ Pegado cancelado') }
+    if(_agendaSelectedSlots.size) agendaClearSelection()
     agendaCtxClose()
+    document.getElementById('agenda-multisel-panel').style.display='none'
   }
 })
 document.addEventListener('click', e => {
