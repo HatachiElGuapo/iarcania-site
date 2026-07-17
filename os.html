@@ -1002,11 +1002,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <div class="page-header">
         <div>
           <h1 class="page-title">Hábitos</h1>
-          <div class="page-sub" style="position:relative;display:inline-flex;align-items:center;gap:5px;cursor:pointer">
-            <span id="habitos-sub">Hoy</span>
-            <span style="font-size:10px;opacity:.5">▾</span>
-            <input type="date" id="habitos-date-pick" onchange="irAFechaHabitos(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0;margin:0">
-          </div>
+          <div class="page-sub" id="habitos-sub">Hoy</div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-add" onclick="toggleShowAll()" id="btn-show-all">Ver inactivos</button>
@@ -1026,7 +1022,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <!-- Date navigation (solo en diario) -->
       <div id="habitos-nav" style="display:none;align-items:center;justify-content:space-between;margin-bottom:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:8px 14px">
         <button onclick="navegarDia(-1)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);padding:4px 10px;cursor:pointer;font-size:14px;font-family:'Outfit',sans-serif">←</button>
-        <span id="habitos-nav-label" style="font-size:13px;color:var(--text);font-family:'Outfit',sans-serif"></span>
+        <input type="date" id="habitos-nav-label" onchange="irAFechaHabitos(this.value)" style="background:transparent;border:none;outline:none;font-size:13px;color:var(--text);font-family:'Outfit',sans-serif;cursor:pointer;text-align:center;flex:1">
         <button id="habitos-nav-next" onclick="navegarDia(1)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);padding:4px 10px;cursor:pointer;font-size:14px;font-family:'Outfit',sans-serif">→</button>
       </div>
 
@@ -6434,11 +6430,9 @@ function renderHabitosNav(){
     const dow = sel.toLocaleDateString('es-CO', { weekday:'short' })
     text = dow.charAt(0).toUpperCase() + dow.slice(1) + ', ' + sel.toLocaleDateString('es-CO', { day:'numeric', month:'short' })
   }
-  label.textContent = text
+  label.value = selectedDate
   const subEl = document.getElementById('habitos-sub')
   if(subEl) subEl.textContent = text
-  const picker = document.getElementById('habitos-date-pick')
-  if(picker) picker.value = selectedDate
   nextBtn.disabled = selectedDate >= TODAY
   nextBtn.style.opacity = selectedDate >= TODAY ? '0.3' : '1'
   nextBtn.style.cursor = selectedDate >= TODAY ? 'default' : 'pointer'
