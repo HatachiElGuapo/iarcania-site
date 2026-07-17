@@ -3029,6 +3029,7 @@ function closeAgendaEditModal(){
 }
 
 function eliminarAgendaEdit(){
+  showToast('🔍 slot=' + _agendaEditSlot + ' id=' + _agendaEditId)
   if(!_agendaEditSlot || !_agendaEditId) return
   removeAgendaTask(_agendaEditSlot, _agendaEditId)
   closeAgendaEditModal()
