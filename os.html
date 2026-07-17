@@ -232,6 +232,18 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .hp-cell.empty{background:transparent;pointer-events:none}
 .hp-list-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
 .hp-list-row:last-child{border-bottom:none}
+/* Logros */
+.logro-badge{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color .15s}
+.logro-badge.earned{border-left:3px solid var(--gold)}
+.logro-badge.locked{opacity:.45}
+.logro-icon{font-size:20px;flex-shrink:0;width:28px;text-align:center}
+.logro-info{flex:1;min-width:0}
+.logro-name{font-size:12px;font-weight:600;color:var(--text)}
+.logro-desc{font-size:11px;color:var(--text-muted);margin-top:1px}
+.logro-reward{font-size:11px;color:var(--gold);margin-top:3px}
+.logro-progress{font-size:10px;color:var(--text-muted);margin-top:2px}
+.logro-section-title{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin:1.2rem 0 .5rem}
+.logro-grid{display:flex;flex-direction:column;gap:6px}
 .tl-task-name{font-size:13px;flex:1;color:var(--text)}
 .tl-task-check{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px}
 .tl-add-btn{font-size:11px;color:var(--text-muted);background:transparent;border:1px dashed var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;width:100%;text-align:left;margin-top:2px}
@@ -436,6 +448,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </button>
         <button class="nav-item" onclick="showSection('rachas',this)">
           <span class="nav-icon">📈</span>Rachas
+        </button>
+        <button class="nav-item" onclick="showSection('logros',this)">
+          <span class="nav-icon">🏆</span>Logros
         </button>
         <button class="nav-item" onclick="showSection('cuerpo',this)">
           <span class="nav-icon">🏋️</span>Cuerpo
@@ -1070,6 +1085,17 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <div class="loading"><div class="spinner"></div><br>Cargando rachas...</div>
       </div>
       <div id="rachas-detalle" style="display:none;margin-top:1rem"></div>
+    </div>
+
+    <!-- LOGROS -->
+    <div class="section" id="section-logros">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🏆 Logros</h1>
+          <div class="page-sub">Tus insignias y recompensas</div>
+        </div>
+      </div>
+      <div id="logros-list" style="padding-bottom:2rem"><div class="loading"><div class="spinner"></div><br>Calculando logros…</div></div>
     </div>
 
     <!-- VICIOS (oculta, mantiene su DOM por compatibilidad) -->
@@ -2276,6 +2302,7 @@ function showSection(id, btn){
   btn.classList.add('active')
   if(id === 'agenda') loadAndRenderAgenda()
   if(id === 'rachas') renderRachas()
+  if(id === 'logros') loadLogros()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
   if(id === 'trabajo') loadProyectoDia()
@@ -5970,6 +5997,396 @@ function _cerrarRachaDetalle(){
   _rachaDetalleId = null
   const detalle = document.getElementById('rachas-detalle')
   if(detalle){ detalle.style.display='none'; detalle.innerHTML='' }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// --- LOGROS ---
+const LOGROS_202020 = ['saltos', 'meditar', 'baño'] // palabras clave en nombre
+
+const LOGRO_DEFS_HABIT = [
+  { id:'first',    icon:'🌅', name:'Primer paso',        desc:'Completaste este hábito por primera vez',            reward:'🤝 Ya empezaste — eso es lo más difícil' },
+  { id:'streak7',  icon:'🔥', name:'Racha 7 días',       desc:'7 días consecutivos sin fallar',                     reward:'🍫 Mereces un chocolate' },
+  { id:'streak14', icon:'🔥🔥',name:'Racha 14 días',     desc:'Dos semanas seguidas sin parar',                     reward:'🧃 Un jugo o bebida especial' },
+  { id:'streak30', icon:'💪', name:'Racha 30 días',      desc:'Un mes entero de consistencia',                      reward:'🍕 Pide lo que más se te antoje para cenar' },
+  { id:'streak100',icon:'🏆', name:'Racha 100 días',     desc:'100 días consecutivos — eso es carácter',            reward:'🎉 Una salida especial: restaurant, cine, lo que quieras' },
+  { id:'week_perfect', icon:'⭐', name:'Semana perfecta', desc:'7/7 días completados en una semana',                reward:'🍬 Un dulce a tu elección' },
+  { id:'month_perfect',icon:'🌟',name:'Mes perfecto',    desc:'Todos los días del mes completados',                 reward:'🛍️ Cómprate algo que tengas pendiente' },
+  { id:'comeback', icon:'💫', name:'Comeback',           desc:'Fallaste una vez pero volviste al día siguiente',    reward:'🤝 Bienvenido de vuelta — la racha continúa' },
+]
+// Volume cada 20 se genera dinámicamente
+
+const LOGRO_DEFS_GLOBAL = [
+  { id:'dia_perfecto',    icon:'🎯', name:'Día perfecto',          desc:'Todos tus hábitos diarios completados en un mismo día',       reward:'☕ Un café o snack especial que te guste' },
+  { id:'semana_perfecta', icon:'🗓️', name:'Semana perfecta global', desc:'Todos tus hábitos diarios completados cada día de la semana', reward:'🍽️ Sal a comer donde quieras' },
+  { id:'en_racha',        icon:'⚡', name:'En racha',              desc:'3 hábitos distintos con racha activa al mismo tiempo',        reward:'🎁 Un pequeño regalo para ti' },
+  { id:'sin_pausa',       icon:'⚡', name:'Sin pausa',             desc:'5 días seguidos sin un solo fallo en ningún hábito',          reward:'🎮 Una tarde libre sin culpas' },
+  { id:'muro',            icon:'🧱', name:'Muro',                  desc:'30 días consecutivos con al menos 1 hábito completado',       reward:'🧘 Una tarde de descanso total' },
+  { id:'muro_hierro',     icon:'🔩', name:'Muro de hierro',        desc:'30 días con el 20/20/20 completado cada día',                 reward:'👟 Cómprate algo para tu rutina física' },
+  { id:'equilibrado',     icon:'🌈', name:'Equilibrado',           desc:'1 hábito de cada categoría completado en el mismo día',       reward:'🍱 Un almuerzo especial donde quieras' },
+  { id:'polimata',        icon:'🎭', name:'Polímata',              desc:'Tienes hábitos activos en 4 o más categorías distintas',      reward:'📚 Compra ese libro o curso que tienes pendiente' },
+  { id:'centenario',      icon:'💯', name:'Centenario',            desc:'100 logs totales entre todos tus hábitos',                    reward:'🍣 Una cena especial' },
+  { id:'tsunami',         icon:'🌊', name:'Tsunami',               desc:'500 logs totales — eres una máquina',                        reward:'✈️ Planifica un viaje o escapada' },
+]
+
+function _currentStreak(sortedDates){
+  if(!sortedDates.length) return 0
+  const ds = [...sortedDates].sort().reverse()
+  const today = TODAY
+  const yesterday = _offsetDate(today, -1)
+  if(ds[0] !== today && ds[0] !== yesterday) return 0
+  let streak = 1
+  for(let i=1;i<ds.length;i++){
+    const expected = _offsetDate(ds[i-1], -1)
+    if(ds[i] === expected) streak++
+    else break
+  }
+  return streak
+}
+
+function _maxStreak(sortedDates){
+  if(!sortedDates.length) return 0
+  const ds = [...sortedDates].sort()
+  let max = 1, cur = 1
+  for(let i=1;i<ds.length;i++){
+    if(ds[i] === _offsetDate(ds[i-1], 1)){ cur++; if(cur>max) max=cur }
+    else cur=1
+  }
+  return max
+}
+
+function _offsetDate(dateStr, days){
+  const d = new Date(dateStr); d.setDate(d.getDate()+days)
+  return d.toISOString().slice(0,10)
+}
+
+function _perfectWeeksCount(sortedDates, firstLogDate){
+  if(!sortedDates.length) return 0
+  const set = new Set(sortedDates)
+  const start = new Date(firstLogDate)
+  const dow = start.getDay()===0?6:start.getDay()-1
+  start.setDate(start.getDate()-dow)
+  let count = 0
+  const today = new Date(TODAY)
+  while(start <= today){
+    const end = new Date(start); end.setDate(start.getDate()+6)
+    if(end < today){
+      let perfect = true
+      for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+        if(!set.has(d.toISOString().slice(0,10))){ perfect=false; break }
+      }
+      if(perfect) count++
+    }
+    start.setDate(start.getDate()+7)
+  }
+  return count
+}
+
+function _perfectMonthsCount(sortedDates, firstLogDate){
+  if(!sortedDates.length) return 0
+  const set = new Set(sortedDates)
+  const start = new Date(firstLogDate.slice(0,7)+'-01')
+  const today = new Date(TODAY)
+  let count = 0
+  while(start < today){
+    const y = start.getFullYear(), m = start.getMonth()
+    const last = new Date(y, m+1, 0)
+    if(last < today){
+      let perfect = true
+      for(let d=new Date(start); d<=last; d.setDate(d.getDate()+1)){
+        if(!set.has(d.toISOString().slice(0,10))){ perfect=false; break }
+      }
+      if(perfect) count++
+    }
+    start.setMonth(start.getMonth()+1)
+  }
+  return count
+}
+
+function _hasComeback(sortedDates){
+  if(sortedDates.length < 2) return false
+  const ds = [...sortedDates].sort()
+  for(let i=1;i<ds.length-1;i++){
+    const prev = ds[i-1], curr = ds[i], next = ds[i+1]
+    const gap1 = (new Date(curr)-new Date(prev))/(86400000)
+    const gap2 = (new Date(next)-new Date(curr))/(86400000)
+    if(gap1 > 1 && gap2 === 1) return true
+  }
+  return false
+}
+
+function _computeHabitAchievements(activity, logDates){
+  const sorted = [...logDates].sort()
+  const freq = activity.frequency || 'diaria'
+  const isDaily = freq === 'diaria' || freq === 'recurrente'
+  const results = []
+
+  const streak = isDaily ? _currentStreak(sorted) : 0
+  const maxSt  = isDaily ? _maxStreak(sorted) : 0
+  const total  = sorted.length
+  const firstLog = sorted[0] || TODAY
+
+  for(const def of LOGRO_DEFS_HABIT){
+    let earned = false, progress = ''
+    if(def.id === 'first'){
+      earned = total > 0
+    } else if(def.id === 'streak7'){
+      earned = maxSt >= 7
+      if(!earned) progress = `${Math.min(streak,maxSt)}/7 días`
+    } else if(def.id === 'streak14'){
+      earned = maxSt >= 14
+      if(!earned) progress = `${Math.min(streak,maxSt)}/14 días`
+    } else if(def.id === 'streak30'){
+      earned = maxSt >= 30
+      if(!earned) progress = `${Math.min(streak,maxSt)}/30 días`
+    } else if(def.id === 'streak100'){
+      earned = maxSt >= 100
+      if(!earned) progress = `${Math.min(streak,maxSt)}/100 días`
+    } else if(def.id === 'week_perfect'){
+      if(isDaily){ earned = _perfectWeeksCount(sorted, firstLog) > 0 }
+    } else if(def.id === 'month_perfect'){
+      if(isDaily){ earned = _perfectMonthsCount(sorted, firstLog) > 0 }
+    } else if(def.id === 'comeback'){
+      earned = _hasComeback(sorted)
+    }
+    if(!isDaily && ['streak7','streak14','streak30','streak100','week_perfect','month_perfect','comeback'].includes(def.id)) continue
+    results.push({...def, earned, progress})
+  }
+
+  // Volume cada 20
+  const milestones = []
+  for(let n=20; n<=Math.max(total+20, 200); n+=20){
+    const icons = ['📌','📈','💎','👑','🚀','🌠','🔱','⚜️','🏅','🎖️']
+    const ic = icons[Math.floor((n/20)-1) % icons.length]
+    milestones.push({
+      id:`vol_${n}`, icon:ic, name:`${n} completados`,
+      desc:`Has completado este hábito ${n} veces`,
+      reward: n<=60 ? '🍬 Un dulce merecido' : n<=100 ? '🍕 Una comida especial' : n<=200 ? '🎉 Celébralo como mereces' : '🏆 Eres una leyenda',
+      earned: total >= n,
+      progress: total < n ? `${total}/${n}` : ''
+    })
+    if(n > total + 60) break
+  }
+  return [...results, ...milestones]
+}
+
+async function loadLogros(){
+  const el = document.getElementById('logros-list')
+  if(!el) return
+  el.innerHTML = '<div class="loading"><div class="spinner"></div><br>Calculando logros…</div>'
+
+  if(!allActivities.length){
+    const { data } = await SB_P.from('activities').select('*').eq('user_id', USER_ID)
+    allActivities = data || []
+  }
+
+  const active = allActivities.filter(a => a.is_active && !['unico','unica'].includes(a.frequency))
+
+  // Fetch todos los logs de todos los hábitos activos
+  const { data: allLogs } = await SB_P.from('activity_logs')
+    .select('date,activity_id')
+    .eq('user_id', USER_ID)
+    .order('date')
+
+  const logsByHabit = {}
+  ;(allLogs||[]).forEach(l => {
+    if(!logsByHabit[l.activity_id]) logsByHabit[l.activity_id] = []
+    logsByHabit[l.activity_id].push(l.date)
+  })
+
+  // ── Logros globales ──
+  const globalResults = _computeGlobalAchievements(active, allLogs||[], logsByHabit)
+
+  // ── Logros por hábito ──
+  const habitSections = active.map(a => {
+    const logs = logsByHabit[a.id] || []
+    const achievements = _computeHabitAchievements(a, logs)
+    const earned = achievements.filter(x=>x.earned).length
+    return { activity: a, achievements, earned }
+  }).filter(s => s.achievements.length > 0)
+    .sort((a,b) => b.earned - a.earned)
+
+  const totalEarned = globalResults.filter(x=>x.earned).length + habitSections.reduce((s,h)=>s+h.earned,0)
+  const totalPossible = globalResults.length + habitSections.reduce((s,h)=>s+h.achievements.length,0)
+
+  let html = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem">
+    <span style="font-size:18px;font-weight:700;color:var(--gold)">${totalEarned}</span> / ${totalPossible} insignias desbloqueadas
+  </div>`
+
+  // Global
+  html += `<div class="logro-section-title">🌍 Multihabito</div><div class="logro-grid">`
+  for(const g of globalResults) html += _logroBadgeHTML(g)
+  html += '</div>'
+
+  // Por hábito
+  for(const s of habitSections){
+    const color = s.activity.color || '#f97316'
+    html += `<div class="logro-section-title" style="color:${color}">${s.activity.name}</div><div class="logro-grid">`
+    for(const ach of s.achievements) html += _logroBadgeHTML(ach)
+    html += '</div>'
+  }
+
+  el.innerHTML = html
+}
+
+function _computeGlobalAchievements(active, allLogs, logsByHabit){
+  const results = []
+  const dailyActs = active.filter(a => a.frequency === 'diaria')
+  const allLogDates = allLogs.map(l=>l.date).sort()
+  const totalLogs = allLogs.length
+
+  // Día perfecto — ¿existió algún día donde todos los hábitos diarios tuvieron log?
+  let diaPerfecto = false
+  if(dailyActs.length){
+    const dateCount = {}
+    for(const l of allLogs){
+      if(dailyActs.find(a=>a.id===l.activity_id)){
+        dateCount[l.date] = (dateCount[l.date]||new Set())
+        dateCount[l.date].add(l.activity_id)
+      }
+    }
+    for(const [, set] of Object.entries(dateCount)){
+      if(set.size >= dailyActs.length){ diaPerfecto=true; break }
+    }
+  }
+
+  // Semana perfecta global
+  let semanaPerfecta = false
+  if(dailyActs.length){
+    const dateActSet = {}
+    for(const l of allLogs){
+      if(dailyActs.find(a=>a.id===l.activity_id)){
+        if(!dateActSet[l.date]) dateActSet[l.date] = new Set()
+        dateActSet[l.date].add(l.activity_id)
+      }
+    }
+    const allDates = Object.keys(dateActSet).sort()
+    for(let i=0;i<allDates.length-6;i++){
+      let ok = true
+      for(let j=0;j<7;j++){
+        const expected = _offsetDate(allDates[i], j)
+        if(!dateActSet[expected] || dateActSet[expected].size < dailyActs.length){ ok=false; break }
+      }
+      if(ok){ semanaPerfecta=true; break }
+    }
+  }
+
+  // En racha — 3+ hábitos con racha activa
+  let enRacha = 0
+  for(const a of active){
+    const logs = (logsByHabit[a.id]||[]).sort()
+    if(_currentStreak(logs) > 0) enRacha++
+  }
+
+  // Sin pausa — 5 días seguidos sin fallo en ningún hábito diario
+  let sinPausa = false
+  if(dailyActs.length){
+    const dateActSet2 = {}
+    for(const l of allLogs){
+      if(dailyActs.find(a=>a.id===l.activity_id)){
+        if(!dateActSet2[l.date]) dateActSet2[l.date] = new Set()
+        dateActSet2[l.date].add(l.activity_id)
+      }
+    }
+    const allDates2 = Object.keys(dateActSet2).sort()
+    for(let i=0;i<allDates2.length-4;i++){
+      let ok = true
+      for(let j=0;j<5;j++){
+        const expected = _offsetDate(allDates2[i], j)
+        if(!dateActSet2[expected] || dateActSet2[expected].size < dailyActs.length){ ok=false; break }
+      }
+      if(ok){ sinPausa=true; break }
+    }
+  }
+
+  // Muro — 30 días con al menos 1 log cualquier hábito
+  let muro = false
+  {
+    const uniqueDates = [...new Set(allLogs.map(l=>l.date))].sort()
+    for(let i=0;i<uniqueDates.length-29;i++){
+      let ok = true
+      for(let j=0;j<30;j++){
+        if(uniqueDates[i+j] !== _offsetDate(uniqueDates[i], j)){ ok=false; break }
+      }
+      if(ok){ muro=true; break }
+    }
+  }
+
+  // Muro de hierro — 30 días con Saltos + Meditar + Baño
+  let muroHierro = false
+  {
+    const actos202020 = active.filter(a => LOGROS_202020.some(kw => a.name.toLowerCase().includes(kw)))
+    if(actos202020.length >= 3){
+      const dateSet = {}
+      for(const l of allLogs){
+        if(actos202020.find(a=>a.id===l.activity_id)){
+          if(!dateSet[l.date]) dateSet[l.date] = new Set()
+          dateSet[l.date].add(l.activity_id)
+        }
+      }
+      const days = Object.keys(dateSet).filter(d=>dateSet[d].size>=3).sort()
+      for(let i=0;i<days.length-29;i++){
+        let ok=true
+        for(let j=0;j<30;j++){
+          if(days[i+j] !== _offsetDate(days[i],j)){ ok=false; break }
+        }
+        if(ok){ muroHierro=true; break }
+      }
+    }
+  }
+
+  // Equilibrado — 1 hábito de cada categoría el mismo día
+  let equilibrado = false
+  {
+    const cats = [...new Set(active.map(a=>a.category))]
+    if(cats.length >= 2){
+      const dateCatSet = {}
+      for(const l of allLogs){
+        const act = active.find(a=>a.id===l.activity_id)
+        if(act){
+          if(!dateCatSet[l.date]) dateCatSet[l.date] = new Set()
+          dateCatSet[l.date].add(act.category)
+        }
+      }
+      for(const set of Object.values(dateCatSet)){
+        if(cats.every(c=>set.has(c))){ equilibrado=true; break }
+      }
+    }
+  }
+
+  // Polímata — hábitos activos en 4+ categorías
+  const cats = new Set(active.map(a=>a.category))
+  const polimata = cats.size >= 4
+
+  // Centenario / Tsunami
+  const centenario = totalLogs >= 100
+  const tsunami = totalLogs >= 500
+
+  const defs = [
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='dia_perfecto'),    earned:diaPerfecto,    progress: diaPerfecto?'':'' },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='semana_perfecta'), earned:semanaPerfecta, progress: '' },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='en_racha'),        earned:enRacha>=3,     progress: enRacha<3?`${enRacha}/3 hábitos`:'' },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='sin_pausa'),       earned:sinPausa,       progress: '' },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='muro'),            earned:muro,           progress: '' },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='muro_hierro'),     earned:muroHierro,     progress: '' },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='equilibrado'),     earned:equilibrado,    progress: '' },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='polimata'),        earned:polimata,       progress: polimata?'':`${cats.size}/4 categorías` },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='centenario'),      earned:centenario,     progress: centenario?'':`${totalLogs}/100 logs` },
+    { ...LOGRO_DEFS_GLOBAL.find(d=>d.id==='tsunami'),         earned:tsunami,        progress: tsunami?'':`${totalLogs}/500 logs` },
+  ]
+  return defs
+}
+
+function _logroBadgeHTML(ach){
+  const cls = ach.earned ? 'earned' : 'locked'
+  return `<div class="logro-badge ${cls}">
+    <div class="logro-icon">${ach.icon}</div>
+    <div class="logro-info">
+      <div class="logro-name">${ach.name}</div>
+      <div class="logro-desc">${ach.desc}</div>
+      ${ach.earned ? `<div class="logro-reward">${ach.reward}</div>` : ach.progress ? `<div class="logro-progress">${ach.progress}</div>` : ''}
+    </div>
+  </div>`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
