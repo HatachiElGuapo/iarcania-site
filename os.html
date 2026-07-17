@@ -945,7 +945,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
             <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Nota</div>
             <textarea id="aedit-note" rows="2" placeholder="Nota opcional..." style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;resize:none;box-sizing:border-box"></textarea>
           </div>
-          <button onclick="saveAgendaEdit()" style="width:100%;background:var(--purple);border:none;border-radius:8px;padding:11px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Guardar</button>
+          <div style="display:flex;gap:8px">
+            <button onclick="saveAgendaEdit()" style="flex:1;background:var(--purple);border:none;border-radius:8px;padding:11px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Guardar</button>
+            <button onclick="eliminarAgendaEdit()" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:11px 14px;color:#f87171;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif">🗑</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3023,6 +3026,12 @@ function closeAgendaEditModal(){
   const modal = document.getElementById('agenda-edit-modal')
   if(modal) modal.style.display = 'none'
   _agendaEditSlot = null; _agendaEditId = null; _agendaEditType = null
+}
+
+function eliminarAgendaEdit(){
+  if(!_agendaEditSlot || !_agendaEditId) return
+  removeAgendaTask(_agendaEditSlot, _agendaEditId)
+  closeAgendaEditModal()
 }
 
 function saveAgendaEdit(){
