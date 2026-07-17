@@ -1022,7 +1022,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       <!-- Date navigation (solo en diario) -->
       <div id="habitos-nav" style="display:none;align-items:center;justify-content:space-between;margin-bottom:1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:8px 14px">
         <button onclick="navegarDia(-1)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);padding:4px 10px;cursor:pointer;font-size:14px;font-family:'Outfit',sans-serif">←</button>
-        <input type="date" id="habitos-nav-label" onchange="irAFechaHabitos(this.value)" style="background:transparent;border:none;outline:none;font-size:13px;color:var(--text);font-family:'Outfit',sans-serif;cursor:pointer;text-align:center;flex:1">
+        <input type="date" id="habitos-nav-label" onchange="irAFechaHabitos(this.value)" onclick="try{this.showPicker()}catch(e){}" style="background:transparent;border:none;outline:none;font-size:13px;color:var(--text);font-family:'Outfit',sans-serif;cursor:pointer;text-align:center;flex:1;-webkit-appearance:none;appearance:none;color-scheme:dark">
         <button id="habitos-nav-next" onclick="navegarDia(1)" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);padding:4px 10px;cursor:pointer;font-size:14px;font-family:'Outfit',sans-serif">→</button>
       </div>
 
