@@ -1912,7 +1912,11 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </select>
     </div>
     <div class="field"><label>Fecha y hora *</label><input type="datetime-local" id="nc-datetime" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-    <div class="field"><label>Duración (minutos)</label><input type="number" id="nc-duration" value="60" min="10" step="10" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    <div class="field"><label>Duración de la cita (minutos)</label><input type="number" id="nc-duration" value="60" min="10" step="10" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    <div class="form-row">
+      <div class="field"><label>🚗 Viaje de ida (min)</label><input type="number" id="nc-travel-before" value="0" min="0" step="5" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div class="field"><label>🚗 Viaje de vuelta (min)</label><input type="number" id="nc-travel-after" value="0" min="0" step="5" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+    </div>
     <div class="field"><label>Lugar (opcional)</label><input type="text" id="nc-lugar" placeholder="Clínica, dirección..."/></div>
     <div class="field"><label>Doctor / persona (opcional)</label><input type="text" id="nc-doctor" placeholder="Dr. García..."/></div>
     <div class="form-row">
@@ -9923,22 +9927,58 @@ async function loadCitas(){
   renderTasks()
 }
 
+function _agendaSlotKey(totalMinutes){
+  const snapped = Math.round(totalMinutes/20)*20
+  const h = Math.floor(snapped/60) % 24
+  const m = snapped % 60
+  return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`
+}
+
+function _syncCitaConViajes(cita){
+  if(!cita.datetime) return
+  const dateStr = cita.datetime.slice(0, 10)
+  const key = 'agenda_' + dateStr
+  const raw = JSON.parse(localStorage.getItem(key) || '{}')
+  const d = new Date(cita.datetime)
+  const citaMin = d.getHours()*60 + d.getMinutes()
+  const durMin = cita.duration_minutes || 60
+  const tBefore = cita.travel_before_minutes || 0
+  const tAfter  = cita.travel_after_minutes  || 0
+
+  // Bloque de viaje de ida
+  if(tBefore > 0){
+    const sk = _agendaSlotKey(citaMin - tBefore)
+    if(!raw[sk]) raw[sk] = []
+    if(!raw[sk].find(x => x.id === cita.id+'_ida')){
+      raw[sk].push({ id: cita.id+'_ida', dur: tBefore, type: 'cita', title: '🚗 Viaje ida — '+cita.title, color: '#64748B' })
+    }
+  }
+  // Bloque de la cita
+  const citaSk = _agendaSlotKey(citaMin)
+  if(!raw[citaSk]) raw[citaSk] = []
+  if(!raw[citaSk].find(x => x.id === cita.id)){
+    raw[citaSk].push({ id: cita.id, dur: durMin, type: 'cita', title: cita.title, color: '#EF9F27' })
+  }
+  // Bloque de viaje de vuelta
+  if(tAfter > 0){
+    const sk = _agendaSlotKey(citaMin + durMin)
+    if(!raw[sk]) raw[sk] = []
+    if(!raw[sk].find(x => x.id === cita.id+'_vuelta')){
+      raw[sk].push({ id: cita.id+'_vuelta', dur: tAfter, type: 'cita', title: '🚗 Viaje vuelta — '+cita.title, color: '#64748B' })
+    }
+  }
+  localStorage.setItem(key, JSON.stringify(raw))
+}
+
 function syncCitaToAgenda(cita){
   if(!cita.datetime || cita.datetime < TODAY) return
-  const dateStr = cita.datetime.slice(0, 10)
-  const d = new Date(cita.datetime)
-  const rawMin = d.getHours()*60 + d.getMinutes()
-  const snapped = Math.round(rawMin/20)*20
-  const sk = `${Math.floor(snapped/60).toString().padStart(2,'0')}:${(snapped%60).toString().padStart(2,'0')}`
-  const key = 'agenda_' + dateStr
+  const key = 'agenda_' + cita.datetime.slice(0,10)
   const raw = JSON.parse(localStorage.getItem(key) || '{}')
   const alreadyExists = Object.values(raw).some(arr =>
     Array.isArray(arr) && arr.some(x => (typeof x === 'string' ? x : x.id) === cita.id)
   )
   if(alreadyExists) return
-  if(!raw[sk]) raw[sk] = []
-  raw[sk].push({id: cita.id, dur: cita.duration_minutes||60, type: 'cita', title: cita.title, color: '#EF9F27'})
-  localStorage.setItem(key, JSON.stringify(raw))
+  _syncCitaConViajes(cita)
 }
 
 function removeCitaFromAgenda(citaId){
@@ -9947,11 +9987,12 @@ function removeCitaFromAgenda(citaId){
   const dateStr = cita.datetime.slice(0, 10)
   const key = 'agenda_' + dateStr
   const raw = JSON.parse(localStorage.getItem(key) || '{}')
+  const idsToRemove = new Set([citaId, citaId+'_ida', citaId+'_vuelta'])
   let changed = false
   Object.keys(raw).forEach(slot => {
     if(!Array.isArray(raw[slot])) return
     const before = raw[slot].length
-    raw[slot] = raw[slot].filter(x => (typeof x === 'string' ? x : x.id) !== citaId)
+    raw[slot] = raw[slot].filter(x => !idsToRemove.has(typeof x === 'string' ? x : x.id))
     if(raw[slot].length !== before) changed = true
     if(raw[slot].length === 0) delete raw[slot]
   })
@@ -10092,14 +10133,18 @@ async function guardarNuevaCita(){
   const dtMs = new Date(dt).getTime()
   const r1h  = parseFloat(document.getElementById('nc-r1').value) || 0
   const r2h  = parseFloat(document.getElementById('nc-r2').value) || 0
-  const durMin = parseInt(document.getElementById('nc-duration').value) || 60
+  const durMin        = parseInt(document.getElementById('nc-duration').value) || 60
+  const travelBefore  = parseInt(document.getElementById('nc-travel-before').value) || 0
+  const travelAfter   = parseInt(document.getElementById('nc-travel-after').value) || 0
   const rec  = {
     id:         'apt_'+Date.now(),
     user_id:    USER_ID,
     title,
     type:       document.getElementById('nc-type').value,
     datetime:   new Date(dt).toISOString(),
-    duration_minutes: durMin,
+    duration_minutes:      durMin,
+    travel_before_minutes: travelBefore || null,
+    travel_after_minutes:  travelAfter  || null,
     location:   document.getElementById('nc-lugar').value.trim() || null,
     doctor_name: document.getElementById('nc-doctor').value.trim() || null,
     reminder_1: r1h > 0 ? new Date(dtMs - r1h*3600000).toISOString() : null,
@@ -10109,23 +10154,13 @@ async function guardarNuevaCita(){
   const { error } = await SB_P.from('appointments').insert(rec)
   if(error){ showToast('❌ '+error.message); return }
   allCitas = [...allCitas, rec].sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
-  // Guardar en agenda con duración real
-  const dtObj = new Date(dt)
-  const dateKey = dtObj.toLocaleDateString('en-CA')
-  const hh = dtObj.getHours().toString().padStart(2,'0')
-  const mm = (Math.round(dtObj.getMinutes()/20)*20 % 60).toString().padStart(2,'0')
-  const slotKey = `${hh}:${mm}`
-  const agKey = 'agenda_' + dateKey
-  const agData = JSON.parse(localStorage.getItem(agKey) || '{}')
-  if(!agData[slotKey]) agData[slotKey] = []
-  if(!agData[slotKey].find(x => x.id === rec.id)){
-    agData[slotKey].push({ id: rec.id, dur: durMin, type: 'cita', title: rec.title, color: '#EF9F27' })
-  }
-  localStorage.setItem(agKey, JSON.stringify(agData))
+  _syncCitaConViajes(rec)
   closeModal('nueva-cita')
   document.getElementById('nc-title').value = ''
   document.getElementById('nc-datetime').value = ''
   document.getElementById('nc-duration').value = '60'
+  document.getElementById('nc-travel-before').value = '0'
+  document.getElementById('nc-travel-after').value = '0'
   document.getElementById('nc-lugar').value = ''
   document.getElementById('nc-doctor').value = ''
   document.getElementById('nc-r1').value = '3'
