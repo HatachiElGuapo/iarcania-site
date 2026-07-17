@@ -3287,7 +3287,7 @@ function renderAgenda(){
       ${nowLineHTML}
       <div class="agenda-time-lbl${isHour?' is-hour':isHalf?' is-half':''}">${isHour||isHalf ? bk : ''}</div>
       <div class="agenda-block-line"></div>
-      <div class="agenda-block-content" onmousedown="agendaSelMouseDown(event,'${bk}')" onclick="if(_agendaPasteMode)agendaPaste('${bk}')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')" style="min-height:${minH}px">
+      <div class="agenda-block-content" data-slot="${bk}" onmousedown="agendaSelMouseDown(event,'${bk}')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')" style="min-height:${minH}px">
         ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}" style="display:flex;align-items:center;gap:4px">${routine}<button onclick="event.stopPropagation();openRoutineEditModal('${routineOrig}')" style="font-size:10px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button></div>`:''}
         ${routineCont?`<div style="font-size:10px;color:var(--text-muted);padding-left:4px;font-style:italic">↳ ${routineCont}</div>`:''}
         ${contHTML}${autoHTML}${pinnedHTML}
@@ -10805,7 +10805,17 @@ function agendaPaste(destSlotKey){
   _agendaClipboard = null
 }
 
-document.addEventListener('mouseup', () => { _agendaSelecting = false })
+document.addEventListener('mouseup', e => {
+  _agendaSelecting = false
+  // Paste mode: pegar en el slot clickeado
+  if(_agendaPasteMode && _agendaClipboard){
+    const content = e.target.closest('[data-slot]')
+    if(content){
+      const sk = content.dataset.slot
+      if(sk) agendaPaste(sk)
+    }
+  }
+})
 
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape'){
