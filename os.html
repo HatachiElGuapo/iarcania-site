@@ -1949,6 +1949,20 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
   </div>
 </div>
 
+<!-- Modal: conflicto de horario al crear cita -->
+<div class="modal-overlay" id="modal-conflicto-cita">
+  <div class="modal" style="max-width:420px">
+    <div style="font-size:28px;margin-bottom:8px;text-align:center">⚠️</div>
+    <h3 style="margin-bottom:6px;text-align:center">Conflicto de horario</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;text-align:center">Ya hay actividades en ese horario</p>
+    <div id="conflicto-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;max-height:240px;overflow-y:auto"></div>
+    <div class="btn-row" style="flex-direction:column;gap:8px">
+      <button class="btn-save" onclick="_conflictoGuardarDejando()">📌 Guardar y dejar todo como está</button>
+      <button class="btn-cancel" onclick="closeModal('conflicto-cita')" style="width:100%;text-align:center">✕ Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: nuevo/editar tipo de evento -->
 <div class="modal-overlay" id="modal-event-type">
   <div class="modal" style="max-width:440px">
@@ -10218,6 +10232,107 @@ async function eliminarCita(id){
   showToast('🗑️ Cita eliminada')
 }
 
+// Pendiente de confirmar conflicto
+let _conflictoPendiente = null
+
+function _citaConflictos(dateStr, startMin, durMin, travelBefore, travelAfter){
+  const data = _agendaCacheDate === dateStr ? getAgendaData() : JSON.parse(localStorage.getItem('agenda_'+dateStr)||'{}')
+  const conflictos = [] // { slot, items: [{id, label}] }
+  const ranges = []
+  if(travelBefore > 0) ranges.push({startMin: startMin - travelBefore, dur: travelBefore, label: 'Viaje de ida'})
+  ranges.push({startMin, dur: durMin, label: null})
+  if(travelAfter > 0) ranges.push({startMin: startMin + durMin, dur: travelAfter, label: 'Viaje de vuelta'})
+  ranges.forEach(range => {
+    const n = Math.ceil(range.dur / AGENDA_SLOT)
+    for(let i = 0; i < n; i++){
+      const slotMin = Math.floor((range.startMin + i*AGENDA_SLOT)/AGENDA_SLOT)*AGENDA_SLOT
+      const sk = agendaFromMin(slotMin)
+      const items = (Array.isArray(data[sk]) ? data[sk] : []).filter(x => {
+        const id = typeof x === 'string' ? x : x.id
+        return id && !id.endsWith('_ida') && !id.endsWith('_vuelta')
+      })
+      if(items.length > 0 && !conflictos.find(c => c.slot === sk)){
+        conflictos.push({slot: sk, items: items.map(x => {
+          const id = typeof x === 'string' ? x : x.id
+          const act = allActivities.find(a => a.id === id)
+          return {id, label: act ? (act.emoji||'') + ' ' + act.name : id}
+        })})
+      }
+    }
+  })
+  return conflictos
+}
+
+function _conflictoEliminarSlot(slot){
+  const data = getAgendaData()
+  if(!data[slot]) return
+  delete data[slot]
+  setAgendaData(data)
+  const el = document.querySelector(`#conflicto-lista [data-slot="${slot}"]`)
+  if(el) el.remove()
+  // si ya no quedan conflictos, guardar directo
+  if(!document.querySelector('#conflicto-lista [data-slot]')) _conflictoGuardarDejando()
+}
+
+async function _conflictoMoverSlot(slot){
+  const data = getAgendaData()
+  const items = data[slot] || []
+  if(!items.length){ _conflictoEliminarSlot(slot); return }
+  // buscar primer slot libre después
+  let newMin = agendaToMin(slot) + AGENDA_SLOT
+  while(newMin < 24*60){
+    const nk = agendaFromMin(newMin)
+    if(!(data[nk]||[]).length) break
+    newMin += AGENDA_SLOT
+  }
+  if(newMin >= 24*60){ showToast('⚠️ No hay slot libre disponible'); return }
+  const nk = agendaFromMin(newMin)
+  data[nk] = [...(data[nk]||[]), ...items]
+  delete data[slot]
+  setAgendaData(data)
+  const el = document.querySelector(`#conflicto-lista [data-slot="${slot}"]`)
+  if(el) el.remove()
+  showToast(`↗️ Movido a ${nk}`)
+  if(!document.querySelector('#conflicto-lista [data-slot]')) _conflictoGuardarDejando()
+}
+
+async function _conflictoGuardarDejando(){
+  closeModal('conflicto-cita')
+  if(!_conflictoPendiente) return
+  const rec = _conflictoPendiente
+  _conflictoPendiente = null
+  const { error } = await SB_P.from('appointments').insert(rec)
+  if(error){ showToast('❌ '+error.message); return }
+  allCitas = [...allCitas, rec].sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
+  _syncCitaConViajes(rec)
+  closeModal('nueva-cita')
+  _resetNuevaCitaForm()
+  renderCitas(); renderCitasAlert()
+  const dateKey = rec.datetime.slice(0,10)
+  if(dateKey === TODAY){
+    const slotKey = rec.datetime.slice(11,16)
+    const msgEl = document.getElementById('modal-cita-hoy-msg')
+    const yesBtn = document.getElementById('modal-cita-hoy-yes')
+    if(msgEl) msgEl.textContent = `${rec.title} — a las ${slotKey}`
+    if(yesBtn) yesBtn.onclick = () => { addCitaToHoy(rec.id); closeModal('cita-hoy') }
+    openModal('cita-hoy')
+  } else {
+    showToast('✅ Cita guardada')
+  }
+}
+
+function _resetNuevaCitaForm(){
+  document.getElementById('nc-title').value = ''
+  document.getElementById('nc-datetime').value = ''
+  document.getElementById('nc-duration').value = '60'
+  document.getElementById('nc-travel-before').value = '0'
+  document.getElementById('nc-travel-after').value = '0'
+  document.getElementById('nc-lugar').value = ''
+  document.getElementById('nc-doctor').value = ''
+  document.getElementById('nc-r1').value = '3'
+  document.getElementById('nc-r2').value = '1'
+}
+
 async function guardarNuevaCita(){
   const title = document.getElementById('nc-title').value.trim()
   const dt    = document.getElementById('nc-datetime').value
@@ -10243,30 +10358,28 @@ async function guardarNuevaCita(){
     reminder_2: r2h > 0 ? new Date(dtMs - r2h*3600000).toISOString() : null,
     status:     'pendiente'
   }
-  const { error } = await SB_P.from('appointments').insert(rec)
-  if(error){ showToast('❌ '+error.message); return }
-  allCitas = [...allCitas, rec].sort((a,b) => new Date(a.datetime)-new Date(b.datetime))
-  _syncCitaConViajes(rec)
-  closeModal('nueva-cita')
-  document.getElementById('nc-title').value = ''
-  document.getElementById('nc-datetime').value = ''
-  document.getElementById('nc-duration').value = '60'
-  document.getElementById('nc-travel-before').value = '0'
-  document.getElementById('nc-travel-after').value = '0'
-  document.getElementById('nc-lugar').value = ''
-  document.getElementById('nc-doctor').value = ''
-  document.getElementById('nc-r1').value = '3'
-  document.getElementById('nc-r2').value = '1'
-  renderCitas(); renderCitasAlert()
-  if(dateKey === TODAY){
-    const msgEl = document.getElementById('modal-cita-hoy-msg')
-    const yesBtn = document.getElementById('modal-cita-hoy-yes')
-    if(msgEl) msgEl.textContent = `${rec.title} — a las ${slotKey}`
-    if(yesBtn) yesBtn.onclick = () => { addCitaToHoy(rec.id); closeModal('cita-hoy') }
-    openModal('cita-hoy')
-  } else {
-    showToast('✅ Cita guardada')
+  // Detectar conflictos en la agenda del día de la cita
+  const dateKey = rec.datetime.slice(0, 10)
+  const citaMin = new Date(rec.datetime).getHours()*60 + new Date(rec.datetime).getMinutes()
+  const conflictos = _citaConflictos(dateKey, citaMin, durMin, travelBefore, travelAfter)
+  if(conflictos.length > 0){
+    _conflictoPendiente = rec
+    const lista = document.getElementById('conflicto-lista')
+    lista.innerHTML = conflictos.map(c => `
+      <div data-slot="${c.slot}" style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🕐 ${c.slot}</div>
+        ${c.items.map(it => `<div style="font-size:13px;color:var(--text-dim);margin-bottom:4px">${it.label}</div>`).join('')}
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button onclick="_conflictoEliminarSlot('${c.slot}')" style="flex:1;font-size:11px;padding:5px 8px;border-radius:6px;border:1px solid rgba(239,68,68,0.4);background:transparent;color:#f87171;cursor:pointer">🗑 Eliminar</button>
+          <button onclick="_conflictoMoverSlot('${c.slot}')" style="flex:1;font-size:11px;padding:5px 8px;border-radius:6px;border:1px solid rgba(99,179,237,0.4);background:transparent;color:#90cdf4;cursor:pointer">↗️ Mover al siguiente libre</button>
+        </div>
+      </div>`).join('')
+    openModal('conflicto-cita')
+    return
   }
+  // Sin conflictos — guardar directo
+  _conflictoPendiente = rec
+  await _conflictoGuardarDejando()
 }
 
 // --- SELECTOR DE TAREAS ---
