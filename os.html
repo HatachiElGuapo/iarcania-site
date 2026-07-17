@@ -5388,10 +5388,31 @@ function renderPersonas(){
         <div style="font-size:13px;font-weight:600;color:var(--text)">${p.name}${bdayPill}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${rel}${bdayStr}${p.notes ? '  ·  '+p.notes : ''}</div>
       </div>
+      <button onclick="crearCitaDesdePersona('${p.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:4px" title="Crear cita">🏥</button>
       <button onclick="openPersonaModal('${p.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:4px">✏️</button>
       <button onclick="deletePersona('${p.id}')" style="background:transparent;border:none;color:rgba(239,68,68,0.6);cursor:pointer;font-size:15px;padding:4px">×</button>
     </div>`
   }).join('')
+}
+
+function crearCitaDesdePersona(personaId){
+  const p = allPeople.find(x => x.id === personaId)
+  if(!p) return
+  _ncPopulateEventTypes()
+  _ncSelectedPeople = [personaId]
+  _ncRenderSelectedPeople()
+  document.getElementById('nc-title').value = `Con ${p.name}`
+  document.getElementById('nc-type').value = 'reunion'
+  document.getElementById('nc-datetime').value = ''
+  document.getElementById('nc-duration').value = '60'
+  document.getElementById('nc-travel-before').value = '0'
+  document.getElementById('nc-travel-after').value = '0'
+  document.getElementById('nc-lugar').value = ''
+  document.getElementById('nc-doctor').value = ''
+  document.getElementById('nc-r1').value = '3'
+  document.getElementById('nc-r2').value = '1'
+  document.getElementById('nc-event-type').value = ''
+  openModal('nueva-cita')
 }
 
 function openPersonaModal(id){
