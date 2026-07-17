@@ -3090,17 +3090,20 @@ function renderAgenda(){
   Object.entries(data).forEach(([sk, items]) => {
     items.forEach(x => {
       const {id, dur, type} = x
-      let color, title
+      let color, title, isHabit=false, isCita=false, isEvent=false
       if(type === 'habit'){
         const act = allActivities.find(a=>a.id===id)
         color = act ? (CAT_COLORS[act.category]||'#555') : '#555'
         title = act?.name || 'Hábito'
+        isHabit = true
       } else if(type === 'cita'){
         color = x.color || '#EF9F27'
-        title = allCitas.find(c=>c.id===id)?.title || 'Cita'
+        title = '🏥 ' + (x.title || allCitas.find(c=>c.id===id)?.title || 'Cita')
+        isCita = true
       } else if(id === null || id === undefined){
         color = '#9B72F0'
         title = x.note || 'Evento'
+        isEvent = true
       } else {
         const task = allTasks.find(t=>t.id===id)
         color = task ? (CATS[task.category]||CATS.habitos).color : '#555'
@@ -3112,7 +3115,7 @@ function renderAgenda(){
         if(bm>=24*60) break
         const bk = agendaFromMin(bm)
         if(!contMap[bk]) contMap[bk]=[]
-        contMap[bk].push({color, title, taskId:id, startKey:sk})
+        contMap[bk].push({color, title, taskId:id, startKey:sk, isHabit, isCita, isEvent, note:x.note, dur})
       }
     })
   })
@@ -3202,12 +3205,19 @@ function renderAgenda(){
     const nowLineY = Math.round(progressInBlock*(hasContent?52:36))
     const nowLineHTML = isNow ? `<div class="agenda-now-line" style="top:${nowLineY}px"></div>` : ''
 
-    const contHTML = conts.map(c =>
-      `<div class="agenda-chip" style="border-color:${c.color}44;background:${c.color}0D;opacity:0.85">
-        <div style="width:12px;height:12px;border-radius:50%;background:${c.color};flex-shrink:0;opacity:0.8"></div>
+    const contHTML = conts.map(c => {
+      const dotEl = `<div style="width:12px;height:12px;border-radius:50%;background:${c.color};flex-shrink:0;opacity:0.8"></div>`
+      const noteEl = c.note ? `<span style="font-size:9px;color:var(--text-muted);font-style:italic;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${c.note}</span>` : ''
+      const durEl = `<span style="color:var(--text-muted);font-size:9px;flex-shrink:0">(${fmtDur(c.dur)})</span>`
+      const editBtn = (c.isHabit||c.isCita||c.isEvent) ? '' :
+        `<button onclick="event.stopPropagation();openAgendaEditModal('${c.startKey}','${c.taskId}')" style="font-size:11px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button>`
+      const removeBtn = `<button onclick="removeAgendaTask('${c.startKey}','${c.taskId}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>`
+      return `<div class="agenda-chip" oncontextmenu="agendaChipRightClick(event,'${c.startKey}','${c.taskId}')" style="border-color:${c.color}44;background:${c.color}0D">
+        ${dotEl}
         <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title}</span>
+        ${noteEl}${durEl}${editBtn}${removeBtn}
       </div>`
-    ).join('')
+    }).join('')
 
     const autoHTML = autos.map(t => {
       const cat = CATS[t.category]||CATS.habitos
