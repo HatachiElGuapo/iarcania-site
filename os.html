@@ -323,8 +323,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .agenda-block.is-now{background:rgba(201,168,76,0.05)}
 .agenda-block.is-now .agenda-block-line{background:rgba(201,168,76,0.4)}
 .agenda-block.is-past{opacity:0.4}
-.agenda-time-lbl{width:54px;flex-shrink:0;padding:9px 8px 0 0;text-align:right;font-size:9px;color:var(--text-muted);font-variant-numeric:tabular-nums;line-height:1.2}
+.agenda-time-lbl{width:54px;flex-shrink:0;padding:5px 8px 0 0;text-align:right;font-size:9px;color:var(--text-muted);font-variant-numeric:tabular-nums;line-height:1.2}
 .agenda-time-lbl.is-hour{font-size:11px;color:var(--text-dim);font-weight:600}
+.agenda-time-lbl.is-half{font-size:8px;color:rgba(255,255,255,0.2)}
 .agenda-block-line{width:1px;flex-shrink:0;background:var(--border)}
 .agenda-block-content{flex:1;padding:5px 0 5px 10px;display:flex;flex-direction:column;gap:4px}
 .agenda-routine-lbl{font-size:12px;color:var(--text-dim);font-weight:500}
@@ -2059,6 +2060,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 </div>
 
 <div id="toast"></div>
+<div id="agenda-ctx-menu" style="display:none;position:fixed;z-index:9999;background:#1a1a1a;border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.5);min-width:140px">
+  <button onclick="agendaCtxDuplicate()" style="display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;padding:8px 12px;border-radius:6px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">📋 Duplicar en otro slot</button>
+</div>
 
 <script>
 const { createClient } = supabase
@@ -2646,7 +2650,7 @@ function _parseLocalAgenda(dateStr){
     const parts = k.split(':').map(Number)
     if(parts.length !== 2) return
     const m = parts[0]*60 + parts[1]
-    const snapped = Math.round(m/20)*20
+    const snapped = Math.round(m/AGENDA_SLOT)*AGENDA_SLOT
     if(snapped >= 24*60) return
     const sk = `${Math.floor(snapped/60).toString().padStart(2,'0')}:${(snapped%60).toString().padStart(2,'0')}`
     const items = Array.isArray(v) ? v.map(x => typeof x==='string' ? {id:x, dur:20} : x) : []
@@ -2739,6 +2743,7 @@ async function _migrateLocalAgendaToSupabase(){
   if(!error) localStorage.setItem('agenda_sb_migrated','1')
 }
 
+const AGENDA_SLOT = 10
 const agendaToMin = s => { const [h,m] = s.split(':').map(Number); return h*60+m }
 const agendaFromMin = m => `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`
 
@@ -2757,11 +2762,11 @@ function openAgendaModal(){
   const sel = document.getElementById('agenda-modal-slot')
   if(sel){
     const blocks = []
-    for(let h=0; h<24; h++) for(let m of [0,20,40]) blocks.push(agendaFromMin(h*60+m))
+    for(let h=0; h<24; h++) for(let m=0; m<60; m+=AGENDA_SLOT) blocks.push(agendaFromMin(h*60+m))
     const now = new Date()
     const nowMin = now.getHours()*60+now.getMinutes()
-    const nextBm = Math.ceil(nowMin/20)*20
-    const defaultBk = agendaFromMin(Math.min(nextBm, 23*60+40))
+    const nextBm = Math.ceil(nowMin/AGENDA_SLOT)*AGENDA_SLOT
+    const defaultBk = agendaFromMin(Math.min(nextBm, 23*60+(60-AGENDA_SLOT)))
     sel.innerHTML = blocks.map(bk => {
       const sched = AGENDA_SCHEDULE.find(s=>s.time===bk)
       const label = sched ? `${bk}  —  ${sched.label}` : bk
@@ -2923,7 +2928,7 @@ function _populateAgendaSlotSelect(selId, selected){
   const sel = document.getElementById(selId)
   if(!sel) return
   const blocks = []
-  for(let h=0;h<24;h++) for(let m of [0,20,40]) blocks.push(agendaFromMin(h*60+m))
+  for(let h=0;h<24;h++) for(let m=0;m<60;m+=AGENDA_SLOT) blocks.push(agendaFromMin(h*60+m))
   sel.innerHTML = blocks.map(bk => {
     const s = AGENDA_SCHEDULE.find(x=>x.time===bk)
     const label = s ? `${bk}  —  ${s.label}` : bk
@@ -3056,9 +3061,9 @@ function renderAgenda(){
   const data = getAgendaData()
   const now = new Date()
   const nowMin = now.getHours()*60 + now.getMinutes()
-  const curBlockMin = Math.floor(nowMin/20)*20
+  const curBlockMin = Math.floor(nowMin/AGENDA_SLOT)*AGENDA_SLOT
   const curBk = agendaFromMin(curBlockMin)
-  const progressInBlock = (nowMin - curBlockMin) / 20
+  const progressInBlock = (nowMin - curBlockMin) / AGENDA_SLOT
 
   const routineOverrides = getRoutineOverrides()
   const schedMap = {}
@@ -3071,9 +3076,9 @@ function renderAgenda(){
   const routineContMap = {}
   AGENDA_SCHEDULE.forEach(s => {
     if(s.dur && s.dur > 20){
-      const n = Math.ceil(s.dur/20)
+      const n = Math.ceil(s.dur/AGENDA_SLOT)
       for(let i=1; i<n; i++){
-        const bm = agendaToMin(s.time)+i*20
+        const bm = agendaToMin(s.time)+i*AGENDA_SLOT
         if(bm >= 24*60) break
         routineContMap[agendaFromMin(bm)] = s.label
       }
@@ -3101,9 +3106,9 @@ function renderAgenda(){
         color = task ? (CATS[task.category]||CATS.habitos).color : '#555'
         title = task?.title || 'Tarea'
       }
-      const n = Math.ceil(dur/20)
+      const n = Math.ceil(dur/AGENDA_SLOT)
       for(let i=1; i<n; i++){
-        const bm = agendaToMin(sk)+i*20
+        const bm = agendaToMin(sk)+i*AGENDA_SLOT
         if(bm>=24*60) break
         const bk = agendaFromMin(bm)
         if(!contMap[bk]) contMap[bk]=[]
@@ -3117,8 +3122,8 @@ function renderAgenda(){
   const autoMap = {}
   allTasks.forEach(t => {
     if(t.due_date===agendaDateStr && t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim())){
-      const bm = Math.floor(agendaToMin(t.notes.trim())/20)*20
-      const bk = agendaFromMin(Math.min(bm, 23*60+40))
+      const bm = Math.floor(agendaToMin(t.notes.trim())/AGENDA_SLOT)*AGENDA_SLOT
+      const bk = agendaFromMin(Math.min(bm, 23*60+(60-AGENDA_SLOT)))
       if(!autoMap[bk]) autoMap[bk]=[]
       autoMap[bk].push(t)
     }
@@ -3149,16 +3154,17 @@ function renderAgenda(){
     return `<div onclick="toggleTask('${t.id}')" style="cursor:pointer;width:12px;height:12px;border-radius:50%;border:1.5px solid ${cat.color};background:${done?cat.color:'transparent'};display:flex;align-items:center;justify-content:center;font-size:8px;color:#000;flex-shrink:0">${done?'✓':''}</div>`
   }
 
-  // Generate 72 blocks (00:00 → 23:40, every 20 min)
+  // Generate 144 blocks (00:00 → 23:50, every 10 min)
   const blocks = []
-  for(let h=0; h<24; h++) for(let m of [0,20,40]) blocks.push(agendaFromMin(h*60+m))
+  for(let h=0; h<24; h++) for(let m=0; m<60; m+=AGENDA_SLOT) blocks.push(agendaFromMin(h*60+m))
 
   let html = '<div class="agenda-timeline-wrap">'
   blocks.forEach(bk => {
     const bMin    = agendaToMin(bk)
     const isNow   = bk === curBk
-    const isPast  = bMin+20 <= nowMin
+    const isPast  = bMin+AGENDA_SLOT <= nowMin
     const isHour  = bk.endsWith(':00')
+    const isHalf  = bk.endsWith(':30')
     const routineEntry = schedMap[bk]
     const routine      = routineEntry?.label || null
     const routineOrig  = routineEntry?.originalSlot || bk
@@ -3227,7 +3233,7 @@ function renderAgenda(){
       const checkEl = (isHabit || isCita)
         ? `<div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0;opacity:0.8"></div>`
         : chipCheck(task, {color})
-      return `<div class="agenda-chip" draggable="true" ondragstart="onAgendaChipDragStart(event,'${bk}','${id}')" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''}">
+      return `<div class="agenda-chip" draggable="true" ondragstart="onAgendaChipDragStart(event,'${bk}','${id}')" oncontextmenu="agendaChipRightClick(event,'${bk}','${id}')" style="border-color:${color}44;background:${color}0D;${done?'opacity:0.5':''}">
         ${checkEl}
         <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''};">${title}</span>
         ${note?`<span style="font-size:9px;color:var(--text-muted);font-style:italic;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="${note}">${note}</span>`:''}
@@ -3239,9 +3245,9 @@ function renderAgenda(){
 
     html += `<div class="agenda-block${isNow?' is-now':''}${isPast?' is-past':''}" id="ablock-${domId}" style="position:relative">
       ${nowLineHTML}
-      <div class="agenda-time-lbl${isHour?' is-hour':''}">${bk}</div>
+      <div class="agenda-time-lbl${isHour?' is-hour':isHalf?' is-half':''}">${isHour||isHalf ? bk : ''}</div>
       <div class="agenda-block-line"></div>
-      <div class="agenda-block-content" style="min-height:${minH}px" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')">
+      <div class="agenda-block-content" onclick="if(_agendaPasteMode)agendaPaste('${bk}')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')" style="min-height:${minH}px">
         ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}" style="display:flex;align-items:center;gap:4px">${routine}<button onclick="event.stopPropagation();openRoutineEditModal('${routineOrig}')" style="font-size:10px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button></div>`:''}
         ${routineCont?`<div style="font-size:10px;color:var(--text-muted);padding-left:4px;font-style:italic">↳ ${routineCont}</div>`:''}
         ${contHTML}${autoHTML}${pinnedHTML}
@@ -9929,7 +9935,7 @@ async function loadCitas(){
 
 function _agendaSlotKey(totalMinutes, snapDir='round'){
   const fn = snapDir==='floor' ? Math.floor : snapDir==='ceil' ? Math.ceil : Math.round
-  const snapped = fn(totalMinutes/20)*20
+  const snapped = fn(totalMinutes/AGENDA_SLOT)*AGENDA_SLOT
   const h = Math.floor(snapped/60) % 24
   const m = snapped % 60
   return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`
@@ -10538,6 +10544,68 @@ async function guardarRecurso() {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Guardar' }
   }
 }
+
+// ── Agenda copy/paste ─────────────────────────────────────────────────────────
+let _agendaClipboard = null  // {slotKey, item}
+let _agendaPasteMode = false
+
+function agendaChipRightClick(event, slotKey, itemId){
+  event.preventDefault()
+  event.stopPropagation()
+  const menu = document.getElementById('agenda-ctx-menu')
+  menu.style.display = 'block'
+  menu.style.left = Math.min(event.clientX, window.innerWidth-160) + 'px'
+  menu.style.top  = Math.min(event.clientY, window.innerHeight-80) + 'px'
+  menu.dataset.slot   = slotKey
+  menu.dataset.itemId = itemId
+}
+
+function agendaCtxDuplicate(){
+  const menu = document.getElementById('agenda-ctx-menu')
+  const slotKey = menu.dataset.slot
+  const itemId  = menu.dataset.itemId
+  const data    = getAgendaData()
+  const slotItems = data[slotKey] || []
+  const item = slotItems.find(x => String(x.id) === String(itemId))
+  if(!item){ agendaCtxClose(); return }
+  _agendaClipboard = { slotKey, item: {...item} }
+  _agendaPasteMode = true
+  agendaCtxClose()
+  showToast('📋 Click en el slot destino para pegar — Esc para cancelar')
+}
+
+function agendaCtxClose(){
+  document.getElementById('agenda-ctx-menu').style.display = 'none'
+}
+
+function agendaPaste(destSlotKey){
+  if(!_agendaPasteMode || !_agendaClipboard) return
+  const dateStr = getAgendaDateStr()
+  const key = 'agenda_' + dateStr
+  const raw = JSON.parse(localStorage.getItem(key) || '{}')
+  if(!raw[destSlotKey]) raw[destSlotKey] = []
+  const newItem = {..._agendaClipboard.item, id: _agendaClipboard.item.id}
+  if(!raw[destSlotKey].find(x => x.id === newItem.id && x.title === newItem.title)){
+    raw[destSlotKey].push(newItem)
+    localStorage.setItem(key, JSON.stringify(raw))
+    if(getAgendaDateStr() === dateStr) renderAgenda()
+    showToast('✅ Pegado en ' + destSlotKey)
+  } else {
+    showToast('⚠️ Ya existe en ese slot')
+  }
+  _agendaPasteMode = false
+  _agendaClipboard = null
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    if(_agendaPasteMode){ _agendaPasteMode=false; _agendaClipboard=null; showToast('❌ Pegado cancelado') }
+    agendaCtxClose()
+  }
+})
+document.addEventListener('click', e => {
+  if(!document.getElementById('agenda-ctx-menu').contains(e.target)) agendaCtxClose()
+})
 </script>
 </body>
 </html>
