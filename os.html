@@ -3318,7 +3318,7 @@ function renderAgenda(){
     const isSelected = _agendaSelectedSlots.has(bk)
     html += `<div class="agenda-block${isNow?' is-now':''}${isPast?' is-past':''}${isSelected?' agenda-selected':''}" id="ablock-${domId}" style="position:relative" onmouseover="agendaSelMouseOver(event,'${bk}')">
       ${nowLineHTML}
-      <div class="agenda-time-lbl${isHour?' is-hour':isHalf?' is-half':''}">${isHour||isHalf ? bk : ''}</div>
+      <div class="agenda-time-lbl${isHour?' is-hour':isHalf?' is-half':''}">${bk}</div>
       <div class="agenda-block-line"></div>
       <div class="agenda-block-content" data-slot="${bk}" onmousedown="agendaSelMouseDown(event,'${bk}')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onAgendaBlockDrop(event,'${bk}');this.classList.remove('drag-over')" style="min-height:${minH}px">
         ${routine?`<div class="agenda-routine-lbl${isNow?' is-now':''}" style="display:flex;align-items:center;gap:4px">${routine}<button onclick="event.stopPropagation();openRoutineEditModal('${routineOrig}')" style="font-size:10px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0">✏️</button></div>`:''}
