@@ -446,6 +446,9 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" onclick="showSection('eventos',this)">
           <span class="nav-icon">🎉</span>Eventos
         </button>
+        <button class="nav-item" onclick="showSection('personas',this)">
+          <span class="nav-icon">👥</span>Personas
+        </button>
       </div>
       <div class="nav-separator" onclick="toggleNavGroup('personal')"><span class="nav-sep-arrow">▼</span>Personal</div>
       <div class="nav-group" id="group-personal">
@@ -987,7 +990,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           <h1 class="page-title">Citas</h1>
           <div class="page-sub">Médicas, odontológicas y reuniones</div>
         </div>
-        <button class="btn-add" onclick="openModal('nueva-cita')">+ Nueva cita</button>
+        <button class="btn-add" onclick="_ncPopulateEventTypes();_ncSelectedPeople=[];_ncRenderSelectedPeople();openModal('nueva-cita')">+ Nueva cita</button>
       </div>
       <div id="citas-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
     </div>
@@ -1002,6 +1005,25 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="btn-add" onclick="openEventTypeModal()">+ Nuevo tipo</button>
       </div>
       <div id="eventos-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
+    </div>
+
+    <!-- PERSONAS -->
+    <div class="section" id="section-personas">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">👥 Personas</h1>
+          <div class="page-sub">Gente que conoces</div>
+        </div>
+        <button class="btn-add" onclick="openPersonaModal()">+ Agregar</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap" id="personas-rel-filters">
+        <button class="cat-filter active" onclick="filterPersonas('all',this)">Todos</button>
+        <button class="cat-filter" onclick="filterPersonas('amigo',this)">👤 Amigos</button>
+        <button class="cat-filter" onclick="filterPersonas('familia',this)">👨‍👩‍👧 Familia</button>
+        <button class="cat-filter" onclick="filterPersonas('conocido',this)">🤝 Conocidos</button>
+        <button class="cat-filter" onclick="filterPersonas('trabajo',this)">💼 Trabajo</button>
+      </div>
+      <div id="personas-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
     </div>
 
     <!-- FECHAS -->
@@ -1930,6 +1952,20 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     </div>
     <div class="field"><label>Lugar (opcional)</label><input type="text" id="nc-lugar" placeholder="Clínica, dirección..."/></div>
     <div class="field"><label>Doctor / persona (opcional)</label><input type="text" id="nc-doctor" placeholder="Dr. García..."/></div>
+    <div class="field">
+      <label>👥 Con quién (opcional)</label>
+      <div id="nc-people-selected" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+      <div style="position:relative">
+        <input type="text" id="nc-people-search" placeholder="Buscar persona..." oninput="ncPeopleSearch(this.value)" autocomplete="off" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/>
+        <div id="nc-people-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#161616;border:1px solid var(--border);border-radius:8px;z-index:50;max-height:160px;overflow-y:auto;margin-top:2px"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>🎉 Tipo de evento (opcional)</label>
+      <select id="nc-event-type" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="">— Ninguno —</option>
+      </select>
+    </div>
     <div class="form-row">
       <div class="field"><label>Recordatorio 1 (h antes)</label><input type="number" id="nc-r1" value="3" min="0" placeholder="3"/></div>
       <div class="field"><label>Recordatorio 2 (h antes)</label><input type="number" id="nc-r2" value="1" min="0" placeholder="1"/></div>
@@ -1937,6 +1973,38 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('nueva-cita')">Cancelar</button>
       <button class="btn-save" onclick="guardarNuevaCita()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nueva/editar persona -->
+<div class="modal-overlay" id="modal-persona">
+  <div class="modal" style="max-width:400px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h3 id="persona-modal-title" style="margin:0">Nueva persona</h3>
+      <button onclick="closeModal('persona')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <input type="hidden" id="persona-id">
+    <div style="margin-bottom:12px">
+      <div class="form-label">Nombre *</div>
+      <input id="persona-name" type="text" placeholder="Nombre completo" class="form-input">
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="form-label">Relación</div>
+      <select id="persona-rel" class="form-input">
+        <option value="amigo">👤 Amigo/a</option>
+        <option value="familia">👨‍👩‍👧 Familia</option>
+        <option value="conocido">🤝 Conocido/a</option>
+        <option value="trabajo">💼 Trabajo</option>
+      </select>
+    </div>
+    <div style="margin-bottom:18px">
+      <div class="form-label">Nota (opcional)</div>
+      <textarea id="persona-notes" rows="2" placeholder="Algo para recordar..." class="form-input" style="resize:none"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('persona')">Cancelar</button>
+      <button class="btn-save" onclick="savePersona()">Guardar</button>
     </div>
   </div>
 </div>
@@ -2305,7 +2373,7 @@ async function initApp(){
   setInterval(checkDateReset, 60000)
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
   await loadTareasHoy() // primero: hoyFocusItems disponible antes de cualquier render
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadAgendaForDate(getAgendaDateStr()), loadClientesDashboard()])
+  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadAgendaForDate(getAgendaDateStr()), loadClientesDashboard(), loadPersonas()])
   renderTasks() // render final con todos los datos disponibles
   loadFacturas()
   loadTimerFromStorage()
@@ -2365,6 +2433,7 @@ function showSection(id, btn){
   if(id === 'recursos') loadRecursos()
   if(id === 'actividades') initTaskSections()
   if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
+  if(id === 'personas') { loadPersonas().then(() => renderPersonas()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(id === 'clientes') loadClientesDashboard()
   if(id === 'cuerpo') loadCuerpo()
@@ -5264,6 +5333,144 @@ let _editingOccId       = null
 let _occTargetTypeId    = null
 let _selectedMood       = null
 
+// ── PERSONAS ──────────────────────────────────────────────────────────────
+let allPeople = []
+let _editingPersonaId = null
+let _currentPersonaFilter = 'all'
+let _ncSelectedPeople = [] // ids seleccionadas en el modal de nueva cita
+
+async function loadPersonas(){
+  const { data } = await SB_P.from('people').select('*').eq('user_id', USER_ID).order('name')
+  allPeople = data || []
+}
+
+function filterPersonas(rel, btn){
+  _currentPersonaFilter = rel
+  document.querySelectorAll('#personas-rel-filters .cat-filter').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  renderPersonas()
+}
+
+const REL_LABELS = { amigo:'👤 Amigo/a', familia:'👨‍👩‍👧 Familia', conocido:'🤝 Conocido/a', trabajo:'💼 Trabajo' }
+
+function renderPersonas(){
+  const el = document.getElementById('personas-list')
+  if(!el) return
+  const list = _currentPersonaFilter === 'all'
+    ? allPeople
+    : allPeople.filter(p => p.relationship === _currentPersonaFilter)
+  if(!list.length){
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div>No hay personas aquí todavía.</div>`
+    return
+  }
+  el.innerHTML = list.map(p => {
+    const rel = REL_LABELS[p.relationship] || '🤝 Conocido/a'
+    return `<div class="card" style="padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;border-radius:50%;background:rgba(139,108,246,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${p.name.charAt(0).toUpperCase()}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${p.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${rel}${p.notes ? '  ·  '+p.notes : ''}</div>
+      </div>
+      <button onclick="openPersonaModal('${p.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:4px">✏️</button>
+      <button onclick="deletePersona('${p.id}')" style="background:transparent;border:none;color:rgba(239,68,68,0.6);cursor:pointer;font-size:15px;padding:4px">×</button>
+    </div>`
+  }).join('')
+}
+
+function openPersonaModal(id){
+  _editingPersonaId = id || null
+  const p = id ? allPeople.find(x => x.id === id) : null
+  document.getElementById('persona-modal-title').textContent = p ? 'Editar persona' : 'Nueva persona'
+  document.getElementById('persona-id').value   = p?.id   || ''
+  document.getElementById('persona-name').value = p?.name || ''
+  document.getElementById('persona-rel').value  = p?.relationship || 'amigo'
+  document.getElementById('persona-notes').value = p?.notes || ''
+  openModal('persona')
+}
+
+async function savePersona(){
+  const name = document.getElementById('persona-name').value.trim()
+  if(!name){ showToast('⚠️ El nombre es obligatorio'); return }
+  const row = {
+    name,
+    relationship: document.getElementById('persona-rel').value,
+    notes: document.getElementById('persona-notes').value.trim() || null,
+    user_id: USER_ID,
+  }
+  if(_editingPersonaId){
+    await SB_P.from('people').update(row).eq('id', _editingPersonaId)
+  } else {
+    row.id = 'per_' + Date.now()
+    await SB_P.from('people').insert(row)
+  }
+  closeModal('persona')
+  await loadPersonas()
+  renderPersonas()
+  showToast(_editingPersonaId ? '✅ Persona actualizada' : '✅ Persona guardada')
+}
+
+async function deletePersona(id){
+  const p = allPeople.find(x => x.id === id)
+  if(!p) return
+  showToastAction(`¿Eliminar a ${p.name}?`, async () => {
+    await SB_P.from('people').delete().eq('id', id)
+    allPeople = allPeople.filter(x => x.id !== id)
+    renderPersonas()
+  })
+}
+
+// Autocomplete de personas en el modal de nueva cita
+function _ncRenderSelectedPeople(){
+  const wrap = document.getElementById('nc-people-selected')
+  if(!wrap) return
+  wrap.innerHTML = _ncSelectedPeople.map(id => {
+    const p = allPeople.find(x => x.id === id)
+    if(!p) return ''
+    return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(139,108,246,0.15);border:1px solid rgba(139,108,246,0.3);border-radius:20px;padding:3px 10px;font-size:12px;color:#c4b5fd">
+      ${p.name}
+      <button onclick="_ncRemovePerson('${id}')" style="background:none;border:none;color:#c4b5fd;cursor:pointer;font-size:13px;padding:0;line-height:1">×</button>
+    </span>`
+  }).join('')
+}
+
+function _ncRemovePerson(id){
+  _ncSelectedPeople = _ncSelectedPeople.filter(x => x !== id)
+  _ncRenderSelectedPeople()
+}
+
+function ncPeopleSearch(q){
+  const dd = document.getElementById('nc-people-dropdown')
+  if(!dd) return
+  const matches = allPeople.filter(p =>
+    !_ncSelectedPeople.includes(p.id) &&
+    p.name.toLowerCase().includes(q.toLowerCase())
+  )
+  if(!q && !matches.length){ dd.style.display = 'none'; return }
+  dd.style.display = matches.length ? 'block' : 'none'
+  dd.innerHTML = matches.slice(0,8).map(p =>
+    `<div onclick="ncSelectPerson('${p.id}')" style="padding:9px 12px;cursor:pointer;font-size:13px;color:var(--text-dim);border-bottom:1px solid var(--border)" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background=''">${p.name} <span style="font-size:10px;color:var(--text-muted)">${REL_LABELS[p.relationship]||''}</span></div>`
+  ).join('')
+}
+
+function ncSelectPerson(id){
+  if(!_ncSelectedPeople.includes(id)) _ncSelectedPeople.push(id)
+  document.getElementById('nc-people-search').value = ''
+  document.getElementById('nc-people-dropdown').style.display = 'none'
+  _ncRenderSelectedPeople()
+}
+
+function _ncPopulateEventTypes(){
+  const sel = document.getElementById('nc-event-type')
+  if(!sel) return
+  sel.innerHTML = '<option value="">— Ninguno —</option>' +
+    Object.entries(EVENT_TYPE_CATS).map(([key, cat]) => {
+      const types = allEventTypes.filter(et => (et.category||'visita') === key)
+      if(!types.length) return ''
+      return `<optgroup label="${cat.icon} ${cat.label}">${types.map(et =>
+        `<option value="${et.id}">${et.name}</option>`).join('')}</optgroup>`
+    }).join('')
+}
+
 async function seedEventosDefaults(){
   const defaults = [
     // Cultural
@@ -5319,6 +5526,8 @@ function _renderEventCard(et){
   const cat  = EVENT_TYPE_CATS[et.category] || EVENT_TYPE_CATS.visita
   const open = expandedEventTypes.has(et.id)
   const occs = allOccurrences[et.id] || []
+  const citasCount = allCitas.filter(c => c.event_type_id === et.id).length
+  const totalCount = occs.length + citasCount
   const occHTML = open ? `
     <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
       <button onclick="openOccurrenceModal('${et.id}')" style="width:100%;padding:8px;background:transparent;border:1px dashed var(--border);border-radius:7px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;margin-bottom:8px">+ Registrar vez</button>
@@ -5339,6 +5548,18 @@ function _renderEventCard(et){
             </div>`
           }).join('')
       }
+      ${citasCount > 0 ? `
+        <div style="margin-top:8px;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🏥 Citas vinculadas</div>
+        ${allCitas.filter(c => c.event_type_id === et.id).map(c => {
+          const d = new Date(c.datetime)
+          const dateStr = d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})
+          const timeStr = d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
+          const people = c.people_ids?.length ? '  ·  👥 ' + c.people_ids.map(id => allPeople.find(p=>p.id===id)?.name||'').filter(Boolean).join(', ') : ''
+          return `<div style="background:rgba(239,159,39,0.08);border-left:3px solid #EF9F27;border-radius:0 6px 6px 0;padding:8px 10px;margin-bottom:4px">
+            <div style="font-size:12px;color:var(--text-dim)">${c.title}</div>
+            <div style="font-size:11px;color:var(--text-muted)">📅 ${dateStr} ${timeStr}${people}</div>
+          </div>`
+        }).join('')}` : ''}
     </div>` : ''
   return `<div class="card" style="margin-bottom:10px;padding:12px 14px">
     <div onclick="toggleEventType('${et.id}')" style="display:flex;align-items:center;gap:10px;cursor:pointer">
@@ -5347,7 +5568,7 @@ function _renderEventCard(et){
         <div style="font-size:13px;font-weight:600;color:var(--text)">${et.name}</div>
         ${et.description?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${et.description}</div>`:''}
       </div>
-      <span style="font-size:11px;color:var(--text-muted)">${occs.length} ${occs.length===1?'vez':'veces'}</span>
+      <span style="font-size:11px;color:var(--text-muted)">${totalCount} ${totalCount===1?'vez':'veces'}</span>
       <button onclick="event.stopPropagation();openEventTypeModal('${et.id}')" class="habito-toggle" style="font-size:12px">✏️</button>
       <span style="font-size:11px;color:var(--text-muted);transition:transform .2s;display:inline-block;${open?'':'transform:rotate(-90deg)'}">▼</span>
     </div>
@@ -10413,6 +10634,11 @@ function _resetNuevaCitaForm(){
   document.getElementById('nc-doctor').value = ''
   document.getElementById('nc-r1').value = '3'
   document.getElementById('nc-r2').value = '1'
+  document.getElementById('nc-people-search').value = ''
+  document.getElementById('nc-people-dropdown').style.display = 'none'
+  document.getElementById('nc-event-type').value = ''
+  _ncSelectedPeople = []
+  _ncRenderSelectedPeople()
 }
 
 async function guardarNuevaCita(){
@@ -10425,6 +10651,7 @@ async function guardarNuevaCita(){
   const durMin        = parseInt(document.getElementById('nc-duration').value) || 60
   const travelBefore  = parseInt(document.getElementById('nc-travel-before').value) || 0
   const travelAfter   = parseInt(document.getElementById('nc-travel-after').value) || 0
+  const eventTypeId = document.getElementById('nc-event-type')?.value || null
   const rec  = {
     id:         'apt_'+Date.now(),
     user_id:    USER_ID,
@@ -10438,7 +10665,9 @@ async function guardarNuevaCita(){
     doctor_name: document.getElementById('nc-doctor').value.trim() || null,
     reminder_1: r1h > 0 ? new Date(dtMs - r1h*3600000).toISOString() : null,
     reminder_2: r2h > 0 ? new Date(dtMs - r2h*3600000).toISOString() : null,
-    status:     'pendiente'
+    status:     'pendiente',
+    event_type_id: eventTypeId || null,
+    people_ids:    _ncSelectedPeople.length ? _ncSelectedPeople : null,
   }
   // Detectar conflictos en la agenda del día de la cita
   const dateKey = rec.datetime.slice(0, 10)
