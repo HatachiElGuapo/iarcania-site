@@ -3685,8 +3685,7 @@ async function guardarComida(){
 function renderTrabajoDash(){
   const el = document.getElementById('dash-trabajo-items')
   if(!el) return
-  const ids = ['a68', 'a72']
-  const acts = allActivities.filter(a => ids.includes(a.id) && a.is_active)
+  const acts = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
   if(!acts.length){
     el.innerHTML = '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades de trabajo configuradas</div>'
     return
@@ -3701,9 +3700,10 @@ function renderTrabajoDash(){
     const linkBtn = link
       ? `<button class="habito-toggle" onclick="event.stopPropagation();navTo('${link.section}')" style="font-size:10px;padding:2px 7px">${link.label}</button>`
       : ''
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleTrabajoItem('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
+      <span style="font-size:10px;color:var(--text-muted);margin-left:auto;margin-right:4px">opcional</span>
       ${linkBtn}
     </div>`
   }).join('')
@@ -6629,6 +6629,8 @@ function renderHabitos(){
       const freq = a.frequency || 'diaria'
       // Vicios aparecen siempre en la pestaña Diario independientemente de su frecuencia
       if(a.category === 'vicios' && isDaily) return showInactive || a.is_active
+      // trabajo_profundo solo aparece si se filtra explícitamente por esa categoría
+      if(a.category === 'trabajo_profundo' && isDaily && currentCatFilter !== 'trabajo_profundo') return false
       if(freq !== currentFreqFilter) return false
       if(!showInactive && !a.is_active) return false
       return true
@@ -6971,6 +6973,25 @@ async function decrementHabito(activityId){
     await SB_P.from('activity_logs').update({ value: newVal }).eq('id', log.id)
     habitLogs[activityId] = { ...log, value: newVal }
   }
+  renderHabitos()
+}
+
+async function toggleTrabajoItem(activityId){
+  await toggleHabito(activityId)
+  // Auto-completar "Trabajar 1 hora" si cualquier trabajo_profundo está marcado
+  const T1H = 'a_t1h'
+  const trabajoActs = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
+  const alguno = trabajoActs.some(a => !!habitLogs[a.id])
+  if(alguno && !habitLogs[T1H]){
+    const log = { id:'log_'+Date.now()+'_t1h', user_id: USER_ID, activity_id: T1H, value: 1, date: selectedDate }
+    await SB_P.from('activity_logs').insert(log)
+    habitLogs[T1H] = log
+    showToast('💼 ¡Trabajar 1 hora completado automáticamente!')
+  } else if(!alguno && habitLogs[T1H]){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs[T1H].id)
+    delete habitLogs[T1H]
+  }
+  renderTrabajoDash()
   renderHabitos()
 }
 
