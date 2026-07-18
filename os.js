@@ -4248,7 +4248,7 @@ async function eliminarVicioLog(logId, actId){
 
 let _rachaDetalleId = null
 
-let _gestionTab = 'todos_diarios'
+let _gestionTab = 'semanal'
 
 function switchGestionTab(tab, btn){
   _gestionTab = tab
