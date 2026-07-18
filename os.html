@@ -2390,9 +2390,11 @@ async function initApp(){
   setInterval(checkDateReset, 60000)
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
   await loadTareasHoy() // primero: hoyFocusItems disponible antes de cualquier render
-  await Promise.all([loadTasks(), loadBirthdays(), loadIdeas(), loadClients(), loadHabitos(), loadEventos(), loadBooks(), loadScripts(), loadCitas(), loadAgendaForDate(getAgendaDateStr()), loadClientesDashboard(), loadPersonas()])
-  renderTasks() // render final con todos los datos disponibles
-  loadFacturas()
+  // Carga esencial — bloquea hasta tener lo necesario para el dashboard inicial
+  await Promise.all([loadTasks(), loadBirthdays(), loadHabitos(), loadCitas(), loadAgendaForDate(getAgendaDateStr())])
+  renderTasks()
+  // Carga diferida — no bloquea el render inicial
+  setTimeout(() => Promise.all([loadIdeas(), loadClients(), loadEventos(), loadBooks(), loadScripts(), loadClientesDashboard(), loadPersonas(), loadFacturas()]), 300)
   loadTimerFromStorage()
   _migrateLocalAgendaToSupabase()
   // Restaurar sección al refrescar
@@ -2454,8 +2456,8 @@ function showSection(id, btn){
   if(id === 'escuela') loadEscAdmin()
   if(id === 'recursos') loadRecursos()
   if(id === 'actividades') initTaskSections()
-  if(id === 'eventos') { loadEventos().then(() => renderEventos()) }
-  if(id === 'personas') { loadPersonas().then(() => renderPersonas()) }
+  if(id === 'eventos') { if(allEventTypes.length) renderEventos(); else loadEventos().then(() => renderEventos()) }
+  if(id === 'personas') { if(allPeople.length) renderPersonas(); else loadPersonas().then(() => renderPersonas()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
   if(id === 'clientes') loadClientesDashboard()
   if(id === 'cuerpo') loadCuerpo()
