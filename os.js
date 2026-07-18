@@ -4248,7 +4248,7 @@ async function eliminarVicioLog(logId, actId){
 
 let _rachaDetalleId = null
 
-let _gestionTab = 'semanal'
+let _gestionTab = 'todos_diarios'
 
 function switchGestionTab(tab, btn){
   _gestionTab = tab
@@ -4260,6 +4260,29 @@ function switchGestionTab(tab, btn){
 function renderGestionHabitos(){
   const el = document.getElementById('gestion-habitos-list')
   if(!el) return
+
+  if(_gestionTab === 'todos_diarios'){
+    const SECUNDARIOS_CATS = ['secundarios_manana', 'secundarios_tarde']
+    const toShow = allActivities.filter(a => {
+      if(!a.is_active) return false
+      if(a.id === 'a70') return false
+      return (a.frequency || 'diaria') === 'diaria'
+    })
+    const grouped = {}
+    toShow.forEach(a => { if(!grouped[a.category]) grouped[a.category]=[]; grouped[a.category].push(a) })
+    const CAT_ORDER_LOCAL = ['despertar','ritual_2020','identidad_diaria','trabajo_profundo','secundarios_manana','secundarios_tarde','rutina_nocturna','vicios','expansion_cognitiva','expansion_creativa','expansion_fisica','expansion_relacional','vida_practica','base_estabilidad']
+    const orderedCats = CAT_ORDER_LOCAL.filter(c => grouped[c])
+    const rest = Object.keys(grouped).filter(c => !CAT_ORDER_LOCAL.includes(c))
+    el.innerHTML = [...orderedCats, ...rest].map(cat => {
+      const color = CAT_COLORS[cat] || '#555'
+      const label = CAT_LABELS[cat] || cat
+      return `<div class="habito-group">
+        <div class="habito-group-title" style="color:${color}">${label}<div class="habito-group-line"></div></div>
+        <div style="display:flex;flex-direction:column;gap:5px">${grouped[cat].map(a => habitoHTML(a)).join('')}</div>
+      </div>`
+    }).join('')
+    return
+  }
 
   if(_gestionTab === 'crisis'){
     // Reutiliza la misma lógica del render de crisis en hábitos
