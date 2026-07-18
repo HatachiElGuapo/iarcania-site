@@ -5024,6 +5024,7 @@ function renderHabitos(){
     // Todos los diarios: freq=diaria (incluyendo vicios y secundarios, excluyendo trabajo_profundo)
     toShow = allActivities.filter(a => {
       if(!showInactive && !a.is_active) return false
+      if(a.id === 'a70') return false // compuesto auto, se muestra en rachas
       if(a.category === 'trabajo_profundo') return false
       return (a.frequency || 'diaria') === 'diaria'
     })
@@ -5032,6 +5033,7 @@ function renderHabitos(){
     // Diarios puros: excluyendo vicios y secundarios
     toShow = allActivities.filter(a => {
       if(!showInactive && !a.is_active) return false
+      if(a.id === 'a70') return false // compuesto auto, se muestra en rachas
       if(a.category === 'vicios') return false
       if(SECUNDARIOS_CATS.includes(a.category)) return false
       if(a.category === 'trabajo_profundo') return false
