@@ -3677,8 +3677,16 @@ function renderProximasFechas(){
   const el = targets[0] // para compatibilidad con resto del código
   const dismissed = JSON.parse(localStorage.getItem('pfw_dismissed_' + TODAY) || '[]')
 
-  const cumples   = allBirthdays.filter(b => b.type === 'cumpleanos')
+  const cumples    = allBirthdays.filter(b => b.type === 'cumpleanos')
   const especiales = allBirthdays.filter(b => b.type !== 'cumpleanos')
+
+  // --- Facturas próximas (7 días) como avisos ---
+  const todayDay = parseInt(TODAY.split('-')[2])
+  const paidIds  = new Set((allBillPayments||[]).map(p => p.bill_id))
+  const facturasProximas = (allBills||[]).filter(b => {
+    const diff = b.due_day - todayDay
+    return !paidIds.has(b.id) && diff >= 0 && diff <= 7
+  }).sort((a,b) => a.due_day - b.due_day)
 
   // --- Banner 15 días: cumpleaños + fechas especiales ---
   const en15 = [...cumples, ...especiales].filter(b => {
@@ -3698,6 +3706,21 @@ function renderProximasFechas(){
   }).sort((a,b) => daysUntil(a.day,a.month) - daysUntil(b.day,b.month))
 
   let html = ''
+
+  // Avisos facturas próximas 7 días (descartables)
+  facturasProximas.forEach(b => {
+    const diff = b.due_day - todayDay
+    const key = 'bill_'+b.id
+    if(dismissed.includes(key)) return
+    const fmt = n => '$' + Number(n||0).toLocaleString('es-CO')
+    const label = diff === 0 ? '¡Vence hoy!' : `Vence en ${diff} día${diff!==1?'s':''}`
+    const color = diff === 0 ? 'var(--red)' : diff <= 3 ? '#f97316' : '#c4b5fd'
+    html += `<div class="pfw-aviso" style="background:rgba(196,163,90,0.06);border:1px solid rgba(196,163,90,0.2);color:var(--text)">
+      <span>🧾</span>
+      <span style="flex:1"><b>${b.name}</b> · ${fmt(b.estimated_amount)} <span style="color:${color};font-size:11px">${label}</span></span>
+      <button onclick="pfwDismiss('${key}')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="No mostrar hoy">×</button>
+    </div>`
+  })
 
   // Avisos 45 días (más casuales, descartables)
   avisos45.forEach(b => {
@@ -7616,16 +7639,88 @@ async function loadFacturas(){
   renderFacturas()
 }
 
-function renderFacturasAlert(){
-  const el = document.getElementById('facturas-alert')
+function renderFacturasAlert(){ renderFacturasWidget() }
+
+function renderFacturasWidget(){
+  const el = document.getElementById('facturas-widget')
   if(!el) return
   const todayDay = parseInt(TODAY.split('-')[2])
   const paidIds = new Set(allBillPayments.map(p => p.bill_id))
-  const overdue = allBills.filter(b => b.due_day < todayDay && !paidIds.has(b.id))
-  if(!overdue.length){ el.style.display = 'none'; return }
-  el.style.display = 'flex'
-  document.getElementById('facturas-alert-text').textContent =
-    `${overdue.length} factura${overdue.length!==1?'s':''} vencida${overdue.length!==1?'s':''}: ${overdue.map(b=>b.name).join(', ')}`
+  const fmt = n => '$' + Number(n||0).toLocaleString('es-CO')
+
+  const overdue  = allBills.filter(b => b.due_day < todayDay  && !paidIds.has(b.id))
+  const upcoming = allBills.filter(b => b.due_day >= todayDay && b.due_day <= todayDay+7 && !paidIds.has(b.id))
+  const paid     = allBills.filter(b => paidIds.has(b.id))
+  const pending  = allBills.filter(b => b.due_day >= todayDay && !paidIds.has(b.id))
+
+  const isOpen = JSON.parse(localStorage.getItem('facturas_widget_open') || 'true')
+
+  const totalPendiente = [...overdue, ...pending].reduce((s,b) => s + (b.estimated_amount||0), 0)
+  const totalPagado    = paid.reduce((s,b) => s + (b.estimated_amount||0), 0)
+
+  // Avisos en próximas fechas widget para las próximas 7 días
+  upcoming.forEach(b => {
+    const days = b.due_day - todayDay
+    const key = 'bill_'+b.id
+    const dismissed = JSON.parse(localStorage.getItem('pfw_dismissed_' + TODAY) || '[]')
+    if(!dismissed.includes(key)){
+      // Se integran al próximas fechas widget via renderProximasFechas
+    }
+  })
+
+  el.innerHTML = `
+    <div class="pfw-banner" onclick="facturasWidgetToggle(this)" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">🧾</span>
+        <span style="font-size:12px;font-weight:600;color:#C4A35A;flex:1">
+          Facturas del mes
+          ${overdue.length ? `<span style="margin-left:6px;background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;animation:pulse-red 1.5s infinite">${overdue.length} vencida${overdue.length!==1?'s':''}</span>` : ''}
+        </span>
+        <span style="font-size:11px;color:var(--text-muted)">${fmt(totalPagado)} pagado · ${fmt(totalPendiente)} pendiente</span>
+        <span class="pfw-arrow" style="font-size:10px;color:var(--text-muted);transition:transform .2s;display:inline-block;margin-left:8px;${isOpen?'':'transform:rotate(-90deg)'}">▼</span>
+      </div>
+      <div class="pfw-detail" style="display:${isOpen?'block':'none'};margin-top:10px;padding-top:10px;border-top:1px solid rgba(196,163,90,0.15)">
+        ${allBills.sort((a,b)=>a.due_day-b.due_day).map(b => {
+          const isPaid = paidIds.has(b.id)
+          const isOverdue = !isPaid && b.due_day < todayDay
+          const statusColor = isPaid ? '#4ade80' : isOverdue ? 'var(--red)' : 'var(--text-muted)'
+          const statusLabel = isPaid ? '✓ Pagada' : isOverdue ? '⚠ Vencida' : `Vence día ${b.due_day}`
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;color:${isPaid?'var(--text-muted)':isOverdue?'var(--red)':'var(--text)'};${isPaid?'text-decoration:line-through':''}">${b.name}</div>
+              <div style="font-size:10px;color:${statusColor};margin-top:1px">${statusLabel}</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);flex-shrink:0">${fmt(b.estimated_amount)}</div>
+            ${!isPaid ? `<button onclick="marcarFacturaPagada('${b.id}',${b.estimated_amount||0},event)" style="font-size:10px;padding:3px 8px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>` : ''}
+          </div>`
+        }).join('')}
+      </div>
+    </div>
+  `
+}
+
+function facturasWidgetToggle(el){
+  const detail = el.querySelector('.pfw-detail')
+  const arrow  = el.querySelector('.pfw-arrow')
+  if(!detail) return
+  const open = detail.style.display !== 'none'
+  detail.style.display = open ? 'none' : 'block'
+  arrow.style.transform = open ? 'rotate(-90deg)' : ''
+  localStorage.setItem('facturas_widget_open', JSON.stringify(!open))
+}
+
+async function marcarFacturaPagada(billId, amount, e){
+  e.stopPropagation()
+  const { error } = await SB_P.from('bill_payments').insert({
+    id: 'pay_'+Date.now(),
+    bill_id: billId,
+    amount: amount,
+    paid_date: TODAY,
+    notes: 'Marcada desde dashboard'
+  })
+  if(error){ showToast('Error al guardar'); return }
+  await loadFacturas()
+  showToast('✓ Factura marcada como pagada')
 }
 
 function renderFacturas(){
