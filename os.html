@@ -1018,6 +1018,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
       </div>
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap" id="personas-rel-filters">
         <button class="cat-filter active" onclick="filterPersonas('all',this)">Todos</button>
+        <button class="cat-filter" onclick="filterPersonas('yo',this)">🪞 Yo</button>
         <button class="cat-filter" onclick="filterPersonas('amigo',this)">👤 Amigos</button>
         <button class="cat-filter" onclick="filterPersonas('familia',this)">👨‍👩‍👧 Familia</button>
         <button class="cat-filter" onclick="filterPersonas('conocido',this)">🤝 Conocidos</button>
@@ -1991,6 +1992,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     <div style="margin-bottom:12px">
       <div class="form-label">Relación</div>
       <select id="persona-rel" class="form-input">
+        <option value="yo">🪞 Yo</option>
         <option value="amigo">👤 Amigo/a</option>
         <option value="familia">👨‍👩‍👧 Familia</option>
         <option value="conocido">🤝 Conocido/a</option>
@@ -5363,7 +5365,7 @@ function filterPersonas(rel, btn){
   renderPersonas()
 }
 
-const REL_LABELS = { amigo:'👤 Amigo/a', familia:'👨‍👩‍👧 Familia', conocido:'🤝 Conocido/a', trabajo:'💼 Trabajo' }
+const REL_LABELS = { yo:'🪞 Yo', amigo:'👤 Amigo/a', familia:'👨‍👩‍👧 Familia', conocido:'🤝 Conocido/a', trabajo:'💼 Trabajo' }
 
 function renderPersonas(){
   const el = document.getElementById('personas-list')
