@@ -438,10 +438,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" onclick="showSection('actividades',this)">
           <span class="nav-icon">✅</span>Tareas
         </button>
-        <button class="nav-item" onclick="showSection('vencidas',this)">
-          <span class="nav-icon">⏰</span>Vencidas
-          <span class="nav-badge" id="badge-overdue" style="display:none;background:var(--red)">0</span>
-        </button>
         <button class="nav-item" onclick="showSection('agenda',this)">
           <span class="nav-icon">📅</span>Agenda
         </button>
@@ -859,18 +855,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
     </div>
 
     <!-- VENCIDAS -->
-    <div class="section" id="section-vencidas">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title" style="color:var(--red)">⚠️ Tareas vencidas</h1>
-          <div class="page-sub" id="vencidas-sub">Tareas con fecha pasada sin completar</div>
-        </div>
-        <button class="btn-add" onclick="openBulkReassign()" style="background:rgba(226,75,74,0.1);border-color:rgba(226,75,74,0.3);color:var(--red)">↻ Reasignar todas</button>
-      </div>
-      <div id="vencidas-list">
-        <div class="loading"><div class="spinner"></div><br>Cargando...</div>
-      </div>
-    </div>
 
     <!-- AGENDA -->
     <div class="section" id="section-agenda">
