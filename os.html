@@ -467,9 +467,6 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="nav-item" onclick="showSection('hogar',this)">
           <span class="nav-icon">🏠</span>Hogar
         </button>
-        <button class="nav-item" onclick="showSection('fechas',this)">
-          <span class="nav-icon">🎂</span>Fechas
-        </button>
       </div>
       <div class="nav-separator" id="nav-sep-dinero" onclick="toggleNavGroup('dinero')"><span class="nav-sep-arrow">▼</span>Dinero</div>
       <div class="nav-group" id="group-dinero">
@@ -1025,6 +1022,16 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="cat-filter" onclick="filterPersonas('trabajo',this)">💼 Trabajo</button>
       </div>
       <div id="personas-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
+      <div style="margin-top:1.5rem">
+        <button onclick="toggleFechasEnPersonas(this)" style="width:100%;padding:10px;background:transparent;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer">📅 Ver fechas importantes</button>
+        <div id="fechas-en-personas" style="display:none;margin-top:1rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Fechas importantes</span>
+            <button onclick="openModal('birthday')" style="font-size:11px;padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">+ Agregar</button>
+          </div>
+          <div id="bd-grid-personas"></div>
+        </div>
+      </div>
     </div>
 
     <!-- FECHAS -->
@@ -5401,6 +5408,29 @@ function renderPersonas(){
       <button onclick="deletePersona('${p.id}')" style="background:transparent;border:none;color:rgba(239,68,68,0.6);cursor:pointer;font-size:15px;padding:4px">×</button>
     </div>`
   }).join('')
+}
+
+function toggleFechasEnPersonas(btn){
+  const el = document.getElementById('fechas-en-personas')
+  const open = el.style.display !== 'none'
+  el.style.display = open ? 'none' : 'block'
+  btn.textContent = open ? '📅 Ver fechas importantes' : '📅 Ocultar fechas'
+  if(!open){
+    const grid = document.getElementById('bd-grid-personas')
+    // Reutilizar renderBirthdays pero apuntando al nuevo contenedor
+    const orig = document.getElementById('bd-grid')
+    const bds = allBirthdays.filter(b => !(b.type === 'cumpleanos' && b.person_id))
+    if(!bds.length){
+      grid.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:8px 0">No hay fechas guardadas</div>'
+      return
+    }
+    // Swap temporalmente el contenedor para reusar renderBirthdays
+    orig.id = 'bd-grid-bak'
+    grid.id = 'bd-grid'
+    renderBirthdays(allBirthdays)
+    grid.id = 'bd-grid-personas'
+    orig.id = 'bd-grid'
+  }
 }
 
 function crearCitaDesdePersona(personaId){
