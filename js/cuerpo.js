@@ -7,6 +7,7 @@ let _cWorkoutLogs  = []
 let _cTodayMetric  = null
 let _cMetricHist   = []
 let _cTab          = 'registro'
+let _cNutricionLoaded = false
 let _cExForm       = false
 let _cEditingEx    = null
 let _cSelectedEx   = null
@@ -19,6 +20,7 @@ async function loadCuerpo() {
   if (!el) return
   el.innerHTML = '<div class="loading"><div class="spinner"></div><br>Cargando Cuerpo…</div>'
   try {
+    _cNutricionLoaded = false
     await Promise.all([_cLoadEjercicios(), _cLoadWorkoutLogs(), _cLoadBodyMetrics()])
     renderCuerpo()
   } catch (e) {
@@ -99,9 +101,10 @@ function renderCuerpo() {
     </div>
 
     <div class="freq-tabs" style="margin-bottom:1.5rem" id="cx-tabs">
-      <button class="freq-tab${_cTab==='registro'   ?' active':''}" onclick="cuerpoTab('registro',this)">📋 Registro</button>
-      <button class="freq-tab${_cTab==='ejercicios' ?' active':''}" onclick="cuerpoTab('ejercicios',this)">💪 Mis ejercicios</button>
-      <button class="freq-tab${_cTab==='metricas'   ?' active':''}" onclick="cuerpoTab('metricas',this)">📊 Métricas</button>
+      <button class="freq-tab${_cTab==='registro'    ?' active':''}" onclick="cuerpoTab('registro',this)">📋 Registro</button>
+      <button class="freq-tab${_cTab==='nutricion'   ?' active':''}" onclick="cuerpoTab('nutricion',this)">🍽️ Nutrición</button>
+      <button class="freq-tab${_cTab==='ejercicios'  ?' active':''}" onclick="cuerpoTab('ejercicios',this)">💪 Ejercicios</button>
+      <button class="freq-tab${_cTab==='metricas'    ?' active':''}" onclick="cuerpoTab('metricas',this)">📊 Métricas</button>
     </div>
 
     <div id="cx-content"></div>`
@@ -109,18 +112,25 @@ function renderCuerpo() {
   _cRenderTab()
 }
 
-function cuerpoTab(tab, btn) {
+async function cuerpoTab(tab, btn) {
   _cTab = tab
   document.querySelectorAll('#cx-tabs .freq-tab').forEach(b => b.classList.remove('active'))
   if (btn) btn.classList.add('active')
+  if (tab === 'nutricion' && !_cNutricionLoaded) {
+    const el = document.getElementById('cx-content')
+    if (el) el.innerHTML = '<div class="loading"><div class="spinner"></div><br>Cargando...</div>'
+    await loadNutricion()
+    _cNutricionLoaded = true
+  }
   _cRenderTab()
 }
 
 function _cRenderTab() {
   const el = document.getElementById('cx-content')
   if (!el) return
-  if (_cTab === 'ejercicios') _cRenderEjercicios(el)
-  else if (_cTab === 'registro') _cRenderRegistro(el)
+  if (_cTab === 'ejercicios')  _cRenderEjercicios(el)
+  else if (_cTab === 'registro')  _cRenderRegistro(el)
+  else if (_cTab === 'nutricion') renderNutricion(el)
   else _cRenderMetricas(el)
 }
 
