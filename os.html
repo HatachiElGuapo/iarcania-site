@@ -1029,7 +1029,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         <button class="cat-filter" onclick="filterPersonas('trabajo',this)">💼 Trabajo</button>
       </div>
       <div id="personas-list"><div class="loading"><div class="spinner"></div><br>Cargando...</div></div>
-      <div style="margin-top:1.5rem">
+      <div id="proximas-fechas-widget-personas" style="margin-top:1rem"></div>
+      <div style="margin-top:1rem">
         <button onclick="toggleFechasEnPersonas(this)" style="width:100%;padding:10px;background:transparent;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer">📅 Ver fechas importantes</button>
         <div id="fechas-en-personas" style="display:none;margin-top:1rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -1050,6 +1051,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
         <button class="btn-add" onclick="openModal('birthday')">+ Agregar fecha</button>
       </div>
+      <div id="proximas-fechas-widget-fechas" style="margin-bottom:1rem"></div>
       <div class="bd-grid" id="bd-grid">
         <div class="loading"><div class="spinner"></div><br>Cargando...</div>
       </div>
@@ -5865,8 +5867,13 @@ function bdCardHTML(b){
 }
 
 function renderProximasFechas(){
-  const el = document.getElementById('proximas-fechas-widget')
-  if(!el) return
+  const targets = [
+    document.getElementById('proximas-fechas-widget'),
+    document.getElementById('proximas-fechas-widget-personas'),
+    document.getElementById('proximas-fechas-widget-fechas'),
+  ].filter(Boolean)
+  if(!targets.length) return
+  const el = targets[0] // para compatibilidad con resto del código
   const dismissed = JSON.parse(localStorage.getItem('pfw_dismissed_' + TODAY) || '[]')
 
   const cumples   = allBirthdays.filter(b => b.type === 'cumpleanos')
@@ -5925,13 +5932,13 @@ function renderProximasFechas(){
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:16px">${en15[0].type==='cumpleanos'?'🎂':'📅'}</span>
         <span style="font-size:12px;font-weight:600;color:#C4A35A;flex:1">${en15.length === 1 ? en15[0].name : en15.length+' fechas próximas'} <span style="font-weight:400;color:var(--text-muted)">· próximos 15 días</span></span>
-        <span id="pfw-arrow" style="font-size:10px;color:var(--text-muted);transition:transform .2s;display:inline-block;${isOpen?'':'transform:rotate(-90deg)'}">▼</span>
+        <span class="pfw-arrow" style="font-size:10px;color:var(--text-muted);transition:transform .2s;display:inline-block;${isOpen?'':'transform:rotate(-90deg)'}">▼</span>
       </div>
-      <div id="pfw-detail" style="display:${isOpen?'block':'none'};margin-top:10px;padding-top:10px;border-top:1px solid rgba(196,163,90,0.15);font-size:12px;color:var(--text-dim);line-height:2">${resumen}</div>
+      <div class="pfw-detail" style="display:${isOpen?'block':'none'};margin-top:10px;padding-top:10px;border-top:1px solid rgba(196,163,90,0.15);font-size:12px;color:var(--text-dim);line-height:2">${resumen}</div>
     </div>`
   }
 
-  el.innerHTML = html
+  targets.forEach(t => t.innerHTML = html)
 }
 
 function pfwDismiss(key){
@@ -5942,12 +5949,13 @@ function pfwDismiss(key){
 }
 
 function pfwToggleBanner(el){
-  const detail = document.getElementById('pfw-detail')
-  const arrow  = document.getElementById('pfw-arrow')
+  const detail = el.querySelector('.pfw-detail')
+  const arrow  = el.querySelector('.pfw-arrow')
   if(!detail) return
   const open = detail.style.display !== 'none'
-  detail.style.display = open ? 'none' : 'block'
-  arrow.style.transform = open ? 'rotate(-90deg)' : ''
+  // Sync all instances
+  document.querySelectorAll('.pfw-detail').forEach(d => d.style.display = open ? 'none' : 'block')
+  document.querySelectorAll('.pfw-arrow').forEach(a => a.style.transform = open ? 'rotate(-90deg)' : '')
   localStorage.setItem('pfw_banner_open', JSON.stringify(!open))
 }
 
