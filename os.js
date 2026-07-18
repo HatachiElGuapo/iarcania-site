@@ -7709,21 +7709,174 @@ function facturasWidgetToggle(el){
   localStorage.setItem('facturas_widget_open', JSON.stringify(!open))
 }
 
-async function marcarFacturaPagada(billId, amount, e){
+function abrirPagarFactura(billId, estimado, e){
   e.stopPropagation()
+  const bill = allBills.find(b => b.id === billId)
+  if(!bill) return
+  const fmt = n => '$' + Number(n||0).toLocaleString('es-CO')
+  const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center" id="pagar-overlay" onclick="if(event.target===this)this.remove()">
+    <div style="background:#111;border:1px solid var(--border);border-radius:12px;padding:20px;width:320px;max-width:90vw">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">${bill.name}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Estimado: ${fmt(estimado)}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Monto real pagado</div>
+      <input type="number" id="pagar-monto" value="${estimado||''}" placeholder="0" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Fecha de pago</div>
+      <input type="date" id="pagar-fecha" value="${TODAY}" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:16px;color-scheme:dark">
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('pagar-overlay').remove()" style="flex:1;padding:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Cancelar</button>
+        <button onclick="confirmarPagoFactura('${billId}',event)" style="flex:1;padding:10px;background:#4ade80;border:none;border-radius:8px;color:#000;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600">✓ Confirmar</button>
+      </div>
+    </div>
+  </div>`
+  document.body.insertAdjacentHTML('beforeend', html)
+  document.getElementById('pagar-monto').focus()
+  document.getElementById('pagar-monto').select()
+}
+
+async function confirmarPagoFactura(billId, e){
+  e.stopPropagation()
+  const monto = parseFloat(document.getElementById('pagar-monto').value)
+  const fecha = document.getElementById('pagar-fecha').value
+  if(!monto || !fecha){ showToast('Ingresa el monto y la fecha'); return }
+  document.getElementById('pagar-overlay').remove()
   const { error } = await SB_P.from('bill_payments').insert({
     id: 'pay_'+Date.now(),
     bill_id: billId,
-    amount: amount,
-    paid_date: TODAY,
-    notes: 'Marcada desde dashboard'
+    amount: monto,
+    paid_date: fecha,
+    notes: null
   })
-  if(error){ showToast('Error al guardar'); return }
+  if(error){ showToast('❌ Error al guardar'); return }
   await loadFacturas()
-  showToast('✓ Factura marcada como pagada')
+  showToast('✓ Factura pagada')
+}
+
+async function marcarFacturaPagada(billId, amount, e){
+  e.stopPropagation()
+  abrirPagarFactura(billId, amount, e)
 }
 
 function renderFacturas(){
+  const el = document.getElementById('facturas-list')
+  if(!el) return
+  const fmt = n => '$' + Number(n||0).toLocaleString('es-CO')
+  const currentYM = TODAY.slice(0,7)
+  const todayDay  = parseInt(TODAY.split('-')[2])
+
+  // Pagos del mes actual
+  const paidThisMonth = new Set(allBillPayments.map(p => p.bill_id))
+
+  // Historial de pagos por bill
+  const histByBill = {}
+  allBillPaymentsHistory.forEach(p => {
+    if(!histByBill[p.bill_id]) histByBill[p.bill_id] = []
+    histByBill[p.bill_id].push(p)
+  })
+
+  // Grupos de categorías
+  const CAT_CONFIG = {
+    servicios:   { label:'🏠 Servicios del hogar', color:'rgba(196,163,90,0.15)' },
+    salud:       { label:'💊 Salud',               color:'rgba(74,222,128,0.08)' },
+    herramientas:{ label:'🔧 Herramientas',        color:'rgba(139,108,246,0.08)' },
+    mercado:     { label:'🛒 Mercado y alimentación', color:'rgba(239,159,39,0.08)' },
+    familia:     { label:'👨‍👩‍👧 Familia',             color:'rgba(139,108,246,0.08)' },
+    deuda:       { label:'💳 Deudas y cuotas',     color:'rgba(226,75,74,0.08)' },
+    transporte:  { label:'🚌 Transporte',          color:'rgba(93,202,165,0.08)' },
+    hogar:       { label:'🏠 Hogar',               color:'rgba(196,163,90,0.08)' },
+  }
+
+  // Agrupar bills por categoría
+  const grouped = {}
+  allBills.forEach(b => {
+    const cat = b.category || 'otros'
+    if(!grouped[cat]) grouped[cat] = []
+    grouped[cat].push(b)
+  })
+
+  const catOrder = ['servicios','hogar','salud','mercado','familia','deuda','transporte','herramientas']
+  const cats = [...catOrder.filter(c => grouped[c]), ...Object.keys(grouped).filter(c => !catOrder.includes(c))]
+
+  const renderBillRow = (bill, idx) => {
+    const isPaid    = paidThisMonth.has(bill.id)
+    const isOverdue = !isPaid && bill.due_day < todayDay
+    const hist      = (histByBill[bill.id] || []).sort((a,b) => b.paid_date.localeCompare(a.paid_date))
+    const lastPay   = hist[0]
+    const key       = 'bf_'+idx
+
+    const byMonth = {}
+    hist.forEach(p => {
+      const ym = p.paid_date.slice(0,7)
+      byMonth[ym] = (byMonth[ym]||0) + Number(p.amount||0)
+    })
+    const months = Object.keys(byMonth).sort((a,b) => b.localeCompare(a))
+    const vals   = months.map(ym => byMonth[ym])
+    const dMax   = Math.max(...vals, 1)
+
+    const histRows = months.slice(0,12).map(ym => {
+      const [y,m] = ym.split('-')
+      const label = new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-CO',{month:'short',year:'numeric'})
+      const val   = byMonth[ym]
+      const barW  = Math.round((val/dMax)*100)
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+        <td style="padding:7px 14px;font-size:12px;color:var(--text-dim);white-space:nowrap">${label}</td>
+        <td style="padding:7px 8px;width:100%"><div style="background:rgba(255,255,255,0.05);border-radius:3px;height:5px"><div style="width:${barW}%;height:100%;background:#C4A35A;border-radius:3px"></div></div></td>
+        <td style="padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(val)}</td>
+      </tr>`
+    }).join('')
+
+    const statusColor = isPaid ? '#4ade80' : isOverdue ? 'var(--red)' : 'var(--text-muted)'
+    const statusLabel = isPaid ? `✓ Pagada · ${fmt(lastPay?.amount)}` : isOverdue ? `⚠ Vencida (día ${bill.due_day})` : `Vence día ${bill.due_day}`
+
+    return `<tr onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
+      <td style="padding:14px 14px">
+        <span id="chev-${key}" style="font-size:10px;color:var(--text-muted);margin-right:6px">▸</span>
+        <span style="font-size:13px;font-weight:500;color:${isPaid?'var(--text-muted)':isOverdue?'var(--red)':'var(--text)'}${isPaid?';text-decoration:line-through':''}">${bill.name}</span>
+        <div style="font-size:10px;color:${statusColor};margin-top:2px;margin-left:16px">${statusLabel}</div>
+      </td>
+      <td style="padding:14px 10px;font-size:13px;color:var(--text-muted);text-align:right;white-space:nowrap">${fmt(bill.estimated_amount)}</td>
+      <td style="padding:14px 10px;text-align:right">
+        ${!isPaid
+          ? `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>`
+          : `<span style="font-size:11px;color:#4ade80">✓</span>`
+        }
+      </td>
+    </tr>
+    <tr id="svc-hist-${key}" style="display:none">
+      <td colspan="3" style="padding:0;background:rgba(0,0,0,0.25);border-bottom:1px solid rgba(255,255,255,0.06)">
+        ${histRows
+          ? `<table style="width:100%;border-collapse:collapse">${histRows}</table>`
+          : `<div style="padding:10px 14px;font-size:12px;color:var(--text-muted)">Sin historial de pagos</div>`
+        }
+      </td>
+    </tr>`
+  }
+
+  let html = ''
+  cats.forEach(cat => {
+    const bills = grouped[cat]
+    const cfg   = CAT_CONFIG[cat] || { label: cat, color:'rgba(255,255,255,0.03)' }
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${cfg.label}</div>
+      <div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-card);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="padding:8px 14px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:left">Factura</th>
+            <th style="padding:8px 10px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:right">Estimado</th>
+            <th></th>
+          </tr></thead>
+          <tbody>${bills.map((b,i) => renderBillRow(b, cat+'_'+i)).join('')}</tbody>
+        </table>
+      </div>
+    </div>`
+  })
+
+  const subEl = document.getElementById('facturas-sub')
+  if(subEl) subEl.textContent = `${allBills.length} facturas · ${allBills.filter(b=>paidThisMonth.has(b.id)).length} pagadas este mes`
+
+  el.innerHTML = html || '<div style="padding:16px;color:var(--text-muted);font-size:13px">Sin facturas registradas.</div>'
+}
+
+function _renderFacturasLegacy(){
   const el = document.getElementById('facturas-list')
   if(!el) return
   const fmt = n => '$' + Number(n).toLocaleString('es-CO')
@@ -7950,13 +8103,6 @@ function renderFacturas(){
     subEl.textContent = `${totalSvc} servicios · ${Object.keys(mercadoByMonth).length}m mercado`
   }
 
-  const secStyle = 'font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px'
-  el.innerHTML =
-    `<div style="${secStyle}">⚡ Servicios recurrentes</div>` +
-    `<div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-card);margin-bottom:20px;overflow:hidden">${svcBody}</div>` +
-    `<div style="${secStyle}">🛒 Mercado</div>` +
-    `<div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-card);margin-bottom:20px;overflow:hidden">${mercadoBody}</div>` +
-    ``
 }
 
 let _svcOpen = null
