@@ -3960,11 +3960,11 @@ const CAT_LABELS = {
 }
 
 const CAT_ORDER = [
-  'despertar','ritual_2020','secundarios_manana',
-  'trabajo_profundo','secundarios_tarde','rutina_nocturna',
+  'despertar','ritual_2020','identidad_diaria','trabajo_profundo',
+  'secundarios_manana','secundarios_tarde','rutina_nocturna',
   'vicios','expansion_cognitiva','expansion_creativa',
   'expansion_fisica','expansion_relacional','vida_practica',
-  'identidad_diaria','base_estabilidad','eventos_crisis'
+  'base_estabilidad','eventos_crisis'
 ]
 
 let allActivities = []
