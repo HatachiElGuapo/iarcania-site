@@ -77,6 +77,11 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 
 /* ALERTS */
 .alert-bar{border-radius:10px;padding:12px 16px;margin-bottom:1.25rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px}
+.pfw-banner{border-radius:10px;padding:10px 14px;margin-bottom:1rem;border:1px solid rgba(196,163,90,0.25);background:#100E07;cursor:pointer;transition:all .2s}
+.pfw-banner:hover{border-color:rgba(196,163,90,0.45)}
+.pfw-aviso{border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;font-size:12px}
+.pfw-aviso-30{background:rgba(139,108,246,0.08);border:1px solid rgba(139,108,246,0.2);color:#c4b5fd}
+.pfw-aviso-45{background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-muted)}
 .alert-red{background:#130D0D;border:1px solid rgba(226,75,74,0.2);color:var(--red)}
 .alert-amber{background:#130F00;border:1px solid rgba(239,159,39,0.2);color:var(--amber)}
 .alert-label{font-weight:600;font-size:11px;letter-spacing:.05em;flex-shrink:0}
@@ -542,6 +547,8 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
           </div>
         </div>
       </div>
+      <!-- Widget próximos cumpleaños/fechas -->
+      <div id="proximas-fechas-widget"></div>
       <div class="alert-bar alert-red" id="bd-alert" style="display:none">
         <span class="alert-label">📅 PRÓXIMAS FECHAS</span>
         <div id="bd-pills"></div>
@@ -5815,6 +5822,7 @@ async function loadBirthdays(){
   const { data } = await SB_P.from('birthdays').select('*').order('month').order('day')
   allBirthdays = data || []
   renderBirthdays(allBirthdays)
+  renderProximasFechas()
 }
 
 function daysUntil(day, month){
@@ -5854,6 +5862,93 @@ function bdCardHTML(b){
     <span class="bd-days pill ${cls}" style="margin-top:6px;display:inline-block">${label}</span>
     ${taskBtn}
   </div>`
+}
+
+function renderProximasFechas(){
+  const el = document.getElementById('proximas-fechas-widget')
+  if(!el) return
+  const dismissed = JSON.parse(localStorage.getItem('pfw_dismissed_' + TODAY) || '[]')
+
+  const cumples   = allBirthdays.filter(b => b.type === 'cumpleanos')
+  const especiales = allBirthdays.filter(b => b.type !== 'cumpleanos')
+
+  // --- Banner 15 días: cumpleaños + fechas especiales ---
+  const en15 = [...cumples, ...especiales].filter(b => {
+    const d = daysUntil(b.day, b.month)
+    return d >= 0 && d <= 15
+  }).sort((a,b) => daysUntil(a.day,a.month) - daysUntil(b.day,b.month))
+
+  // --- Avisos descartables ---
+  const avisos30 = especiales.filter(b => {
+    const d = daysUntil(b.day, b.month)
+    return d > 15 && d <= 30 && !dismissed.includes('30_'+b.id)
+  }).sort((a,b) => daysUntil(a.day,a.month) - daysUntil(b.day,b.month))
+
+  const avisos45 = [...cumples, ...especiales].filter(b => {
+    const d = daysUntil(b.day, b.month)
+    return d > 15 && d <= 45 && !dismissed.includes('45_'+b.id)
+  }).sort((a,b) => daysUntil(a.day,a.month) - daysUntil(b.day,b.month))
+
+  let html = ''
+
+  // Avisos 45 días (más casuales, descartables)
+  avisos45.forEach(b => {
+    const d = daysUntil(b.day, b.month)
+    const isCumple = b.type === 'cumpleanos'
+    const ico = isCumple ? '🎂' : '📅'
+    html += `<div class="pfw-aviso pfw-aviso-45">
+      <span>${ico}</span>
+      <span style="flex:1">${b.name}${isCumple && b.relationship ? ' · '+b.relationship : ''} <span style="color:var(--text-muted)">en ${d} días</span></span>
+      <button onclick="pfwDismiss('45_${b.id}')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="No mostrar hoy">×</button>
+    </div>`
+  })
+
+  // Avisos 30 días (especiales, más visibles, descartables)
+  avisos30.forEach(b => {
+    const d = daysUntil(b.day, b.month)
+    html += `<div class="pfw-aviso pfw-aviso-30">
+      <span>📅</span>
+      <span style="flex:1;font-weight:500">${b.name} <span style="font-weight:400;opacity:.8">en ${d} días</span></span>
+      <button onclick="pfwDismiss('30_${b.id}')" style="background:none;border:none;color:#c4b5fd;cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="No mostrar hoy">×</button>
+    </div>`
+  })
+
+  // Banner 15 días (colapsado, no descartable)
+  if(en15.length){
+    const stored = JSON.parse(localStorage.getItem('pfw_banner_open') || 'false')
+    const isOpen = stored === true
+    const resumen = en15.map(b => {
+      const d = daysUntil(b.day, b.month)
+      return `${b.type==='cumpleanos'?'🎂':'📅'} <b>${b.name}</b> ${d===0?'¡hoy!':d===1?'mañana':'en '+d+' días'}`
+    }).join('<br>')
+    html += `<div class="pfw-banner" onclick="pfwToggleBanner(this)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">${en15[0].type==='cumpleanos'?'🎂':'📅'}</span>
+        <span style="font-size:12px;font-weight:600;color:#C4A35A;flex:1">${en15.length === 1 ? en15[0].name : en15.length+' fechas próximas'} <span style="font-weight:400;color:var(--text-muted)">· próximos 15 días</span></span>
+        <span id="pfw-arrow" style="font-size:10px;color:var(--text-muted);transition:transform .2s;display:inline-block;${isOpen?'':'transform:rotate(-90deg)'}">▼</span>
+      </div>
+      <div id="pfw-detail" style="display:${isOpen?'block':'none'};margin-top:10px;padding-top:10px;border-top:1px solid rgba(196,163,90,0.15);font-size:12px;color:var(--text-dim);line-height:2">${resumen}</div>
+    </div>`
+  }
+
+  el.innerHTML = html
+}
+
+function pfwDismiss(key){
+  const dismissed = JSON.parse(localStorage.getItem('pfw_dismissed_' + TODAY) || '[]')
+  if(!dismissed.includes(key)) dismissed.push(key)
+  localStorage.setItem('pfw_dismissed_' + TODAY, JSON.stringify(dismissed))
+  renderProximasFechas()
+}
+
+function pfwToggleBanner(el){
+  const detail = document.getElementById('pfw-detail')
+  const arrow  = document.getElementById('pfw-arrow')
+  if(!detail) return
+  const open = detail.style.display !== 'none'
+  detail.style.display = open ? 'none' : 'block'
+  arrow.style.transform = open ? 'rotate(-90deg)' : ''
+  localStorage.setItem('pfw_banner_open', JSON.stringify(!open))
 }
 
 function renderBirthdays(bds){
