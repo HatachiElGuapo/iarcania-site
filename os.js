@@ -460,9 +460,6 @@ function renderTasks(){
   const done    = allTasks.filter(t => t.status === 'completada')
   document.getElementById('stat-pending').textContent = pending.length
   document.getElementById('stat-done').textContent    = done.length
-  const bpEl = document.getElementById('badge-pending')
-  bpEl.textContent = pending.length
-  bpEl.style.display = pending.length ? 'inline-flex' : 'none'
   // Dashboard: Mis 5 tareas
   const hoyIds   = getDashList('hoy')
   const hoyTasks = hoyIds.map(id => {
