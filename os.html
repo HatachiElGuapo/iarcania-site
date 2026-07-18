@@ -309,6 +309,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .loading{text-align:center;padding:2rem;color:var(--text-muted);font-size:13px}
 .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:8px}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0.5)}50%{box-shadow:0 0 0 5px rgba(226,75,74,0)}}
 
 /* MOBILE */
 .mobile-menu-btn{display:none;position:fixed;bottom:1.5rem;right:1.5rem;width:52px;height:52px;background:#9b72f0;border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;z-index:150;box-shadow:0 4px 20px rgba(155,114,240,0.4)}
@@ -834,9 +835,10 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
         </div>
       </div>
       <div id="overdue-wrap" style="display:none;margin-bottom:1rem">
-        <div class="task-section-hdr overdue-hdr" onclick="toggleTaskSection('overdue')">
+        <div class="task-section-hdr overdue-hdr" id="overdue-hdr" onclick="toggleTaskSection('overdue')">
           <span class="task-collapse-icon collapsed" id="icon-overdue">▾</span>
           ⚠️ Vencidas
+          <span id="overdue-count-pill" style="display:none;margin-left:6px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;animation:pulse-red 1.5s infinite"></span>
           <div style="flex:1;height:1px;background:rgba(226,75,74,0.2);margin-left:4px"></div>
         </div>
         <div class="task-section-body" id="body-overdue" style="max-height:0">
@@ -2693,6 +2695,18 @@ function renderTasks(){
   renderVencidas(overdue)
   const badgeOv = document.getElementById('badge-overdue')
   if(badgeOv){ badgeOv.textContent = overdue.length; badgeOv.style.display = overdue.length ? 'inline-flex' : 'none' }
+  const pill = document.getElementById('overdue-count-pill')
+  if(pill){ pill.textContent = overdue.length; pill.style.display = overdue.length ? 'inline-block' : 'none' }
+  // Auto-expandir si hay vencidas
+  if(overdue.length){
+    const body = document.getElementById('body-overdue')
+    const icon = document.getElementById('icon-overdue')
+    if(body && body.style.maxHeight === '0px' || body?.style.maxHeight === '0'){
+      body.style.maxHeight = body.scrollHeight + 'px'
+      if(icon) icon.classList.remove('collapsed')
+    }
+    document.getElementById('overdue-wrap')?.style && (document.getElementById('overdue-wrap').style.display = 'block')
+  }
   renderCatLegend()
   if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda()
   update2020Widget()
