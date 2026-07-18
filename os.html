@@ -72,6 +72,9 @@
       </div>
       <div class="nav-separator" onclick="toggleNavGroup('personal')"><span class="nav-sep-arrow">▼</span>Personal</div>
       <div class="nav-group" id="group-personal">
+        <button class="nav-item" onclick="showSection('gestion-habitos',this)">
+          <span class="nav-icon">⚙️</span>Gestión de hábitos
+        </button>
         <button class="nav-item" onclick="showSection('rachas',this)">
           <span class="nav-icon">📈</span>Rachas & Logros
         </button>
@@ -712,6 +715,23 @@
       <div id="habitos-list" style="display:flex;flex-direction:column;gap:6px">
         <div class="loading"><div class="spinner"></div><br>Cargando hábitos...</div>
       </div>
+    </div>
+
+    <!-- GESTIÓN DE HÁBITOS -->
+    <div class="section" id="section-gestion-habitos">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">⚙️ Gestión de hábitos</h1>
+          <div class="page-sub">Periódicos, crisis y recurrentes</div>
+        </div>
+      </div>
+      <div class="freq-tabs" style="flex-wrap:wrap;gap:6px;margin-bottom:1rem">
+        <button class="freq-tab active" id="gh-tab-semanal" onclick="switchGestionTab('semanal',this)">📆 Semanal</button>
+        <button class="freq-tab" id="gh-tab-mensual" onclick="switchGestionTab('mensual',this)">🗓️ Mensual</button>
+        <button class="freq-tab" id="gh-tab-crisis" onclick="switchGestionTab('crisis',this)">🚨 Crisis</button>
+        <button class="freq-tab" id="gh-tab-recurrente" onclick="switchGestionTab('recurrente',this)">🔗 Recurrente</button>
+      </div>
+      <div id="gestion-habitos-list"></div>
     </div>
 
     <!-- RACHAS -->

@@ -248,6 +248,7 @@ function showSection(id, btn){
   btn.classList.add('active')
   if(id === 'agenda') loadAndRenderAgenda()
   if(id === 'rachas') renderRachas()
+  if(id === 'gestion-habitos') renderGestionHabitos()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
   if(id === 'trabajo') loadProyectoDia()
@@ -4246,6 +4247,57 @@ async function eliminarVicioLog(logId, actId){
 // ─── RACHAS ──────────────────────────────────────────────────────────────────
 
 let _rachaDetalleId = null
+
+let _gestionTab = 'semanal'
+
+function switchGestionTab(tab, btn){
+  _gestionTab = tab
+  document.querySelectorAll('#section-gestion-habitos .freq-tab').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  renderGestionHabitos()
+}
+
+function renderGestionHabitos(){
+  const el = document.getElementById('gestion-habitos-list')
+  if(!el) return
+
+  if(_gestionTab === 'crisis'){
+    // Reutiliza la misma lógica del render de crisis en hábitos
+    const crisisActs = allActivities.filter(a => a.category === 'eventos_crisis')
+    const activaCrisis = getCrisisHoy()
+    el.innerHTML = `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;padding:10px 12px;background:rgba(226,75,74,0.06);border:1px solid rgba(226,75,74,0.15);border-radius:8px">
+        Activar un modo de crisis hace que los hábitos del día no cuenten para rachas. El 20/20/20 sigue siendo obligatorio siempre.
+      </div>
+      ${crisisActs.map(a => {
+        const isActive = activaCrisis === a.id
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border:1px solid ${isActive?'rgba(226,75,74,0.5)':'var(--border)'};border-radius:8px;margin-bottom:8px">
+          <div style="flex:1;font-size:13px;color:${isActive?'var(--red)':'var(--text)'};font-weight:${isActive?'600':'400'}">${a.name}</div>
+          ${isActive
+            ? `<button onclick="toggleCrisis('${a.id}');renderGestionHabitos()" style="font-size:11px;padding:5px 12px;background:rgba(226,75,74,0.12);border:1px solid rgba(226,75,74,0.3);border-radius:6px;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif">✕ Desactivar</button>`
+            : `<button onclick="toggleCrisis('${a.id}');renderGestionHabitos()" style="font-size:11px;padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">Activar</button>`
+          }
+        </div>`
+      }).join('')}
+      ${activaCrisis ? `<div style="margin-top:8px;font-size:11px;color:var(--red);text-align:center">🚨 Modo crisis activo hoy — los hábitos no cuentan para rachas (excepto 20/20/20)</div>` : ''}
+    `
+    return
+  }
+
+  const acts = allActivities.filter(a => {
+    if(!showInactive && !a.is_active) return false
+    const freq = a.frequency || 'diaria'
+    if(_gestionTab === 'recurrente') return freq === 'recurrente'
+    return freq === _gestionTab
+  })
+
+  if(!acts.length){
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">◑</div>No hay hábitos en esta frecuencia</div>`
+    return
+  }
+
+  el.innerHTML = acts.map(a => habitoPeriodicoHTML(a, _gestionTab)).join('')
+}
 
 function switchRachasTab(tab, btn){
   document.querySelectorAll('#section-rachas .freq-tab').forEach(b => b.classList.remove('active'))
