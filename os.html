@@ -2379,7 +2379,8 @@ async function checkDateReset(){
 
 // --- INIT ---
 async function initApp(){
-  history.replaceState({section: 'rutinas'}, '', '#rutinas')
+  const _initHash = location.hash.replace('#','')
+  history.replaceState({section: _initHash || 'rutinas'}, '', '#'+ (_initHash || 'rutinas'))
   setDate()
   updateClock()
   setInterval(updateClock, 1000)
@@ -2392,6 +2393,11 @@ async function initApp(){
   loadFacturas()
   loadTimerFromStorage()
   _migrateLocalAgendaToSupabase()
+  // Restaurar sección al refrescar
+  if(_initHash && _initHash !== 'rutinas'){
+    const btn = document.querySelector(`.nav-item[onclick*="'${_initHash}'"]`)
+    if(btn) showSection(_initHash, btn)
+  }
 }
 
 document.addEventListener('visibilitychange', () => {
