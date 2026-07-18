@@ -4015,6 +4015,11 @@ let progressAnchorDates = {}
 let showInactive = false
 let currentCatFilter = 'all'
 let currentFreqFilter = 'todos_diarios'
+
+// Crisis mode — se guarda por fecha en localStorage
+function getCrisisHoy(){ return JSON.parse(localStorage.getItem('crisis_' + TODAY) || 'null') }
+function setCrisisHoy(id){ if(id) localStorage.setItem('crisis_' + TODAY, JSON.stringify(id)); else localStorage.removeItem('crisis_' + TODAY) }
+function isCrisisModeActive(){ return !!getCrisisHoy() }
 const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
 // Siempre usa timezone de Bogotá y normaliza a YYYY-MM-DD (por si due_date viene como timestamp de Supabase)
 function todayBogota() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
@@ -5053,16 +5058,19 @@ function renderHabitos(){
       if(!showInactive && !a.is_active) return false
       return true
     })
-    if(currentFreqFilter === 'unica') toShow = allActivities.filter(a => (a.frequency||'diaria') === 'unica')
   }
 
   // Progress bar (daily group only)
   if(isDailyGroup){
-    const active = toShow.filter(a => a.is_active)
+    const active = toShow.filter(a => a.is_active && a.id !== 'a70')
     const done = active.filter(a => habitLogs[a.id])
-    document.getElementById('habitos-progress-text').textContent = `${done.length} / ${active.length}`
+    const crisisAct = getCrisisHoy() ? allActivities.find(a => a.id === getCrisisHoy()) : null
+    document.getElementById('habitos-progress-text').textContent = crisisAct
+      ? `🚨 ${crisisAct.name}`
+      : `${done.length} / ${active.length}`
     const pct = active.length ? (done.length/active.length*100) : 0
-    document.getElementById('habitos-progress-bar').style.width = pct+'%'
+    document.getElementById('habitos-progress-bar').style.width = crisisAct ? '100%' : pct+'%'
+    document.getElementById('habitos-progress-bar').style.background = crisisAct ? 'var(--red)' : ''
   }
 
   if(!toShow.length){
@@ -5073,8 +5081,25 @@ function renderHabitos(){
     return
   }
 
-  if(currentFreqFilter === 'unica'){
-    el.innerHTML = toShow.map(a => habitoUnicoHTML(a)).join('')
+  if(currentFreqFilter === 'crisis'){
+    const crisisActs = allActivities.filter(a => a.category === 'eventos_crisis')
+    const activaCrisis = getCrisisHoy()
+    el.innerHTML = `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;padding:10px 12px;background:rgba(226,75,74,0.06);border:1px solid rgba(226,75,74,0.15);border-radius:8px">
+        Activar un modo de crisis hace que los hábitos del día no cuenten para rachas. El 20/20/20 sigue siendo obligatorio siempre.
+      </div>
+      ${crisisActs.map(a => {
+        const isActive = activaCrisis === a.id
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border:1px solid ${isActive ? 'rgba(226,75,74,0.5)' : 'var(--border)'};border-radius:8px;margin-bottom:8px">
+          <div style="flex:1;font-size:13px;color:${isActive ? 'var(--red)' : 'var(--text)'};font-weight:${isActive ? '600' : '400'}">${a.name}</div>
+          ${isActive
+            ? `<button onclick="toggleCrisis('${a.id}')" style="font-size:11px;padding:5px 12px;background:rgba(226,75,74,0.12);border:1px solid rgba(226,75,74,0.3);border-radius:6px;color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif">✕ Desactivar</button>`
+            : `<button onclick="toggleCrisis('${a.id}')" style="font-size:11px;padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">Activar</button>`
+          }
+        </div>`
+      }).join('')}
+      ${activaCrisis ? `<div style="margin-top:8px;font-size:11px;color:var(--red);text-align:center">🚨 Modo crisis activo hoy — los hábitos no cuentan para rachas (excepto 20/20/20)</div>` : ''}
+    `
     return
   }
 
@@ -5123,8 +5148,10 @@ function habitoHTML(a){
   if(a.category === 'vicios') return renderVicioWidget(a)
 
   const isActive = a.is_active
-  const color = CAT_COLORS[a.category] || '#555'
   const is2020 = a.id === 'a70'
+  // Crisis mode: hábitos en gris excepto 20/20/20
+  const enCrisis = isCrisisModeActive() && !is2020
+  const color = enCrisis ? 'var(--text-muted)' : (CAT_COLORS[a.category] || '#555')
 
   if(a.multi){
     const val = habitLogs[a.id]?.value || 0
@@ -5180,6 +5207,12 @@ function tareasHabitoMiniHTML(tasks){
       </div>`
     }).join('')}
   </div>`
+}
+
+function toggleCrisis(activityId){
+  const actual = getCrisisHoy()
+  setCrisisHoy(actual === activityId ? null : activityId)
+  renderHabitos()
 }
 
 function habitoUnicoHTML(a){
