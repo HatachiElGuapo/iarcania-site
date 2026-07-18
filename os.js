@@ -5418,6 +5418,8 @@ function openActivityModal(id){
   document.getElementById('act-cat').value = existing ? existing.category : 'vida_practica'
   document.getElementById('act-type').value = existing ? (existing.type||'binary') : 'binary'
   document.getElementById('act-unit').value = existing ? (existing.unit||'') : ''
+  document.getElementById('act-hora').value = existing ? (existing.hora_sugerida||'') : ''
+  document.getElementById('act-sort').value = existing ? (existing.sort_order||'') : ''
   document.getElementById('act-delete-btn').style.display = existing ? 'block' : 'none'
   updateActFreqHint()
   openModal('activity')
@@ -5447,7 +5449,8 @@ async function saveActivity(){
     type: document.getElementById('act-type').value,
     unit: document.getElementById('act-unit').value || 'sesion',
     is_active: true,
-    sort_order: 99
+    sort_order: parseInt(document.getElementById('act-sort').value) || 99,
+    hora_sugerida: document.getElementById('act-hora').value || null
   }
   if(id){
     await SB_P.from('activities').update(data).eq('id', id)
