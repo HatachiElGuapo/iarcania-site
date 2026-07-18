@@ -75,9 +75,6 @@
         <button class="nav-item" onclick="showSection('rachas',this)">
           <span class="nav-icon">📈</span>Rachas
         </button>
-        <button class="nav-item" onclick="showSection('logros',this)">
-          <span class="nav-icon">🏆</span>Logros
-        </button>
         <button class="nav-item" onclick="showSection('cuerpo',this)">
           <span class="nav-icon">🏋️</span>Cuerpo
         </button>
@@ -729,22 +726,23 @@
           <div class="page-sub" id="rachas-sub">Panorama de hábitos</div>
         </div>
       </div>
-      <div id="rachas-panorama" style="display:flex;flex-direction:column;gap:8px">
-        <div class="loading"><div class="spinner"></div><br>Cargando rachas...</div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem">
+        <button class="freq-tab active" id="rachas-tab-rachas" onclick="switchRachasTab('rachas',this)" style="flex-shrink:0">📈 Rachas</button>
+        <button class="freq-tab" id="rachas-tab-logros" onclick="switchRachasTab('logros',this)" style="flex-shrink:0">🏆 Logros</button>
       </div>
-      <div id="rachas-detalle" style="display:none;margin-top:1rem"></div>
+      <div id="rachas-panel">
+        <div id="rachas-panorama" style="display:flex;flex-direction:column;gap:8px">
+          <div class="loading"><div class="spinner"></div><br>Cargando rachas...</div>
+        </div>
+        <div id="rachas-detalle" style="display:none;margin-top:1rem"></div>
+      </div>
+      <div id="logros-panel" style="display:none">
+        <div id="logros-list" style="padding-bottom:2rem"><div class="loading"><div class="spinner"></div><br>Calculando logros…</div></div>
+      </div>
     </div>
 
-    <!-- LOGROS -->
-    <div class="section" id="section-logros">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">🏆 Logros</h1>
-          <div class="page-sub">Tus insignias y recompensas</div>
-        </div>
-      </div>
-      <div id="logros-list" style="padding-bottom:2rem"><div class="loading"><div class="spinner"></div><br>Calculando logros…</div></div>
-    </div>
+    <!-- LOGROS (mantiene DOM por compatibilidad con showSection) -->
+    <div class="section" id="section-logros" style="display:none!important"></div>
 
     <!-- VICIOS (oculta, mantiene su DOM por compatibilidad) -->
     <div class="section" id="section-vicios" style="display:none!important">

@@ -248,7 +248,6 @@ function showSection(id, btn){
   btn.classList.add('active')
   if(id === 'agenda') loadAndRenderAgenda()
   if(id === 'rachas') renderRachas()
-  if(id === 'logros') loadLogros()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
   if(id === 'trabajo') loadProyectoDia()
@@ -4247,6 +4246,14 @@ async function eliminarVicioLog(logId, actId){
 // ─── RACHAS ──────────────────────────────────────────────────────────────────
 
 let _rachaDetalleId = null
+
+function switchRachasTab(tab, btn){
+  document.querySelectorAll('#section-rachas .freq-tab').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('rachas-panel').style.display  = tab === 'rachas' ? 'block' : 'none'
+  document.getElementById('logros-panel').style.display  = tab === 'logros'  ? 'block' : 'none'
+  if(tab === 'logros') loadLogros()
+}
 
 function renderRachas(){
   const panorama = document.getElementById('rachas-panorama')
