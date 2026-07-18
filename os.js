@@ -5037,7 +5037,6 @@ function renderHabitos(){
     toShow = allActivities.filter(a => {
       if(!showInactive && !a.is_active) return false
       if(a.id === 'a70') return false // compuesto auto, se muestra en rachas
-      if(a.category === 'trabajo_profundo') return false
       return (a.frequency || 'diaria') === 'diaria'
     })
     if(currentCatFilter !== 'all') toShow = toShow.filter(a => a.category === currentCatFilter)
