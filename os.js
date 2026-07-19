@@ -1341,7 +1341,21 @@ function update2020Widget(){
       badge.textContent = trioCompleto ? '✅ 20/20/20 Completado' : '🔄 20/20/20'
     }
     const ov = document.getElementById(ovId)
-    if(ov){ ov.style.display = despertarCompleto ? 'none' : 'flex' }
+    if(ov){
+      if(trioCompleto){
+        ov.style.display = 'flex'
+        ov.style.background = 'rgba(6,6,9,0.72)'
+        ov.style.pointerEvents = 'none'
+        ov.innerHTML = '🔥 ¡20/20/20 completado! Cuerpo y mente listos.'
+      } else if(!despertarCompleto){
+        ov.style.display = 'flex'
+        ov.style.background = 'rgba(6,6,9,0.88)'
+        ov.style.pointerEvents = 'auto'
+        ov.innerHTML = '⚠️ Completa Despertar primero'
+      } else {
+        ov.style.display = 'none'
+      }
+    }
   })
 
   const wrap = document.getElementById('dashboard-tasks-wrap')
