@@ -1420,7 +1420,7 @@ function renderMatutinaDash(){
   el.innerHTML = acts.map(a => {
     if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
     const done = !!habitLogs[a.id]
-    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida}</span>` : ''
+    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
@@ -1548,7 +1548,7 @@ function renderDespertarDash(){
   }
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
-    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida}</span>` : ''
+    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#FFD166;border-color:#FFD166;color:#000':'border-color:rgba(255,209,102,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
@@ -1749,7 +1749,7 @@ function renderRutinaNocturnaDash(){
   }
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
-    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida}</span>` : ''
+    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
