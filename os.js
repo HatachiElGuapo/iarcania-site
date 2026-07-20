@@ -1856,7 +1856,7 @@ function renderTrabajoDash(){
 function renderRutinaNocturnaDash(){
   const el = document.getElementById('dash-noche-body')
   if(!el) return
-  const acts = allActivities.filter(a => a.category === 'rutina_nocturna' && a.is_active && (a.frequency||'diaria') === 'diaria')
+  const acts = allActivities.filter(a => a.category === 'rutina_nocturna' && a.is_active && (a.frequency||'diaria') === 'diaria').sort((a,b) => (a.hora_sugerida||'').localeCompare(b.hora_sugerida||''))
   if(!acts.length){
     el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades de rutina nocturna configuradas</div>'
     return
