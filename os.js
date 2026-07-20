@@ -251,7 +251,7 @@ function showSection(id, btn){
   if(id === 'gestion-habitos') renderGestionHabitos()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
-  if(id === 'trabajo'){ loadProyectoDia(); renderTrabajoDash() }
+  if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(id === 'slides') onSlidesEnter()
@@ -1826,7 +1826,7 @@ function renderTrabajoDash(){
         </div>`
       }).join('')
     : '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades de trabajo configuradas</div>'
-  ;['dash-trabajo-items','dash-trabajo-items-t'].forEach(id => {
+  ;['dash-trabajo-items','dash-trabajo-items-r'].forEach(id => {
     const el = document.getElementById(id)
     if(el) el.innerHTML = html
   })
