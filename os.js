@@ -5298,6 +5298,7 @@ function habitoHTML(a){
   const isDone = !!habitLogs[a.id]
   const checkStyle = isDone ? `background:${color};border-color:${color};color:#000` : `border-color:${color}44`
   const onclick = is2020 ? '' : `onclick="toggleHabito('${a.id}')"`
+  const horaTag = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0;margin-right:6px;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
   return `<div class="habito-item${isDone?' done':''}${!isActive?' inactive':''}" style="border-left-color:${isActive?color:'var(--border)'}">
     <div class="habito-check" ${onclick} style="${checkStyle}${is2020?';cursor:default':''}">
       ${isDone?'✓':''}
@@ -5305,6 +5306,7 @@ function habitoHTML(a){
     <div style="flex:1">
       <div class="habito-name">${a.name}${is2020?' <span style="font-size:10px;color:var(--text-muted)">(auto)</span>':''}</div>
     </div>
+    ${horaTag}
     <span style="font-size:10px;color:${color};opacity:.6;flex-shrink:0;margin-right:8px">${CAT_LABELS[a.category]||''}</span>
     <button class="habito-toggle" onclick="toggleActive('${a.id}',${isActive})">${isActive?'✕':'+'}</button>
   </div>`
