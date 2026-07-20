@@ -251,7 +251,7 @@ function showSection(id, btn){
   if(id === 'gestion-habitos') renderGestionHabitos()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
-  if(id === 'trabajo'){ loadProyectoDia(); renderTrabajoDash() }
+  if(id === 'trabajo') loadProyectoDia()
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(id === 'slides') onSlidesEnter()
@@ -1806,11 +1806,11 @@ async function guardarComida(){
 }
 
 function renderTrabajoDash(){
-  const acts = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
   const QUICK_LINKS = {
     'Grabar contenido':         {label:'🎬 Ir a guiones', section:'guiones'},
     'Trabajo tecnico IArcanIA': {label:'🖥️ Workspace',    section:'workspace'},
   }
+  const acts = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
   const html = acts.length
     ? acts.map(a => {
         const done = !!habitLogs[a.id]
@@ -1825,11 +1825,8 @@ function renderTrabajoDash(){
           ${linkBtn}
         </div>`
       }).join('')
-    : '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades de trabajo configuradas</div>'
-  ;['dash-trabajo-items','dash-trabajo-items-r'].forEach(id => {
-    const el = document.getElementById(id)
-    if(el) el.innerHTML = html
-  })
+    : '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades configuradas</div>'
+  document.querySelectorAll('.js-trabajo-items').forEach(el => { el.innerHTML = html })
 }
 
 function renderRutinaNocturnaDash(){
