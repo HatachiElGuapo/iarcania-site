@@ -1319,21 +1319,27 @@ function addCitaToHoy(citaId){
 }
 
 function update2020Widget(){
+  const banoCompleto = !!habitLogs['a_bano_completo']
   const trio = ['a35','a14','a02']
-  const trioCompleto = trio.every(id => !!habitLogs[id])
+  const trioCompleto = ['a35','a02'].every(id => !!habitLogs[id]) && (!!habitLogs['a14'] || banoCompleto)
   const despertarCompleto = ['a09','a13','a07'].every(id => !!habitLogs[id])
 
   // Update both 20/20/20 blocks (Rutinas + Trabajo)
   ;[{pfx:'r-', cpfx:'rc-', badge:'ritual-badge', overlay:'overlay-2020-r'},
     {pfx:'rt-',cpfx:'rct-',badge:'ritual-badge-t',overlay:'overlay-2020-t'}].forEach(({pfx,cpfx,badge:badgeId,overlay:ovId}) => {
     trio.forEach(id => {
-      const done = !!habitLogs[id]
+      const done = id === 'a14' ? (!!habitLogs['a14'] || banoCompleto) : !!habitLogs[id]
       const item  = document.getElementById(pfx+id)
       const check = document.getElementById(cpfx+id)
       if(!item) return
       item.classList.toggle('done', done)
       check.classList.toggle('done', done)
       check.textContent = done ? '✓' : ''
+      // Cambiar label según tipo de baño marcado
+      if(id === 'a14'){
+        const label = item.querySelector('.ritual-label')
+        if(label) label.textContent = banoCompleto ? 'Baño completo' : 'Baño frío'
+      }
     })
     const badge = document.getElementById(badgeId)
     if(badge){
@@ -1375,8 +1381,7 @@ async function toggleHabitoFromDash(activityId){
     await SB_P.from('activity_logs').insert(log)
     habitLogs[activityId] = log
   }
-  const trio = ['a35','a14','a02']
-  const trioCompleto = trio.every(id => !!habitLogs[id])
+  const trioCompleto = ['a35','a02'].every(id => !!habitLogs[id]) && (!!habitLogs['a14'] || !!habitLogs['a_bano_completo'])
   if(trioCompleto && !habitLogs['a70']){
     const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: TODAY }
     await SB_P.from('activity_logs').insert(log70)
@@ -5592,6 +5597,17 @@ async function toggleHabito(activityId){
       const listos = allScripts.filter(s => s.status === 'listo_grabar')
       if(listos.length) showGrabarDialog(listos)
     }
+    // Baño completo satisface automáticamente el baño del 20/20/20
+    if(activityId === 'a_bano_completo' && !habitLogs['a14']){
+      const log14 = { id:'log_'+Date.now()+'_a14', user_id: USER_ID, activity_id: 'a14', value: 1, date: selectedDate }
+      await SB_P.from('activity_logs').insert(log14)
+      habitLogs['a14'] = log14
+    }
+  }
+  // Al desmarcar baño completo, desmarcar a14 si fue marcado automáticamente
+  if(activityId === 'a_bano_completo' && !habitLogs['a_bano_completo'] && habitLogs['a14']){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs['a14'].id)
+    delete habitLogs['a14']
   }
 
   const trio = ['a35','a14','a02']
