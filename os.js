@@ -1329,20 +1329,34 @@ function update2020Widget(){
     {pfx:'rt-',cpfx:'rct-',badge:'ritual-badge-t',overlay:'overlay-2020-t'}].forEach(({pfx,cpfx,badge:badgeId,overlay:ovId}) => {
     trio.forEach(id => {
       if(id === 'a14'){
-        // Slot picker para baño — reemplazar contenido del row
         const item = document.getElementById(pfx+id)
         if(!item) return
         const slotMap = slotLogs['a14'] || {}
-        const doneFrio     = !!slotMap['frio']
-        const doneCompleto = !!slotMap['completo']
-        const anyDone = doneFrio || doneCompleto
+        const donedSlot = [{id:'frio',icon:'🚿',label:'Frío'},{id:'completo',icon:'🛁',label:'Completo'}].find(s => !!slotMap[s.id])
+        const anyDone = !!donedSlot
         item.classList.toggle('done', anyDone)
         const color = '#00C2FF'
-        const btnS = (done, slot) => `flex:1;padding:5px 0;border-radius:7px;border:1px solid ${done?color:'rgba(0,194,255,0.25)'};background:${done?'rgba(0,194,255,0.12)':'transparent'};color:${done?color:'var(--text-muted)'};cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif`
-        item.innerHTML = `
-          <span class="ritual-label" style="flex:none;margin-right:8px">Baño</span>
-          <button style="${btnS(doneFrio,'frio')}" onclick="marcarSlot('a14','frio');event.stopPropagation()">🚿 Frío${doneFrio?' ✓':''}</button>
-          <button style="${btnS(doneCompleto,'completo')};margin-left:4px" onclick="marcarSlot('a14','completo');event.stopPropagation()">🛁 Completo${doneCompleto?' ✓':''}</button>`
+        const pickerId = pfx+'a14-picker'
+        if(anyDone){
+          item.innerHTML = `
+            <div class="ritual-check done" style="background:${color};border-color:${color};color:#000;flex-shrink:0">✓</div>
+            <span class="ritual-label">${donedSlot.icon} ${donedSlot.label}</span>
+            <button onclick="eliminarSlot('a14','${donedSlot.id}');event.stopPropagation()" style="margin-left:auto;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:2px 6px">✕</button>`
+        } else {
+          const isOpen = _slotExpandido === pfx+'a14'
+          if(isOpen){
+            item.innerHTML = `
+              <span class="ritual-label" style="flex:none;margin-right:8px">Baño</span>
+              <button onclick="_slotExpandido=null;marcarSlot('a14','frio');update2020Widget()" style="flex:1;padding:5px 0;border-radius:7px;border:1px solid rgba(0,194,255,0.3);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">🚿 Frío</button>
+              <button onclick="_slotExpandido=null;marcarSlot('a14','completo');update2020Widget()" style="flex:1;padding:5px 0;border-radius:7px;border:1px solid rgba(0,194,255,0.3);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;margin-left:4px">🛁 Completo</button>
+              <button onclick="_slotExpandido=null;update2020Widget()" style="padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;margin-left:4px">✕</button>`
+          } else {
+            item.innerHTML = `
+              <div class="ritual-check" style="border-color:rgba(0,194,255,0.3);flex-shrink:0"></div>
+              <span class="ritual-label">Baño</span>
+              <button onclick="event.stopPropagation();_slotExpandido='${pfx}a14';update2020Widget()" style="margin-left:auto;padding:4px 10px;border-radius:6px;border:1px solid rgba(0,194,255,0.25);background:transparent;color:rgba(0,194,255,0.6);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ elegir</button>`
+          }
+        }
         return
       }
       const done = !!habitLogs[id]
@@ -1470,6 +1484,53 @@ function renderSlotHabito(actId, name){
   const slots = SLOT_HABITS[actId]
   const color = '#C4A35A'
   const slotMap = slotLogs[actId] || {}
+  const anyDone = Object.keys(slotMap).length > 0
+
+  // Modo expandible: muestra "+" cuando no hay nada marcado, expande al tocar
+  if(SLOT_EXPANDIBLE.has(actId)){
+    const donedSlot = slots.find(s => !!slotMap[s.id])
+    if(donedSlot){
+      const menuKey = actId+'|'+donedSlot.id
+      const isMenu = _slotMenu === menuKey
+      if(isMenu){
+        return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">${name}</div>
+          <div style="border:1px solid ${color};border-radius:7px;overflow:hidden">
+            <div style="padding:3px 6px;font-size:10px;color:${color};background:rgba(196,163,90,0.12);text-align:center">${donedSlot.icon} ${donedSlot.label} ✓</div>
+            <div style="display:flex">
+              <button onclick="editarSlot('${actId}','${donedSlot.id}')" style="flex:1;padding:3px 0;border:none;border-top:1px solid rgba(196,163,90,0.3);background:transparent;color:var(--text-muted);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">✏️</button>
+              <button onclick="eliminarSlot('${actId}','${donedSlot.id}')" style="flex:1;padding:3px 0;border:none;border-top:1px solid rgba(196,163,90,0.3);border-left:1px solid rgba(196,163,90,0.3);background:transparent;color:var(--red);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">🗑️</button>
+            </div>
+          </div>
+        </div>`
+      }
+      return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">${name}</div>
+        <button onclick="abrirMenuSlot('${actId}','${donedSlot.id}')" style="width:100%;padding:5px 10px;border-radius:7px;border:1px solid ${color};background:rgba(196,163,90,0.12);color:${color};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;text-align:left">
+          ${donedSlot.icon} ${donedSlot.label} ✓
+        </button>
+      </div>`
+    }
+    // Sin marcar
+    const isOpen = _slotExpandido === actId
+    if(!isOpen){
+      return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">${name}</div>
+        <button onclick="_slotExpandido='${actId}';renderMatutinaDash()" style="width:100%;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;text-align:left">
+          + ¿Frío o completo?
+        </button>
+      </div>`
+    }
+    // Picker abierto
+    const btnS = (s) => `flex:1;padding:6px 0;border-radius:7px;border:1px solid rgba(196,163,90,0.3);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;text-align:center`
+    return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">${name}</div>
+      <div style="display:flex;gap:5px">
+        ${slots.map(s => `<button onclick="_slotExpandido=null;marcarSlot('${actId}','${s.id}')" style="${btnS(s)}">${s.icon} ${s.label}</button>`).join('')}
+        <button onclick="_slotExpandido=null;renderMatutinaDash()" style="padding:6px 8px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">✕</button>
+      </div>
+    </div>`
+  }
   const btnStyle = (border,bg,col) => `padding:5px 8px;border-radius:7px;border:1px solid ${border};background:${bg};color:${col};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;flex:1;text-align:center`
   const buttons = slots.map(s => {
     const log = slotMap[s.id]
@@ -4042,6 +4103,7 @@ let slotLogs = {}
 let _slotMenu = null
 let _slotEditing = null
 let _slotEditText = ''
+let _slotExpandido = null  // actId con picker abierto (modo expandible)
 let vicioLogs = {}
 let _vicioAbierto = null
 let _vicioEditId = null
@@ -4065,6 +4127,7 @@ const SLOT_HABITS = {
   a07: [{id:'manana',label:'Mañana',icon:'🌅'},{id:'noche',label:'Noche',icon:'🌙'}],
   a14: [{id:'frio',label:'Frío',icon:'🚿'},{id:'completo',label:'Completo',icon:'🛁'}]
 }
+const SLOT_EXPANDIBLE = new Set(['a14'])
 const MEALS = [
   { id:'desayuno', label:'Desayuno', icon:'☕' },
   { id:'almuerzo', label:'Almuerzo', icon:'🍽️' },
