@@ -4006,7 +4006,7 @@ const CAT_LABELS = {
 }
 
 const CAT_ORDER = [
-  'despertar','ritual_2020','identidad_diaria','trabajo_profundo',
+  'despertar','ritual_2020','identidad_diaria','trabajo_profundo_meta','trabajo_profundo',
   'secundarios_manana','secundarios_tarde','rutina_nocturna',
   'vicios','expansion_cognitiva','expansion_creativa',
   'expansion_fisica','expansion_relacional','vida_practica',
@@ -5261,7 +5261,7 @@ function renderHabitos(){
       const gap = cat === 'vicios' ? '10px' : '5px'
       return `<div class="habito-group">
         <div class="habito-group-title" style="color:${color}">${label}<div class="habito-group-line"></div></div>
-        <div style="display:flex;flex-direction:column;gap:${gap}">${grouped[cat].map(a => habitoHTML(a)).join('')}</div>
+        <div style="display:flex;flex-direction:column;gap:${gap}">${grouped[cat].slice().sort((a,b) => (a.hora_sugerida||'99:99').localeCompare(b.hora_sugerida||'99:99')).map(a => habitoHTML(a)).join('')}</div>
       </div>`
     }).join('')
     return
