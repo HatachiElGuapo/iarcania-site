@@ -1806,30 +1806,30 @@ async function guardarComida(){
 }
 
 function renderTrabajoDash(){
-  const el = document.getElementById('dash-trabajo-items')
-  if(!el) return
   const acts = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
-  if(!acts.length){
-    el.innerHTML = '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades de trabajo configuradas</div>'
-    return
-  }
   const QUICK_LINKS = {
     'Grabar contenido':         {label:'🎬 Ir a guiones', section:'guiones'},
     'Trabajo tecnico IArcanIA': {label:'🖥️ Workspace',    section:'workspace'},
   }
-  el.innerHTML = acts.map(a => {
-    const done = !!habitLogs[a.id]
-    const link = QUICK_LINKS[a.name]
-    const linkBtn = link
-      ? `<button class="habito-toggle" onclick="event.stopPropagation();navTo('${link.section}')" style="font-size:10px;padding:2px 7px">${link.label}</button>`
-      : ''
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleTrabajoItem('${a.id}')">
-      <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${done?'✓':''}</div>
-      <span class="ritual-label">${a.name}</span>
-      <span style="font-size:10px;color:var(--text-muted);margin-left:auto;margin-right:4px">opcional</span>
-      ${linkBtn}
-    </div>`
-  }).join('')
+  const html = acts.length
+    ? acts.map(a => {
+        const done = !!habitLogs[a.id]
+        const link = QUICK_LINKS[a.name]
+        const linkBtn = link
+          ? `<button class="habito-toggle" onclick="event.stopPropagation();navTo('${link.section}')" style="font-size:10px;padding:2px 7px">${link.label}</button>`
+          : ''
+        return `<div class="ritual-item${done?' done':''}" onclick="toggleTrabajoItem('${a.id}')">
+          <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${done?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;margin-right:4px">opcional</span>
+          ${linkBtn}
+        </div>`
+      }).join('')
+    : '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades de trabajo configuradas</div>'
+  ;['dash-trabajo-items','dash-trabajo-items-t'].forEach(id => {
+    const el = document.getElementById(id)
+    if(el) el.innerHTML = html
+  })
 }
 
 function renderRutinaNocturnaDash(){
