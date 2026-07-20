@@ -4001,7 +4001,8 @@ const CAT_LABELS = {
   expansion_relacional:'Expansión relacional',
   vida_practica:       'Vida práctica',
   vicios:              'Vicios',
-  eventos_crisis:      'Eventos / crisis',
+  eventos_crisis:       'Eventos / crisis',
+  trabajo_profundo_meta:'💼 Trabajo',
 }
 
 const CAT_ORDER = [
