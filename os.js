@@ -1393,6 +1393,7 @@ async function toggleHabitoFromDash(activityId){
 
 function renderCatLegend(){
   const el = document.getElementById('cat-legend')
+  if(!el) return
   el.innerHTML = Object.entries(CATS).map(([id,c]) => {
     const count = allTasks.filter(t => t.category===id && t.status!=='completada').length
     return `<div class="cat-row">
