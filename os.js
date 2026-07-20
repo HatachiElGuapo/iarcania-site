@@ -251,7 +251,7 @@ function showSection(id, btn){
   if(id === 'gestion-habitos') renderGestionHabitos()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
-  if(id === 'trabajo') loadProyectoDia()
+  if(id === 'trabajo'){ loadProyectoDia(); renderTrabajoDash() }
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(id === 'slides') onSlidesEnter()
@@ -1805,28 +1805,54 @@ async function guardarComida(){
   renderAlimentacionDash()
 }
 
+let _trabajoExpandido = false
+
 function renderTrabajoDash(){
+  const el = document.getElementById('trabajo-expandible')
+  if(!el) return
+
   const QUICK_LINKS = {
-    'Grabar contenido':         {label:'🎬 Ir a guiones', section:'guiones'},
-    'Trabajo tecnico IArcanIA': {label:'🖥️ Workspace',    section:'workspace'},
+    'Grabar contenido':         {label:'🎬 Guiones', section:'guiones'},
+    'Trabajo tecnico IArcanIA': {label:'🖥️ Workspace', section:'workspace'},
   }
   const acts = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
-  const html = acts.length
-    ? acts.map(a => {
-        const done = !!habitLogs[a.id]
-        const link = QUICK_LINKS[a.name]
-        const linkBtn = link
-          ? `<button class="habito-toggle" onclick="event.stopPropagation();navTo('${link.section}')" style="font-size:10px;padding:2px 7px">${link.label}</button>`
-          : ''
-        return `<div class="ritual-item${done?' done':''}" onclick="toggleTrabajoItem('${a.id}')">
-          <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${done?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;margin-right:4px">opcional</span>
-          ${linkBtn}
-        </div>`
-      }).join('')
-    : '<div style="padding:6px 2px;font-size:12px;color:var(--text-muted)">Sin actividades configuradas</div>'
-  document.querySelectorAll('.js-trabajo-items').forEach(el => { el.innerHTML = html })
+  const done = acts.filter(a => !!habitLogs[a.id])
+  const total = acts.length
+
+  if(!_trabajoExpandido){
+    // Cerrado: muestra resumen o botón para abrir
+    const resumen = done.length
+      ? `<span style="color:var(--gold);font-size:11px">${done.map(a=>a.name).join(', ')}</span>`
+      : `<span style="color:var(--text-muted);font-size:11px">Sin marcar</span>`
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0">
+        <div style="font-size:11px;color:var(--text-muted);min-width:70px">${done.length}/${total} hechas</div>
+        ${resumen}
+        <button onclick="_trabajoExpandido=true;renderTrabajoDash()" style="margin-left:auto;padding:4px 12px;border-radius:6px;border:1px solid rgba(201,168,76,0.35);background:transparent;color:var(--gold);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ elegir</button>
+      </div>`
+    return
+  }
+
+  // Expandido: lista completa de actividades
+  const items = acts.map(a => {
+    const isDone = !!habitLogs[a.id]
+    const link = QUICK_LINKS[a.name]
+    const linkBtn = link
+      ? `<button onclick="event.stopPropagation();navTo('${link.section}')" style="font-size:10px;padding:2px 7px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">${link.label}</button>`
+      : ''
+    return `<div class="ritual-item${isDone?' done':''}" onclick="_marcarTrabajo('${a.id}')">
+      <div class="ritual-check${isDone?' done':''}" style="${isDone?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${isDone?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+      ${linkBtn}
+    </div>`
+  }).join('')
+
+  el.innerHTML = `
+    ${items}
+    <div style="padding:4px 0 2px;display:flex;justify-content:flex-end">
+      <button onclick="_trabajoExpandido=false;renderTrabajoDash()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);padding:2px 0;font-style:italic">No negociable entre semana</div>`
 }
 
 function renderRutinaNocturnaDash(){
@@ -5633,9 +5659,8 @@ async function decrementHabito(activityId){
   renderHabitos()
 }
 
-async function toggleTrabajoItem(activityId){
+async function _marcarTrabajo(activityId){
   await toggleHabito(activityId)
-  // Auto-completar "Trabajar 1 hora" si cualquier trabajo_profundo está marcado
   const T1H = 'a_t1h'
   const trabajoActs = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
   const alguno = trabajoActs.some(a => !!habitLogs[a.id])
