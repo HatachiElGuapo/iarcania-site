@@ -8900,8 +8900,14 @@ function verCitaEnAgenda(citaId, dateKey){
     const snapped = Math.round(rawMin/20)*20
     const hh = Math.floor(snapped/60).toString().padStart(2,'0')
     const mm = (snapped%60).toString().padStart(2,'0')
-    const slotEl = document.querySelector(`.agenda-slot[data-slot="${hh}:${mm}"], [data-time="${hh}:${mm}"]`)
-    if(slotEl) slotEl.scrollIntoView({behavior:'smooth', block:'center'})
+    const blockId = 'ablock-' + hh + '_' + mm
+    const slotEl = document.getElementById(blockId) || document.querySelector(`[data-slot="${hh}:${mm}"]`)
+    if(slotEl){
+      slotEl.scrollIntoView({behavior:'smooth', block:'center'})
+      slotEl.style.outline = '2px solid var(--gold)'
+      slotEl.style.borderRadius = '8px'
+      setTimeout(() => { slotEl.style.outline = ''; slotEl.style.borderRadius = '' }, 2000)
+    }
   }, 400)
 }
 
