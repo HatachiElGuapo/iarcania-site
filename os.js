@@ -1970,6 +1970,10 @@ function renderTrabajoDash(){
           <input type="text" placeholder="🔍 Buscar tarea o cita..." oninput="_trabajoPanelQuery=this.value;_renderTrabajoPanelList()" id="trabajo-panel-input" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
         </div>
         <div id="trabajo-panel-list" style="max-height:220px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;padding:8px 10px;border-top:1px solid var(--border)">
+          <button onclick="_trabajoExpandido=false;_trabajoPanelOpen=false;renderTrabajoDash();navTo('actividades')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear tarea</button>
+          <button onclick="_trabajoExpandido=false;_trabajoPanelOpen=false;renderTrabajoDash();navTo('citas')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear cita</button>
+        </div>
       </div>` : ''
 
     html = `
