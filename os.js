@@ -5929,6 +5929,14 @@ async function toggleHabito(activityId){
   if(habitLogs[activityId]){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs[activityId].id)
     delete habitLogs[activityId]
+    // Si se desmarca a_cierre, desmarcar todos los cierre_dia
+    if(activityId === 'a_cierre'){
+      const cierreActs = allActivities.filter(a => a.category === 'cierre_dia' && a.is_active)
+      await Promise.all(cierreActs.filter(a => habitLogs[a.id]).map(async a => {
+        await SB_P.from('activity_logs').delete().eq('id', habitLogs[a.id].id)
+        delete habitLogs[a.id]
+      }))
+    }
   } else {
     const { data: existing } = await SB_P.from('activity_logs')
       .select('id')
@@ -5939,6 +5947,16 @@ async function toggleHabito(activityId){
     const log = existing || { id:'log_'+Date.now(), user_id: USER_ID, activity_id: activityId, value: 1, date: selectedDate }
     if(!existing) await SB_P.from('activity_logs').insert(log)
     habitLogs[activityId] = log
+    // Si se marca a_cierre, marcar todos los cierre_dia
+    if(activityId === 'a_cierre'){
+      const cierreActs = allActivities.filter(a => a.category === 'cierre_dia' && a.is_active)
+      await Promise.all(cierreActs.filter(a => !habitLogs[a.id]).map(async a => {
+        const l = { id:'log_'+Date.now()+'_'+a.id, user_id: USER_ID, activity_id: a.id, value: 1, date: selectedDate }
+        await SB_P.from('activity_logs').insert(l)
+        habitLogs[a.id] = l
+      }))
+      showToast('🌛 Cierre del día completado')
+    }
     if(activityId === 'a68'){
       const listos = allScripts.filter(s => s.status === 'listo_grabar')
       if(listos.length) showGrabarDialog(listos)
