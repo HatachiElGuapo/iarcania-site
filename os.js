@@ -1971,8 +1971,8 @@ function renderTrabajoDash(){
         </div>
         <div id="trabajo-panel-list" style="max-height:220px;overflow-y:auto"></div>
         <div style="display:flex;gap:8px;padding:8px 10px;border-top:1px solid var(--border)">
-          <button onclick="_trabajoExpandido=false;_trabajoPanelOpen=false;renderTrabajoDash();navTo('actividades')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear tarea</button>
-          <button onclick="_trabajoExpandido=false;_trabajoPanelOpen=false;renderTrabajoDash();navTo('citas')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear cita</button>
+          <button onclick="openNewTask()" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear tarea</button>
+          <button onclick="openModal('nueva-cita')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear cita</button>
         </div>
       </div>` : ''
 
