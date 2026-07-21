@@ -1979,7 +1979,7 @@ function renderTrabajoDash(){
       ${habitItems}
       <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 0 2px;display:flex;align-items:center;justify-content:space-between">
         <span>Tareas del día</span>
-        <button onclick="_trabajoPanelOpen=!_trabajoPanelOpen;renderTrabajoDash()" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(201,168,76,0.3);background:transparent;color:var(--gold);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">+ Agregar</button>
+        <button onclick="_trabajoPanelOpen=!_trabajoPanelOpen;if(_trabajoPanelOpen&&!allCitas.length)loadCitas().then(renderTrabajoDash);else renderTrabajoDash()" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(201,168,76,0.3);background:transparent;color:var(--gold);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">+ Agregar</button>
       </div>
       ${tareaItems || '<div style="font-size:11px;color:var(--text-muted);padding:4px 0">Sin tareas agregadas</div>'}
       ${panelHtml}
@@ -2016,13 +2016,17 @@ function _renderTrabajoPanelList(){
     const icon = isCita ? '📅' : '📋'
     let meta = ''
     if(isCita){
-      const hora = item.datetime ? new Date(item.datetime).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : ''
-      meta = hora ? `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">${hora}</span>` : ''
+      if(item.datetime){
+        const d = new Date(item.datetime)
+        const fecha = d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'})
+        const hora  = d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false})
+        meta = `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">${fecha} ${hora}</span>`
+      }
     } else {
-      const cat = item.category ? `<span style="font-size:10px;color:var(--text-muted)">${item.category}</span>` : ''
-      const due = item.due_date ? `<span style="font-size:10px;color:var(--text-muted)">${item.due_date.slice(0,10)}</span>` : ''
-      meta = [cat, due].filter(Boolean).join(' · ')
-      if(meta) meta = `<span style="display:flex;gap:4px;flex-shrink:0">${meta}</span>`
+      const parts = []
+      if(item.category) parts.push(`<span>${item.category}</span>`)
+      if(item.due_date)  parts.push(`<span>${item.due_date.slice(0,10)}</span>`)
+      if(parts.length) meta = `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0;display:flex;gap:4px">${parts.join(' · ')}</span>`
     }
     return `<div onclick="_agregarTrabajoFocus('${item.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
       <span style="font-size:11px;flex-shrink:0">${icon}</span>
