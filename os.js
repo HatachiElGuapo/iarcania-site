@@ -1396,6 +1396,7 @@ function update2020Widget(){
   renderMatutinaDash()
   renderTrabajoDash()
   renderRutinaNocturnaDash()
+  renderCierreDiaDash()
 }
 
 async function toggleHabitoFromDash(activityId){
@@ -1872,6 +1873,23 @@ function renderRutinaNocturnaDash(){
       </div>`
     }).join('')
   }</div>`
+}
+
+function renderCierreDiaDash(){
+  const el = document.getElementById('dash-cierre-body')
+  if(!el) return
+  const acts = allActivities.filter(a => a.category === 'cierre_dia' && a.is_active).sort((a,b) => (a.hora_sugerida||'').localeCompare(b.hora_sugerida||''))
+  if(!acts.length){
+    el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades configuradas</div>'
+    return
+  }
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+    </div>`
+  }).join('')
 }
 
 // --- CITAS DEL DÍA (agenda localStorage) ---
@@ -4076,6 +4094,7 @@ const CAT_COLORS = {
   trabajo_profundo:    '#8B6CF6',
   secundarios_tarde:   '#EF9F27',
   rutina_nocturna:     '#378ADD',
+  cierre_dia:          '#6B7FD4',
   identidad_diaria:    '#C4A35A',
   base_estabilidad:    '#5DCAA5',
   expansion_cognitiva: '#378ADD',
@@ -4094,6 +4113,7 @@ const CAT_LABELS = {
   trabajo_profundo:    '💼 Trabajo profundo',
   secundarios_tarde:   '🌤️ Secundarios tarde',
   rutina_nocturna:     '🌙 Rutina nocturna',
+  cierre_dia:          '🌛 Cierre del día',
   identidad_diaria:    'Identidad diaria',
   base_estabilidad:    'Estabilidad base',
   expansion_cognitiva: 'Expansión cognitiva',
@@ -4108,7 +4128,7 @@ const CAT_LABELS = {
 
 const CAT_ORDER = [
   'despertar','ritual_2020','identidad_diaria','trabajo_profundo_meta','trabajo_profundo',
-  'secundarios_manana','secundarios_tarde','rutina_nocturna',
+  'secundarios_manana','secundarios_tarde','rutina_nocturna','cierre_dia',
   'vicios','expansion_cognitiva','expansion_creativa',
   'expansion_fisica','expansion_relacional','vida_practica',
   'base_estabilidad','eventos_crisis'
