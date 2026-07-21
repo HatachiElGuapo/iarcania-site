@@ -1552,9 +1552,8 @@ function toggleDashSection(id){
 function renderMatutinaDash(){
   const el = document.getElementById('dash-matutina-body')
   if(!el) return
-  const MATUTINA_IDS = ['a07']
-  const byId = allActivities.filter(a => MATUTINA_IDS.includes(a.id) && a.is_active)
-  const byCategory = allActivities.filter(a => a.category === 'secundarios_manana' && a.is_active && (a.frequency||'diaria') === 'diaria' && !MATUTINA_IDS.includes(a.id))
+  const byId = []
+  const byCategory = allActivities.filter(a => a.category === 'secundarios_manana' && a.is_active && (a.frequency||'diaria') === 'diaria')
   const acts = [...byId, ...byCategory]
   if(!acts.length){
     el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades matutinas configuradas</div>'
