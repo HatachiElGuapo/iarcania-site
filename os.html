@@ -348,58 +348,6 @@
           <div id="overlay-2020-t" style="display:none;position:absolute;inset:0;background:rgba(6,6,9,0.88);border-radius:10px;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);z-index:2;pointer-events:auto;text-align:center;padding:12px">⚠️ Completa Despertar primero</div>
         </div>
 
-        <!-- 3. Mis 5 tareas de hoy -->
-        <div class="dash-section">
-          <div class="dash-section-hdr" onclick="toggleDashSection('today')">
-            <span style="font-size:13px;font-weight:600;color:var(--text-dim)">📋 Mis 5 tareas de hoy</span>
-            <span class="dash-arrow" id="dash-today-arrow">▼</span>
-          </div>
-          <div class="dash-section-body" id="dash-today-body">
-            <div id="dash-citas-hoy"></div>
-            <div id="dashboard-tasks-wrap">
-              <div class="task-list" id="dashboard-tasks"></div>
-            </div>
-            <div style="padding:6px 0 2px">
-              <div id="btns-add-hoy" style="display:flex;gap:6px">
-                <button id="btn-add-hoy" onclick="openTodayTaskPanel()" style="flex:1;background:transparent;border:1px dashed var(--border);border-radius:7px;padding:8px 10px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center">+ Agregar tarea</button>
-                <button id="btn-citas-hoy" onclick="openCitasHoyPanel()" style="background:transparent;border:1px dashed rgba(239,159,39,0.4);border-radius:7px;padding:8px 10px;color:#EF9F27;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center;white-space:nowrap">📅 Desde citas</button>
-              </div>
-              <div id="panel-add-hoy" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
-                  <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Seleccionar tareas</span>
-                  <button onclick="closeTodayTaskPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
-                </div>
-                <div style="padding:8px 10px 4px">
-                  <input type="text" id="search-hoy-panel" placeholder="🔍 Filtrar tareas..." oninput="renderTodayTaskPanel(this.value)" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
-                </div>
-                <div id="panel-hoy-list" style="max-height:280px;overflow-y:auto"></div>
-                <div id="panel-hoy-create" style="display:none;border-top:1px solid var(--border);padding:10px"></div>
-              </div>
-              <div id="panel-citas-hoy" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid rgba(239,159,39,0.25);border-radius:8px;overflow:hidden">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(239,159,39,0.15)">
-                  <span style="font-size:12px;font-weight:600;color:#EF9F27">📅 Citas disponibles</span>
-                  <button onclick="closeCitasHoyPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
-                </div>
-                <div id="panel-citas-hoy-list" style="max-height:280px;overflow-y:auto"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3. Proyecto del día -->
-        <div class="dash-section" style="border-color:rgba(155,114,240,0.2)">
-          <div class="dash-section-hdr" onclick="toggleDashSection('guionest')">
-            <span style="font-size:13px;font-weight:600;color:var(--purple)">🎯 Proyecto del día</span>
-            <span class="dash-arrow" id="dash-guionest-arrow">▼</span>
-          </div>
-          <div class="dash-section-body collapsed" id="dash-guionest-body">
-            <div style="display:flex;gap:6px;margin-bottom:10px">
-              <button id="gft-iarcania" onclick="filterGuionesDash('iarcania',this)" style="padding:5px 12px;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid #E24B4A;border-radius:6px;background:rgba(226,75,74,0.12);color:#E24B4A;cursor:pointer">IArcanIA</button>
-              <button id="gft-voidstoic" onclick="filterGuionesDash('voidstoic',this)" style="padding:5px 12px;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer">Void Stoic</button>
-            </div>
-            <div id="dash-guion-content"><div style="font-size:12px;color:var(--text-muted);padding:4px 0">Cargando...</div></div>
-          </div>
-        </div>
 
         <!-- 4. Trabajo -->
         <div class="dash-section" style="border-color:rgba(201,168,76,0.2)">
