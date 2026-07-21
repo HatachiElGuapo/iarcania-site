@@ -345,7 +345,7 @@ function showSection(id, btn){
   if(id === 'gestion-habitos') renderGestionHabitos()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
-  if(id === 'trabajo'){ loadProyectoDia(); renderTrabajoDash() }
+  if(id === 'trabajo'){ loadProyectoDia(); loadTareasHoy().then(renderTrabajoDash) }
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(id === 'slides') onSlidesEnter()
@@ -1950,10 +1950,10 @@ function renderTrabajoDash(){
       if(!item) return ''
       const name = item.title || item.name || '?'
       const done = !!fi.completed
-      return `<div class="ritual-item${done?' done':''}" style="opacity:${done?'.6':'1'}">
-        <div class="ritual-check${done?' done':''}" onclick="_toggleTrabajoFocus('${fi.id}')" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}cursor:pointer">${done?'✓':''}</div>
+      return `<div class="ritual-item${done?' done':''}" style="opacity:${done?'.6':'1'};cursor:pointer" onclick="_toggleTrabajoFocus('${fi.id}')">
+        <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4);'}pointer-events:none">${done?'✓':''}</div>
         <span class="ritual-label" style="flex:1">${name}</span>
-        <button onclick="_quitarTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 6px">✕</button>
+        <button onclick="event.stopPropagation();_quitarTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 6px">✕</button>
       </div>`
     }).filter(Boolean).join('')
 
