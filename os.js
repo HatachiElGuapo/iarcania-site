@@ -1493,7 +1493,6 @@ function update2020Widget(){
   renderInicioDiaDash()
   renderRutinaNocturnaDash()
   renderSecundariosNocheDash()
-  renderCierreDiaDash()
 }
 
 async function toggleHabitoFromDash(activityId){
@@ -2062,6 +2061,9 @@ async function _quitarTrabajoFocus(focusId){
   renderTrabajoDash()
 }
 
+const CIERRE_SUB_IDS = ['a_cambiar', 'a11', 'a10']  // Cambiarme, Skincare, Ropa siguiente día
+let _cierreExpanded = false
+
 function renderRutinaNocturnaDash(){
   const el = document.getElementById('dash-noche-body')
   if(!el) return
@@ -2070,17 +2072,46 @@ function renderRutinaNocturnaDash(){
     el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades de rutina nocturna configuradas</div>'
     return
   }
-  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">${
-    acts.map(a => {
-      const done = !!habitLogs[a.id]
-      const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
-      return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
-        <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
-        <span class="ritual-label">${a.name}</span>
-        ${hora}
+  const rows = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
+
+    if(a.id === 'a_cierre'){
+      const subActs = CIERRE_SUB_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+      const allDone = subActs.every(x => !!habitLogs[x.id])
+      if(!_cierreExpanded){
+        const doneSubs = subActs.filter(x => !!habitLogs[x.id])
+        return `<div class="ritual-item${allDone?' done':''}" onclick="_cierreExpanded=true;renderRutinaNocturnaDash()">
+          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDone?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
+        </div>`
+      }
+      const subRows = subActs.map(s => {
+        const sDone = !!habitLogs[s.id]
+        return `<div class="ritual-item${sDone?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderRutinaNocturnaDash)" style="padding-left:20px">
+          <div class="ritual-check${sDone?' done':''}" style="${sDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${sDone?'✓':''}</div>
+          <span class="ritual-label" style="font-size:12px">${s.name}</span>
+        </div>`
+      }).join('')
+      return `<div>
+        <div class="ritual-item" onclick="_cierreExpanded=false;renderRutinaNocturnaDash()">
+          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDone?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:#378ADD;margin-left:auto">▲ cerrar</span>
+        </div>
+        ${subRows}
       </div>`
-    }).join('')
-  }</div>`
+    }
+
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(renderRutinaNocturnaDash)">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+      ${hora}
+    </div>`
+  }).join('')
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">${rows}</div>`
 }
 
 function renderInicioDiaDash(){
