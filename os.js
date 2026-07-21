@@ -2004,15 +2004,17 @@ function _renderTrabajoPanelList(){
   if(!el) return
   const q = (_trabajoPanelQuery || '').toLowerCase()
   const yaIds = new Set(trabajoFocusItems.map(x => x.task_id))
+  const citasArr = (typeof allCitas !== 'undefined' ? allCitas : [])
+  const citaIds = new Set(citasArr.map(c => c.id))
   const tasks = allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && !yaIds.has(t.id) && (!q || (t.title||'').toLowerCase().includes(q)))
-  const citas = (typeof allCitas !== 'undefined' ? allCitas : []).filter(c => !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q)))
-  const items = [...tasks, ...citas]
+  const citas = citasArr.filter(c => !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q)))
+  const items = [...tasks.map(t => ({...t, _esCita: false})), ...citas.map(c => ({...c, _esCita: true}))]
   if(!items.length){
     el.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text-muted);text-align:center">Sin resultados</div>'
     return
   }
   el.innerHTML = items.slice(0,20).map(item => {
-    const isCita = !item.status
+    const isCita = item._esCita
     const icon = isCita ? '📅' : '📋'
     let meta = ''
     if(isCita){
