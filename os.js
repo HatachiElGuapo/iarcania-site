@@ -2034,7 +2034,23 @@ async function _toggleTrabajoFocus(focusId){
   if(!fi) return
   fi.completed = !fi.completed
   await SB_P.from('daily_focus').update({ completed: fi.completed }).eq('id', focusId)
+
+  // Sincronizar a_t1h igual que los hábitos fijos de trabajo
+  const T1H = 'a_t1h'
+  const actsHecho = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active).some(a => !!habitLogs[a.id])
+  const tareaHecha = trabajoFocusItems.some(x => x.completed)
+  const alguno = actsHecho || tareaHecha
+  if(alguno && !habitLogs[T1H]){
+    const log = { id:'log_'+Date.now()+'_t1h', user_id: USER_ID, activity_id: T1H, value: 1, date: selectedDate }
+    await SB_P.from('activity_logs').insert(log)
+    habitLogs[T1H] = log
+    showToast('💼 ¡Trabajar 1 hora completado automáticamente!')
+  } else if(!alguno && habitLogs[T1H]){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs[T1H].id)
+    delete habitLogs[T1H]
+  }
   renderTrabajoDash()
+  renderHabitos()
 }
 
 async function _quitarTrabajoFocus(focusId){
