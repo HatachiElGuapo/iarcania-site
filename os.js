@@ -2014,9 +2014,20 @@ function _renderTrabajoPanelList(){
   el.innerHTML = items.slice(0,20).map(item => {
     const isCita = !item.status
     const icon = isCita ? '📅' : '📋'
+    let meta = ''
+    if(isCita){
+      const hora = item.datetime ? new Date(item.datetime).toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : ''
+      meta = hora ? `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">${hora}</span>` : ''
+    } else {
+      const cat = item.category ? `<span style="font-size:10px;color:var(--text-muted)">${item.category}</span>` : ''
+      const due = item.due_date ? `<span style="font-size:10px;color:var(--text-muted)">${item.due_date.slice(0,10)}</span>` : ''
+      meta = [cat, due].filter(Boolean).join(' · ')
+      if(meta) meta = `<span style="display:flex;gap:4px;flex-shrink:0">${meta}</span>`
+    }
     return `<div onclick="_agregarTrabajoFocus('${item.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
-      <span style="font-size:11px">${icon}</span>
+      <span style="font-size:11px;flex-shrink:0">${icon}</span>
       <span style="flex:1">${item.title || item.name}</span>
+      ${meta}
     </div>`
   }).join('')
 }
