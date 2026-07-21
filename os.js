@@ -1417,7 +1417,7 @@ function update2020Widget(){
   const banoSlotDone = Object.keys(slotLogs['a14']||{}).length > 0
   const trio = ['a35','a14','a02']
   const trioCompleto = ['a35','a02'].every(id => !!habitLogs[id]) && banoSlotDone
-  const despertarCompleto = ['a09','a13','a07'].every(id => !!habitLogs[id])
+  const despertarCompleto = ['a09','a13'].every(id => !!habitLogs[id])
 
   // Update both 20/20/20 blocks (Rutinas + Trabajo)
   ;[{pfx:'r-', cpfx:'rc-', badge:'ritual-badge', overlay:'overlay-2020-r'},
