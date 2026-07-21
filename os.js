@@ -1395,6 +1395,7 @@ function update2020Widget(){
   renderDespertarDash()
   renderMatutinaDash()
   renderTrabajoDash()
+  renderInicioDiaDash()
   renderRutinaNocturnaDash()
   renderCierreDiaDash()
 }
@@ -1873,6 +1874,25 @@ function renderRutinaNocturnaDash(){
       </div>`
     }).join('')
   }</div>`
+}
+
+function renderInicioDiaDash(){
+  const el = document.getElementById('dash-iniciod-body')
+  if(!el) return
+  const acts = allActivities.filter(a => a.category === 'inicio_dia' && a.is_active).sort((a,b) => (a.hora_sugerida||'').localeCompare(b.hora_sugerida||''))
+  if(!acts.length){
+    el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades configuradas</div>'
+    return
+  }
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#5DCAA5;border-color:#5DCAA5;color:#000':'border-color:rgba(93,202,165,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+      ${hora}
+    </div>`
+  }).join('')
 }
 
 function renderCierreDiaDash(){
@@ -4095,6 +4115,7 @@ const CAT_COLORS = {
   secundarios_tarde:   '#EF9F27',
   rutina_nocturna:     '#378ADD',
   cierre_dia:          '#6B7FD4',
+  inicio_dia:          '#5DCAA5',
   identidad_diaria:    '#C4A35A',
   base_estabilidad:    '#5DCAA5',
   expansion_cognitiva: '#378ADD',
@@ -4114,6 +4135,7 @@ const CAT_LABELS = {
   secundarios_tarde:   '🌤️ Secundarios tarde',
   rutina_nocturna:     '🌙 Rutina nocturna',
   cierre_dia:          '🌛 Cierre del día',
+  inicio_dia:          '🥗 Inicio del día',
   identidad_diaria:    'Identidad diaria',
   base_estabilidad:    'Estabilidad base',
   expansion_cognitiva: 'Expansión cognitiva',
@@ -4127,7 +4149,7 @@ const CAT_LABELS = {
 }
 
 const CAT_ORDER = [
-  'despertar','ritual_2020','identidad_diaria','trabajo_profundo_meta','trabajo_profundo',
+  'despertar','ritual_2020','inicio_dia','identidad_diaria','trabajo_profundo_meta','trabajo_profundo',
   'secundarios_manana','secundarios_tarde','rutina_nocturna','cierre_dia',
   'vicios','expansion_cognitiva','expansion_creativa',
   'expansion_fisica','expansion_relacional','vida_practica',
