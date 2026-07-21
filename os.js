@@ -29,8 +29,9 @@ let allTasks   = []
 let _taskFilter = { tiempo: 'todas', cat: '' }
 let _taskSectionsInited = false
 let _showArchived = false
-let hoyFocusItems   = []  // filas de daily_focus para TODAY con list_type='hoy'
-let extraFocusItems = []  // filas de daily_focus para TODAY con list_type='extra'
+let hoyFocusItems      = []  // filas de daily_focus para TODAY con list_type='hoy'
+let extraFocusItems    = []  // filas de daily_focus para TODAY con list_type='extra'
+let trabajoFocusItems  = []  // filas de daily_focus para TODAY con list_type='trabajo'
 let _quickCreateType = null  // 'task' | 'cita' | null — mini-form de creación inline en panel de hoy
 let allBirthdays = []
 let allClients = []
@@ -439,8 +440,9 @@ async function loadTareasHoy(){
     .eq('date', TODAY)
     .order('sort_order', { ascending: true })
   const all = data || []
-  hoyFocusItems   = all.filter(x => !x.list_type || x.list_type === 'hoy')
-  extraFocusItems = all.filter(x => x.list_type === 'extra')
+  hoyFocusItems      = all.filter(x => !x.list_type || x.list_type === 'hoy')
+  extraFocusItems    = all.filter(x => x.list_type === 'extra')
+  trabajoFocusItems  = all.filter(x => x.list_type === 'trabajo')
   renderTasks()
 }
 
@@ -1901,6 +1903,8 @@ async function guardarComida(){
 }
 
 let _trabajoExpandido = false
+let _trabajoPanelOpen = false
+let _trabajoPanelQuery = ''
 
 function renderTrabajoDash(){
   const TARGETS = ['trabajo-expandible', 'trabajo-expandible-r']
@@ -1908,22 +1912,26 @@ function renderTrabajoDash(){
     'Grabar contenido':         {label:'🎬 Guiones', section:'guiones'},
     'Trabajo tecnico IArcanIA': {label:'🖥️ Workspace', section:'workspace'},
   }
-  const acts = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
-  const done = acts.filter(a => !!habitLogs[a.id])
-  const total = acts.length
+  const acts   = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
+  const doneH  = acts.filter(a => !!habitLogs[a.id])
+  const doneT  = trabajoFocusItems.filter(x => x.completed)
 
   let html
   if(!_trabajoExpandido){
-    const resumen = done.length
-      ? `<span style="color:var(--gold);font-size:11px">${done.map(a=>a.name).join(', ')}</span>`
+    const partes = []
+    if(doneH.length) partes.push(`${doneH.length} hábito${doneH.length>1?'s':''}`)
+    if(doneT.length) partes.push(`${doneT.length} tarea${doneT.length>1?'s':''}`)
+    const resumen = partes.length
+      ? `<span style="color:var(--gold);font-size:11px">${partes.join(' · ')}</span>`
       : `<span style="color:var(--text-muted);font-size:11px">Sin marcar</span>`
     html = `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
-      <div style="font-size:11px;color:var(--text-muted);min-width:70px">${done.length}/${total} hechas</div>
+      <div style="font-size:11px;color:var(--text-muted)">${doneH.length}/${acts.length} · ${doneT.length} tareas</div>
       ${resumen}
-      <button onclick="_trabajoExpandido=true;renderTrabajoDash()" style="margin-left:auto;padding:4px 12px;border-radius:6px;border:1px solid rgba(201,168,76,0.35);background:transparent;color:var(--gold);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ elegir</button>
+      <button onclick="_trabajoExpandido=true;renderTrabajoDash()" style="margin-left:auto;padding:4px 12px;border-radius:6px;border:1px solid rgba(201,168,76,0.35);background:transparent;color:var(--gold);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ abrir</button>
     </div>`
   } else {
-    const items = acts.map(a => {
+    // Bloque 1: hábitos fijos
+    const habitItems = acts.map(a => {
       const isDone = !!habitLogs[a.id]
       const link = QUICK_LINKS[a.name]
       const linkBtn = link
@@ -1935,17 +1943,104 @@ function renderTrabajoDash(){
         ${linkBtn}
       </div>`
     }).join('')
-    html = `${items}
-      <div style="padding:4px 0 2px;display:flex;justify-content:flex-end">
-        <button onclick="_trabajoExpandido=false;renderTrabajoDash()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
+
+    // Bloque 2: tareas ad-hoc
+    const tareaItems = trabajoFocusItems.map(fi => {
+      const task = allTasks.find(t => t.id === fi.task_id)
+      const cita = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === fi.task_id)
+      const item = task || cita
+      if(!item) return ''
+      const name = item.title || item.name || '?'
+      const done = !!fi.completed
+      return `<div class="ritual-item${done?' done':''}" style="opacity:${done?'.6':'1'}">
+        <div class="ritual-check${done?' done':''}" onclick="_toggleTrabajoFocus('${fi.id}')" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}cursor:pointer">${done?'✓':''}</div>
+        <span class="ritual-label" style="flex:1">${name}</span>
+        <button onclick="_quitarTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 6px">✕</button>
+      </div>`
+    }).filter(Boolean).join('')
+
+    // Panel de búsqueda
+    const panelHtml = _trabajoPanelOpen ? `
+      <div style="margin-top:8px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Agregar tarea</span>
+          <button onclick="_trabajoPanelOpen=false;renderTrabajoDash()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif">✕</button>
+        </div>
+        <div style="padding:8px 10px 4px">
+          <input type="text" placeholder="🔍 Buscar tarea o cita..." oninput="_trabajoPanelQuery=this.value;_renderTrabajoPanelList()" id="trabajo-panel-input" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+        </div>
+        <div id="trabajo-panel-list" style="max-height:220px;overflow-y:auto"></div>
+      </div>` : ''
+
+    html = `
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 0 2px">Hábitos</div>
+      ${habitItems}
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 0 2px;display:flex;align-items:center;justify-content:space-between">
+        <span>Tareas del día</span>
+        <button onclick="_trabajoPanelOpen=!_trabajoPanelOpen;renderTrabajoDash()" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(201,168,76,0.3);background:transparent;color:var(--gold);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">+ Agregar</button>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);padding:2px 0;font-style:italic">No negociable entre semana</div>`
+      ${tareaItems || '<div style="font-size:11px;color:var(--text-muted);padding:4px 0">Sin tareas agregadas</div>'}
+      ${panelHtml}
+      <div style="padding:6px 0 2px;display:flex;justify-content:flex-end">
+        <button onclick="_trabajoExpandido=false;_trabajoPanelOpen=false;renderTrabajoDash()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
+      </div>`
   }
 
   TARGETS.forEach(id => {
     const el = document.getElementById(id)
     if(el) el.innerHTML = html
   })
+
+  if(_trabajoPanelOpen){
+    _renderTrabajoPanelList()
+    setTimeout(() => document.getElementById('trabajo-panel-input')?.focus(), 50)
+  }
+}
+
+function _renderTrabajoPanelList(){
+  const el = document.getElementById('trabajo-panel-list')
+  if(!el) return
+  const q = (_trabajoPanelQuery || '').toLowerCase()
+  const yaIds = new Set(trabajoFocusItems.map(x => x.task_id))
+  const tasks = allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && !yaIds.has(t.id) && (!q || (t.title||'').toLowerCase().includes(q)))
+  const citas = (typeof allCitas !== 'undefined' ? allCitas : []).filter(c => !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q)))
+  const items = [...tasks, ...citas]
+  if(!items.length){
+    el.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text-muted);text-align:center">Sin resultados</div>'
+    return
+  }
+  el.innerHTML = items.slice(0,20).map(item => {
+    const isCita = !item.status
+    const icon = isCita ? '📅' : '📋'
+    return `<div onclick="_agregarTrabajoFocus('${item.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
+      <span style="font-size:11px">${icon}</span>
+      <span style="flex:1">${item.title || item.name}</span>
+    </div>`
+  }).join('')
+}
+
+async function _agregarTrabajoFocus(taskId){
+  const ya = trabajoFocusItems.find(x => x.task_id === taskId)
+  if(ya) return
+  const rec = { id: 'tf_'+Date.now(), user_id: USER_ID, date: TODAY, task_id: taskId, list_type: 'trabajo', completed: false, sort_order: trabajoFocusItems.length }
+  await SB_P.from('daily_focus').insert(rec)
+  trabajoFocusItems.push(rec)
+  _trabajoPanelQuery = ''
+  renderTrabajoDash()
+}
+
+async function _toggleTrabajoFocus(focusId){
+  const fi = trabajoFocusItems.find(x => x.id === focusId)
+  if(!fi) return
+  fi.completed = !fi.completed
+  await SB_P.from('daily_focus').update({ completed: fi.completed }).eq('id', focusId)
+  renderTrabajoDash()
+}
+
+async function _quitarTrabajoFocus(focusId){
+  await SB_P.from('daily_focus').delete().eq('id', focusId)
+  trabajoFocusItems = trabajoFocusItems.filter(x => x.id !== focusId)
+  renderTrabajoDash()
 }
 
 function renderRutinaNocturnaDash(){
