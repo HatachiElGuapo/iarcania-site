@@ -2007,7 +2007,7 @@ function _renderTrabajoPanelList(){
   const citasArr = (typeof allCitas !== 'undefined' ? allCitas : [])
   const citaIds = new Set(citasArr.map(c => c.id))
   const tasks = allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && !yaIds.has(t.id) && (!q || (t.title||'').toLowerCase().includes(q)))
-  const citas = citasArr.filter(c => !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q)))
+  const citas = citasArr.filter(c => c.status === 'pendiente' && !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q)))
   const items = [...tasks.map(t => ({...t, _esCita: false})), ...citas.map(c => ({...c, _esCita: true}))]
   if(!items.length){
     el.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text-muted);text-align:center">Sin resultados</div>'
