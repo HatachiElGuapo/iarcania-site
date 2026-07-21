@@ -2085,6 +2085,7 @@ function renderRutinaNocturnaDash(){
           <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDone?'✓':''}</div>
           <span class="ritual-label">${a.name}</span>
           <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
+          ${hora}
         </div>`
       }
       const subRows = subActs.map(s => {
