@@ -143,6 +143,17 @@
           <h1 class="page-title" id="greeting-title">Buen día, Miguel</h1>
           <div class="page-sub" id="today-date" style="color:var(--text-dim)"></div>
           <div class="page-sub" id="today-date-short" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
+          <div style="margin-top:6px" id="modo-emergencia-btn-wrap">
+            <button onclick="toggleModoEmergenciaPanel()" id="modo-emergencia-btn" style="font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">¿Estás bien hoy?</button>
+          </div>
+          <div id="modo-emergencia-panel" style="display:none;margin-top:8px;background:#111;border:1px solid var(--border);border-radius:10px;padding:10px;min-width:220px">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Selecciona el modo del día:</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button onclick="setModoEmergencia(null)" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">✅ Día normal</button>
+              <button onclick="setModoEmergencia('mediano')" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(239,159,39,0.3);background:rgba(239,159,39,0.06);color:#EF9F27;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">⚡ Modo mínimo</button>
+              <button onclick="setModoEmergencia('enfermo')" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(226,75,74,0.3);background:rgba(226,75,74,0.06);color:#E24B4A;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">🤒 Modo enfermo</button>
+            </div>
+          </div>
         </div>
         <div class="stats-row">
           <div class="stat-box">
@@ -266,6 +277,30 @@
             </div>
 
       </div>
+    </div>
+
+    <!-- MODO ENFERMO (oculto, sin sidebar) -->
+    <div class="section" id="section-modo-enfermo" style="display:none">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title" style="color:#E24B4A">🤒 Modo enfermo</h1>
+          <div class="page-sub" style="color:var(--text-muted)">Solo lo esencial. Descansa.</div>
+        </div>
+        <button onclick="setModoEmergencia(null)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">← Volver a normal</button>
+      </div>
+      <div class="card" id="modo-enfermo-body"></div>
+    </div>
+
+    <!-- MODO MÍNIMO (oculto, sin sidebar) -->
+    <div class="section" id="section-modo-mediano" style="display:none">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title" style="color:#EF9F27">⚡ Modo mínimo</h1>
+          <div class="page-sub" style="color:var(--text-muted)">Lo básico. Sin presión.</div>
+        </div>
+        <button onclick="setModoEmergencia(null)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">← Volver a normal</button>
+      </div>
+      <div class="card" id="modo-mediano-body"></div>
     </div>
 
     <!-- TRABAJO -->

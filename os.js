@@ -199,6 +199,7 @@ async function initApp(){
   setTimeout(() => Promise.all([loadIdeas(), loadClients(), loadEventos(), loadBooks(), loadScripts(), loadClientesDashboard(), loadPersonas(), loadFacturas()]), 300)
   loadTimerFromStorage()
   _migrateLocalAgendaToSupabase()
+  initModoEmergencia()
   // Restaurar sección al refrescar
   if(_initHash && _initHash !== 'rutinas'){
     const btn = document.querySelector(`.nav-item[onclick*="'${_initHash}'"]`)
@@ -237,6 +238,98 @@ function updateClock(){
 }
 
 // --- NAV ---
+// ─── MODOS DE EMERGENCIA ──────────────────────────────────────────────────────
+
+const MODO_ENFERMO_IDS  = ['a09','a13','a75']        // Cama, Agua, Séneca noche
+const MODO_MEDIANO_IDS  = ['a75']                     // extra nocturna: Diario intros → a08
+const MODO_MEDIANO_NOCHE = ['a08']
+
+function toggleModoEmergenciaPanel(){
+  const p = document.getElementById('modo-emergencia-panel')
+  p.style.display = p.style.display === 'none' ? 'block' : 'none'
+}
+
+function setModoEmergencia(modo){
+  document.getElementById('modo-emergencia-panel').style.display = 'none'
+  if(modo) localStorage.setItem('modo_emergencia', modo)
+  else localStorage.removeItem('modo_emergencia')
+  applyModoEmergencia(modo)
+}
+
+function applyModoEmergencia(modo){
+  const btn = document.getElementById('modo-emergencia-btn')
+  // Ocultar secciones de modo
+  ;['section-modo-enfermo','section-modo-mediano'].forEach(id => {
+    const el = document.getElementById(id)
+    if(el){ el.style.display = 'none'; el.classList.remove('active') }
+  })
+  const rutinas = document.getElementById('section-rutinas')
+
+  if(!modo){
+    if(btn){ btn.textContent = '¿Estás bien hoy?'; btn.style.color = 'var(--text-muted)'; btn.style.borderColor = 'rgba(255,255,255,0.1)' }
+    if(rutinas){ rutinas.style.display = ''; rutinas.classList.add('active') }
+    return
+  }
+
+  // Activar modo
+  const sectionId = modo === 'enfermo' ? 'section-modo-enfermo' : 'section-modo-mediano'
+  if(rutinas){ rutinas.classList.remove('active'); rutinas.style.display = 'none' }
+  const sec = document.getElementById(sectionId)
+  if(sec){ sec.style.display = ''; sec.classList.add('active') }
+
+  if(modo === 'enfermo'){
+    btn.textContent = '🤒 Modo enfermo'; btn.style.color = '#E24B4A'; btn.style.borderColor = 'rgba(226,75,74,0.4)'
+    renderModoEmergenciaBody('modo-enfermo-body', MODO_ENFERMO_IDS, '#E24B4A')
+  } else {
+    btn.textContent = '⚡ Modo mínimo'; btn.style.color = '#EF9F27'; btn.style.borderColor = 'rgba(239,159,39,0.4)'
+    const despertar = allActivities.filter(a => a.category === 'despertar' && a.is_active).map(a => a.id)
+    const ritual    = allActivities.filter(a => a.category === 'ritual_2020' && a.is_active).map(a => a.id)
+    const noche     = MODO_MEDIANO_NOCHE
+    renderModoMedianoBody(despertar, ritual, noche)
+  }
+}
+
+function renderModoEmergenciaBody(containerId, ids, color){
+  const el = document.getElementById(containerId)
+  if(!el) return
+  const acts = ids.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}');applyModoEmergencia(localStorage.getItem('modo_emergencia'))" style="margin-bottom:4px">
+      <div class="ritual-check${done?' done':''}" style="${done?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+    </div>`
+  }).join('')
+}
+
+function renderModoMedianoBody(despertarIds, ritualIds, nocheIds){
+  const el = document.getElementById('modo-mediano-body')
+  if(!el) return
+  const section = (label, ids, color) => {
+    const acts = ids.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+    if(!acts.length) return ''
+    const items = acts.map(a => {
+      const done = !!habitLogs[a.id]
+      return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}');applyModoEmergencia('mediano')" style="margin-bottom:4px">
+        <div class="ritual-check${done?' done':''}" style="${done?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${done?'✓':''}</div>
+        <span class="ritual-label">${a.name}</span>
+      </div>`
+    }).join('')
+    return `<div style="font-size:11px;font-weight:600;color:${color};margin:10px 0 6px">${label}</div>${items}`
+  }
+  el.innerHTML =
+    section('🌅 Despertar', despertarIds, '#FFD166') +
+    section('🔄 20/20/20',  ['a35','a02','a14'], '#00C2FF') +
+    section('🌙 Noche',     nocheIds, '#378ADD')
+}
+
+function initModoEmergencia(){
+  const saved = localStorage.getItem('modo_emergencia')
+  if(saved) applyModoEmergencia(saved)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function navTo(section){
   const btn = document.querySelector(`.nav-item[onclick*="'${section}'"]`)
   if(btn) showSection(section, btn)
