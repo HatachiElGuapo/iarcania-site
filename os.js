@@ -2063,6 +2063,8 @@ async function _quitarTrabajoFocus(focusId){
 
 const CIERRE_SUB_IDS = ['a_cambiar', 'a11', 'a10']  // Cambiarme, Skincare, Ropa siguiente día
 let _cierreExpanded = false
+const NARIZ_SUB_IDS = ['a_nariz_1','a_nariz_2','a_nariz_3','a_nariz_4','a_nariz_5']
+let _narizExpanded = false
 
 function renderRutinaNocturnaDash(){
   const el = document.getElementById('dash-noche-body')
@@ -2141,6 +2143,30 @@ function renderSecundariosNocheDash(){
   if(!acts.length){ el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades configuradas</div>'; return }
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
+    if(a.id === 'a_ej_nariz'){
+      const subActs = NARIZ_SUB_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+      const doneSubs = subActs.filter(x => !!habitLogs[x.id])
+      const allDone = doneSubs.length === subActs.length && subActs.length > 0
+      if(!_narizExpanded){
+        return `<div class="ritual-item${allDone?' done':''}" onclick="_narizExpanded=true;renderSecundariosNocheDash()">
+          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${allDone?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
+        </div>`
+      }
+      const subRows = subActs.map(s => {
+        const sd = !!habitLogs[s.id]
+        return `<div class="ritual-item${sd?' done':''}" onclick="toggleHabito('${s.id}')" style="padding-left:24px">
+          <div class="ritual-check${sd?' done':''}" style="${sd?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${sd?'✓':''}</div>
+          <span class="ritual-label">${s.name}</span>
+        </div>`
+      }).join('')
+      return `<div class="ritual-item" onclick="_narizExpanded=false;renderSecundariosNocheDash()" style="opacity:.6;font-size:11px">
+          <div class="ritual-check" style="border-color:rgba(107,127,212,0.4)"></div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:auto">▲ cerrar</span>
+        </div>${subRows}`
+    }
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
