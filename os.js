@@ -1492,6 +1492,7 @@ function update2020Widget(){
   renderTrabajoDash()
   renderInicioDiaDash()
   renderRutinaNocturnaDash()
+  renderSecundariosNocheDash()
   renderCierreDiaDash()
 }
 
@@ -2097,6 +2098,20 @@ function renderInicioDiaDash(){
       <div class="ritual-check${done?' done':''}" style="${done?'background:#5DCAA5;border-color:#5DCAA5;color:#000':'border-color:rgba(93,202,165,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
       ${hora}
+    </div>`
+  }).join('')
+}
+
+function renderSecundariosNocheDash(){
+  const el = document.getElementById('dash-secnoche-body')
+  if(!el) return
+  const acts = allActivities.filter(a => a.category === 'secundarios_noche' && a.is_active).sort((a,b) => (a.hora_sugerida||'').localeCompare(b.hora_sugerida||''))
+  if(!acts.length){ el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades configuradas</div>'; return }
+  el.innerHTML = acts.map(a => {
+    const done = !!habitLogs[a.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
     </div>`
   }).join('')
 }
@@ -4319,6 +4334,7 @@ const CAT_COLORS = {
   secundarios_manana:  '#C4A35A',
   trabajo_profundo:    '#8B6CF6',
   secundarios_tarde:   '#EF9F27',
+  secundarios_noche:   '#6B7FD4',
   rutina_nocturna:     '#378ADD',
   cierre_dia:          '#6B7FD4',
   inicio_dia:          '#5DCAA5',
@@ -4339,6 +4355,7 @@ const CAT_LABELS = {
   secundarios_manana:  '☀️ Secundarios mañana',
   trabajo_profundo:    '💼 Trabajo profundo',
   secundarios_tarde:   '🌤️ Secundarios tarde',
+  secundarios_noche:   '🌃 Secundarios noche',
   rutina_nocturna:     '🌙 Rutina nocturna',
   cierre_dia:          '🌛 Cierre del día',
   inicio_dia:          '🥗 Inicio del día',
@@ -4356,7 +4373,7 @@ const CAT_LABELS = {
 
 const CAT_ORDER = [
   'despertar','ritual_2020','inicio_dia','identidad_diaria','trabajo_profundo_meta','trabajo_profundo',
-  'secundarios_manana','secundarios_tarde','rutina_nocturna','cierre_dia',
+  'secundarios_manana','secundarios_tarde','rutina_nocturna','secundarios_noche','cierre_dia',
   'vicios','expansion_cognitiva','expansion_creativa',
   'expansion_fisica','expansion_relacional','vida_practica',
   'base_estabilidad','eventos_crisis'
@@ -4659,7 +4676,7 @@ function renderGestionHabitos(){
   if(!el) return
 
   if(_gestionTab === 'todos_diarios'){
-    const SECUNDARIOS_CATS = ['secundarios_manana', 'secundarios_tarde']
+    const SECUNDARIOS_CATS = ['secundarios_manana', 'secundarios_tarde', 'secundarios_noche']
     const toShow = allActivities.filter(a => {
       if(!a.is_active) return false
       if(a.id === 'a70') return false
@@ -5485,7 +5502,7 @@ function renderHabitos(){
   const catFilters = document.getElementById('habitos-cat-filters')
   const progressWrap = document.getElementById('habitos-progress-wrap')
 
-  const SECUNDARIOS_CATS = ['secundarios_manana', 'secundarios_tarde']
+  const SECUNDARIOS_CATS = ['secundarios_manana', 'secundarios_tarde', 'secundarios_noche']
   const isTodosDaily   = currentFreqFilter === 'todos_diarios'
   const isDiarios      = currentFreqFilter === 'diaria'
   const isSecundarios  = currentFreqFilter === 'secundarios'
