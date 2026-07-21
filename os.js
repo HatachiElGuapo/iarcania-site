@@ -1863,15 +1863,17 @@ function renderRutinaNocturnaDash(){
     el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades de rutina nocturna configuradas</div>'
     return
   }
-  el.innerHTML = acts.map(a => {
-    const done = !!habitLogs[a.id]
-    const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
-      <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
-      <span class="ritual-label">${a.name}</span>
-      ${hora}
-    </div>`
-  }).join('')
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">${
+    acts.map(a => {
+      const done = !!habitLogs[a.id]
+      const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
+      return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
+        <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
+        <span class="ritual-label">${a.name}</span>
+        ${hora}
+      </div>`
+    }).join('')
+  }</div>`
 }
 
 function renderInicioDiaDash(){
