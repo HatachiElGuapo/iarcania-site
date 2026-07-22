@@ -479,7 +479,7 @@ function initTaskSections(){
 
 function setTaskFilter(tiempo){
   _taskFilter.tiempo = tiempo
-  ;['todas','hoy','semana'].forEach(t => {
+  ;['todas','hoy','semana','completadas'].forEach(t => {
     document.getElementById('tf-'+t)?.classList.toggle('active', t === tiempo)
   })
   applyTaskFilters()
@@ -497,6 +497,7 @@ function limpiarFiltros(){
   document.getElementById('tf-todas')?.classList.add('active')
   document.getElementById('tf-hoy')?.classList.remove('active')
   document.getElementById('tf-semana')?.classList.remove('active')
+  document.getElementById('tf-completadas')?.classList.remove('active')
   const sel = document.getElementById('tf-cat')
   if(sel){ sel.value = ''; sel.style.color = '#888' }
   applyTaskFilters()
@@ -514,8 +515,12 @@ function applyTaskFilters(){
       const task = tid ? allTasks.find(t => t.id === tid) : null
       let show = true
       if(task){
-        if(tiempo === 'hoy') show = task.due_date === TODAY
-        else if(tiempo === 'semana') show = !!(task.due_date && task.due_date >= TODAY && task.due_date <= weekEndStr)
+        if(tiempo === 'completadas') show = task.status === 'completada'
+        else {
+          if(task.status === 'completada') show = false
+          else if(tiempo === 'hoy') show = task.due_date === TODAY
+          else if(tiempo === 'semana') show = !!(task.due_date && task.due_date >= TODAY && task.due_date <= weekEndStr)
+        }
         if(cat && task.category !== cat) show = false
       }
       item.style.display = show ? '' : 'none'
@@ -616,8 +621,6 @@ function renderTasks(){
 function renderTaskList(elId, tasks){
   const el = document.getElementById(elId)
   const ordered = applyTaskOrder(tasks)
-  const pending   = ordered.filter(t => t.status !== 'completada')
-  const completed = ordered.filter(t => t.status === 'completada')
   if(!ordered.length){ el.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div>No hay actividades todavía</div>'; return }
   function taskRow(t){
     const cat = CATS[t.category] || CATS.habitos
@@ -645,14 +648,7 @@ function renderTaskList(elId, tasks){
       <button class="habito-toggle" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
     </div>`
   }
-  let html = pending.map(taskRow).join('')
-  if(completed.length){
-    html += `<details style="margin-top:8px">
-      <summary style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;cursor:pointer;list-style:none;padding:4px 0;margin-bottom:4px">Completadas (${completed.length})</summary>
-      <div>${completed.map(taskRow).join('')}</div>
-    </details>`
-  }
-  el.innerHTML = html
+  el.innerHTML = ordered.map(taskRow).join('')
 }
 
 // --- AGENDA HORARIA ---
