@@ -596,6 +596,8 @@ function renderTasks(){
   renderTareasConFecha(allTasks)
   const badgeOv = document.getElementById('badge-overdue')
   if(badgeOv){ badgeOv.textContent = overdue.length; badgeOv.style.display = overdue.length ? 'inline-flex' : 'none' }
+  const tfVBadge = document.getElementById('tf-vencidas-badge')
+  if(tfVBadge){ tfVBadge.textContent = overdue.length; tfVBadge.style.display = overdue.length ? 'inline-block' : 'none' }
   document.getElementById('tf-vencidas') && (document.getElementById('tf-vencidas').style.opacity = overdue.length ? '1' : '.4')
   renderCatLegend()
   if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda()

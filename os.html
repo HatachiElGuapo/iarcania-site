@@ -418,7 +418,7 @@
         <button id="tf-todas" class="tf-btn active" onclick="setTaskFilter('todas')">Todas</button>
         <button id="tf-hoy"   class="tf-btn" onclick="setTaskFilter('hoy')">Hoy</button>
         <button id="tf-semana" class="tf-btn" onclick="setTaskFilter('semana')">Esta semana</button>
-        <button id="tf-vencidas" class="tf-btn" onclick="setTaskFilter('vencidas')" style="opacity:.6;color:var(--red)">Vencidas</button>
+        <button id="tf-vencidas" class="tf-btn" onclick="setTaskFilter('vencidas')" style="opacity:.6;color:var(--red)">Vencidas <span id="tf-vencidas-badge" style="display:none;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:2px"></span></button>
         <button id="tf-completadas" class="tf-btn" onclick="setTaskFilter('completadas')" style="opacity:.6">Completadas</button>
         <div style="width:1px;height:18px;background:var(--border);margin:0 2px"></div>
         <select id="tf-cat" onchange="setTaskCatFilter(this.value)" style="background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:5px 10px;color:#888;font-family:'Outfit',sans-serif;font-size:12px;outline:none;cursor:pointer">
