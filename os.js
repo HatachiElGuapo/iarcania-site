@@ -616,8 +616,10 @@ function renderTasks(){
 function renderTaskList(elId, tasks){
   const el = document.getElementById(elId)
   const ordered = applyTaskOrder(tasks)
+  const pending   = ordered.filter(t => t.status !== 'completada')
+  const completed = ordered.filter(t => t.status === 'completada')
   if(!ordered.length){ el.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div>No hay actividades todavía</div>'; return }
-  el.innerHTML = ordered.map(t => {
+  function taskRow(t){
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
     const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
@@ -642,7 +644,15 @@ function renderTaskList(elId, tasks){
       <div class="task-cat" style="color:${cat.color}">${cat.label}</div>
       <button class="habito-toggle" onclick="event.stopPropagation();openEditTask('${t.id}')">✏️</button>
     </div>`
-  }).join('')
+  }
+  let html = pending.map(taskRow).join('')
+  if(completed.length){
+    html += `<details style="margin-top:8px">
+      <summary style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;cursor:pointer;list-style:none;padding:4px 0;margin-bottom:4px">Completadas (${completed.length})</summary>
+      <div>${completed.map(taskRow).join('')}</div>
+    </details>`
+  }
+  el.innerHTML = html
 }
 
 // --- AGENDA HORARIA ---
