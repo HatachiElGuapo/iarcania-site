@@ -418,6 +418,7 @@
         <button id="tf-todas" class="tf-btn active" onclick="setTaskFilter('todas')">Todas</button>
         <button id="tf-hoy"   class="tf-btn" onclick="setTaskFilter('hoy')">Hoy</button>
         <button id="tf-semana" class="tf-btn" onclick="setTaskFilter('semana')">Esta semana</button>
+        <button id="tf-vencidas" class="tf-btn" onclick="setTaskFilter('vencidas')" style="opacity:.6;color:var(--red)">Vencidas</button>
         <button id="tf-completadas" class="tf-btn" onclick="setTaskFilter('completadas')" style="opacity:.6">Completadas</button>
         <div style="width:1px;height:18px;background:var(--border);margin:0 2px"></div>
         <select id="tf-cat" onchange="setTaskCatFilter(this.value)" style="background:#161616;border:1px solid #2a2a2a;border-radius:6px;padding:5px 10px;color:#888;font-family:'Outfit',sans-serif;font-size:12px;outline:none;cursor:pointer">
@@ -434,17 +435,6 @@
         </div>
         <div class="task-section-body" id="body-fecha" style="max-height:none">
           <div id="tareas-con-fecha" class="task-list"></div>
-        </div>
-      </div>
-      <div id="overdue-wrap" style="display:none;margin-bottom:1rem">
-        <div class="task-section-hdr overdue-hdr" id="overdue-hdr" onclick="toggleTaskSection('overdue')">
-          <span class="task-collapse-icon collapsed" id="icon-overdue">▾</span>
-          ⚠️ Vencidas
-          <span id="overdue-count-pill" style="display:none;margin-left:6px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;animation:pulse-red 1.5s infinite"></span>
-          <div style="flex:1;height:1px;background:rgba(226,75,74,0.2);margin-left:4px"></div>
-        </div>
-        <div class="task-section-body" id="body-overdue" style="max-height:0">
-          <div class="task-list" id="overdue-tasks"></div>
         </div>
       </div>
       <div class="task-list" id="all-tasks">

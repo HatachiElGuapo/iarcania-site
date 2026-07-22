@@ -479,7 +479,7 @@ function initTaskSections(){
 
 function setTaskFilter(tiempo){
   _taskFilter.tiempo = tiempo
-  ;['todas','hoy','semana','completadas'].forEach(t => {
+  ;['todas','hoy','semana','vencidas','completadas'].forEach(t => {
     document.getElementById('tf-'+t)?.classList.toggle('active', t === tiempo)
   })
   applyTaskFilters()
@@ -497,6 +497,7 @@ function limpiarFiltros(){
   document.getElementById('tf-todas')?.classList.add('active')
   document.getElementById('tf-hoy')?.classList.remove('active')
   document.getElementById('tf-semana')?.classList.remove('active')
+  document.getElementById('tf-vencidas')?.classList.remove('active')
   document.getElementById('tf-completadas')?.classList.remove('active')
   const sel = document.getElementById('tf-cat')
   if(sel){ sel.value = ''; sel.style.color = '#888' }
@@ -516,6 +517,7 @@ function applyTaskFilters(){
       let show = true
       if(task){
         if(tiempo === 'completadas') show = task.status === 'completada'
+        else if(tiempo === 'vencidas') show = !!(task.due_date && task.due_date < TODAY && task.status !== 'completada' && task.status !== 'archivada')
         else {
           if(task.status === 'completada') show = false
           else if(tiempo === 'hoy') show = task.due_date === TODAY
@@ -587,28 +589,14 @@ function renderTasks(){
     return null
   }).filter(Boolean)
   renderDashTasksSection('extra-tasks', extraTasks, 'extra')
-  // Sección Tareas: lista sin vencidas + grupos especiales
+  // Sección Tareas
   const overdue = allTasks.filter(t => t.due_date && (t.due_date||'').slice(0,10) < todayBogota() && t.status !== 'completada' && t.status !== 'hoy' && t.status !== 'archivada')
-  const overdueIds = new Set(overdue.map(t => t.id))
-  renderTaskList('all-tasks', allTasks.filter(t => !overdueIds.has(t.id) && t.status !== 'archivada'))
+  renderTaskList('all-tasks', allTasks.filter(t => t.status !== 'archivada'))
   renderArchivedTasks()
-  renderOverdueTasks(overdue)
   renderTareasConFecha(allTasks)
-  renderVencidas(overdue)
   const badgeOv = document.getElementById('badge-overdue')
   if(badgeOv){ badgeOv.textContent = overdue.length; badgeOv.style.display = overdue.length ? 'inline-flex' : 'none' }
-  const pill = document.getElementById('overdue-count-pill')
-  if(pill){ pill.textContent = overdue.length; pill.style.display = overdue.length ? 'inline-block' : 'none' }
-  // Auto-expandir si hay vencidas
-  if(overdue.length){
-    const body = document.getElementById('body-overdue')
-    const icon = document.getElementById('icon-overdue')
-    if(body && body.style.maxHeight === '0px' || body?.style.maxHeight === '0'){
-      body.style.maxHeight = body.scrollHeight + 'px'
-      if(icon) icon.classList.remove('collapsed')
-    }
-    document.getElementById('overdue-wrap')?.style && (document.getElementById('overdue-wrap').style.display = 'block')
-  }
+  document.getElementById('tf-vencidas') && (document.getElementById('tf-vencidas').style.opacity = overdue.length ? '1' : '.4')
   renderCatLegend()
   if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda()
   update2020Widget()
