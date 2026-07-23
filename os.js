@@ -2078,6 +2078,62 @@ const CIERRE_SUB_IDS = ['a_cambiar', 'a11', 'a10']  // Cambiarme, Skincare, Ropa
 let _cierreExpanded = false
 const NARIZ_SUB_IDS = ['a_nariz_1','a_nariz_2','a_nariz_3','a_nariz_4','a_nariz_5']
 let _narizExpanded = false
+let _agendaHabExpanded = false
+let _agendaHabPanelOpen = false
+let _agendaHabQuery = ''
+let mananaTrabajoItems = []
+
+function getTomorrow(){ const d = new Date(TODAY); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0] }
+
+async function loadMananaTrabajoItems(){
+  const tom = getTomorrow()
+  const { data } = await SB_P.from('daily_focus').select('*').eq('user_id', USER_ID).eq('date', tom).eq('list_type','trabajo')
+  mananaTrabajoItems = data || []
+}
+
+async function _agregarMananaTrabajoFocus(taskId){
+  if(mananaTrabajoItems.find(x => x.task_id === taskId)) return
+  const tom = getTomorrow()
+  const rec = { id: 'tf_'+Date.now(), user_id: USER_ID, date: tom, task_id: taskId, list_type: 'trabajo', completed: false, sort_order: mananaTrabajoItems.length }
+  await SB_P.from('daily_focus').insert(rec)
+  mananaTrabajoItems.push(rec)
+  _agendaHabQuery = ''
+  renderRutinaNocturnaDash()
+}
+
+async function _quitarMananaTrabajoFocus(focusId){
+  await SB_P.from('daily_focus').delete().eq('id', focusId)
+  mananaTrabajoItems = mananaTrabajoItems.filter(x => x.id !== focusId)
+  renderRutinaNocturnaDash()
+}
+
+function _renderAgendaHabPanelList(){
+  const el = document.getElementById('agenda-hab-panel-list')
+  if(!el) return
+  const q = (_agendaHabQuery || '').toLowerCase()
+  const yaIds = new Set(mananaTrabajoItems.map(x => x.task_id))
+  const citasArr = typeof allCitas !== 'undefined' ? allCitas : []
+  const citaIds = new Set(citasArr.map(c => c.id))
+  const tasks = allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && !yaIds.has(t.id) && (!q || (t.title||'').toLowerCase().includes(q)))
+  const citas = citasArr.filter(c => c.status === 'pendiente' && !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q)))
+  const items = [...tasks.map(t=>({...t,_esCita:false})), ...citas.map(c=>({...c,_esCita:true}))]
+  if(!items.length){ el.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--text-muted);text-align:center">Sin resultados</div>'; return }
+  el.innerHTML = items.slice(0,20).map(item => {
+    const icon = item._esCita ? '📅' : '📋'
+    let meta = ''
+    if(item._esCita && item.datetime){
+      const d = new Date(item.datetime)
+      meta = `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">${d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'})} ${d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false})}</span>`
+    } else if(item.category){
+      meta = `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${item.category}${item.due_date?' · '+item.due_date.slice(0,10):''}</span>`
+    }
+    return `<div onclick="_agregarMananaTrabajoFocus('${item.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
+      <span style="flex-shrink:0">${icon}</span>
+      <span style="flex:1">${item.title||item.name}</span>
+      ${meta}
+    </div>`
+  }).join('')
+}
 
 function renderRutinaNocturnaDash(){
   const el = document.getElementById('dash-noche-body')
@@ -2120,6 +2176,47 @@ function renderRutinaNocturnaDash(){
       </div>`
     }
 
+    if(a.id === 'a06'){
+      if(!_agendaHabExpanded){
+        const count = mananaTrabajoItems.length
+        return `<div class="ritual-item${done?' done':''}" onclick="if(!_agendaHabExpanded){loadMananaTrabajoItems().then(()=>{_agendaHabExpanded=true;renderRutinaNocturnaDash()})}">
+          <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          ${count ? `<span style="font-size:10px;color:var(--gold);margin-left:auto;opacity:.8">${count} tareas</span>` : hora}
+        </div>`
+      }
+      const tareaRows = mananaTrabajoItems.map(fi => {
+        const task = allTasks.find(t => t.id === fi.task_id)
+        const cita = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === fi.task_id)
+        const name = task?.title || cita?.title || '?'
+        return `<div class="ritual-item" style="padding-left:20px">
+          <div class="ritual-check" style="border-color:rgba(201,168,76,0.4);flex-shrink:0"></div>
+          <span class="ritual-label" style="font-size:12px;flex:1">${name}</span>
+          <button onclick="event.stopPropagation();_quitarMananaTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
+        </div>`
+      }).join('')
+      const panelHtml = _agendaHabPanelOpen ? `
+        <div style="margin:4px 0 4px 20px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div style="padding:6px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">
+            <input type="text" placeholder="🔍 Buscar tarea o cita..." oninput="_agendaHabQuery=this.value;_renderAgendaHabPanelList()" id="agenda-hab-input" style="flex:1;background:transparent;border:none;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none" />
+            <button onclick="_agendaHabPanelOpen=false;renderRutinaNocturnaDash()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px">✕</button>
+          </div>
+          <div id="agenda-hab-panel-list" style="max-height:200px;overflow-y:auto"></div>
+        </div>` : ''
+      return `<div style="grid-column:1/-1">
+        <div class="ritual-item" onclick="_agendaHabExpanded=false;_agendaHabPanelOpen=false;renderRutinaNocturnaDash()">
+          <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}" onclick="event.stopPropagation();toggleHabito('a06').then(renderRutinaNocturnaDash)">${done?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:#378ADD;margin-left:auto">▲ cerrar</span>
+        </div>
+        ${tareaRows}
+        ${panelHtml}
+        <div style="padding:4px 0 4px 20px">
+          <button onclick="event.stopPropagation();_agendaHabPanelOpen=!_agendaHabPanelOpen;renderRutinaNocturnaDash();setTimeout(()=>document.getElementById('agenda-hab-input')?.focus(),50)" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px dashed rgba(201,168,76,0.4);background:transparent;color:var(--gold);cursor:pointer;font-family:'Outfit',sans-serif">+ Agregar tarea mañana</button>
+        </div>
+      </div>`
+    }
+
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(renderRutinaNocturnaDash)">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
       <span class="ritual-label">${a.name}</span>
@@ -2128,6 +2225,7 @@ function renderRutinaNocturnaDash(){
   }).join('')
 
   el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">${rows}</div>`
+  if(_agendaHabPanelOpen) _renderAgendaHabPanelList()
 }
 
 function renderInicioDiaDash(){
