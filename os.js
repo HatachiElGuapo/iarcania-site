@@ -1451,12 +1451,30 @@ function update2020Widget(){
         return
       }
       const done = !!habitLogs[id]
+      const isMin = !!habitLogs[id]?.is_minimum
       const item  = document.getElementById(pfx+id)
       const check = document.getElementById(cpfx+id)
       if(!item) return
       item.classList.toggle('done', done)
       check.classList.toggle('done', done)
-      check.textContent = done ? '✓' : ''
+      check.textContent = done ? (isMin ? '~' : '✓') : ''
+      if(isMin){ check.style.background='var(--gold)'; check.style.borderColor='var(--gold)'; check.style.color='#000' }
+      else if(done){ check.style.background=''; check.style.borderColor=''; check.style.color='' }
+      // Botón ~ para mínimo
+      const act = allActivities.find(a => a.id === id)
+      let minBtn = item.querySelector('.min-btn')
+      if(act?.min_value && !done){
+        if(!minBtn){
+          minBtn = document.createElement('button')
+          minBtn.className = 'min-btn'
+          minBtn.style.cssText = 'background:transparent;border:1px solid rgba(201,168,76,0.3);border-radius:4px;color:rgba(201,168,76,0.6);font-size:10px;padding:1px 5px;cursor:pointer;font-family:Outfit,sans-serif;flex-shrink:0;line-height:1.4;margin-left:auto'
+          minBtn.textContent = '~'
+          minBtn.onclick = e => { e.stopPropagation(); showMinimumModal(id) }
+          item.appendChild(minBtn)
+        }
+      } else {
+        minBtn?.remove()
+      }
     })
     const badge = document.getElementById(badgeId)
     if(badge){
