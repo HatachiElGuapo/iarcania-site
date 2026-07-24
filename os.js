@@ -2071,7 +2071,8 @@ function _ritualCheckStyle(actId, doneColor){
 }
 
 function _ritualLpAttr(act){
-  return act.min_value ? ` data-habito-lp="${act.id}"` : ''
+  if(!act.min_value) return ''
+  return ` data-habito-lp="${act.id}" oncontextmenu="event.preventDefault();event.stopPropagation();showMinimumModal('${act.id}')" ontouchstart="_lpStart(event,'${act.id}')" ontouchend="_lpEnd()" ontouchmove="_lpEnd()"`
 }
 
 const CIERRE_SUB_IDS = ['a_cambiar', 'a11', 'a10']  // Cambiarme, Skincare, Ropa siguiente día
@@ -6292,23 +6293,10 @@ async function marcarMinimo(activityId){
   update2020Widget()
 }
 
-// Long press / contextmenu para hábitos con mínimo (event delegation)
-;(function initMinimoPressHandlers(){
-  let _lpTimer = null
-  document.addEventListener('touchstart', e => {
-    const el = e.target.closest('[data-habito-lp]')
-    if(!el) return
-    _lpTimer = setTimeout(() => { showMinimumModal(el.getAttribute('data-habito-lp')) }, 600)
-  }, {passive: true})
-  document.addEventListener('touchend',  () => clearTimeout(_lpTimer), {passive: true})
-  document.addEventListener('touchmove', () => clearTimeout(_lpTimer), {passive: true})
-  document.addEventListener('contextmenu', e => {
-    const el = e.target.closest('[data-habito-lp]')
-    if(!el) return
-    e.preventDefault()
-    showMinimumModal(el.getAttribute('data-habito-lp'))
-  })
-})()
+// Long press para móvil (llamado desde ontouch* en los elementos)
+let _lpTimer = null
+function _lpStart(e, actId){ e.stopPropagation(); _lpTimer = setTimeout(() => showMinimumModal(actId), 600) }
+function _lpEnd(){ clearTimeout(_lpTimer) }
 
 async function toggleActive(activityId, currentState){
   await SB_P.from('activities').update({ is_active: !currentState }).eq('id', activityId)
