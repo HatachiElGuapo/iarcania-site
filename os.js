@@ -1899,6 +1899,7 @@ async function guardarComida(){
 let _trabajoExpandido = false
 let _trabajoPanelOpen = false
 let _trabajoPanelQuery = ''
+let _trabajoPanelTab = 'tareas'
 
 function renderTrabajoDash(){
   const TARGETS = ['trabajo-expandible', 'trabajo-expandible-r']
@@ -1906,80 +1907,66 @@ function renderTrabajoDash(){
     'Grabar contenido':         {label:'🎬 Guiones', section:'guiones'},
     'Trabajo tecnico IArcanIA': {label:'🖥️ Workspace', section:'workspace'},
   }
-  const acts   = allActivities.filter(a => a.category === 'trabajo_profundo' && a.is_active)
-  const doneH  = acts.filter(a => !!habitLogs[a.id])
-  const doneT  = trabajoFocusItems.filter(x => x.completed)
+  const doneT = trabajoFocusItems.filter(x => x.completed)
+  const totalT = trabajoFocusItems.length
 
   let html
   if(!_trabajoExpandido){
-    const partes = []
-    if(doneH.length) partes.push(`${doneH.length} hábito${doneH.length>1?'s':''}`)
-    if(doneT.length) partes.push(`${doneT.length} tarea${doneT.length>1?'s':''}`)
-    const resumen = partes.length
-      ? `<span style="color:var(--gold);font-size:11px">${partes.join(' · ')}</span>`
-      : `<span style="color:var(--text-muted);font-size:11px">Sin marcar</span>`
+    const resumen = totalT
+      ? `<span style="color:var(--gold);font-size:11px">${doneT.length}/${totalT} completadas</span>`
+      : `<span style="color:var(--text-muted);font-size:11px">Sin tareas</span>`
     html = `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
-      <div style="font-size:11px;color:var(--text-muted)">${doneH.length}/${acts.length} · ${doneT.length} tareas</div>
       ${resumen}
-      <button onclick="_trabajoExpandido=true;renderTrabajoDash()" style="margin-left:auto;padding:4px 12px;border-radius:6px;border:1px solid rgba(201,168,76,0.35);background:transparent;color:var(--gold);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ abrir</button>
+      <button onclick="_trabajoExpandido=true;if(!allCitas.length)loadCitas().then(renderTrabajoDash);else renderTrabajoDash()" style="margin-left:auto;padding:4px 12px;border-radius:6px;border:1px solid rgba(201,168,76,0.35);background:transparent;color:var(--gold);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ abrir</button>
     </div>`
   } else {
-    // Bloque 1: hábitos fijos
-    const habitItems = acts.map(a => {
-      const isDone = !!habitLogs[a.id]
-      const link = QUICK_LINKS[a.name]
-      const linkBtn = link
-        ? `<button onclick="event.stopPropagation();navTo('${link.section}')" style="font-size:10px;padding:2px 7px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">${link.label}</button>`
-        : ''
-      return `<div class="ritual-item${isDone?' done':''}" onclick="_marcarTrabajo('${a.id}')">
-        <div class="ritual-check${isDone?' done':''}" style="${isDone?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4)'}">${isDone?'✓':''}</div>
-        <span class="ritual-label">${a.name}</span>
-        ${linkBtn}
-      </div>`
-    }).join('')
-
-    // Bloque 2: tareas ad-hoc
+    // Tareas ad-hoc
     const tareaItems = trabajoFocusItems.map(fi => {
       const task = allTasks.find(t => t.id === fi.task_id)
       const cita = (typeof allCitas !== 'undefined' ? allCitas : []).find(c => c.id === fi.task_id)
       const item = task || cita
       if(!item) return ''
+      const isCita = !!cita
       const name = item.title || item.name || '?'
       const done = !!fi.completed
+      const tag = isCita
+        ? `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">📅 Cita</span>`
+        : (item.category ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${item.category}</span>` : '')
       return `<div class="ritual-item${done?' done':''}" style="opacity:${done?'.6':'1'};cursor:pointer" onclick="_toggleTrabajoFocus('${fi.id}')">
         <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4);'}pointer-events:none">${done?'✓':''}</div>
         <span class="ritual-label" style="flex:1">${name}</span>
+        ${tag}
         <button onclick="event.stopPropagation();_quitarTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 6px">✕</button>
       </div>`
     }).filter(Boolean).join('')
 
-    // Panel de búsqueda
+    // Panel con tabs Tareas / Citas
     const panelHtml = _trabajoPanelOpen ? `
-      <div style="margin-top:8px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
-          <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Agregar tarea</span>
-          <button onclick="_trabajoPanelOpen=false;renderTrabajoDash()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif">✕</button>
+      <div style="margin-top:8px;background:#0C0C0C;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px 0">
+          <div style="display:flex;gap:4px">
+            <button onclick="_trabajoPanelTab='tareas';_trabajoPanelQuery='';renderTrabajoDash();setTimeout(()=>document.getElementById('trabajo-panel-input')?.focus(),50)" style="padding:4px 12px;border-radius:6px;border:none;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;font-weight:600;${_trabajoPanelTab==='tareas'?'background:rgba(201,168,76,0.15);color:var(--gold)':'background:transparent;color:var(--text-muted)'}">📋 Tareas</button>
+            <button onclick="_trabajoPanelTab='citas';_trabajoPanelQuery='';renderTrabajoDash();setTimeout(()=>document.getElementById('trabajo-panel-input')?.focus(),50)" style="padding:4px 12px;border-radius:6px;border:none;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;font-weight:600;${_trabajoPanelTab==='citas'?'background:rgba(239,159,39,0.15);color:#EF9F27':'background:transparent;color:var(--text-muted)'}">📅 Citas</button>
+          </div>
+          <button onclick="_trabajoPanelOpen=false;renderTrabajoDash()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">✕</button>
         </div>
-        <div style="padding:8px 10px 4px">
-          <input type="text" placeholder="🔍 Buscar tarea o cita..." oninput="_trabajoPanelQuery=this.value;_renderTrabajoPanelList()" id="trabajo-panel-input" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
+        <div style="padding:8px 12px">
+          <input type="text" id="trabajo-panel-input" placeholder="🔍 Buscar ${_trabajoPanelTab==='citas'?'cita':'tarea'}..." oninput="_trabajoPanelQuery=this.value;_renderTrabajoPanelList()" style="width:100%;background:#161616;border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
         </div>
-        <div id="trabajo-panel-list" style="max-height:220px;overflow-y:auto"></div>
-        <div style="display:flex;gap:8px;padding:8px 10px;border-top:1px solid var(--border)">
-          <button onclick="openNewTask()" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear tarea</button>
-          <button onclick="openModal('nueva-cita')" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">+ Crear cita</button>
+        <div id="trabajo-panel-list" style="max-height:200px;overflow-y:auto"></div>
+        <div style="padding:8px 12px;border-top:1px solid var(--border)">
+          <button onclick="${_trabajoPanelTab==='citas'?'openModal(\'nueva-cita\')':'openNewTask()'}" style="width:100%;padding:7px;border-radius:7px;border:1px dashed ${_trabajoPanelTab==='citas'?'rgba(239,159,39,0.4)':'rgba(201,168,76,0.35)'};background:transparent;color:${_trabajoPanelTab==='citas'?'#EF9F27':'var(--gold)'};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">+ Crear ${_trabajoPanelTab==='citas'?'cita':'tarea'}</button>
         </div>
       </div>` : ''
 
     html = `
-      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 0 2px">Hábitos</div>
-      ${habitItems}
-      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 0 2px;display:flex;align-items:center;justify-content:space-between">
-        <span>Tareas del día</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0 6px">
+        <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Tareas del día</span>
         <button onclick="_trabajoPanelOpen=!_trabajoPanelOpen;if(_trabajoPanelOpen&&!allCitas.length)loadCitas().then(renderTrabajoDash);else renderTrabajoDash()" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(201,168,76,0.3);background:transparent;color:var(--gold);cursor:pointer;font-size:10px;font-family:'Outfit',sans-serif">+ Agregar</button>
       </div>
-      ${tareaItems || '<div style="font-size:11px;color:var(--text-muted);padding:4px 0">Sin tareas agregadas</div>'}
+      ${tareaItems || '<div style="font-size:11px;color:var(--text-muted);padding:2px 0 6px">Sin tareas agregadas</div>'}
       ${panelHtml}
-      <div style="padding:6px 0 2px;display:flex;justify-content:flex-end">
+      <div style="padding:8px 0 2px;display:flex;justify-content:flex-end">
         <button onclick="_trabajoExpandido=false;_trabajoPanelOpen=false;renderTrabajoDash()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
       </div>`
   }
@@ -2001,9 +1988,9 @@ function _renderTrabajoPanelList(){
   const q = (_trabajoPanelQuery || '').toLowerCase()
   const yaIds = new Set(trabajoFocusItems.map(x => x.task_id))
   const citasArr = (typeof allCitas !== 'undefined' ? allCitas : [])
-  const citaIds = new Set(citasArr.map(c => c.id))
-  const tasks = allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && !yaIds.has(t.id) && (!q || (t.title||'').toLowerCase().includes(q)))
-  const citas = citasArr.filter(c => c.status === 'pendiente' && !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q)))
+  const esCitas = _trabajoPanelTab === 'citas'
+  const tasks = esCitas ? [] : allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && !yaIds.has(t.id) && (!q || (t.title||'').toLowerCase().includes(q)))
+  const citas = esCitas ? citasArr.filter(c => c.status === 'pendiente' && !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q))) : []
   const items = [...tasks.map(t => ({...t, _esCita: false})), ...citas.map(c => ({...c, _esCita: true}))]
   if(!items.length){
     el.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text-muted);text-align:center">Sin resultados</div>'
