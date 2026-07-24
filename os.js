@@ -1559,10 +1559,10 @@ function renderMatutinaDash(){
     const done = !!habitLogs[a.id]
     const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
     const isMin = !!habitLogs[a.id]?.is_minimum
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'196,163,90')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
-      ${hora}
+      ${_minimoBtn(a)}${hora}
     </div>`
   }).join('')
   if(_slotEditing){
@@ -1735,10 +1735,10 @@ function renderDespertarDash(){
     const done = !!habitLogs[a.id]
     const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
     const isMin = !!habitLogs[a.id]?.is_minimum
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'255,209,102')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
-      ${hora}
+      ${_minimoBtn(a)}${hora}
     </div>`
   }).join('')
 }
@@ -2071,8 +2071,12 @@ function _ritualCheckStyle(actId, doneColor){
 }
 
 function _ritualLpAttr(act){
-  if(!act.min_value) return ''
-  return ` data-habito-lp="${act.id}" oncontextmenu="event.preventDefault();event.stopPropagation();showMinimumModal('${act.id}')" ontouchstart="_lpStart(event,'${act.id}')" ontouchend="_lpEnd()" ontouchmove="_lpEnd()"`
+  return ''  // ya no se usa, ver _minimoBtn
+}
+
+function _minimoBtn(act){
+  if(!act.min_value || habitLogs[act.id]) return ''
+  return `<button onclick="event.stopPropagation();showMinimumModal('${act.id}')" title="Marcar mínimo" style="background:transparent;border:1px solid rgba(201,168,76,0.3);border-radius:4px;color:rgba(201,168,76,0.6);font-size:10px;padding:1px 5px;cursor:pointer;font-family:Outfit,sans-serif;flex-shrink:0;line-height:1.4">~</button>`
 }
 
 const CIERRE_SUB_IDS = ['a_cambiar', 'a11', 'a10']  // Cambiarme, Skincare, Ropa siguiente día
@@ -2219,10 +2223,10 @@ function renderRutinaNocturnaDash(){
     }
 
     const isMin = !!habitLogs[a.id]?.is_minimum
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(renderRutinaNocturnaDash)"${_ritualLpAttr(a)}>
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(renderRutinaNocturnaDash)">
       <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'55,138,221')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
-      ${hora}
+      ${_minimoBtn(a)}${hora}
     </div>`
   }).join('')
 
@@ -2242,10 +2246,10 @@ function renderInicioDiaDash(){
     const done = !!habitLogs[a.id]
     const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
     const isMin = !!habitLogs[a.id]?.is_minimum
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'93,202,165')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
-      ${hora}
+      ${_minimoBtn(a)}${hora}
     </div>`
   }).join('')
 }
@@ -2282,9 +2286,10 @@ function renderSecundariosNocheDash(){
         </div>${subRows}`
     }
     const isMin = !!habitLogs[a.id]?.is_minimum
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'107,127,212')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
+      ${_minimoBtn(a)}
     </div>`
   }).join('')
 }
