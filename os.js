@@ -1558,8 +1558,9 @@ function renderMatutinaDash(){
     if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
     const done = !!habitLogs[a.id]
     const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
-      <div class="ritual-check${done?' done':''}" style="${done?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${done?'✓':''}</div>
+    const isMin = !!habitLogs[a.id]?.is_minimum
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+      <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'196,163,90')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
       ${hora}
     </div>`
@@ -1733,8 +1734,9 @@ function renderDespertarDash(){
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
     const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
-      <div class="ritual-check${done?' done':''}" style="${done?'background:#FFD166;border-color:#FFD166;color:#000':'border-color:rgba(255,209,102,0.4)'}">${done?'✓':''}</div>
+    const isMin = !!habitLogs[a.id]?.is_minimum
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+      <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'255,209,102')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
       ${hora}
     </div>`
@@ -2061,6 +2063,17 @@ async function _quitarTrabajoFocus(focusId){
   renderTrabajoDash()
 }
 
+function _ritualCheckStyle(actId, doneColor){
+  const log = habitLogs[actId]
+  if(!log) return `border-color:rgba(${doneColor||'55,138,221'},0.4)`
+  if(log.is_minimum) return 'background:var(--gold);border-color:var(--gold);color:#000'
+  return `background:rgb(${doneColor||'55,138,221'});border-color:rgb(${doneColor||'55,138,221'});color:#000`
+}
+
+function _ritualLpAttr(act){
+  return act.min_value ? ` data-habito-lp="${act.id}"` : ''
+}
+
 const CIERRE_SUB_IDS = ['a_cambiar', 'a11', 'a10']  // Cambiarme, Skincare, Ropa siguiente día
 let _cierreExpanded = false
 const NARIZ_SUB_IDS = ['a_nariz_1','a_nariz_2','a_nariz_3','a_nariz_4','a_nariz_5']
@@ -2204,8 +2217,9 @@ function renderRutinaNocturnaDash(){
       </div>`
     }
 
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(renderRutinaNocturnaDash)">
-      <div class="ritual-check${done?' done':''}" style="${done?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${done?'✓':''}</div>
+    const isMin = !!habitLogs[a.id]?.is_minimum
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(renderRutinaNocturnaDash)"${_ritualLpAttr(a)}>
+      <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'55,138,221')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
       ${hora}
     </div>`
@@ -2226,8 +2240,9 @@ function renderInicioDiaDash(){
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
     const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
-      <div class="ritual-check${done?' done':''}" style="${done?'background:#5DCAA5;border-color:#5DCAA5;color:#000':'border-color:rgba(93,202,165,0.4)'}">${done?'✓':''}</div>
+    const isMin = !!habitLogs[a.id]?.is_minimum
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+      <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'93,202,165')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
       ${hora}
     </div>`
@@ -2265,8 +2280,9 @@ function renderSecundariosNocheDash(){
           <span style="font-size:10px;color:var(--text-muted);margin-left:auto">▲ cerrar</span>
         </div>${subRows}`
     }
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
-      <div class="ritual-check${done?' done':''}" style="${done?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${done?'✓':''}</div>
+    const isMin = !!habitLogs[a.id]?.is_minimum
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')"${_ritualLpAttr(a)}>
+      <div class="ritual-check${done?' done':''}" style="${_ritualCheckStyle(a.id,'107,127,212')}">${done?(isMin?'~':'✓'):''}</div>
       <span class="ritual-label">${a.name}</span>
     </div>`
   }).join('')
@@ -4537,6 +4553,7 @@ const CAT_ORDER = [
 
 let allActivities = []
 let habitLogs = {}
+let habitStrikes = {}  // { [activityId]: { id, mini_strikes, strikes } }
 let foodLogs = {}
 let extraLogs = []
 let _currentMeal = null
@@ -4626,6 +4643,11 @@ async function loadHabitos(){
       vicioLogs[l.activity_id].push(l)
     }
   })
+
+  // Strikes por hábito
+  const { data: strikesData } = await SB_P.from('habit_strikes').select('*').eq('user_id', USER_ID)
+  habitStrikes = {}
+  ;(strikesData||[]).forEach(s => { habitStrikes[s.activity_id] = s })
 
   // Weekly logs (Monday to Sunday of current week)
   const now = new Date()
@@ -6153,6 +6175,140 @@ async function toggleHabito(activityId){
   renderHabitos()
   update2020Widget()
 }
+
+// ── SISTEMA DE MÍNIMOS ──────────────────────────────────────────────────────
+
+function _isPenaltyActive(activityId){
+  // Busca logs de mínimo en los últimos `penalty_days` días
+  const act = allActivities.find(a => a.id === activityId)
+  if(!act?.min_value) return false
+  const days = act.penalty_days || 3
+  const cutoff = new Date(TODAY); cutoff.setDate(cutoff.getDate() - days)
+  const cutoffStr = cutoff.toISOString().split('T')[0]
+  return (monthlyLogs[activityId]||[]).some(l => l.is_minimum && l.date > cutoffStr && l.date < TODAY)
+}
+
+function _penaltyTarget(act){
+  if(!act?.min_value) return null
+  const pct = act.penalty_pct || 15
+  return Math.ceil((act.target_value || act.min_value * 3) * (1 + pct/100))
+}
+
+function showMinimumModal(activityId){
+  const act = allActivities.find(a => a.id === activityId)
+  if(!act?.min_value) return
+  // Si ya está marcado, no mostrar
+  if(habitLogs[activityId]) return
+
+  const str = habitStrikes[activityId] || { mini_strikes: 0, strikes: 0 }
+  const miniInStrike = str.mini_strikes % 3
+  const remaining = 3 - miniInStrike - 1  // después de este
+  const unit = act.min_unit || 'min'
+  const target = act.target_value || '—'
+  const penaltyT = _penaltyTarget(act)
+  const inPenalty = _isPenaltyActive(activityId)
+
+  if(inPenalty){
+    showToast(`⚠️ Estás en penalización — hoy la meta es ${penaltyT} ${unit}`)
+    return
+  }
+
+  const existing = document.getElementById('modal-minimo')
+  if(existing) existing.remove()
+
+  const modal = document.createElement('div')
+  modal.id = 'modal-minimo'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px'
+  modal.innerHTML = `
+    <div style="background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:22px 20px;max-width:320px;width:100%;font-family:Outfit,sans-serif">
+      <div style="font-size:16px;font-weight:700;color:#e8e8e8;margin-bottom:4px">¿Día difícil? 😮‍💨</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">${act.name}</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <div style="flex:1;background:#0C0C0C;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">META</div>
+          <div style="font-size:18px;font-weight:700;color:#5DCAA5">${target}</div>
+          <div style="font-size:10px;color:var(--text-muted)">${unit}</div>
+        </div>
+        <div style="flex:1;background:#0C0C0C;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">MÍNIMO</div>
+          <div style="font-size:18px;font-weight:700;color:var(--gold)">${act.min_value}</div>
+          <div style="font-size:10px;color:var(--text-muted)">${unit}</div>
+        </div>
+      </div>
+      <div style="background:rgba(226,75,74,0.08);border:1px solid rgba(226,75,74,0.2);border-radius:8px;padding:10px;margin-bottom:16px;font-size:11px;color:var(--text-muted)">
+        ⚠️ Marcar mínimo activa penalización: <strong style="color:#e8e8e8">+${act.penalty_pct||15}% por ${act.penalty_days||3} días</strong><br>
+        Mini-strikes: <strong style="color:var(--gold)">${miniInStrike}/3</strong> → Strikes: <strong style="color:var(--red)">${str.strikes}/5</strong>
+      </div>
+      <button onclick="marcarMinimo('${activityId}')" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(226,75,74,0.4);background:rgba(226,75,74,0.1);color:#f87171;font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:8px">
+        Sí, fue un día difícil
+      </button>
+      <button onclick="document.getElementById('modal-minimo').remove()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(93,202,165,0.3);background:transparent;color:#5DCAA5;font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">
+        Cancelar — lo intento 💪
+      </button>
+    </div>`
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
+}
+
+async function marcarMinimo(activityId){
+  document.getElementById('modal-minimo')?.remove()
+  const act = allActivities.find(a => a.id === activityId)
+  if(!act) return
+
+  // Insertar log con is_minimum=true
+  const log = { id:'log_'+Date.now()+'_min', user_id: USER_ID, activity_id: activityId, value: act.min_value, date: selectedDate, is_minimum: true }
+  await SB_P.from('activity_logs').insert(log)
+  habitLogs[activityId] = log
+
+  // Actualizar strikes
+  const str = habitStrikes[activityId]
+  const newMini = (str?.mini_strikes || 0) + 1
+  const newFull = (str?.strikes || 0) + Math.floor(newMini / 3)
+  const miniRemainder = newMini % 3 === 0 ? 0 : newMini % 3  // reset al hacer strike completo
+
+  if(str){
+    const { data: updated } = await SB_P.from('habit_strikes')
+      .update({ mini_strikes: miniRemainder === 0 ? newMini : newMini, strikes: newFull, updated_at: new Date().toISOString() })
+      .eq('id', str.id).select().single()
+    if(updated) habitStrikes[activityId] = updated
+  } else {
+    const newStr = { id: 'str_'+Date.now(), user_id: USER_ID, activity_id: activityId, mini_strikes: newMini, strikes: newFull, updated_at: new Date().toISOString() }
+    await SB_P.from('habit_strikes').insert(newStr)
+    habitStrikes[activityId] = newStr
+  }
+
+  if(newFull >= 5){
+    showToast(`💀 5 strikes en ${act.name} — racha reiniciada`)
+    // Aquí iría el reset de racha cuando esté implementado
+  } else if(newMini % 3 === 0){
+    showToast(`🔴 Strike en ${act.name} (${newFull}/5)`)
+  } else {
+    const pct = act.penalty_pct || 15
+    const days = act.penalty_days || 3
+    showToast(`⚡ Mínimo marcado — penalización +${pct}% por ${days} días`)
+  }
+
+  renderHabitos()
+  update2020Widget()
+}
+
+// Long press / contextmenu para hábitos con mínimo (event delegation)
+;(function initMinimoPressHandlers(){
+  let _lpTimer = null
+  document.addEventListener('touchstart', e => {
+    const el = e.target.closest('[data-habito-lp]')
+    if(!el) return
+    _lpTimer = setTimeout(() => { showMinimumModal(el.getAttribute('data-habito-lp')) }, 600)
+  }, {passive: true})
+  document.addEventListener('touchend',  () => clearTimeout(_lpTimer), {passive: true})
+  document.addEventListener('touchmove', () => clearTimeout(_lpTimer), {passive: true})
+  document.addEventListener('contextmenu', e => {
+    const el = e.target.closest('[data-habito-lp]')
+    if(!el) return
+    e.preventDefault()
+    showMinimumModal(el.getAttribute('data-habito-lp'))
+  })
+})()
 
 async function toggleActive(activityId, currentState){
   await SB_P.from('activities').update({ is_active: !currentState }).eq('id', activityId)
