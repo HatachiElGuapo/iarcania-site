@@ -1681,74 +1681,68 @@ function toggleDashSection(id){
   arrow.classList.toggle('up')
 }
 
-let _limpiezaBanoExp   = false
-let _limpiezaVestirExp = false
+const LIMPIEZA_ALL_IDS = [...LIMPIEZA_BANO_IDS, ...LIMPIEZA_VESTIR_IDS]
 
 function renderLimpiezaDash(){
   const el = document.getElementById('dash-limpieza-body')
   if(!el) return
-  const color = '#00C2FF'
+  const allActs = LIMPIEZA_ALL_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const diarios = allActs.filter(a => a.frequency !== 'semanal')
+  const done = diarios.every(a => !!habitLogs[a.id])
+  const doneCount = allActs.filter(a => !!habitLogs[a.id]).length
+  el.innerHTML = `<div class="ritual-item${done?' done':''}" onclick="showLimpiezaModal()">
+    <div class="ritual-check${done?' done':''}" style="${done?'background:#00C2FF;border-color:#00C2FF;color:#000':'border-color:rgba(0,194,255,0.3)'}">${done?'✓':''}</div>
+    <span class="ritual-label">Ver rutina completa</span>
+    <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${doneCount}/${allActs.length}</span>
+  </div>`
+}
 
-  // — Baño —
-  const banoActs = LIMPIEZA_BANO_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-  const banoDiarios = banoActs.filter(a => a.frequency !== 'semanal')
-  const banoDone = banoDiarios.every(a => !!habitLogs[a.id])
-  const banoDoneCount = banoActs.filter(a => !!habitLogs[a.id]).length
+function showLimpiezaModal(){
+  document.getElementById('limpieza-modal')?.remove()
+  const allActs = LIMPIEZA_ALL_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
 
-  let banoHtml
-  if(!_limpiezaBanoExp){
-    banoHtml = `<div class="ritual-item${banoDone?' done':''}" onclick="_limpiezaBanoExp=true;renderLimpiezaDash()">
-      <div class="ritual-check${banoDone?' done':''}" style="${banoDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${banoDone?'✓':''}</div>
-      <span class="ritual-label">🚿 Baño & skincare</span>
-      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${banoDoneCount}/${banoActs.length}</span>
+  const rows = allActs.map(a => {
+    const done = !!habitLogs[a.id]
+    const isSem = a.frequency === 'semanal'
+    const color = LIMPIEZA_VESTIR_IDS.includes(a.id) ? '#C4A35A' : '#00C2FF'
+    const badge = isSem ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:6px">2x/sem</span>` : ''
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(()=>{renderLimpiezaDash();_renderLimpiezaModalRows()})" style="padding:8px 4px">
+      <div class="ritual-check${done?' done':''}" style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${color};color:#000`:''}">${done?'✓':''}</div>
+      <span style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''}">${a.name}</span>
+      ${badge}
     </div>`
-  } else {
-    const subRows = banoActs.map(a => {
-      const done = !!habitLogs[a.id]
-      const badge = a.frequency === 'semanal' ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:4px">2x/sem</span>` : ''
-      return `<div class="ritual-item${done?' done':''}" onclick="event.stopPropagation();toggleHabito('${a.id}').then(renderLimpiezaDash)" style="padding-left:18px">
-        <div class="ritual-check${done?' done':''}" style="${done?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${done?'✓':''}</div>
-        <span class="ritual-label" style="font-size:12px">${a.name}</span>${badge}
-      </div>`
-    }).join('')
-    banoHtml = `<div>
-      <div class="ritual-item" onclick="_limpiezaBanoExp=false;renderLimpiezaDash()">
-        <div class="ritual-check${banoDone?' done':''}" style="${banoDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${banoDone?'✓':''}</div>
-        <span class="ritual-label">🚿 Baño & skincare</span>
-        <span style="font-size:10px;color:${color};margin-left:auto">▲ cerrar</span>
-      </div>${subRows}</div>`
-  }
+  }).join('')
 
-  // — Vestirme —
-  const vestirActs = LIMPIEZA_VESTIR_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-  const vestirDone = vestirActs.every(a => !!habitLogs[a.id])
-  const vestirDoneCount = vestirActs.filter(a => !!habitLogs[a.id]).length
-  const vc = '#C4A35A'
-
-  let vestirHtml
-  if(!_limpiezaVestirExp){
-    vestirHtml = `<div class="ritual-item${vestirDone?' done':''}" onclick="_limpiezaVestirExp=true;renderLimpiezaDash()">
-      <div class="ritual-check${vestirDone?' done':''}" style="${vestirDone?`background:${vc};border-color:${vc};color:#000`:`border-color:${vc}44`}">${vestirDone?'✓':''}</div>
-      <span class="ritual-label">👕 Vestirme</span>
-      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${vestirDoneCount}/${vestirActs.length}</span>
+  const overlay = document.createElement('div')
+  overlay.id = 'limpieza-modal'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
+  overlay.innerHTML = `
+    <div style="background:#1a1a1a;border:1px solid var(--border);border-radius:14px;padding:20px;width:300px;max-width:92vw;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:700;color:var(--text)">🧼 Limpieza personal</span>
+        <button onclick="document.getElementById('limpieza-modal').remove()" style="background:transparent;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0;line-height:1">✕</button>
+      </div>
+      <div id="limpieza-modal-rows">${rows}</div>
     </div>`
-  } else {
-    const subRows = vestirActs.map(a => {
-      const done = !!habitLogs[a.id]
-      return `<div class="ritual-item${done?' done':''}" onclick="event.stopPropagation();toggleHabito('${a.id}').then(renderLimpiezaDash)" style="padding-left:18px">
-        <div class="ritual-check${done?' done':''}" style="${done?`background:${vc};border-color:${vc};color:#000`:`border-color:${vc}44`}">${done?'✓':''}</div>
-        <span class="ritual-label" style="font-size:12px">${a.name}</span>
-      </div>`
-    }).join('')
-    vestirHtml = `<div>
-      <div class="ritual-item" onclick="_limpiezaVestirExp=false;renderLimpiezaDash()">
-        <div class="ritual-check${vestirDone?' done':''}" style="${vestirDone?`background:${vc};border-color:${vc};color:#000`:`border-color:${vc}44`}">${vestirDone?'✓':''}</div>
-        <span class="ritual-label">👕 Vestirme</span>
-        <span style="font-size:10px;color:${vc};margin-left:auto">▲ cerrar</span>
-      </div>${subRows}</div>`
-  }
+  document.body.appendChild(overlay)
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove() })
+}
 
-  el.innerHTML = banoHtml + vestirHtml
+function _renderLimpiezaModalRows(){
+  const el = document.getElementById('limpieza-modal-rows')
+  if(!el) return
+  const allActs = LIMPIEZA_ALL_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  el.innerHTML = allActs.map(a => {
+    const done = !!habitLogs[a.id]
+    const isSem = a.frequency === 'semanal'
+    const color = LIMPIEZA_VESTIR_IDS.includes(a.id) ? '#C4A35A' : '#00C2FF'
+    const badge = isSem ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:6px">2x/sem</span>` : ''
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(()=>{renderLimpiezaDash();_renderLimpiezaModalRows()})" style="padding:8px 4px">
+      <div class="ritual-check${done?' done':''}" style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${color};color:#000`:''}">${done?'✓':''}</div>
+      <span style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''}">${a.name}</span>
+      ${badge}
+    </div>`
+  }).join('')
 }
 
 function renderMatutinaDash(){
