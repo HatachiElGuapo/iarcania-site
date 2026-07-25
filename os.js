@@ -250,9 +250,55 @@ const MODO_PERDONADO_ESPECIAL = ['secundarios_noche']                // categor�
 const MODO_ENFERMO_IDS  = ['a09','a13']
 const MODO_MEDIANO_NOCHE = ['a08']
 
+const MODO_INFO = {
+  null:           { icon:'✅', label:'Día normal',     color:'var(--text)',  desc:'Rutina completa. Todo aplica, todo cuenta.' },
+  estandar:       { icon:'⚡', label:'Modo estándar',  color:'#378ADD',      desc:'Todos los hábitos aparecen pero hacer el mínimo de cada uno no genera strike. Obligatorios: 20/20/20, cambiarme, ropa siguiente y agenda.' },
+  minimo:         { icon:'🔥', label:'Modo mínimo',    color:'#EF9F27',      desc:'Solo sobrevivir el día. Obligatorio: 20/20/20 + cambiarme + ropa siguiente + agenda. Todo lo demás se perdona sin castigo.' },
+  enfermo:        { icon:'🤒', label:'Modo enfermo',   color:'#E24B4A',      desc:'Cero obligaciones. Descansa y sana. Si tienes energía puedes elegir "Enfermo activo" dentro del modo para funcionar como estándar.' },
+  especial:       { icon:'⭐', label:'Día especial',   color:'#C9A84C',      desc:'Dormiste fuera de casa — abuelos, familia, amigos. Obligatorio: 20/20/20 + cambiarme + ropa siguiente + agenda. Perdonado: secundarios noche, cena, diario, saltos. Sueño sin castigo.' },
+}
+
 function toggleModoEmergenciaPanel(){
   const p = document.getElementById('modo-emergencia-panel')
-  p.style.display = p.style.display === 'none' ? 'block' : 'none'
+  if(p.style.display !== 'none'){
+    p.style.display = 'none'
+  } else {
+    _renderModoPanelLista()
+    p.style.display = 'block'
+  }
+}
+
+function _renderModoPanelLista(){
+  const p = document.getElementById('modo-emergencia-panel')
+  p.innerHTML = `
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Selecciona el modo del día:</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button onclick="_previewModo(null)" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">✅ Día normal — rutina completa</button>
+      <button onclick="_previewModo('estandar')" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(55,138,221,0.3);background:rgba(55,138,221,0.06);color:#378ADD;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">⚡ Modo estándar — todo al mínimo</button>
+      <button onclick="_previewModo('minimo')" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(239,159,39,0.3);background:rgba(239,159,39,0.06);color:#EF9F27;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">🔥 Modo mínimo — solo el ancla</button>
+      <button onclick="_previewModo('enfermo')" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(226,75,74,0.3);background:rgba(226,75,74,0.06);color:#E24B4A;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">🤒 Modo enfermo — descanso total</button>
+      <button onclick="_previewModo('especial')" style="text-align:left;padding:7px 10px;border-radius:7px;border:1px solid rgba(201,168,76,0.3);background:rgba(201,168,76,0.06);color:#C9A84C;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">⭐ Día especial — dormí fuera</button>
+    </div>`
+}
+
+function _previewModo(modo){
+  if(modo === null){
+    setModoEmergencia(null)
+    return
+  }
+  const info = MODO_INFO[modo] || {}
+  const p = document.getElementById('modo-emergencia-panel')
+  p.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:18px">${info.icon}</span>
+      <span style="font-size:13px;font-weight:600;color:${info.color}">${info.label}</span>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);line-height:1.65;margin-bottom:14px">${info.desc}</div>
+    <div style="font-size:11px;color:var(--text);font-weight:600;margin-bottom:10px">¿Estás seguro de querer usar este modo hoy?</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="setModoEmergencia('${modo}')" style="flex:1;padding:7px;border-radius:7px;border:1px solid ${info.color};background:${info.color}22;color:${info.color};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;font-weight:600">Sí, activar</button>
+      <button onclick="_renderModoPanelLista()" style="flex:1;padding:7px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">← Volver</button>
+    </div>`
 }
 
 function setModoEmergencia(modo){

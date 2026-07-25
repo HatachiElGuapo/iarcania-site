@@ -291,10 +291,6 @@
         </div>
         <button onclick="setModoEmergencia(null)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">← Normal</button>
       </div>
-      <div class="card" style="margin-bottom:10px;padding:10px 14px;background:rgba(55,138,221,0.06);border-color:rgba(55,138,221,0.2)">
-        <div style="font-size:11px;font-weight:600;color:#378ADD;margin-bottom:6px">¿Cuándo usarlo?</div>
-        <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Día de vuelta de viaje, sin energía o mentalmente pesado. <strong style="color:var(--text)">Todos los hábitos aparecen</strong>, pero hacer el mínimo de cada uno no genera strike. El 20/20/20, cambiarme, ropa siguiente y agenda son obligatorios como siempre.</div>
-      </div>
       <div class="card" id="modo-estandar-body"></div>
     </div>
 
@@ -306,10 +302,6 @@
           <div class="page-sub" style="color:var(--text-muted)">Solo el ancla. El resto no cuenta hoy.</div>
         </div>
         <button onclick="setModoEmergencia(null)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">← Normal</button>
-      </div>
-      <div class="card" style="margin-bottom:10px;padding:10px 14px;background:rgba(239,159,39,0.06);border-color:rgba(239,159,39,0.2)">
-        <div style="font-size:11px;font-weight:600;color:#EF9F27;margin-bottom:6px">¿Cuándo usarlo?</div>
-        <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Día de máxima emergencia. Solo necesitas sobrevivir el día. <strong style="color:var(--text)">Obligatorio:</strong> 20/20/20 + cambiarme + ropa siguiente + agenda de hábitos. Todo lo demás se perdona sin castigo.</div>
       </div>
       <div class="card" id="modo-minimo-body"></div>
     </div>
@@ -324,9 +316,8 @@
         <button onclick="setModoEmergencia(null)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">← Normal</button>
       </div>
       <div class="card" style="margin-bottom:10px;padding:10px 14px;background:rgba(226,75,74,0.06);border-color:rgba(226,75,74,0.2)">
-        <div style="font-size:11px;font-weight:600;color:#E24B4A;margin-bottom:6px">¿Cuándo usarlo?</div>
-        <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Enfermo físicamente. No hay nada obligatorio, sin strikes, sin penalizaciones. Si tienes energía para algo, hazlo, pero no te exijas. <strong style="color:var(--text)">Enfermo activo</strong> (gripa pero productivo): igual que modo estándar mentalmente.</div>
-        <div style="display:flex;gap:8px;margin-top:10px">
+        <div style="font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">Si tienes algo de energía puedes elegir <strong style="color:var(--text)">Enfermo activo</strong> — funciona como modo estándar.</div>
+        <div style="display:flex;gap:8px">
           <button onclick="setModoEmergencia('enfermo_cama')" id="btn-enfermo-cama" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(226,75,74,0.3);background:rgba(226,75,74,0.1);color:#E24B4A;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">🛏️ Enfermo en cama</button>
           <button onclick="setModoEmergencia('enfermo_activo')" id="btn-enfermo-activo" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(239,159,39,0.3);background:rgba(239,159,39,0.06);color:#EF9F27;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif">💊 Enfermo activo</button>
         </div>
@@ -342,10 +333,6 @@
           <div class="page-sub" style="color:var(--text-muted)">Dormiste fuera. Lo que no puedes hacer no se castiga.</div>
         </div>
         <button onclick="setModoEmergencia(null)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">← Normal</button>
-      </div>
-      <div class="card" style="margin-bottom:10px;padding:10px 14px;background:rgba(201,168,76,0.06);border-color:rgba(201,168,76,0.2)">
-        <div style="font-size:11px;font-weight:600;color:var(--gold);margin-bottom:6px">¿Cuándo usarlo?</div>
-        <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Saliste y no volviste a dormir a casa — abuelos, familia, amigos, orquesta. <strong style="color:var(--text)">Obligatorio:</strong> 20/20/20 + cambiarme + ropa siguiente + agenda de hábitos. <strong style="color:var(--text)">Perdonado:</strong> secundarios noche, cena, diario, saltos. Sueño sin castigo aunque no sea el horario normal.</div>
       </div>
       <div class="card" id="modo-especial-body"></div>
     </div>
