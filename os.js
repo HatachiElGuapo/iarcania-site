@@ -1,4 +1,5 @@
 const { createClient } = supabase
+const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
 
 const SB_P = createClient(
   'https://gpfidxxawcwsbuzsbeob.supabase.co',
@@ -1681,12 +1682,12 @@ function toggleDashSection(id){
   arrow.classList.toggle('up')
 }
 
-const LIMPIEZA_ALL_IDS = [...LIMPIEZA_BANO_IDS, ...LIMPIEZA_VESTIR_IDS]
+function _limpiezaAllIds(){ return [...LIMPIEZA_BANO_IDS, ...LIMPIEZA_VESTIR_IDS] }
 
 function renderLimpiezaDash(){
   const el = document.getElementById('dash-limpieza-body')
   if(!el) return
-  const allActs = LIMPIEZA_ALL_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
   const diarios = allActs.filter(a => a.frequency !== 'semanal')
   const done = diarios.every(a => !!habitLogs[a.id])
   const doneCount = allActs.filter(a => !!habitLogs[a.id]).length
@@ -1699,7 +1700,7 @@ function renderLimpiezaDash(){
 
 function showLimpiezaModal(){
   document.getElementById('limpieza-modal')?.remove()
-  const allActs = LIMPIEZA_ALL_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
 
   const rows = allActs.map(a => {
     const done = !!habitLogs[a.id]
@@ -1731,7 +1732,7 @@ function showLimpiezaModal(){
 function _renderLimpiezaModalRows(){
   const el = document.getElementById('limpieza-modal-rows')
   if(!el) return
-  const allActs = LIMPIEZA_ALL_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
   el.innerHTML = allActs.map(a => {
     const done = !!habitLogs[a.id]
     const isSem = a.frequency === 'semanal'
@@ -4877,7 +4878,6 @@ let currentFreqFilter = 'todos_diarios'
 function getCrisisHoy(){ return JSON.parse(localStorage.getItem('crisis_' + TODAY) || 'null') }
 function setCrisisHoy(id){ if(id) localStorage.setItem('crisis_' + TODAY, JSON.stringify(id)); else localStorage.removeItem('crisis_' + TODAY) }
 function isCrisisModeActive(){ return !!getCrisisHoy() }
-const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
 // Siempre usa timezone de Bogotá y normaliza a YYYY-MM-DD (por si due_date viene como timestamp de Supabase)
 function todayBogota() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 let selectedDate = TODAY
