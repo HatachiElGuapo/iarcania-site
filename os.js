@@ -6663,15 +6663,34 @@ function showMinimumModal(activityId){
     return
   }
 
+  // Calcular si el modo activo exime de strike para mostrar mensaje correcto
+  const modoActivo = localStorage.getItem('modo_emergencia')
+  const _esEnfermo  = modoActivo === 'enfermo_cama' || modoActivo === 'enfermo_activo'
+  const _esEspecial = modoActivo === 'especial'
+  const _esMinimo   = modoActivo === 'minimo'
+  const _esEstandar = modoActivo === 'estandar'
+  const _esObligatorio = MODO_OBLIGATORIO.includes(activityId)
+  const _sinStrike = _esEnfermo || _esEspecial || _esEstandar || (_esMinimo && _esObligatorio)
+
   const existing = document.getElementById('modal-minimo')
   if(existing) existing.remove()
 
   const modal = document.createElement('div')
   modal.id = 'modal-minimo'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px'
+
+  const strikeBlock = _sinStrike
+    ? `<div style="background:rgba(55,138,221,0.08);border:1px solid rgba(55,138,221,0.25);border-radius:8px;padding:10px;margin-bottom:16px;font-size:11px;color:var(--text-muted)">
+        ✅ Estás en <strong style="color:#378ADD">${_esEstandar?'modo estándar':_esMinimo?'modo mínimo':_esEnfermo?'modo enfermo':'día especial'}</strong> — marcar mínimo hoy <strong style="color:#e8e8e8">no genera strike ni penalización</strong>.
+       </div>`
+    : `<div style="background:rgba(226,75,74,0.08);border:1px solid rgba(226,75,74,0.2);border-radius:8px;padding:10px;margin-bottom:16px;font-size:11px;color:var(--text-muted)">
+        ⚠️ Marcar mínimo activa penalización: <strong style="color:#e8e8e8">+${act.penalty_pct||15}% por ${act.penalty_days||3} días</strong><br>
+        Mini-strikes: <strong style="color:var(--gold)">${miniInStrike}/3</strong> → Strikes: <strong style="color:var(--red)">${str.strikes}/5</strong>
+       </div>`
+
   modal.innerHTML = `
     <div style="background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:22px 20px;max-width:320px;width:100%;font-family:Outfit,sans-serif">
-      <div style="font-size:16px;font-weight:700;color:#e8e8e8;margin-bottom:4px">¿Día difícil? 😮‍💨</div>
+      <div style="font-size:16px;font-weight:700;color:#e8e8e8;margin-bottom:4px">${_sinStrike ? 'Registrar mínimo' : '¿Día difícil? 😮‍💨'}</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">${act.name}</div>
       <div style="display:flex;gap:10px;margin-bottom:16px">
         <div style="flex:1;background:#0C0C0C;border-radius:8px;padding:10px;text-align:center">
@@ -6685,12 +6704,9 @@ function showMinimumModal(activityId){
           <div style="font-size:10px;color:var(--text-muted)">${unit}</div>
         </div>
       </div>
-      <div style="background:rgba(226,75,74,0.08);border:1px solid rgba(226,75,74,0.2);border-radius:8px;padding:10px;margin-bottom:16px;font-size:11px;color:var(--text-muted)">
-        ⚠️ Marcar mínimo activa penalización: <strong style="color:#e8e8e8">+${act.penalty_pct||15}% por ${act.penalty_days||3} días</strong><br>
-        Mini-strikes: <strong style="color:var(--gold)">${miniInStrike}/3</strong> → Strikes: <strong style="color:var(--red)">${str.strikes}/5</strong>
-      </div>
-      <button onclick="marcarMinimo('${activityId}')" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(226,75,74,0.4);background:rgba(226,75,74,0.1);color:#f87171;font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:8px">
-        Sí, fue un día difícil
+      ${strikeBlock}
+      <button onclick="marcarMinimo('${activityId}')" style="width:100%;padding:11px;border-radius:8px;border:1px solid ${_sinStrike?'rgba(55,138,221,0.4)':'rgba(226,75,74,0.4)'};background:${_sinStrike?'rgba(55,138,221,0.1)':'rgba(226,75,74,0.1)'};color:${_sinStrike?'#7ab8f5':'#f87171'};font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;margin-bottom:8px">
+        ${_sinStrike ? 'Registrar mínimo ✓' : 'Sí, fue un día difícil'}
       </button>
       <button onclick="document.getElementById('modal-minimo').remove()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(93,202,165,0.3);background:transparent;color:#5DCAA5;font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">
         Cancelar — lo intento 💪
@@ -6709,6 +6725,26 @@ async function marcarMinimo(activityId){
   const log = { id:'log_'+Date.now()+'_min', user_id: USER_ID, activity_id: activityId, value: act.min_value, date: selectedDate, is_minimum: true }
   await SB_P.from('activity_logs').insert(log)
   habitLogs[activityId] = log
+
+  // Determinar si el modo activo exime de strike
+  const modoActivo = localStorage.getItem('modo_emergencia')
+  const esEnfermo  = modoActivo === 'enfermo_cama' || modoActivo === 'enfermo_activo'
+  const esEspecial = modoActivo === 'especial'
+  const esMinimo   = modoActivo === 'minimo'
+  const esEstandar = modoActivo === 'estandar'
+  const esObligatorio = MODO_OBLIGATORIO.includes(activityId)
+
+  // En modo enfermo/especial: sin strike. En modo mínimo: sin strike si es hábito obligatorio.
+  // En modo estándar: sin strike (el mínimo es suficiente).
+  const sinStrike = esEnfermo || esEspecial || esEstandar || (esMinimo && esObligatorio)
+
+  if(sinStrike){
+    const modoLabel = esEstandar ? 'modo estándar' : esMinimo ? 'modo mínimo' : esEnfermo ? 'modo enfermo' : 'día especial'
+    showToast(`✅ Mínimo registrado (sin strike — ${modoLabel})`)
+    renderHabitos()
+    update2020Widget()
+    return
+  }
 
   // Actualizar strikes
   const str = habitStrikes[activityId]
