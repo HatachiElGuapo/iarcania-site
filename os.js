@@ -4880,7 +4880,7 @@ let selectedDate = TODAY
 
 const SKINCARE_NOCHE_IDS  = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
 const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
-const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
+const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca','a_secar_toalla']
 const LIMPIEZA_VESTIR_IDS = ['a_secar_cab','a_cambiar']
 const SKINCARE_SEED = [
   {id:'a_skin_micelar',   name:'Agua micelar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
@@ -4895,6 +4895,7 @@ const SKINCARE_SEED = [
   {id:'a_skin_solar',     name:'Filtro solar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:9},
   {id:'a_skin_contorno_m',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:10},
   {id:'a_secar_cab',      name:'Secar cabello',    category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:11},
+  {id:'a_secar_toalla',   name:'Secarse con toalla',category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:12},
 ]
 
 async function seedSkincareActivities(existingIds){
