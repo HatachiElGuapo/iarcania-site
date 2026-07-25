@@ -1691,6 +1691,35 @@ function renderMatutinaDash(){
   }
   el.innerHTML = acts.map(a => {
     if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
+
+    if(a.id === 'a_skin_m'){
+      const subActs = SKINCARE_MANANA_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+      const allDone = subActs.every(s => !!habitLogs[s.id])
+      if(!_skincareMananaExpanded){
+        const doneSubs = subActs.filter(s => !!habitLogs[s.id])
+        return `<div class="ritual-item${allDone?' done':''}" onclick="_skincareMananaExpanded=true;renderMatutinaDash()">
+          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${allDone?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
+        </div>`
+      }
+      const subRows = subActs.map(s => {
+        const sDone = !!habitLogs[s.id]
+        return `<div class="ritual-item${sDone?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderMatutinaDash)">
+          <div class="ritual-check${sDone?' done':''}" style="${sDone?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${sDone?'✓':''}</div>
+          <span class="ritual-label" style="font-size:12px">${s.name}</span>
+        </div>`
+      }).join('')
+      return `<div>
+        <div class="ritual-item" onclick="_skincareMananaExpanded=false;renderMatutinaDash()">
+          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${allDone?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:#C4A35A;margin-left:auto">▲ cerrar</span>
+        </div>
+        ${subRows}
+      </div>`
+    }
+
     const done = !!habitLogs[a.id]
     const hora = a.hora_sugerida ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${a.hora_sugerida.slice(0,5)}</span>` : ''
     const isMin = !!habitLogs[a.id]?.is_minimum
@@ -2214,8 +2243,10 @@ function _minimoBtn(act){
   return `<button onclick="event.stopPropagation();showMinimumModal('${act.id}')" title="Marcar mínimo" style="background:transparent;border:1px solid rgba(201,168,76,0.3);border-radius:4px;color:rgba(201,168,76,0.6);font-size:10px;padding:1px 5px;cursor:pointer;font-family:Outfit,sans-serif;flex-shrink:0;line-height:1.4">~</button>`
 }
 
-const CIERRE_SUB_IDS = ['a_cambiar', 'a11', 'a10']  // Cambiarme, Skincare, Ropa siguiente día
+const CIERRE_SUB_IDS = ['a_cambiar', 'a10']  // Cambiarme, Ropa siguiente día
 let _cierreExpanded = false
+let _skincareNocheExpanded = false
+let _skincareMananaExpanded = false
 const NARIZ_SUB_IDS = ['a_nariz_1','a_nariz_2','a_nariz_3','a_nariz_4','a_nariz_5']
 let _narizExpanded = false
 let _agendaHabExpanded = false
@@ -2354,6 +2385,39 @@ function renderRutinaNocturnaDash(){
         <div style="padding:4px 0 4px 20px">
           <button onclick="event.stopPropagation();_agendaHabPanelOpen=!_agendaHabPanelOpen;renderRutinaNocturnaDash();setTimeout(()=>document.getElementById('agenda-hab-input')?.focus(),50)" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px dashed rgba(201,168,76,0.4);background:transparent;color:var(--gold);cursor:pointer;font-family:'Outfit',sans-serif">+ Agregar tarea mañana</button>
         </div>
+      </div>`
+    }
+
+    if(a.id === 'a11'){
+      const subActs = SKINCARE_NOCHE_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+      const diarySubs = subActs.filter(s => s.frequency !== 'semanal')
+      const semSubs   = subActs.filter(s => s.frequency === 'semanal')
+      const allDiaryDone = diarySubs.every(s => !!habitLogs[s.id])
+      const allDone = subActs.every(s => !!habitLogs[s.id])
+      if(!_skincareNocheExpanded){
+        const doneSubs = subActs.filter(s => !!habitLogs[s.id])
+        return `<div class="ritual-item${allDiaryDone?' done':''}" onclick="_skincareNocheExpanded=true;renderRutinaNocturnaDash()" style="grid-column:1/-1">
+          <div class="ritual-check${allDiaryDone?' done':''}" style="${allDiaryDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDiaryDone?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
+        </div>`
+      }
+      const subRows = subActs.map(s => {
+        const sDone = !!habitLogs[s.id]
+        const badge = s.frequency === 'semanal' ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:4px">2x/sem</span>` : ''
+        return `<div class="ritual-item${sDone?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderRutinaNocturnaDash)" style="padding-left:20px">
+          <div class="ritual-check${sDone?' done':''}" style="${sDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${sDone?'✓':''}</div>
+          <span class="ritual-label" style="font-size:12px">${s.name}</span>
+          ${badge}
+        </div>`
+      }).join('')
+      return `<div style="grid-column:1/-1">
+        <div class="ritual-item" onclick="_skincareNocheExpanded=false;renderRutinaNocturnaDash()">
+          <div class="ritual-check${allDiaryDone?' done':''}" style="${allDiaryDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDiaryDone?'✓':''}</div>
+          <span class="ritual-label">${a.name}</span>
+          <span style="font-size:10px;color:#378ADD;margin-left:auto">▲ cerrar</span>
+        </div>
+        ${subRows}
       </div>`
     }
 
@@ -4753,9 +4817,39 @@ const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota
 function todayBogota() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 let selectedDate = TODAY
 
+const SKINCARE_NOCHE_IDS  = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
+const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
+const SKINCARE_SEED = [
+  {id:'a_skin_micelar',   name:'Agua micelar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
+  {id:'a_skin_lavar_n',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:2},
+  {id:'a_skin_hidra_n',   name:'Hidratante',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:3},
+  {id:'a_skin_contorno_n',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:4},
+  {id:'a_skin_exfol',     name:'Exfoliación',      category:'skincare_sub', frequency:'semanal',is_active:true, sort_order:5},
+  {id:'a_skin_masca',     name:'Mascarilla',       category:'skincare_sub', frequency:'semanal',is_active:true, sort_order:6},
+  {id:'a_skin_m',         name:'Skincare mañana',  category:'secundarios_manana', frequency:'diaria', is_active:true, sort_order:20},
+  {id:'a_skin_lavar_m',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:7},
+  {id:'a_skin_hidra_m',   name:'Hidratante',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:8},
+  {id:'a_skin_solar',     name:'Filtro solar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:9},
+  {id:'a_skin_contorno_m',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:10},
+]
+
+async function seedSkincareActivities(existingIds){
+  const toInsert = SKINCARE_SEED.filter(a => !existingIds.has(a.id))
+  if(!toInsert.length) return
+  await SB_P.from('activities').insert(toInsert)
+}
+
 async function loadHabitos(){
   const { data: acts } = await SB_P.from('activities').select('*').order('sort_order').order('name')
   allActivities = acts || []
+
+  // Seed skincare si faltan
+  const existingIds = new Set(allActivities.map(a => a.id))
+  if(!existingIds.has('a_skin_micelar')){
+    await seedSkincareActivities(existingIds)
+    const { data: acts2 } = await SB_P.from('activities').select('*').order('sort_order').order('name')
+    allActivities = acts2 || []
+  }
 
   // Daily logs
   const { data: logs } = await SB_P.from('activity_logs')
