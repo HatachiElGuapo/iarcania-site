@@ -1626,6 +1626,7 @@ function update2020Widget(){
 }
 
 async function toggleHabitoFromDash(activityId){
+  if(HABITOS_MEDIBLES[activityId]){ showMedibleModal(activityId); return }
   if(habitLogs[activityId]){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs[activityId].id)
     delete habitLogs[activityId]
