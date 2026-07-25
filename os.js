@@ -308,60 +308,40 @@ function setModoEmergencia(modo){
   applyModoEmergencia(modo)
 }
 
+const MODO_BTN_STYLE = {
+  null:           { text: '¿Estás bien hoy?',  color: 'var(--text-muted)', border: 'rgba(255,255,255,0.1)' },
+  estandar:       { text: '⚡ Modo estándar',   color: '#378ADD',           border: 'rgba(55,138,221,0.4)' },
+  minimo:         { text: '🔥 Modo mínimo',     color: '#EF9F27',           border: 'rgba(239,159,39,0.4)' },
+  enfermo_cama:   { text: '🤒 Modo enfermo',    color: '#E24B4A',           border: 'rgba(226,75,74,0.4)' },
+  enfermo_activo: { text: '💊 Enfermo activo',  color: '#E24B4A',           border: 'rgba(226,75,74,0.4)' },
+  especial:       { text: '⭐ Día especial',    color: '#C9A84C',           border: 'rgba(201,168,76,0.4)' },
+}
+
 function applyModoEmergencia(modo){
-  const btn = document.getElementById('modo-emergencia-btn')
-  const ALL_MODE_SECTIONS = ['section-modo-estandar','section-modo-minimo','section-modo-enfermo','section-modo-especial','section-modo-mediano']
-  ALL_MODE_SECTIONS.forEach(id => {
+  const btn = document.getElementById('modo-emergencia-panel')
+  if(btn) btn.style.display = 'none'
+
+  // Normalizar legacy
+  if(modo === 'mediano') modo = 'estandar'
+  if(modo === 'enfermo') { modo = 'enfermo_cama'; localStorage.setItem('modo_emergencia', modo) }
+
+  // Siempre mostrar rutinas normales — todos los modos usan la misma interfaz
+  const rutinas = document.getElementById('section-rutinas')
+  ;['section-modo-estandar','section-modo-minimo','section-modo-enfermo','section-modo-especial','section-modo-mediano'].forEach(id => {
     const el = document.getElementById(id)
     if(el){ el.style.display = 'none'; el.classList.remove('active') }
   })
-  const rutinas = document.getElementById('section-rutinas')
+  if(rutinas){ rutinas.style.display = ''; rutinas.classList.add('active') }
 
-  if(!modo){
-    if(btn){ btn.textContent = '¿Estás bien hoy?'; btn.style.color = 'var(--text-muted)'; btn.style.borderColor = 'rgba(255,255,255,0.1)' }
-    if(rutinas){ rutinas.style.display = ''; rutinas.classList.add('active') }
-    return
-  }
+  // Actualizar botón
+  const btnEl = document.getElementById('modo-emergencia-btn')
+  const style = MODO_BTN_STYLE[modo] || MODO_BTN_STYLE[null]
+  if(btnEl){ btnEl.textContent = style.text; btnEl.style.color = style.color; btnEl.style.borderColor = style.border }
 
-  if(modo === 'estandar'){
-    // Modo estándar: misma interfaz que día normal, solo cambia que el mínimo no da strike
-    btn.textContent = '⚡ Modo estándar'; btn.style.color = '#378ADD'; btn.style.borderColor = 'rgba(55,138,221,0.4)'
-    if(rutinas){ rutinas.style.display = ''; rutinas.classList.add('active') }
-    return
-  }
-
-  if(rutinas){ rutinas.classList.remove('active'); rutinas.style.display = 'none' }
-
-  if(modo === 'minimo'){
-    btn.textContent = '🔥 Modo mínimo'; btn.style.color = '#EF9F27'; btn.style.borderColor = 'rgba(239,159,39,0.4)'
-    const sec = document.getElementById('section-modo-minimo')
-    if(sec){ sec.style.display = ''; sec.classList.add('active') }
-    _renderModoHabitos('modo-minimo-body', 'minimo')
-
-  } else if(modo === 'enfermo' || modo === 'enfermo_cama' || modo === 'enfermo_activo'){
-    const esCama = modo !== 'enfermo_activo'
-    btn.textContent = esCama ? '🤒 Modo enfermo' : '💊 Enfermo activo'
-    btn.style.color = '#E24B4A'; btn.style.borderColor = 'rgba(226,75,74,0.4)'
+  // Enfermo: mostrar selector de variante si viene del panel principal
+  if(modo === 'enfermo_cama' || modo === 'enfermo_activo'){
     const sec = document.getElementById('section-modo-enfermo')
-    if(sec){ sec.style.display = ''; sec.classList.add('active') }
-    // Highlight active variant
-    const btnCama   = document.getElementById('btn-enfermo-cama')
-    const btnActivo = document.getElementById('btn-enfermo-activo')
-    if(btnCama)   btnCama.style.fontWeight   = esCama    ? '700' : '400'
-    if(btnActivo) btnActivo.style.fontWeight = !esCama   ? '700' : '400'
-    _renderModoHabitos('modo-enfermo-body', esCama ? 'enfermo_cama' : 'enfermo_activo')
-    if(modo === 'enfermo') localStorage.setItem('modo_emergencia', 'enfermo_cama')
-
-  } else if(modo === 'especial'){
-    btn.textContent = '⭐ Día especial'; btn.style.color = 'var(--gold)'; btn.style.borderColor = 'rgba(201,168,76,0.4)'
-    const sec = document.getElementById('section-modo-especial')
-    if(sec){ sec.style.display = ''; sec.classList.add('active') }
-    _renderModoHabitos('modo-especial-body', 'especial')
-
-  } else {
-    // legacy 'mediano' → redirigir a estandar
-    localStorage.setItem('modo_emergencia', 'estandar')
-    applyModoEmergencia('estandar')
+    // No ocultamos rutinas — pero sí mostramos el selector de variante inline si está en dashboard
   }
 }
 
@@ -1563,19 +1543,43 @@ function update2020Widget(){
         return
       }
       const done = !!habitLogs[id]
-      const isMin = !!habitLogs[id]?.is_minimum
+      const log  = habitLogs[id]
       const item  = document.getElementById(pfx+id)
       const check = document.getElementById(cpfx+id)
       if(!item) return
       item.classList.toggle('done', done)
       check.classList.toggle('done', done)
-      check.textContent = done ? (isMin ? '~' : '✓') : ''
-      if(isMin){ check.style.background='var(--gold)'; check.style.borderColor='var(--gold)'; check.style.color='#000' }
-      else if(done){ check.style.background=''; check.style.borderColor=''; check.style.color='' }
-      // Botón ~ para mínimo
+
+      // Color según nivel para hábitos medibles
+      const cfgM = HABITOS_MEDIBLES[id]
+      if(cfgM && done){
+        const val   = log?.value || 0
+        const nivel = nivelMedible(id, val)
+        const col   = colorNivel(nivel)
+        const sym   = { ideal:'★', estandar:'✓', minimo:'~', bajo:'!' }[nivel] || '✓'
+        check.textContent = sym
+        check.style.cssText = `background:${col};border-color:${col};color:#000`
+        // Mostrar valor al lado del nombre
+        let valTag = item.querySelector('.val-tag')
+        if(!valTag){ valTag = document.createElement('span'); valTag.className='val-tag'; valTag.style.cssText='font-size:10px;color:var(--text-muted);margin-left:4px'; item.appendChild(valTag) }
+        valTag.textContent = `${val} ${cfgM.unit === 'min' ? 'min' : cfgM.unit}`
+      } else if(!cfgM){
+        const isMin = !!log?.is_minimum
+        check.textContent = done ? (isMin ? '~' : '✓') : ''
+        if(isMin){ check.style.cssText = 'background:var(--gold);border-color:var(--gold);color:#000' }
+        else if(done){ check.style.background=''; check.style.borderColor=''; check.style.color='' }
+        else { check.style.cssText = '' }
+        item.querySelector('.val-tag')?.remove()
+      } else {
+        check.textContent = ''
+        check.style.cssText = ''
+        item.querySelector('.val-tag')?.remove()
+      }
+
+      // Botón ~ solo para no-medibles con min_value
       const act = allActivities.find(a => a.id === id)
       let minBtn = item.querySelector('.min-btn')
-      if(act?.min_value && !done){
+      if(!cfgM && act?.min_value && !done){
         if(!minBtn){
           minBtn = document.createElement('button')
           minBtn.className = 'min-btn'
@@ -6256,7 +6260,118 @@ async function _marcarTrabajo(activityId){
   renderHabitos()
 }
 
+// ─── HÁBITOS MEDIBLES ────────────────────────────────────────────────────────
+const HABITOS_MEDIBLES = {
+  a35: { unit: 'saltos', presets: [200, 300, 500, 1000, 1200], min: 300, std: 1000, ideal: 1200 },
+  a02: { unit: 'min',    presets: [5, 10, 12, 15, 20],         min: 5,   std: 12,   ideal: 20  },
+  a08: { unit: 'min',    presets: [5, 10, 12, 15, 20],         min: 5,   std: 12,   ideal: 20  },
+}
+
+function nivelMedible(actId, value){
+  const cfg = HABITOS_MEDIBLES[actId]
+  if(!cfg) return 'completo'
+  if(value >= cfg.ideal) return 'ideal'
+  if(value >= cfg.std)   return 'estandar'
+  if(value >= cfg.min)   return 'minimo'
+  return 'bajo'
+}
+
+function colorNivel(nivel){
+  return { ideal:'#5DCAA5', estandar:'#378ADD', minimo:'#C9A84C', bajo:'#E24B4A', completo:'#378ADD' }[nivel] || '#378ADD'
+}
+
+function showMedibleModal(actId){
+  const cfg = HABITOS_MEDIBLES[actId]
+  const act = allActivities.find(a => a.id === actId)
+  if(!cfg || !act) return
+
+  const existing = habitLogs[actId]
+  const currentVal = existing?.value > 1 ? existing.value : null
+
+  const overlay = document.createElement('div')
+  overlay.id = 'medible-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
+
+  const presetsHtml = cfg.presets.map(p => {
+    const nivel = nivelMedible(actId, p)
+    const color = colorNivel(nivel)
+    const tag = nivel === 'ideal' ? ' ★' : nivel === 'estandar' ? ' ✓' : nivel === 'minimo' ? ' ~' : ''
+    return `<button onclick="registrarMedible('${actId}', ${p})" style="padding:8px 12px;border-radius:8px;border:1px solid ${color}44;background:${color}11;color:${color};cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;font-weight:600">${p}${tag}</button>`
+  }).join('')
+
+  overlay.innerHTML = `
+    <div style="background:#1a1a1a;border:1px solid var(--border);border-radius:14px;padding:20px;width:320px;max-width:90vw">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${act.name}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">
+        ~ mínimo: ${cfg.min}${cfg.unit === 'min' ? ' min' : ''} &nbsp;·&nbsp; ✓ estándar: ${cfg.std}${cfg.unit === 'min' ? ' min' : ''} &nbsp;·&nbsp; ★ ideal: ${cfg.ideal}${cfg.unit === 'min' ? ' min' : ''}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">${presetsHtml}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+        <input id="medible-custom" type="number" placeholder="Otro valor..." min="1"
+          style="flex:1;background:#111;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 12px;font-family:'Outfit',sans-serif;outline:none"
+          onkeydown="if(event.key==='Enter'){const v=parseInt(this.value);if(v>0)registrarMedible('${actId}',v)}" />
+        <button onclick="const v=parseInt(document.getElementById('medible-custom').value);if(v>0)registrarMedible('${actId}',v)"
+          style="padding:8px 14px;border-radius:8px;border:1px solid rgba(55,138,221,0.4);background:rgba(55,138,221,0.1);color:#378ADD;cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif">OK</button>
+      </div>
+      ${existing ? `<button onclick="eliminarMedible('${actId}')" style="width:100%;padding:7px;border-radius:8px;border:1px solid rgba(226,75,74,0.2);background:transparent;color:#f87171;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif;margin-bottom:8px">Eliminar registro</button>` : ''}
+      <button onclick="document.getElementById('medible-overlay').remove()" style="width:100%;padding:7px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Cancelar</button>
+    </div>`
+
+  document.body.appendChild(overlay)
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove() })
+  setTimeout(() => document.getElementById('medible-custom')?.focus(), 100)
+}
+
+async function registrarMedible(actId, value){
+  document.getElementById('medible-overlay')?.remove()
+  const existing = habitLogs[actId]
+  if(existing){
+    await SB_P.from('activity_logs').update({ value }).eq('id', existing.id)
+    habitLogs[actId] = { ...existing, value }
+  } else {
+    const log = { id:'log_'+Date.now()+'_'+actId, user_id: USER_ID, activity_id: actId, value, date: selectedDate }
+    await SB_P.from('activity_logs').insert(log)
+    habitLogs[actId] = log
+  }
+  const nivel = nivelMedible(actId, value)
+  const emoji = { ideal:'★', estandar:'✓', minimo:'~', bajo:'⚠' }[nivel] || '✓'
+  const cfg = HABITOS_MEDIBLES[actId]
+  showToast(`${emoji} ${value} ${cfg.unit === 'min' ? 'min' : cfg.unit} registrados`)
+
+  // Re-evaluar 20/20/20
+  const trio = ['a35','a14','a02']
+  const trioCompleto = trio.every(id => !!habitLogs[id])
+  if(trioCompleto && !habitLogs['a70']){
+    const log70 = { id:'log_'+Date.now()+'_70', user_id: USER_ID, activity_id: 'a70', value: 1, date: selectedDate }
+    await SB_P.from('activity_logs').insert(log70)
+    habitLogs['a70'] = log70
+    showToast('🔥 ¡20/20/20 completado!')
+  }
+
+  renderHabitos()
+  update2020Widget()
+}
+
+async function eliminarMedible(actId){
+  document.getElementById('medible-overlay')?.remove()
+  const existing = habitLogs[actId]
+  if(!existing) return
+  await SB_P.from('activity_logs').delete().eq('id', existing.id)
+  delete habitLogs[actId]
+  if(habitLogs['a70']){
+    await SB_P.from('activity_logs').delete().eq('id', habitLogs['a70'].id)
+    delete habitLogs['a70']
+  }
+  renderHabitos()
+  update2020Widget()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function toggleHabito(activityId){
+  // Hábitos medibles abren modal de valor
+  if(HABITOS_MEDIBLES[activityId]){ showMedibleModal(activityId); return }
+
   if(habitLogs[activityId]){
     await SB_P.from('activity_logs').delete().eq('id', habitLogs[activityId].id)
     delete habitLogs[activityId]
