@@ -1687,23 +1687,15 @@ function _limpiezaAllIds(){ return [...LIMPIEZA_BANO_IDS, ...LIMPIEZA_VESTIR_IDS
 function renderLimpiezaDash(){
   const el = document.getElementById('dash-limpieza-body')
   if(!el) return
-  const banoActs  = LIMPIEZA_BANO_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-  const vestirActs = LIMPIEZA_VESTIR_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-  const banoDone   = banoActs.filter(a => a.frequency !== 'semanal').every(a => !!habitLogs[a.id])
-  const vestirDone = vestirActs.every(a => !!habitLogs[a.id])
-  const banoCount   = banoActs.filter(a => !!habitLogs[a.id]).length
-  const vestirCount = vestirActs.filter(a => !!habitLogs[a.id]).length
+  const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const done    = allActs.filter(a => a.frequency !== 'semanal').every(a => !!habitLogs[a.id])
+  const count   = allActs.filter(a => !!habitLogs[a.id]).length
 
   el.innerHTML = `
-    <div class="ritual-item${banoDone?' done':''}" onclick="showLimpiezaModal()">
-      <div class="ritual-check${banoDone?' done':''}" style="${banoDone?'background:#00C2FF;border-color:#00C2FF;color:#000':'border-color:rgba(0,194,255,0.3)'}">${banoDone?'✓':''}</div>
-      <span class="ritual-label">🚿 Bañarme</span>
-      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${banoCount}/${banoActs.length}</span>
-    </div>
-    <div class="ritual-item${vestirDone?' done':''}" onclick="showLimpiezaModal()">
-      <div class="ritual-check${vestirDone?' done':''}" style="${vestirDone?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.3)'}">${vestirDone?'✓':''}</div>
-      <span class="ritual-label">👕 Vestirme</span>
-      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${vestirCount}/${vestirActs.length}</span>
+    <div class="ritual-item${done?' done':''}" onclick="showLimpiezaModal()">
+      <div class="ritual-check${done?' done':''}" style="${done?'background:#00C2FF;border-color:#00C2FF;color:#000':'border-color:rgba(0,194,255,0.3)'}">${done?'✓':''}</div>
+      <span class="ritual-label">🚿👕 Bañarme y Vestirme</span>
+      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${count}/${allActs.length}</span>
     </div>`
 }
 
