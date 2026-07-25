@@ -323,15 +323,16 @@ function applyModoEmergencia(modo){
     return
   }
 
+  if(modo === 'estandar'){
+    // Modo estándar: misma interfaz que día normal, solo cambia que el mínimo no da strike
+    btn.textContent = '⚡ Modo estándar'; btn.style.color = '#378ADD'; btn.style.borderColor = 'rgba(55,138,221,0.4)'
+    if(rutinas){ rutinas.style.display = ''; rutinas.classList.add('active') }
+    return
+  }
+
   if(rutinas){ rutinas.classList.remove('active'); rutinas.style.display = 'none' }
 
-  if(modo === 'estandar'){
-    btn.textContent = '⚡ Modo estándar'; btn.style.color = '#378ADD'; btn.style.borderColor = 'rgba(55,138,221,0.4)'
-    const sec = document.getElementById('section-modo-estandar')
-    if(sec){ sec.style.display = ''; sec.classList.add('active') }
-    _renderModoHabitos('modo-estandar-body', 'estandar')
-
-  } else if(modo === 'minimo'){
+  if(modo === 'minimo'){
     btn.textContent = '🔥 Modo mínimo'; btn.style.color = '#EF9F27'; btn.style.borderColor = 'rgba(239,159,39,0.4)'
     const sec = document.getElementById('section-modo-minimo')
     if(sec){ sec.style.display = ''; sec.classList.add('active') }
