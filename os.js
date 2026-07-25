@@ -1707,32 +1707,38 @@ function renderLimpiezaDash(){
     </div>`
 }
 
-function showLimpiezaModal(){
-  document.getElementById('limpieza-modal')?.remove()
-  const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-
-  const rows = allActs.map(a => {
+function _limpiezaSeccionRows(ids, color){
+  return ids.map(id => {
+    const a = allActivities.find(x => x.id === id)
+    if(!a) return ''
     const done = !!habitLogs[a.id]
-    const isSem = a.frequency === 'semanal'
-    const color = LIMPIEZA_VESTIR_IDS.includes(a.id) ? '#C4A35A' : '#00C2FF'
-    const badge = isSem ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:6px">2x/sem</span>` : ''
+    const badge = a.frequency === 'semanal' ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:6px">2x/sem</span>` : ''
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(()=>{renderLimpiezaDash();_renderLimpiezaModalRows()})" style="padding:8px 4px">
-      <div class="ritual-check${done?' done':''}" style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${color};color:#000`:''}">${done?'✓':''}</div>
+      <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${color};color:#000`:''}">${done?'✓':''}</div>
       <span style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''}">${a.name}</span>
       ${badge}
     </div>`
   }).join('')
+}
 
+function _limpiezaModalContent(){
+  const sep = (label, color) => `<div style="font-size:10px;font-weight:700;color:${color};letter-spacing:.06em;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid ${color}22">${label}</div>`
+  return sep('🚿 BAÑARME', '#00C2FF') + _limpiezaSeccionRows(LIMPIEZA_BANO_IDS, '#00C2FF')
+       + sep('👕 VESTIRME', '#C4A35A') + _limpiezaSeccionRows(LIMPIEZA_VESTIR_IDS, '#C4A35A')
+}
+
+function showLimpiezaModal(){
+  document.getElementById('limpieza-modal')?.remove()
   const overlay = document.createElement('div')
   overlay.id = 'limpieza-modal'
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
   overlay.innerHTML = `
     <div style="background:#1a1a1a;border:1px solid var(--border);border-radius:14px;padding:20px;width:300px;max-width:92vw;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:15px;font-weight:700;color:var(--text)">🧼 Ver rutinas</span>
         <button onclick="document.getElementById('limpieza-modal').remove()" style="background:transparent;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0;line-height:1">✕</button>
       </div>
-      <div id="limpieza-modal-rows">${rows}</div>
+      <div id="limpieza-modal-rows">${_limpiezaModalContent()}</div>
     </div>`
   document.body.appendChild(overlay)
   overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove() })
@@ -1741,18 +1747,7 @@ function showLimpiezaModal(){
 function _renderLimpiezaModalRows(){
   const el = document.getElementById('limpieza-modal-rows')
   if(!el) return
-  const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-  el.innerHTML = allActs.map(a => {
-    const done = !!habitLogs[a.id]
-    const isSem = a.frequency === 'semanal'
-    const color = LIMPIEZA_VESTIR_IDS.includes(a.id) ? '#C4A35A' : '#00C2FF'
-    const badge = isSem ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:6px">2x/sem</span>` : ''
-    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(()=>{renderLimpiezaDash();_renderLimpiezaModalRows()})" style="padding:8px 4px">
-      <div class="ritual-check${done?' done':''}" style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${color};color:#000`:''}">${done?'✓':''}</div>
-      <span style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''}">${a.name}</span>
-      ${badge}
-    </div>`
-  }).join('')
+  el.innerHTML = _limpiezaModalContent()
 }
 
 function renderMatutinaDash(){
