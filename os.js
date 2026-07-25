@@ -241,8 +241,13 @@ function updateClock(){
 // --- NAV ---
 // ─── MODOS DE EMERGENCIA ──────────────────────────────────────────────────────
 
-const MODO_ENFERMO_IDS  = ['a09','a13','a75']        // Cama, Agua, Séneca noche
-const MODO_MEDIANO_IDS  = ['a75']                     // extra nocturna: Diario intros → a08
+// IDs de hábitos obligatorios según modo
+const MODO_ANCLA_IDS    = ['a35','a02','a14']                        // 20/20/20
+const MODO_PREP_IDS     = ['a_cambiar','a10','a06']                  // Cambiarme, Ropa siguiente, Agenda hábitos
+const MODO_OBLIGATORIO  = [...MODO_ANCLA_IDS, ...MODO_PREP_IDS]     // Mínimo + Especial
+const MODO_PERDONADO_ESPECIAL = ['secundarios_noche']                // categorías perdonadas en especial
+// Legacy
+const MODO_ENFERMO_IDS  = ['a09','a13']
 const MODO_MEDIANO_NOCHE = ['a08']
 
 function toggleModoEmergenciaPanel(){
@@ -259,8 +264,8 @@ function setModoEmergencia(modo){
 
 function applyModoEmergencia(modo){
   const btn = document.getElementById('modo-emergencia-btn')
-  // Ocultar secciones de modo
-  ;['section-modo-enfermo','section-modo-mediano'].forEach(id => {
+  const ALL_MODE_SECTIONS = ['section-modo-estandar','section-modo-minimo','section-modo-enfermo','section-modo-especial','section-modo-mediano']
+  ALL_MODE_SECTIONS.forEach(id => {
     const el = document.getElementById(id)
     if(el){ el.style.display = 'none'; el.classList.remove('active') }
   })
@@ -272,22 +277,98 @@ function applyModoEmergencia(modo){
     return
   }
 
-  // Activar modo
-  const sectionId = modo === 'enfermo' ? 'section-modo-enfermo' : 'section-modo-mediano'
   if(rutinas){ rutinas.classList.remove('active'); rutinas.style.display = 'none' }
-  const sec = document.getElementById(sectionId)
-  if(sec){ sec.style.display = ''; sec.classList.add('active') }
 
-  if(modo === 'enfermo'){
-    btn.textContent = '🤒 Modo enfermo'; btn.style.color = '#E24B4A'; btn.style.borderColor = 'rgba(226,75,74,0.4)'
-    renderModoEmergenciaBody('modo-enfermo-body', MODO_ENFERMO_IDS, '#E24B4A')
+  if(modo === 'estandar'){
+    btn.textContent = '⚡ Modo estándar'; btn.style.color = '#378ADD'; btn.style.borderColor = 'rgba(55,138,221,0.4)'
+    const sec = document.getElementById('section-modo-estandar')
+    if(sec){ sec.style.display = ''; sec.classList.add('active') }
+    _renderModoHabitos('modo-estandar-body', 'estandar')
+
+  } else if(modo === 'minimo'){
+    btn.textContent = '🔥 Modo mínimo'; btn.style.color = '#EF9F27'; btn.style.borderColor = 'rgba(239,159,39,0.4)'
+    const sec = document.getElementById('section-modo-minimo')
+    if(sec){ sec.style.display = ''; sec.classList.add('active') }
+    _renderModoHabitos('modo-minimo-body', 'minimo')
+
+  } else if(modo === 'enfermo' || modo === 'enfermo_cama' || modo === 'enfermo_activo'){
+    const esCama = modo !== 'enfermo_activo'
+    btn.textContent = esCama ? '🤒 Modo enfermo' : '💊 Enfermo activo'
+    btn.style.color = '#E24B4A'; btn.style.borderColor = 'rgba(226,75,74,0.4)'
+    const sec = document.getElementById('section-modo-enfermo')
+    if(sec){ sec.style.display = ''; sec.classList.add('active') }
+    // Highlight active variant
+    const btnCama   = document.getElementById('btn-enfermo-cama')
+    const btnActivo = document.getElementById('btn-enfermo-activo')
+    if(btnCama)   btnCama.style.fontWeight   = esCama    ? '700' : '400'
+    if(btnActivo) btnActivo.style.fontWeight = !esCama   ? '700' : '400'
+    _renderModoHabitos('modo-enfermo-body', esCama ? 'enfermo_cama' : 'enfermo_activo')
+    if(modo === 'enfermo') localStorage.setItem('modo_emergencia', 'enfermo_cama')
+
+  } else if(modo === 'especial'){
+    btn.textContent = '⭐ Día especial'; btn.style.color = 'var(--gold)'; btn.style.borderColor = 'rgba(201,168,76,0.4)'
+    const sec = document.getElementById('section-modo-especial')
+    if(sec){ sec.style.display = ''; sec.classList.add('active') }
+    _renderModoHabitos('modo-especial-body', 'especial')
+
   } else {
-    btn.textContent = '⚡ Modo mínimo'; btn.style.color = '#EF9F27'; btn.style.borderColor = 'rgba(239,159,39,0.4)'
-    const despertar = allActivities.filter(a => a.category === 'despertar' && a.is_active).map(a => a.id)
-    const ritual    = allActivities.filter(a => a.category === 'ritual_2020' && a.is_active).map(a => a.id)
-    const noche     = MODO_MEDIANO_NOCHE
-    renderModoMedianoBody(despertar, ritual, noche)
+    // legacy 'mediano' → redirigir a estandar
+    localStorage.setItem('modo_emergencia', 'estandar')
+    applyModoEmergencia('estandar')
   }
+}
+
+function _renderModoHabitos(containerId, modo){
+  const el = document.getElementById(containerId)
+  if(!el) return
+
+  const color = {
+    estandar:      '#378ADD',
+    minimo:        '#EF9F27',
+    enfermo_cama:  '#E24B4A',
+    enfermo_activo:'#EF9F27',
+    especial:      '#C9A84C',
+  }[modo] || '#378ADD'
+
+  // Determinar qué IDs mostrar y su estado en este modo
+  const actsToShow = allActivities.filter(a => a.is_active && a.frequency === 'diaria')
+
+  const rows = actsToShow.map(a => {
+    const done = !!habitLogs[a.id]
+    let badge = ''
+    let faded = false
+
+    if(modo === 'minimo' || modo === 'especial'){
+      const esObligatorio = MODO_OBLIGATORIO.includes(a.id)
+      if(!esObligatorio){
+        faded = true
+        badge = `<span style="font-size:9px;color:var(--text-muted);margin-left:auto;flex-shrink:0">perdonado</span>`
+      } else {
+        badge = `<span style="font-size:9px;color:${color};margin-left:auto;flex-shrink:0">obligatorio</span>`
+      }
+    } else if(modo === 'estandar' || modo === 'enfermo_activo'){
+      const esObligatorio = MODO_OBLIGATORIO.includes(a.id)
+      badge = esObligatorio
+        ? `<span style="font-size:9px;color:${color};margin-left:auto;flex-shrink:0">obligatorio</span>`
+        : `<span style="font-size:9px;color:rgba(201,168,76,0.7);margin-left:auto;flex-shrink:0">mínimo OK</span>`
+    } else if(modo === 'enfermo_cama'){
+      faded = true
+      badge = `<span style="font-size:9px;color:var(--text-muted);margin-left:auto;flex-shrink:0">perdonado</span>`
+    }
+
+    const checkStyle = done
+      ? `background:${color};border-color:${color};color:#000`
+      : `border-color:${color}44`
+    const opacity = faded && !done ? 'opacity:0.4;' : ''
+
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}');applyModoEmergencia(localStorage.getItem('modo_emergencia'))" style="margin-bottom:4px;${opacity}">
+      <div class="ritual-check${done?' done':''}" style="${checkStyle}">${done?'✓':''}</div>
+      <span class="ritual-label">${a.name}</span>
+      ${badge}
+    </div>`
+  }).join('')
+
+  el.innerHTML = rows || '<div style="color:var(--text-muted);font-size:12px">No hay hábitos activos</div>'
 }
 
 function renderModoEmergenciaBody(containerId, ids, color){
@@ -306,22 +387,6 @@ function renderModoEmergenciaBody(containerId, ids, color){
 function renderModoMedianoBody(despertarIds, ritualIds, nocheIds){
   const el = document.getElementById('modo-mediano-body')
   if(!el) return
-  const section = (label, ids, color) => {
-    const acts = ids.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-    if(!acts.length) return ''
-    const items = acts.map(a => {
-      const done = !!habitLogs[a.id]
-      return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}');applyModoEmergencia('mediano')" style="margin-bottom:4px">
-        <div class="ritual-check${done?' done':''}" style="${done?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${done?'✓':''}</div>
-        <span class="ritual-label">${a.name}</span>
-      </div>`
-    }).join('')
-    return `<div style="font-size:11px;font-weight:600;color:${color};margin:10px 0 6px">${label}</div>${items}`
-  }
-  el.innerHTML =
-    section('🌅 Despertar', despertarIds, '#FFD166') +
-    section('🔄 20/20/20',  ['a35','a02','a14'], '#00C2FF') +
-    section('🌙 Noche',     nocheIds, '#378ADD')
 }
 
 function initModoEmergencia(){
