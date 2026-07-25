@@ -1618,6 +1618,7 @@ function update2020Widget(){
   const wrap = document.getElementById('dashboard-tasks-wrap')
   if(wrap) wrap.classList.toggle('tasks-locked', !trioCompleto)
   renderDespertarDash()
+  renderLimpiezaDash()
   renderMatutinaDash()
   renderTrabajoDash()
   renderInicioDiaDash()
@@ -1678,6 +1679,76 @@ function toggleDashSection(id){
   if(!body) return
   body.classList.toggle('collapsed')
   arrow.classList.toggle('up')
+}
+
+let _limpiezaBanoExp   = false
+let _limpiezaVestirExp = false
+
+function renderLimpiezaDash(){
+  const el = document.getElementById('dash-limpieza-body')
+  if(!el) return
+  const color = '#00C2FF'
+
+  // — Baño —
+  const banoActs = LIMPIEZA_BANO_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const banoDiarios = banoActs.filter(a => a.frequency !== 'semanal')
+  const banoDone = banoDiarios.every(a => !!habitLogs[a.id])
+  const banoDoneCount = banoActs.filter(a => !!habitLogs[a.id]).length
+
+  let banoHtml
+  if(!_limpiezaBanoExp){
+    banoHtml = `<div class="ritual-item${banoDone?' done':''}" onclick="_limpiezaBanoExp=true;renderLimpiezaDash()">
+      <div class="ritual-check${banoDone?' done':''}" style="${banoDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${banoDone?'✓':''}</div>
+      <span class="ritual-label">🚿 Baño & skincare</span>
+      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${banoDoneCount}/${banoActs.length}</span>
+    </div>`
+  } else {
+    const subRows = banoActs.map(a => {
+      const done = !!habitLogs[a.id]
+      const badge = a.frequency === 'semanal' ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:4px">2x/sem</span>` : ''
+      return `<div class="ritual-item${done?' done':''}" onclick="event.stopPropagation();toggleHabito('${a.id}').then(renderLimpiezaDash)" style="padding-left:18px">
+        <div class="ritual-check${done?' done':''}" style="${done?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${done?'✓':''}</div>
+        <span class="ritual-label" style="font-size:12px">${a.name}</span>${badge}
+      </div>`
+    }).join('')
+    banoHtml = `<div>
+      <div class="ritual-item" onclick="_limpiezaBanoExp=false;renderLimpiezaDash()">
+        <div class="ritual-check${banoDone?' done':''}" style="${banoDone?`background:${color};border-color:${color};color:#000`:`border-color:${color}44`}">${banoDone?'✓':''}</div>
+        <span class="ritual-label">🚿 Baño & skincare</span>
+        <span style="font-size:10px;color:${color};margin-left:auto">▲ cerrar</span>
+      </div>${subRows}</div>`
+  }
+
+  // — Vestirme —
+  const vestirActs = LIMPIEZA_VESTIR_IDS.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const vestirDone = vestirActs.every(a => !!habitLogs[a.id])
+  const vestirDoneCount = vestirActs.filter(a => !!habitLogs[a.id]).length
+  const vc = '#C4A35A'
+
+  let vestirHtml
+  if(!_limpiezaVestirExp){
+    vestirHtml = `<div class="ritual-item${vestirDone?' done':''}" onclick="_limpiezaVestirExp=true;renderLimpiezaDash()">
+      <div class="ritual-check${vestirDone?' done':''}" style="${vestirDone?`background:${vc};border-color:${vc};color:#000`:`border-color:${vc}44`}">${vestirDone?'✓':''}</div>
+      <span class="ritual-label">👕 Vestirme</span>
+      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${vestirDoneCount}/${vestirActs.length}</span>
+    </div>`
+  } else {
+    const subRows = vestirActs.map(a => {
+      const done = !!habitLogs[a.id]
+      return `<div class="ritual-item${done?' done':''}" onclick="event.stopPropagation();toggleHabito('${a.id}').then(renderLimpiezaDash)" style="padding-left:18px">
+        <div class="ritual-check${done?' done':''}" style="${done?`background:${vc};border-color:${vc};color:#000`:`border-color:${vc}44`}">${done?'✓':''}</div>
+        <span class="ritual-label" style="font-size:12px">${a.name}</span>
+      </div>`
+    }).join('')
+    vestirHtml = `<div>
+      <div class="ritual-item" onclick="_limpiezaVestirExp=false;renderLimpiezaDash()">
+        <div class="ritual-check${vestirDone?' done':''}" style="${vestirDone?`background:${vc};border-color:${vc};color:#000`:`border-color:${vc}44`}">${vestirDone?'✓':''}</div>
+        <span class="ritual-label">👕 Vestirme</span>
+        <span style="font-size:10px;color:${vc};margin-left:auto">▲ cerrar</span>
+      </div>${subRows}</div>`
+  }
+
+  el.innerHTML = banoHtml + vestirHtml
 }
 
 function renderMatutinaDash(){
@@ -4819,6 +4890,8 @@ let selectedDate = TODAY
 
 const SKINCARE_NOCHE_IDS  = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
 const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
+const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
+const LIMPIEZA_VESTIR_IDS = ['a_secar_cab','a_cambiar']
 const SKINCARE_SEED = [
   {id:'a_skin_micelar',   name:'Agua micelar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
   {id:'a_skin_lavar_n',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:2},
@@ -4831,6 +4904,7 @@ const SKINCARE_SEED = [
   {id:'a_skin_hidra_m',   name:'Hidratante',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:8},
   {id:'a_skin_solar',     name:'Filtro solar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:9},
   {id:'a_skin_contorno_m',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:10},
+  {id:'a_secar_cab',      name:'Secar cabello',    category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:11},
 ]
 
 async function seedSkincareActivities(existingIds){
