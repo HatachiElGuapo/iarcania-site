@@ -4895,13 +4895,22 @@ const SKINCARE_SEED = [
   {id:'a_skin_solar',     name:'Filtro solar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:9},
   {id:'a_skin_contorno_m',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:10},
   {id:'a_secar_cab',      name:'Secar cabello',    category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:11},
-  {id:'a_secar_toalla',   name:'Secarse con toalla',category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:12},
+  {id:'a_secar_toalla',   name:'Secar toalla, gorro y chancletas', category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:12},
 ]
 
 async function seedSkincareActivities(existingIds){
   const toInsert = SKINCARE_SEED.filter(a => !existingIds.has(a.id))
-  if(!toInsert.length) return
-  await SB_P.from('activities').insert(toInsert)
+  if(toInsert.length) await SB_P.from('activities').insert(toInsert)
+  // Corregir nombres que cambiaron en el seed
+  const namePatches = [
+    { id:'a_secar_toalla', name:'Secar toalla, gorro y chancletas' },
+  ]
+  for(const p of namePatches){
+    const existing = allActivities.find(a => a.id === p.id)
+    if(existing && existing.name !== p.name){
+      await SB_P.from('activities').update({ name: p.name }).eq('id', p.id)
+    }
+  }
 }
 
 async function loadHabitos(){
