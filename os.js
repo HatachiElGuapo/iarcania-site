@@ -6285,41 +6285,73 @@ function showMedibleModal(actId){
   const act = allActivities.find(a => a.id === actId)
   if(!cfg || !act) return
 
+  // Ignorar logs legacy con value=1 (binario antiguo)
   const existing = habitLogs[actId]
-  const currentVal = existing?.value > 1 ? existing.value : null
+  const hasRealLog = existing && existing.value > 1
+  const currentVal = hasRealLog ? existing.value : null
 
+  document.getElementById('medible-overlay')?.remove()
   const overlay = document.createElement('div')
   overlay.id = 'medible-overlay'
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
 
+  const unitLabel = cfg.unit === 'min' ? 'min' : cfg.unit
+  const nivelColor = { minimo:'#C9A84C', estandar:'#378ADD', ideal:'#5DCAA5', bajo:'#E24B4A' }
+
   const presetsHtml = cfg.presets.map(p => {
     const nivel = nivelMedible(actId, p)
     const color = colorNivel(nivel)
-    const tag = nivel === 'ideal' ? ' ★' : nivel === 'estandar' ? ' ✓' : nivel === 'minimo' ? ' ~' : ''
-    return `<button onclick="registrarMedible('${actId}', ${p})" style="padding:8px 12px;border-radius:8px;border:1px solid ${color}44;background:${color}11;color:${color};cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;font-weight:600">${p}${tag}</button>`
+    const sym   = { ideal:'★', estandar:'✓', minimo:'~', bajo:'!' }[nivel] || ''
+    return `<button onclick="registrarMedible('${actId}',${p})" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid ${color}55;background:${color}11;color:${color};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;font-weight:600;text-align:center">${p}<br><span style="font-size:9px;opacity:0.8">${sym}</span></button>`
   }).join('')
 
   overlay.innerHTML = `
-    <div style="background:#1a1a1a;border:1px solid var(--border);border-radius:14px;padding:20px;width:320px;max-width:90vw">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${act.name}</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">
-        ~ mínimo: ${cfg.min}${cfg.unit === 'min' ? ' min' : ''} &nbsp;·&nbsp; ✓ estándar: ${cfg.std}${cfg.unit === 'min' ? ' min' : ''} &nbsp;·&nbsp; ★ ideal: ${cfg.ideal}${cfg.unit === 'min' ? ' min' : ''}
+    <div style="background:#1a1a1a;border:1px solid var(--border);border-radius:14px;padding:22px;width:310px;max-width:92vw" onclick="event.stopPropagation()">
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">${act.name}</div>
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:18px">
+        <span style="color:#C9A84C">~ ${cfg.min}${unitLabel}</span> mínimo &nbsp;·&nbsp;
+        <span style="color:#378ADD">✓ ${cfg.std}${unitLabel}</span> estándar &nbsp;·&nbsp;
+        <span style="color:#5DCAA5">★ ${cfg.ideal}${unitLabel}</span> ideal
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">${presetsHtml}</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
-        <input id="medible-custom" type="number" placeholder="Otro valor..." min="1"
-          style="flex:1;background:#111;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 12px;font-family:'Outfit',sans-serif;outline:none"
-          onkeydown="if(event.key==='Enter'){const v=parseInt(this.value);if(v>0)registrarMedible('${actId}',v)}" />
-        <button onclick="const v=parseInt(document.getElementById('medible-custom').value);if(v>0)registrarMedible('${actId}',v)"
-          style="padding:8px 14px;border-radius:8px;border:1px solid rgba(55,138,221,0.4);background:rgba(55,138,221,0.1);color:#378ADD;cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif">OK</button>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">¿Cuánto hiciste?</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="medible-input" type="number" placeholder="Escribe el valor..." min="1"
+            value="${currentVal || ''}"
+            style="flex:1;background:#111;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;padding:10px 14px;font-family:'Outfit',sans-serif;outline:none;-moz-appearance:textfield"
+            oninput="_mediblePreview('${actId}', this.value)"
+            onkeydown="if(event.key==='Enter'){const v=parseInt(this.value);if(v>0)registrarMedible('${actId}',v)}" />
+          <span id="medible-nivel-tag" style="font-size:11px;min-width:40px;text-align:center"></span>
+        </div>
       </div>
-      ${existing ? `<button onclick="eliminarMedible('${actId}')" style="width:100%;padding:7px;border-radius:8px;border:1px solid rgba(226,75,74,0.2);background:transparent;color:#f87171;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif;margin-bottom:8px">Eliminar registro</button>` : ''}
-      <button onclick="document.getElementById('medible-overlay').remove()" style="width:100%;padding:7px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Cancelar</button>
+
+      <div style="display:flex;gap:6px;margin-bottom:14px">${presetsHtml}</div>
+
+      <button onclick="const v=parseInt(document.getElementById('medible-input').value);if(v>0)registrarMedible('${actId}',v)"
+        style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(55,138,221,0.4);background:rgba(55,138,221,0.1);color:#378ADD;cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;font-weight:600;margin-bottom:8px">
+        Guardar
+      </button>
+      ${hasRealLog ? `<button onclick="eliminarMedible('${actId}')" style="width:100%;padding:7px;border-radius:8px;border:1px solid rgba(226,75,74,0.2);background:transparent;color:#f87171;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif;margin-bottom:6px">Eliminar registro</button>` : ''}
+      <button onclick="document.getElementById('medible-overlay').remove()" style="width:100%;padding:7px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">Cancelar</button>
     </div>`
 
   document.body.appendChild(overlay)
   overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove() })
-  setTimeout(() => document.getElementById('medible-custom')?.focus(), 100)
+  const inp = document.getElementById('medible-input')
+  setTimeout(() => { inp?.focus(); inp?.select() }, 80)
+}
+
+function _mediblePreview(actId, rawVal){
+  const v = parseInt(rawVal)
+  const tag = document.getElementById('medible-nivel-tag')
+  if(!tag) return
+  if(!v || v <= 0){ tag.textContent = ''; return }
+  const nivel = nivelMedible(actId, v)
+  const col = colorNivel(nivel)
+  const sym = { ideal:'★ ideal', estandar:'✓ ok', minimo:'~ mín', bajo:'bajo' }[nivel] || ''
+  tag.textContent = sym
+  tag.style.color = col
 }
 
 async function registrarMedible(actId, value){
