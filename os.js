@@ -1687,9 +1687,11 @@ function _limpiezaAllIds(){ return [...LIMPIEZA_BANO_IDS, ...LIMPIEZA_VESTIR_IDS
 function renderLimpiezaDash(){
   const el = document.getElementById('dash-limpieza-body')
   if(!el) return
+  const banoCompleto = _esDiaBanoCompleto()
   const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-  const done    = allActs.filter(a => a.frequency !== 'semanal').every(a => !!habitLogs[a.id])
-  const count   = allActs.filter(a => !!habitLogs[a.id]).length
+    .filter(a => a.frequency !== 'semanal' || banoCompleto)
+  const done  = allActs.every(a => !!habitLogs[a.id])
+  const count = allActs.filter(a => !!habitLogs[a.id]).length
 
   el.innerHTML = `
     <div class="ritual-item${done?' done':''}" onclick="showLimpiezaModal()">
