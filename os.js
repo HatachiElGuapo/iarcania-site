@@ -1699,16 +1699,22 @@ function renderLimpiezaDash(){
     </div>`
 }
 
+function _esDiaBanoCompleto(){
+  // Miércoles = 3, Domingo = 0
+  const dow = new Date(TODAY + 'T12:00:00').getDay()
+  return dow === 3 || dow === 0
+}
+
 function _limpiezaSeccionRows(ids, color){
+  const banoCompleto = _esDiaBanoCompleto()
   return ids.map(id => {
     const a = allActivities.find(x => x.id === id)
     if(!a) return ''
+    if(a.frequency === 'semanal' && !banoCompleto) return ''
     const done = !!habitLogs[a.id]
-    const badge = a.frequency === 'semanal' ? `<span style="font-size:9px;color:var(--gold);flex-shrink:0;margin-left:6px">2x/sem</span>` : ''
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(()=>{renderLimpiezaDash();_renderLimpiezaModalRows()})" style="padding:8px 4px">
       <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${color};color:#000`:''}">${done?'✓':''}</div>
       <span style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''}">${a.name}</span>
-      ${badge}
     </div>`
   }).join('')
 }
