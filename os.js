@@ -10367,7 +10367,7 @@ function openNuevaAreaModal(){
   document.getElementById('area-enfoque').value = ''
   document.getElementById('area-filosofia').value = ''
   _renderColorPicker(AREA_COLORS[0])
-  openModal('modal-area')
+  openModal('area')
 }
 
 function openEditAreaModal(areaId){
@@ -10380,11 +10380,11 @@ function openEditAreaModal(areaId){
   document.getElementById('area-enfoque').value = area.enfoque_actual || ''
   document.getElementById('area-filosofia').value = area.filosofia || ''
   _renderColorPicker(area.color || AREA_COLORS[0])
-  openModal('modal-area')
+  openModal('area')
 }
 
 function editAreaFromModal(){
-  closeModal('modal-filosofia')
+  closeModal('filosofia')
   openEditAreaModal(_filosofiaAreaId)
 }
 
@@ -10425,7 +10425,7 @@ async function guardarArea(){
   } else {
     await SB_P.from('life_areas').insert({ ...payload, id:'area_'+Date.now(), user_id: USER_ID, sort_order: allAreas.length })
   }
-  closeModal('modal-area')
+  closeModal('area')
   await loadBrujula()
 }
 
@@ -10447,7 +10447,7 @@ function openFilosofiaModal(areaId){
   document.getElementById('mf-filosofia').textContent = area.filosofia || 'Sin filosofía definida aún.'
   document.getElementById('mf-tarea-input').value = ''
   _renderMfTareas(areaId, color)
-  openModal('modal-filosofia')
+  openModal('filosofia')
 }
 
 function _renderMfTareas(areaId, color){
