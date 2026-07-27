@@ -685,7 +685,7 @@ function renderTasks(){
   renderDashTasksSection('extra-tasks', extraTasks, 'extra')
   // Sección Tareas
   const overdue = allTasks.filter(t => t.due_date && (t.due_date||'').slice(0,10) < todayBogota() && t.status !== 'completada' && t.status !== 'hoy' && t.status !== 'archivada')
-  renderTaskList('all-tasks', allTasks.filter(t => t.status !== 'archivada'))
+  renderTaskList('all-tasks', allTasks.filter(t => t.status !== 'archivada' && !t.due_date))
   renderArchivedTasks()
   renderTareasConFecha(allTasks)
   const badgeOv = document.getElementById('badge-overdue')
