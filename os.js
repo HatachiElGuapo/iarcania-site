@@ -10289,8 +10289,36 @@ const AREA_COLORS = ['#E24B4A','#378ADD','#5DCAA5','#EF9F27','#8B6CF6','#C9A84C'
 async function loadBrujula(){
   const { data } = await SB_P.from('life_areas').select('*').eq('user_id', USER_ID).order('sort_order').order('created_at')
   allAreas = data || []
+  if(!allAreas.length) await _seedBrujulaAreas()
   renderBrujulaAreas()
   renderBrujulaManana()
+}
+
+async function _seedBrujulaAreas(){
+  const areas = [
+    { id:'area_iarcania_empresa', nombre:'IArcanIA — Empresa',  color:'#E24B4A', sort_order:0,
+      enfoque_actual:'Conseguir los primeros clientes que paguen el OS',
+      filosofia:'IArcanIA es una agencia de inteligencia artificial. El objetivo central es monetizar: que el OS se pague solo y que haya capacidad para ofrecerlo a clientes. Sin ingresos no hay operación. Cada acción debe acercar a un cliente o a un sistema que genere uno.' },
+    { id:'area_iarcania_marca',   nombre:'IArcanIA — Marca',    color:'#378ADD', sort_order:1,
+      enfoque_actual:'Posicionar IArcanIA como referente de IA práctica en LATAM',
+      filosofia:'La marca de IArcanIA es el canal de confianza que convierte audiencia en clientes. El contenido debe mostrar lo que realmente se construye — sin poses, sin teoría vacía. La credibilidad viene de demostrar, no de proclamar.' },
+    { id:'area_voidstoic',        nombre:'Void Stoic',          color:'#8B6CF6', sort_order:2,
+      enfoque_actual:'Construir audiencia y encontrar los primeros compradores del curso',
+      filosofia:'Void Stoic es la marca personal de Miguel. El espacio para hablar de desarrollo personal, filosofía y todo lo que importa más allá del trabajo. La meta es clara: encontrar personas que quieran un curso y usuarios que paguen por la interfaz mejorada del OS. La autenticidad es el único diferenciador.' },
+    { id:'area_memoria_vintage',  nombre:'Memoria Vintage',     color:'#C9A84C', sort_order:3,
+      enfoque_actual:'Apoyar el crecimiento del negocio de mamá',
+      filosofia:'Memoria Vintage es el negocio de ropa de segunda de mi madre. Mi rol aquí es de apoyo — no de operación. Aporto donde puedo (sistemas, visibilidad, orden) sin absorber el negocio como si fuera mío.' },
+    { id:'area_luna_angelical',   nombre:'Luna Angelical',      color:'#E07BA0', sort_order:4,
+      enfoque_actual:'Apoyar el negocio de tarot de la abuela',
+      filosofia:'Luna Angelical es el negocio de tarot de mi abuela. Como en Memoria Vintage, mi rol es de apoyo puntual. Respeto su visión y su forma de trabajar.' },
+    { id:'area_familia_amigos',   nombre:'Familia & Amigos',    color:'#5DCAA5', sort_order:5,
+      enfoque_actual:'Mantener presencia real con las personas que importan',
+      filosofia:'Las relaciones no se cultivan solas. La productividad sin vínculos es vacía. Esta área existe para recordar que hay que estar presente — no solo ocupado.' },
+  ]
+  const { data } = await SB_P.from('life_areas').insert(
+    areas.map(a => ({ ...a, user_id: USER_ID, created_at: new Date().toISOString() }))
+  ).select()
+  allAreas = data || []
 }
 
 function renderBrujulaAreas(){
