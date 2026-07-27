@@ -5160,6 +5160,93 @@ let _rachaDetalleId = null
 
 let _gestionTab = 'semanal'
 
+function renderTablaHabitos(el){
+  const cats = Object.keys(CAT_LABELS)
+  const grouped = {}
+  allActivities.forEach(a => {
+    if(!grouped[a.category]) grouped[a.category] = []
+    grouped[a.category].push(a)
+  })
+
+  const thStyle = 'padding:8px 10px;font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap'
+  const tdStyle = 'padding:8px 10px;font-size:12px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle'
+
+  const catOrder = [
+    'despertar','ritual_2020','inicio_dia','secundarios_manana','trabajo_profundo',
+    'secundarios_tarde','secundarios_noche','rutina_nocturna','cierre_dia',
+    'identidad_diaria','base_estabilidad','expansion_cognitiva','expansion_creativa',
+    'expansion_fisica','expansion_relacional','vida_practica','vicios','eventos_crisis',
+    ...Object.keys(grouped).filter(c => !cats.includes(c))
+  ]
+
+  let html = ''
+  for(const cat of catOrder){
+    const acts = grouped[cat]
+    if(!acts?.length) continue
+    const color = CAT_COLORS[cat] || '#555'
+    const label = CAT_LABELS[cat] || cat
+
+    html += `<div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <span style="font-size:11px;font-weight:700;color:${color};letter-spacing:.08em">${label.toUpperCase()}</span>
+        <span style="font-size:10px;color:var(--text-muted)">(${acts.length})</span>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#0C0C0C">
+              <th style="${thStyle}">Hábito</th>
+              <th style="${thStyle}">Hora</th>
+              <th style="${thStyle}">Frecuencia</th>
+              <th style="${thStyle}">Mínimo</th>
+              <th style="${thStyle}">Meta</th>
+              <th style="${thStyle}">Obligatorio</th>
+              <th style="${thStyle}">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${acts.map(a => {
+              const medible = HABITOS_MEDIBLES[a.id]
+              const unit    = medible?.unit || a.min_unit || ''
+              const minVal  = medible?.min  || a.min_value || '—'
+              const metaVal = medible?.ideal || a.target_value || '—'
+              const hora    = a.hora_sugerida || '—'
+              const freq    = { diaria:'Diaria', semanal:'2×/sem', mensual:'Mensual', recurrente:'Recurrente', unico:'Única vez' }[a.frequency||'diaria'] || a.frequency
+              const esOblig = MODO_OBLIGATORIO.includes(a.id)
+              const activo  = a.is_active
+              return `<tr style="${activo ? '' : 'opacity:.4'}">
+                <td style="${tdStyle}">
+                  <span style="font-weight:500">${a.name}</span>
+                  ${!activo ? '<span style="font-size:9px;color:#555;margin-left:6px">inactivo</span>' : ''}
+                </td>
+                <td style="${tdStyle};color:${hora!=='—'?color:'var(--text-muted)'}">${hora}</td>
+                <td style="${tdStyle};color:var(--text-muted)">${freq}</td>
+                <td style="${tdStyle};color:var(--gold)">${minVal !== '—' ? minVal+' '+unit : '—'}</td>
+                <td style="${tdStyle};color:#5DCAA5">${metaVal !== '—' ? metaVal+' '+unit : '—'}</td>
+                <td style="${tdStyle};text-align:center">${esOblig ? '<span style="color:#E24B4A;font-weight:700">●</span>' : '<span style="color:#333">○</span>'}</td>
+                <td style="${tdStyle};text-align:center">
+                  <button onclick="toggleActividadEstado('${a.id}',${!activo})" style="padding:3px 8px;border-radius:5px;border:1px solid ${activo?'rgba(226,75,74,0.3)':'rgba(93,202,165,0.3)'};background:transparent;color:${activo?'var(--red)':'#5DCAA5'};font-size:10px;cursor:pointer;font-family:'Outfit',sans-serif">
+                    ${activo ? 'Pausar' : 'Activar'}
+                  </button>
+                </td>
+              </tr>`
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`
+  }
+  el.innerHTML = html || '<div style="color:var(--text-muted);padding:20px">Sin hábitos</div>'
+}
+
+async function toggleActividadEstado(actId, nuevoEstado){
+  await SB_P.from('activities').update({ is_active: nuevoEstado }).eq('id', actId)
+  const act = allActivities.find(a => a.id === actId)
+  if(act) act.is_active = nuevoEstado
+  renderGestionHabitos()
+}
+
 function switchGestionTab(tab, btn){
   _gestionTab = tab
   document.querySelectorAll('#section-gestion-habitos .freq-tab').forEach(b => b.classList.remove('active'))
@@ -5170,6 +5257,11 @@ function switchGestionTab(tab, btn){
 function renderGestionHabitos(){
   const el = document.getElementById('gestion-habitos-list')
   if(!el) return
+
+  if(_gestionTab === 'tabla'){
+    renderTablaHabitos(el)
+    return
+  }
 
   if(_gestionTab === 'todos_diarios'){
     const SECUNDARIOS_CATS = ['secundarios_manana', 'secundarios_tarde', 'secundarios_noche']
