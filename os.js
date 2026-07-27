@@ -5240,6 +5240,53 @@ function renderTablaHabitos(el){
   el.innerHTML = html || '<div style="color:var(--text-muted);padding:20px">Sin hábitos</div>'
 }
 
+function renderTablaHabitosPorHora(el){
+  const thStyle = 'padding:8px 10px;font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap'
+  const tdStyle = 'padding:8px 10px;font-size:12px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle'
+
+  const conHora    = allActivities.filter(a => a.is_active && a.hora_sugerida).sort((a,b) => a.hora_sugerida.localeCompare(b.hora_sugerida))
+  const sinHora    = allActivities.filter(a => a.is_active && !a.hora_sugerida)
+
+  const filas = (acts) => acts.map(a => {
+    const color   = CAT_COLORS[a.category] || '#555'
+    const medible = HABITOS_MEDIBLES[a.id]
+    const unit    = medible?.unit || a.min_unit || ''
+    const minVal  = medible?.min  || a.min_value
+    const metaVal = medible?.ideal || a.target_value
+    const freq    = { diaria:'Diaria', semanal:'2×/sem', mensual:'Mensual', recurrente:'Recurrente', unico:'Única vez' }[a.frequency||'diaria'] || a.frequency
+    return `<tr>
+      <td style="${tdStyle};font-weight:600;color:${color}">${a.hora_sugerida || '—'}</td>
+      <td style="${tdStyle};font-weight:500">${a.name}</td>
+      <td style="${tdStyle}">
+        <span style="font-size:10px;padding:2px 7px;border-radius:5px;background:${color}22;color:${color}">${CAT_LABELS[a.category]||a.category}</span>
+      </td>
+      <td style="${tdStyle};color:var(--text-muted)">${freq}</td>
+      <td style="${tdStyle};color:var(--gold)">${minVal ? minVal+' '+unit : '—'}</td>
+      <td style="${tdStyle};color:#5DCAA5">${metaVal ? metaVal+' '+unit : '—'}</td>
+    </tr>`
+  }).join('')
+
+  el.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#0C0C0C">
+            <th style="${thStyle}">Hora</th>
+            <th style="${thStyle}">Hábito</th>
+            <th style="${thStyle}">Categoría</th>
+            <th style="${thStyle}">Frecuencia</th>
+            <th style="${thStyle}">Mínimo</th>
+            <th style="${thStyle}">Meta</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filas(conHora)}
+          ${sinHora.length ? `<tr><td colspan="6" style="padding:6px 10px;font-size:10px;font-weight:700;color:var(--text-muted);background:#0C0C0C;letter-spacing:.06em">SIN HORA ASIGNADA</td></tr>${filas(sinHora)}` : ''}
+        </tbody>
+      </table>
+    </div>`
+}
+
 async function toggleActividadEstado(actId, nuevoEstado){
   await SB_P.from('activities').update({ is_active: nuevoEstado }).eq('id', actId)
   const act = allActivities.find(a => a.id === actId)
@@ -5260,6 +5307,11 @@ function renderGestionHabitos(){
 
   if(_gestionTab === 'tabla'){
     renderTablaHabitos(el)
+    return
+  }
+
+  if(_gestionTab === 'por_hora'){
+    renderTablaHabitosPorHora(el)
     return
   }
 
