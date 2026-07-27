@@ -10463,6 +10463,8 @@ async function eliminarArea(areaId){
   await loadBrujula()
 }
 
+let _mfDia = 'manana'
+
 function openFilosofiaModal(areaId){
   _filosofiaAreaId = areaId
   const area = allAreas.find(a => a.id === areaId)
@@ -10474,36 +10476,55 @@ function openFilosofiaModal(areaId){
   document.getElementById('mf-enfoque').textContent = area.enfoque_actual || 'Sin enfoque actual definido'
   document.getElementById('mf-filosofia').textContent = area.filosofia || 'Sin filosofía definida aún.'
   document.getElementById('mf-tarea-input').value = ''
+  document.getElementById('mf-hora-input').value = '09:00'
+  _mfSetDia('manana')
   _renderMfTareas(areaId, color)
   openModal('filosofia')
+}
+
+function _mfSetDia(dia){
+  _mfDia = dia
+  const btnHoy    = document.getElementById('mf-btn-hoy')
+  const btnManana = document.getElementById('mf-btn-manana')
+  if(!btnHoy || !btnManana) return
+  const activeStyle   = 'border:1px solid rgba(55,138,221,0.4);background:rgba(55,138,221,0.1);color:#7ab8f5'
+  const inactiveStyle = 'border:1px solid var(--border);background:transparent;color:var(--text-muted)'
+  btnHoy.style.cssText    = btnHoy.style.cssText.replace(/border:[^;]+;background:[^;]+;color:[^;]+/, '') + (dia==='hoy'    ? activeStyle : inactiveStyle)
+  btnManana.style.cssText = btnManana.style.cssText.replace(/border:[^;]+;background:[^;]+;color:[^;]+/, '') + (dia==='manana' ? activeStyle : inactiveStyle)
 }
 
 function _renderMfTareas(areaId, color){
   const el = document.getElementById('mf-tareas-list')
   if(!el) return
-  const manana = _manana()
-  const tareas = allTasks.filter(t => t.area_id === areaId && t.date_due === manana && t.status !== 'completada')
+  const tareas = allTasks.filter(t => t.area_id === areaId && (t.date_due === TODAY || t.date_due === _manana()) && t.status !== 'completada')
   if(!tareas.length){ el.innerHTML = ''; return }
-  el.innerHTML = tareas.map(t => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-    <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
-    <span style="font-size:13px;color:var(--text);flex:1">${t.title}</span>
-    <button onclick="eliminarTareaDesdeArea('${t.id}')" style="padding:2px 6px;border-radius:4px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px">✕</button>
-  </div>`).join('')
+  el.innerHTML = tareas.map(t => {
+    const label = t.date_due === TODAY ? 'hoy' : 'mañana'
+    const hora  = t.time_due ? ` · ${t.time_due.slice(0,5)}` : ''
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
+      <span style="font-size:13px;color:var(--text);flex:1">${t.title}</span>
+      <span style="font-size:10px;color:var(--text-muted)">${label}${hora}</span>
+      <button onclick="eliminarTareaDesdeArea('${t.id}')" style="padding:2px 6px;border-radius:4px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px">✕</button>
+    </div>`
+  }).join('')
 }
 
 async function agregarTareaDesdeArea(){
   const input = document.getElementById('mf-tarea-input')
   const title = input?.value.trim()
   if(!title || !_filosofiaAreaId) return
-  const area = allAreas.find(a => a.id === _filosofiaAreaId)
-  const manana = _manana()
+  const area  = allAreas.find(a => a.id === _filosofiaAreaId)
+  const fecha = _mfDia === 'hoy' ? TODAY : _manana()
+  const hora  = document.getElementById('mf-hora-input')?.value || null
   const task = {
     id: 'task_'+Date.now(),
     user_id: USER_ID,
     title,
     area_id: _filosofiaAreaId,
     category: area?.categoria_default || 'personal',
-    date_due: manana,
+    date_due: fecha,
+    time_due: hora || null,
     priority: 'alta',
     status: 'pendiente',
     created_at: new Date().toISOString(),
@@ -10513,7 +10534,7 @@ async function agregarTareaDesdeArea(){
   input.value = ''
   _renderMfTareas(_filosofiaAreaId, area?.color || '#888')
   renderBrujulaManana()
-  showToast('✅ Tarea agregada para mañana')
+  showToast(`✅ Tarea agregada para ${_mfDia === 'hoy' ? 'hoy' : 'mañana'}${hora ? ' a las '+hora : ''}`)
 }
 
 async function eliminarTareaDesdeArea(taskId){

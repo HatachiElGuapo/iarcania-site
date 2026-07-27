@@ -1924,10 +1924,23 @@
     <div id="mf-enfoque" style="font-size:12px;color:var(--text-muted);margin-bottom:16px;padding:8px 12px;background:#0C0C0C;border-radius:8px;border-left:3px solid #333"></div>
     <div id="mf-filosofia" style="font-size:13px;color:var(--text);line-height:1.75;white-space:pre-wrap;margin-bottom:20px"></div>
     <div style="border-top:1px solid var(--border);padding-top:16px">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600">¿Qué hago mañana en este área?</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;font-weight:600">¿Qué hago en este área?</div>
+      <input type="text" id="mf-tarea-input" placeholder="Escribe la tarea más importante..." style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;margin-bottom:8px" onkeydown="if(event.key==='Enter')agregarTareaDesdeArea()">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <div style="flex:1">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">¿Cuándo?</div>
+          <div style="display:flex;gap:4px">
+            <button id="mf-btn-hoy" onclick="_mfSetDia('hoy')" style="flex:1;padding:7px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Hoy</button>
+            <button id="mf-btn-manana" onclick="_mfSetDia('manana')" style="flex:1;padding:7px;border-radius:7px;border:1px solid rgba(55,138,221,0.4);background:rgba(55,138,221,0.1);color:#7ab8f5;font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Mañana</button>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Hora</div>
+          <input type="time" id="mf-hora-input" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none">
+        </div>
+      </div>
       <div style="display:flex;gap:8px">
-        <input type="text" id="mf-tarea-input" placeholder="Escribe la tarea más importante..." style="flex:1;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none" onkeydown="if(event.key==='Enter')agregarTareaDesdeArea()">
-        <button onclick="agregarTareaDesdeArea()" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(55,138,221,0.4);background:rgba(55,138,221,0.1);color:#7ab8f5;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">+ Agregar</button>
+        <button onclick="agregarTareaDesdeArea()" style="flex:1;padding:9px 14px;border-radius:8px;border:1px solid rgba(55,138,221,0.4);background:rgba(55,138,221,0.1);color:#7ab8f5;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif">+ Agregar tarea</button>
       </div>
       <div id="mf-tareas-list" style="margin-top:10px"></div>
     </div>
