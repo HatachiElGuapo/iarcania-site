@@ -445,6 +445,7 @@ function showSection(id, btn){
   if(id === 'escuela') loadEscAdmin()
   if(id === 'recursos') loadRecursos()
   if(id === 'actividades') initTaskSections()
+  if(id === 'brujula') loadBrujula()
   if(id === 'eventos') { if(allEventTypes.length) renderEventos(); else loadEventos().then(() => renderEventos()) }
   if(id === 'personas') { if(allPeople.length) renderPersonas(); else loadPersonas().then(() => renderPersonas()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
@@ -10274,6 +10275,225 @@ async function guardarNuevaCita(){
   // Sin conflictos — guardar directo
   _conflictoPendiente = rec
   await _conflictoGuardarDejando()
+}
+
+// ============================================================
+// BRÚJULA — Áreas de vida + filosofía + tareas de mañana
+// ============================================================
+let allAreas = []
+let _areaModalEditId = null
+let _filosofiaAreaId = null
+
+const AREA_COLORS = ['#E24B4A','#378ADD','#5DCAA5','#EF9F27','#8B6CF6','#C9A84C','#00C2FF','#E07BA0','#888888']
+
+async function loadBrujula(){
+  const { data } = await SB_P.from('life_areas').select('*').eq('user_id', USER_ID).order('sort_order').order('created_at')
+  allAreas = data || []
+  renderBrujulaAreas()
+  renderBrujulaManana()
+}
+
+function renderBrujulaAreas(){
+  const el = document.getElementById('brujula-areas-list')
+  if(!el) return
+  if(!allAreas.length){
+    el.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text-muted)">
+      <div style="font-size:32px;margin-bottom:12px">🧭</div>
+      <div style="font-size:14px;margin-bottom:6px">Sin áreas todavía</div>
+      <div style="font-size:12px">Crea tu primera área para empezar a orientar tus días</div>
+    </div>`
+    return
+  }
+  el.innerHTML = allAreas.map(area => {
+    const color = area.color || '#888'
+    const tareasMañana = allTasks.filter(t => t.area_id === area.id && t.date_due === _manana() && t.status !== 'completada')
+    const badgeM = tareasMañana.length ? `<span style="background:${color};color:#000;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px">${tareasMañana.length}</span>` : ''
+    return `<div style="background:#111;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer" onclick="openFilosofiaModal('${area.id}')">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${area.enfoque_actual?'8px':'0'}">
+        <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);flex:1">${area.nombre}</div>
+        ${badgeM}
+        <div style="display:flex;gap:6px">
+          <button onclick="event.stopPropagation();openEditAreaModal('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✏️</button>
+          <button onclick="event.stopPropagation();eliminarArea('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
+        </div>
+      </div>
+      ${area.enfoque_actual ? `<div style="font-size:12px;color:${color};opacity:.85;padding-left:20px">${area.enfoque_actual}</div>` : ''}
+    </div>`
+  }).join('')
+}
+
+function renderBrujulaManana(){
+  const wrap = document.getElementById('brujula-manana-wrap')
+  const list = document.getElementById('brujula-manana-list')
+  if(!wrap || !list) return
+  const manana = _manana()
+  const tareasM = allTasks.filter(t => t.date_due === manana && t.status !== 'completada')
+  if(!tareasM.length){ wrap.style.display = 'none'; return }
+  wrap.style.display = 'block'
+
+  const porArea = {}
+  tareasM.forEach(t => {
+    const key = t.area_id || '__sin_area__'
+    if(!porArea[key]) porArea[key] = []
+    porArea[key].push(t)
+  })
+
+  list.innerHTML = Object.entries(porArea).map(([areaId, tareas]) => {
+    const area = allAreas.find(a => a.id === areaId)
+    const color = area?.color || '#555'
+    const nombre = area?.nombre || 'Sin área'
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:.08em;margin-bottom:6px">${nombre.toUpperCase()}</div>
+      ${tareas.map(t => `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <span style="font-size:13px;color:var(--text)">${t.title}</span>
+      </div>`).join('')}
+    </div>`
+  }).join('')
+}
+
+function _manana(){
+  const d = new Date(TODAY + 'T12:00:00')
+  d.setDate(d.getDate() + 1)
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+}
+
+function openNuevaAreaModal(){
+  _areaModalEditId = null
+  document.getElementById('modal-area-title').textContent = 'Nueva área'
+  document.getElementById('area-edit-id').value = ''
+  document.getElementById('area-nombre').value = ''
+  document.getElementById('area-enfoque').value = ''
+  document.getElementById('area-filosofia').value = ''
+  _renderColorPicker(AREA_COLORS[0])
+  openModal('modal-area')
+}
+
+function openEditAreaModal(areaId){
+  const area = allAreas.find(a => a.id === areaId)
+  if(!area) return
+  _areaModalEditId = areaId
+  document.getElementById('modal-area-title').textContent = 'Editar área'
+  document.getElementById('area-edit-id').value = areaId
+  document.getElementById('area-nombre').value = area.nombre || ''
+  document.getElementById('area-enfoque').value = area.enfoque_actual || ''
+  document.getElementById('area-filosofia').value = area.filosofia || ''
+  _renderColorPicker(area.color || AREA_COLORS[0])
+  openModal('modal-area')
+}
+
+function editAreaFromModal(){
+  closeModal('modal-filosofia')
+  openEditAreaModal(_filosofiaAreaId)
+}
+
+function _renderColorPicker(selected){
+  const el = document.getElementById('area-color-picker')
+  if(!el) return
+  el.innerHTML = AREA_COLORS.map(c => `<div onclick="_selectColor('${c}')" id="cp-${c.replace('#','')}" style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${c===selected?'#fff':'transparent'};transition:border-color .15s"></div>`).join('')
+}
+
+function _selectColor(color){
+  AREA_COLORS.forEach(c => {
+    const el = document.getElementById('cp-'+c.replace('#',''))
+    if(el) el.style.borderColor = c === color ? '#fff' : 'transparent'
+  })
+}
+
+function _getSelectedColor(){
+  for(const c of AREA_COLORS){
+    const el = document.getElementById('cp-'+c.replace('#',''))
+    if(el && el.style.borderColor === 'rgb(255, 255, 255)') return c
+  }
+  return AREA_COLORS[0]
+}
+
+async function guardarArea(){
+  const nombre = document.getElementById('area-nombre').value.trim()
+  if(!nombre){ showToast('Escribe el nombre del área'); return }
+  const color = _getSelectedColor()
+  const payload = {
+    nombre,
+    enfoque_actual: document.getElementById('area-enfoque').value.trim() || null,
+    filosofia: document.getElementById('area-filosofia').value.trim() || null,
+    color,
+  }
+  const editId = document.getElementById('area-edit-id').value
+  if(editId){
+    await SB_P.from('life_areas').update(payload).eq('id', editId)
+  } else {
+    await SB_P.from('life_areas').insert({ ...payload, id:'area_'+Date.now(), user_id: USER_ID, sort_order: allAreas.length })
+  }
+  closeModal('modal-area')
+  await loadBrujula()
+}
+
+async function eliminarArea(areaId){
+  if(!confirm('¿Eliminar esta área?')) return
+  await SB_P.from('life_areas').delete().eq('id', areaId)
+  await loadBrujula()
+}
+
+function openFilosofiaModal(areaId){
+  _filosofiaAreaId = areaId
+  const area = allAreas.find(a => a.id === areaId)
+  if(!area) return
+  const color = area.color || '#888'
+  document.getElementById('mf-dot').style.background = color
+  document.getElementById('mf-nombre').textContent = area.nombre
+  document.getElementById('mf-enfoque').style.borderLeftColor = color
+  document.getElementById('mf-enfoque').textContent = area.enfoque_actual || 'Sin enfoque actual definido'
+  document.getElementById('mf-filosofia').textContent = area.filosofia || 'Sin filosofía definida aún.'
+  document.getElementById('mf-tarea-input').value = ''
+  _renderMfTareas(areaId, color)
+  openModal('modal-filosofia')
+}
+
+function _renderMfTareas(areaId, color){
+  const el = document.getElementById('mf-tareas-list')
+  if(!el) return
+  const manana = _manana()
+  const tareas = allTasks.filter(t => t.area_id === areaId && t.date_due === manana && t.status !== 'completada')
+  if(!tareas.length){ el.innerHTML = ''; return }
+  el.innerHTML = tareas.map(t => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+    <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
+    <span style="font-size:13px;color:var(--text);flex:1">${t.title}</span>
+    <button onclick="eliminarTareaDesdeArea('${t.id}')" style="padding:2px 6px;border-radius:4px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px">✕</button>
+  </div>`).join('')
+}
+
+async function agregarTareaDesdeArea(){
+  const input = document.getElementById('mf-tarea-input')
+  const title = input?.value.trim()
+  if(!title || !_filosofiaAreaId) return
+  const area = allAreas.find(a => a.id === _filosofiaAreaId)
+  const manana = _manana()
+  const task = {
+    id: 'task_'+Date.now(),
+    user_id: USER_ID,
+    title,
+    area_id: _filosofiaAreaId,
+    category: area?.categoria_default || 'personal',
+    date_due: manana,
+    priority: 'alta',
+    status: 'pendiente',
+    created_at: new Date().toISOString(),
+  }
+  const { data } = await SB_P.from('tasks').insert(task).select().single()
+  if(data) allTasks.push(data)
+  input.value = ''
+  _renderMfTareas(_filosofiaAreaId, area?.color || '#888')
+  renderBrujulaManana()
+  showToast('✅ Tarea agregada para mañana')
+}
+
+async function eliminarTareaDesdeArea(taskId){
+  await SB_P.from('tasks').delete().eq('id', taskId)
+  allTasks = allTasks.filter(t => t.id !== taskId)
+  const area = allAreas.find(a => a.id === _filosofiaAreaId)
+  _renderMfTareas(_filosofiaAreaId, area?.color || '#888')
+  renderBrujulaManana()
 }
 
 // --- SELECTOR DE TAREAS ---
