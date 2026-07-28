@@ -2216,14 +2216,14 @@ function renderTrabajoDash(){
       const horaItem = isCita
         ? (item.datetime ? new Date(item.datetime).toTimeString().slice(0,5) : null)
         : (item.time_due ? item.time_due.slice(0,5) : (item.notes && /^\d{2}:\d{2}$/.test(item.notes.trim()) ? item.notes.trim() : null))
-      const tag = isCita
-        ? `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">📅${horaItem?' '+horaItem:''}</span>`
-        : `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${horaItem?'🕐'+horaItem+(item.category?' · ':''):''} ${item.category||''}</span>`
-      return `<div class="ritual-item${done?' done':''}" style="opacity:${done?'.6':'1'};cursor:pointer" onclick="_toggleTrabajoFocus('${fi.id}')">
-        <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4);'}pointer-events:none">${done?'✓':''}</div>
-        <span class="ritual-label" style="flex:1">${name}</span>
-        ${tag}
-        <button onclick="event.stopPropagation();_quitarTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 6px">✕</button>
+      const catColor = isCita ? '#EF9F27' : (CATS[item.category]?.color || 'var(--gold)')
+      return `<div onclick="_toggleTrabajoFocus('${fi.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:${done?'transparent':'#0C0C0C'};border:1px solid ${done?'rgba(255,255,255,0.04)':catColor+'33'};margin-bottom:6px;cursor:pointer;opacity:${done?'.5':'1'};border-left:3px solid ${done?'var(--border)':catColor};transition:opacity .2s">
+        <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?'var(--text-muted)':catColor};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${catColor};color:#000`:''}">${done?'✓':''}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+          ${horaItem||isCita ? `<div style="font-size:10px;color:${catColor};margin-top:2px;opacity:.8">${isCita?'📅 Cita':''}${horaItem?' · 🕐 '+horaItem:''}</div>` : ''}
+        </div>
+        <button onclick="event.stopPropagation();_quitarTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:2px 4px;flex-shrink:0;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✕</button>
       </div>`
     }).filter(Boolean).join('')
 
