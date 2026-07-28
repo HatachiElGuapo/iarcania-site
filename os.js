@@ -4996,13 +4996,9 @@ async function loadHabitos(){
   const { data: acts } = await SB_P.from('activities').select('*').order('sort_order').order('name')
   allActivities = acts || []
 
-  // Seed skincare si faltan + patches de nombre siempre
+  // Seed actividades faltantes + patches de nombre — siempre
   const existingIds = new Set(allActivities.map(a => a.id))
-  if(!existingIds.has('a_skin_micelar')){
-    await seedSkincareActivities(existingIds)
-  } else {
-    await _patchActivityNames()
-  }
+  await seedSkincareActivities(existingIds)
   const { data: acts2 } = await SB_P.from('activities').select('*').order('sort_order').order('name')
   allActivities = acts2 || []
 
