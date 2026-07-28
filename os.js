@@ -2221,7 +2221,10 @@ function renderTrabajoDash(){
         <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?'var(--text-muted)':catColor};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${catColor};color:#000`:''}">${done?'✓':''}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
-          ${horaItem||isCita ? `<div style="font-size:10px;color:${catColor};margin-top:2px;opacity:.8">${isCita?'📅 Cita':''}${horaItem?' · 🕐 '+horaItem:''}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:1px">
+          ${item.due_date||item.datetime ? `<span style="font-size:10px;color:var(--text-muted)">${isCita?(item.datetime?new Date(item.datetime).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}):''):(item.due_date||'')}</span>` : ''}
+          ${horaItem ? `<span style="font-size:11px;font-weight:600;color:${catColor}">🕐 ${horaItem}</span>` : ''}
         </div>
         <button onclick="event.stopPropagation();_quitarTrabajoFocus('${fi.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:2px 4px;flex-shrink:0;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✕</button>
       </div>`
