@@ -2275,7 +2275,13 @@ function _renderTrabajoPanelList(){
   const esCitas = _trabajoPanelTab === 'citas'
   const tasks = esCitas ? [] : allTasks.filter(t => t.status !== 'completada' && t.status !== 'archivada' && !yaIds.has(t.id) && (!q || (t.title||'').toLowerCase().includes(q)))
   const citas = esCitas ? citasArr.filter(c => c.status === 'pendiente' && !yaIds.has(c.id) && (!q || (c.title||'').toLowerCase().includes(q))) : []
+  const _sortKey = item => {
+    const fecha = item.due_date || item.datetime?.slice(0,10) || '9999-99-99'
+    const hora  = item.time_due?.slice(0,5) || (item.datetime ? new Date(item.datetime).toTimeString().slice(0,5) : '99:99')
+    return fecha + ' ' + hora
+  }
   const items = [...tasks.map(t => ({...t, _esCita: false})), ...citas.map(c => ({...c, _esCita: true}))]
+    .sort((a, b) => _sortKey(a).localeCompare(_sortKey(b)))
   if(!items.length){
     el.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text-muted);text-align:center">Sin resultados</div>'
     return
