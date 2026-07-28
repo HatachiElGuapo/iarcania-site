@@ -11471,7 +11471,7 @@ function _timerDone(){
   document.getElementById('timer-label').textContent = '¡listo!'
   document.getElementById('timer-btn-start').textContent = '▶'
   document.getElementById('timer-btn-start').style.background = 'linear-gradient(135deg,#EF9F27,#b87000)'
-  _playBeep()
+  _playBeep(1, 'timer')
   showToast('⏳ ¡Tiempo completado!')
 }
 
@@ -11504,7 +11504,7 @@ function _alarmaCheck(){
   const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
   _alarmas.filter(a => a.activa && a.hora === hhmm && a.lastFired !== hhmm).forEach(a => {
     a.lastFired = hhmm
-    _playBeep(3)
+    _playBeep(3, 'alarm')
     showToast(`🔔 Alarma: ${a.label || a.hora}`)
     _alarmasSave()
   })
@@ -11556,17 +11556,49 @@ function _alarmasRender(){
 }
 
 // ── BEEP ──────────────────────────────────────────────────────
-function _playBeep(times = 1){
+let _audioCtx = null
+
+function _getAudioCtx(){
+  if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  if(_audioCtx.state === 'suspended') _audioCtx.resume()
+  return _audioCtx
+}
+
+// Llamar en cualquier interacción para desbloquear el audio
+document.addEventListener('click', () => { try { _getAudioCtx() } catch(e){} }, { once: true })
+
+function _playBeep(times = 1, type = 'timer'){
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    let t = ctx.currentTime
-    for(let i = 0; i < times; i++){
-      const o = ctx.createOscillator(), g = ctx.createGain()
-      o.connect(g); g.connect(ctx.destination)
-      o.frequency.value = 880; o.type = 'sine'
-      g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
-      o.start(t); o.stop(t + 0.4)
-      t += 0.5
+    const ctx = _getAudioCtx()
+    let t = ctx.currentTime + 0.05
+
+    if(type === 'timer'){
+      // 3 tonos descendentes + silencio + 3 tonos — inconfundible
+      const freqs = [1046, 880, 698]
+      for(let r = 0; r < 2; r++){
+        freqs.forEach((freq, i) => {
+          const o = ctx.createOscillator(), g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'triangle'; o.frequency.value = freq
+          g.gain.setValueAtTime(0, t)
+          g.gain.linearRampToValueAtTime(0.5, t + 0.02)
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.25)
+          o.start(t); o.stop(t + 0.3)
+          t += 0.28
+        })
+        t += 0.3
+      }
+    } else {
+      // Beep simple para alarmas
+      for(let i = 0; i < times; i++){
+        const o = ctx.createOscillator(), g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.value = 880
+        g.gain.setValueAtTime(0.4, t)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
+        o.start(t); o.stop(t + 0.4)
+        t += 0.55
+      }
     }
-  } catch(e){}
+  } catch(e){ console.warn('Audio error:', e) }
 }
