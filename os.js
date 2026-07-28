@@ -4952,7 +4952,7 @@ let selectedDate = TODAY
 
 const SKINCARE_NOCHE_IDS  = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
 const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
-const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_skin_hidra_m','a_termo','a_secar_cab','a_friz','a_secar_toalla']
+const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_termo','a_secar_cab','a_friz','a_skin_hidra_m','a_secar_toalla']
 const LIMPIEZA_VESTIR_IDS = ['a_cambiar']
 const SKINCARE_SEED = [
   {id:'a_skin_micelar',   name:'Agua micelar (cabello)',   category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
