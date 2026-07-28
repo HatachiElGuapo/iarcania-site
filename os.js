@@ -1810,8 +1810,9 @@ function showLimpiezaModal(){
 
 function showEjerciciosModal(tipo){
   const cfg = {
-    cuello: { id:'cuello-modal', title:'🧠 Ejercicios de cuello', ids: CUELLO_SUB_IDS, color:'#6B7FD4' },
-    nariz:  { id:'nariz-modal',  title:'👃 Ejercicios de nariz',  ids: NARIZ_SUB_IDS,  color:'#6B7FD4' },
+    cuello:        { id:'cuello-modal',  title:'🧠 Ejercicios de cuello', ids: CUELLO_SUB_IDS,       color:'#6B7FD4' },
+    nariz:         { id:'nariz-modal',   title:'👃 Ejercicios de nariz',  ids: NARIZ_SUB_IDS,        color:'#6B7FD4' },
+    skincare_noche:{ id:'skin-n-modal',  title:'🌙 Skincare noche',       ids: SKINCARE_NOCHE_IDS,   color:'#378ADD' },
   }[tipo]
   if(!cfg) return
   document.getElementById(cfg.id)?.remove()
@@ -1840,8 +1841,9 @@ function showEjerciciosModal(tipo){
 
 function _reRenderEjModal(tipo){
   const cfg = {
-    cuello: { id:'cuello-modal', ids: CUELLO_SUB_IDS, color:'#6B7FD4' },
-    nariz:  { id:'nariz-modal',  ids: NARIZ_SUB_IDS,  color:'#6B7FD4' },
+    cuello:        { id:'cuello-modal', ids: CUELLO_SUB_IDS,     color:'#6B7FD4' },
+    nariz:         { id:'nariz-modal',  ids: NARIZ_SUB_IDS,      color:'#6B7FD4' },
+    skincare_noche:{ id:'skin-n-modal', ids: SKINCARE_NOCHE_IDS, color:'#378ADD' },
   }[tipo]
   if(!cfg) return
   const el = document.getElementById(cfg.id+'-rows')
@@ -2677,6 +2679,16 @@ function renderCierreDiaDash(){
     return
   }
   el.innerHTML = acts.map(a => {
+    if(a.id === 'a_skin_noche'){
+      const subActs = SKINCARE_NOCHE_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+      const doneSubs = subActs.filter(x => !!habitLogs[x.id])
+      const allDone = subActs.length > 0 && doneSubs.length === subActs.length
+      return `<div class="ritual-item${allDone?' done':''}" onclick="showEjerciciosModal('skincare_noche')">
+        <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDone?'✓':''}</div>
+        <span class="ritual-label">${a.name}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
+      </div>`
+    }
     const done = !!habitLogs[a.id]
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
       <div class="ritual-check${done?' done':''}" style="${done?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${done?'✓':''}</div>
