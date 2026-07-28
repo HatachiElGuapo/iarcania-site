@@ -1813,7 +1813,7 @@ function showEjerciciosModal(tipo){
     cuello:        { id:'cuello-modal',  title:'🧠 Ejercicios de cuello', ids: CUELLO_SUB_IDS,       color:'#6B7FD4' },
     nariz:         { id:'nariz-modal',   title:'👃 Ejercicios de nariz',  ids: NARIZ_SUB_IDS,        color:'#6B7FD4' },
     skincare_noche:{ id:'skin-n-modal',  title:'🌙 Skincare noche',       ids: SKINCARE_NOCHE_IDS,   color:'#378ADD' },
-    cierre:        { id:'cierre-modal',  title:'🌛 Rutina de cierre',     ids: [...SKINCARE_NOCHE_IDS, 'a10'], color:'#378ADD' },
+    cierre:        { id:'cierre-modal',  title:'🌛 Rutina de cierre',     ids: CIERRE_FULL_IDS, color:'#378ADD' },
   }[tipo]
   if(!cfg) return
   document.getElementById(cfg.id)?.remove()
@@ -1855,7 +1855,7 @@ function _reRenderEjModal(tipo){
     cuello:        { id:'cuello-modal', ids: CUELLO_SUB_IDS,                       color:'#6B7FD4' },
     nariz:         { id:'nariz-modal',  ids: NARIZ_SUB_IDS,                        color:'#6B7FD4' },
     skincare_noche:{ id:'skin-n-modal', ids: SKINCARE_NOCHE_IDS,                   color:'#378ADD' },
-    cierre:        { id:'cierre-modal', ids: [...SKINCARE_NOCHE_IDS, 'a10'],       color:'#378ADD' },
+    cierre:        { id:'cierre-modal', ids: CIERRE_FULL_IDS,                      color:'#378ADD' },
   }[tipo]
   if(!cfg) return
   const el = document.getElementById(cfg.id+'-rows')
@@ -4999,7 +4999,8 @@ function isCrisisModeActive(){ return !!getCrisisHoy() }
 function todayBogota() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 let selectedDate = TODAY
 
-const SKINCARE_NOCHE_IDS  = ['a_cambiar','a_skin_lavar_noche','a_skin_limpiador','a_skin_hidra_noche','a_cinta_boca']
+const SKINCARE_NOCHE_IDS  = ['a_cambiar','a_skin_lavar_noche','a_skin_limpiador','a_skin_hidra_noche']
+const CIERRE_FULL_IDS     = [...SKINCARE_NOCHE_IDS, 'a10', 'a_cinta_boca']
 const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
 const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_termo','a_secar_cab','a_friz','a_skin_hidra_m','a_secar_toalla','a_cambiar']
 const LIMPIEZA_VESTIR_IDS = []
