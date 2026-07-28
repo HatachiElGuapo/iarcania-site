@@ -1826,30 +1826,10 @@ function renderMatutinaDash(){
     if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
 
     if(a.id === 'a_skin_m'){
-      const subActs = SKINCARE_MANANA_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
-      const allDone = subActs.every(s => !!habitLogs[s.id])
-      if(!_skincareMananaExpanded){
-        const doneSubs = subActs.filter(s => !!habitLogs[s.id])
-        return `<div class="ritual-item${allDone?' done':''}" onclick="_skincareMananaExpanded=true;renderMatutinaDash()">
-          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${allDone?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
-        </div>`
-      }
-      const subRows = subActs.map(s => {
-        const sDone = !!habitLogs[s.id]
-        return `<div class="ritual-item${sDone?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderMatutinaDash)">
-          <div class="ritual-check${sDone?' done':''}" style="${sDone?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${sDone?'✓':''}</div>
-          <span class="ritual-label" style="font-size:12px">${s.name}</span>
-        </div>`
-      }).join('')
-      return `<div>
-        <div class="ritual-item" onclick="_skincareMananaExpanded=false;renderMatutinaDash()">
-          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#C4A35A;border-color:#C4A35A;color:#000':'border-color:rgba(196,163,90,0.4)'}">${allDone?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:#C4A35A;margin-left:auto">▲ cerrar</span>
-        </div>
-        ${subRows}
+      return `<div class="ritual-item" onclick="openModal('limpieza')" style="cursor:pointer">
+        <span style="font-size:16px">🚿</span>
+        <span class="ritual-label">Limpieza personal básica</span>
+        <span style="font-size:11px;color:#C4A35A;margin-left:auto">→ abrir</span>
       </div>`
     }
 
