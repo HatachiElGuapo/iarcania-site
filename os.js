@@ -4955,15 +4955,15 @@ const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a
 const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca','a_secar_toalla']
 const LIMPIEZA_VESTIR_IDS = ['a_secar_cab','a_cambiar']
 const SKINCARE_SEED = [
-  {id:'a_skin_micelar',   name:'Agua micelar (cabello)', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
+  {id:'a_skin_micelar',   name:'Agua micelar (cabello)',   category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
   {id:'a_skin_lavar_n',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:2},
-  {id:'a_skin_hidra_n',   name:'Hidratante',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:3},
+  {id:'a_skin_hidra_n',   name:'Crema hidratante cara',  category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:3},
   {id:'a_skin_contorno_n',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:4},
   {id:'a_skin_exfol',     name:'Exfoliación',      category:'skincare_sub', frequency:'semanal',is_active:true, sort_order:5},
   {id:'a_skin_masca',     name:'Mascarilla',       category:'skincare_sub', frequency:'semanal',is_active:true, sort_order:6},
   {id:'a_skin_m',         name:'Skincare mañana',  category:'secundarios_manana', frequency:'diaria', is_active:true, sort_order:20},
   {id:'a_skin_lavar_m',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:7},
-  {id:'a_skin_hidra_m',   name:'Hidratante',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:8},
+  {id:'a_skin_hidra_m',   name:'Crema hidratante manos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:8},
   {id:'a_skin_solar',     name:'Filtro solar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:9},
   {id:'a_skin_contorno_m',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:10},
   {id:'a_secar_cab',      name:'Secar cabello',    category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:11},
@@ -4973,12 +4973,17 @@ const SKINCARE_SEED = [
 async function seedSkincareActivities(existingIds){
   const toInsert = SKINCARE_SEED.filter(a => !existingIds.has(a.id))
   if(toInsert.length) await SB_P.from('activities').insert(toInsert)
-  // Corregir nombres que cambiaron en el seed
-  const namePatches = [
-    { id:'a_secar_toalla',  name:'Secar toalla, gorro y chancletas' },
-    { id:'a_skin_micelar',  name:'Agua micelar (cabello)' },
+  await _patchActivityNames()
+}
+
+async function _patchActivityNames(){
+  const patches = [
+    { id:'a_secar_toalla',   name:'Secar toalla, gorro y chancletas' },
+    { id:'a_skin_micelar',   name:'Agua micelar (cabello)' },
+    { id:'a_skin_hidra_n',   name:'Crema hidratante cara' },
+    { id:'a_skin_hidra_m',   name:'Crema hidratante manos' },
   ]
-  for(const p of namePatches){
+  for(const p of patches){
     const existing = allActivities.find(a => a.id === p.id)
     if(existing && existing.name !== p.name){
       await SB_P.from('activities').update({ name: p.name }).eq('id', p.id)
@@ -4990,13 +4995,15 @@ async function loadHabitos(){
   const { data: acts } = await SB_P.from('activities').select('*').order('sort_order').order('name')
   allActivities = acts || []
 
-  // Seed skincare si faltan
+  // Seed skincare si faltan + patches de nombre siempre
   const existingIds = new Set(allActivities.map(a => a.id))
   if(!existingIds.has('a_skin_micelar')){
     await seedSkincareActivities(existingIds)
-    const { data: acts2 } = await SB_P.from('activities').select('*').order('sort_order').order('name')
-    allActivities = acts2 || []
+  } else {
+    await _patchActivityNames()
   }
+  const { data: acts2 } = await SB_P.from('activities').select('*').order('sort_order').order('name')
+  allActivities = acts2 || []
 
   // Daily logs
   const { data: logs } = await SB_P.from('activity_logs')
