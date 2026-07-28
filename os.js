@@ -2611,16 +2611,19 @@ function renderSecundariosNocheDash(){
       }
       const subRows = subActs.map(s => {
         const sd = !!habitLogs[s.id]
-        return `<div class="ritual-item${sd?' done':''}" onclick="toggleHabito('${s.id}').then(renderSecundariosNocheDash)" style="padding-left:24px">
+        return `<div class="ritual-item${sd?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderSecundariosNocheDash)" style="padding-left:24px">
           <div class="ritual-check${sd?' done':''}" style="${sd?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${sd?'✓':''}</div>
           <span class="ritual-label">${s.name}</span>
         </div>`
       }).join('')
-      return `<div class="ritual-item" onclick="_cuelloExpanded=false;renderSecundariosNocheDash()" style="opacity:.6;font-size:11px">
-          <div class="ritual-check" style="border-color:rgba(107,127,212,0.4)"></div>
+      return `<div>
+        <div class="ritual-item" onclick="_cuelloExpanded=false;renderSecundariosNocheDash()" style="opacity:.6">
+          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${allDone?'✓':''}</div>
           <span class="ritual-label">${a.name}</span>
           <span style="font-size:10px;color:var(--text-muted);margin-left:auto">▲ cerrar</span>
-        </div>${subRows}`
+        </div>
+        ${subRows}
+      </div>`
     }
     if(a.id === 'a_ej_nariz'){
       const subActs = NARIZ_SUB_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
