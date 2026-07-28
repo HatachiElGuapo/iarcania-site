@@ -3763,7 +3763,7 @@ function _hpDayCells(anchorDate, firstLogDate, logSet, freq){
 }
 
 function _hpDayGrid(cells, habitColor){
-  const CELL = 28, GAP = 3
+  const CELL = 42, GAP = 4
   const MN = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   const DOW = ['L','M','X','J','V','S','D']
 
@@ -3797,7 +3797,7 @@ function _hpDayGrid(cells, habitColor){
   const cs = `width:${CELL}px;height:${CELL}px;flex-shrink:0;border-radius:2px`
 
   const monthRow = `<div style="display:flex;gap:${GAP}px;margin-left:${CELL+GAP+2}px;margin-bottom:2px">
-    ${monthCols.map(l => `<div style="width:${CELL}px;font-size:10px;color:var(--text-muted);flex-shrink:0">${l}</div>`).join('')}
+    ${monthCols.map(l => `<div style="width:${CELL}px;font-size:11px;color:var(--text-muted);flex-shrink:0">${l}</div>`).join('')}
   </div>`
 
   const dayRows = rows.map((row, i) => {
@@ -3807,10 +3807,10 @@ function _hpDayGrid(cells, habitColor){
       const txtColor = c.status==='done' ? 'rgba(0,0,0,0.65)' : c.status==='fail' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)'
       const day = c.ds ? new Date(c.ds).getUTCDate() : ''
       const extra = isToday ? `;outline:2px solid var(--accent);outline-offset:-2px` : ''
-      return `<div class="hp-cell ${c.status}" style="${cs}${extra};display:flex;align-items:center;justify-content:center;font-size:10px;color:${txtColor}" title="${c.ds}">${day}</div>`
+      return `<div class="hp-cell ${c.status}" style="${cs}${extra};display:flex;align-items:center;justify-content:center;font-size:13px;color:${txtColor}" title="${c.ds}">${day}</div>`
     }).join('')
     return `<div style="display:flex;align-items:center;gap:${GAP}px;margin-bottom:${GAP}px">
-      <div style="width:${CELL}px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0">${showLabel ? DOW[i] : ''}</div>
+      <div style="width:${CELL}px;font-size:11px;color:var(--text-muted);text-align:right;flex-shrink:0">${showLabel ? DOW[i] : ''}</div>
       ${cells}
     </div>`
   }).join('')
