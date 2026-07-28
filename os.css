@@ -223,7 +223,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .habito-item.panel-open{border-radius:8px 8px 0 0}
 .habito-progress-panel{background:var(--bg-card);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:12px 14px}
 .hp-grid{display:grid;gap:2px;width:100%}
-.hp-cell{border-radius:2px;aspect-ratio:1;min-width:0;max-height:120px}
+.hp-cell{border-radius:2px;aspect-ratio:1;min-width:0}
 .hp-cell.done{background:var(--hp-color,#f97316)}
 .hp-cell.fail{background:#c0392b}
 .hp-cell.gray{background:var(--border)}
