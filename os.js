@@ -192,6 +192,7 @@ async function initApp(){
   setInterval(updateClock, 1000)
   checkDateReset()
   setInterval(checkDateReset, 60000)
+  initActividadesAlert()
   setInterval(() => { if(document.getElementById('section-agenda')?.classList.contains('active')) renderAgenda() }, 60000)
   await loadTareasHoy() // primero: hoyFocusItems disponible antes de cualquier render
   // Carga esencial — bloquea hasta tener lo necesario para el dashboard inicial
@@ -6904,6 +6905,7 @@ async function toggleHabito(activityId){
   renderHabitos()
   update2020Widget()
   renderPermisosDia()
+  _renderActividadesVencidas(_getActividadesVencidasHoy())
 }
 
 // ── SISTEMA DE MÍNIMOS ──────────────────────────────────────────────────────
@@ -11959,5 +11961,88 @@ function renderPermisosDia(){
     <div style="display:flex;flex-direction:column;gap:5px">
       ${permisos.map(p=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)"><span>${p.icon}</span><span>${p.label}</span></div>`).join('')}
     </div>` : ''}
+  </div>`
+}
+
+// ─── ALERTAS DE ACTIVIDADES PENDIENTES ───────────────────────────────────────
+
+let _notifPermission = false
+let _actividadNotifFired = new Set() // "id|hhmm" para no repetir
+
+async function initActividadesAlert(){
+  if('Notification' in window){
+    if(Notification.permission === 'granted') _notifPermission = true
+    else if(Notification.permission !== 'denied'){
+      const p = await Notification.requestPermission()
+      _notifPermission = p === 'granted'
+    }
+  }
+  setInterval(_checkActividadesPendientes, 60000)
+  _checkActividadesPendientes()
+}
+
+function _getActividadesVencidasHoy(){
+  const now = new Date()
+  const nowMin = now.getHours()*60 + now.getMinutes()
+  const vencidas = []
+
+  // Tareas con hora pasada sin completar
+  allTasks.forEach(t => {
+    if(t.status === 'completada' || t.status === 'archivada') return
+    if(t.due_date !== TODAY) return
+    const hora = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
+    if(!hora) return
+    const min = agendaToMin(hora)
+    if(min < nowMin) vencidas.push({ id: t.id, nombre: t.title, hora, tipo: 'tarea' })
+  })
+
+  // Hábitos con hora sugerida pasada sin marcar (solo hoy)
+  if(selectedDate === TODAY){
+    allActivities.filter(a => a.is_active && a.hora_sugerida && !habitLogs[a.id]).forEach(a => {
+      const hora = a.hora_sugerida.slice(0,5)
+      const min = agendaToMin(hora)
+      if(min < nowMin) vencidas.push({ id: a.id, nombre: a.name, hora, tipo: 'habito' })
+    })
+  }
+
+  return vencidas.sort((a,b) => a.hora.localeCompare(b.hora))
+}
+
+function _checkActividadesPendientes(){
+  const vencidas = _getActividadesVencidasHoy()
+  _renderActividadesVencidas(vencidas)
+
+  // Notificación del navegador — una vez por actividad por hora
+  if(_notifPermission){
+    const now = new Date()
+    const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+    vencidas.forEach(v => {
+      const key = `${v.id}|${hhmm}`
+      if(_actividadNotifFired.has(key)) return
+      _actividadNotifFired.add(key)
+      new Notification(`⏰ ${v.nombre}`, {
+        body: `Debía hacerse a las ${v.hora} y aún no la has marcado`,
+        icon: '/favicon.ico',
+        tag: v.id,
+      })
+    })
+  }
+}
+
+function _renderActividadesVencidas(vencidas){
+  const el = document.getElementById('actividades-vencidas-widget')
+  if(!el) return
+  if(!vencidas.length){ el.innerHTML = ''; return }
+  el.innerHTML = `<div style="background:rgba(226,75,74,0.08);border:1px solid rgba(226,75,74,0.3);border-radius:12px;padding:12px 16px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px">⚠️ ${vencidas.length} actividad${vencidas.length>1?'es':''} pendiente${vencidas.length>1?'s':''} sin marcar</div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      ${vencidas.slice(0,5).map(v => `
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)">
+          <span style="color:var(--red);font-size:10px;flex-shrink:0">🕐 ${v.hora}</span>
+          <span style="flex:1">${v.nombre}</span>
+          <span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${v.tipo === 'tarea' ? '📋' : '✅'}</span>
+        </div>`).join('')}
+      ${vencidas.length > 5 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">+${vencidas.length-5} más...</div>` : ''}
+    </div>
   </div>`
 }
