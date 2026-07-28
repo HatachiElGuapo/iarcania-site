@@ -446,6 +446,7 @@ function showSection(id, btn){
   if(id === 'recursos') loadRecursos()
   if(id === 'actividades') initTaskSections()
   if(id === 'brujula') loadBrujula()
+  if(id === 'reloj') initReloj()
   if(id === 'eventos') { if(allEventTypes.length) renderEventos(); else loadEventos().then(() => renderEventos()) }
   if(id === 'personas') { if(allPeople.length) renderPersonas(); else loadPersonas().then(() => renderPersonas()) }
   if(id === 'dinero') switchDineroTab(_dineroTab)
@@ -11350,3 +11351,222 @@ document.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   if(!document.getElementById('agenda-ctx-menu').contains(e.target)) agendaCtxClose()
 })
+
+// ============================================================
+// RELOJ — Cronómetro · Temporizador · Contador · Alarmas
+// ============================================================
+let _relojInited = false
+
+function initReloj(){ if(!_relojInited){ _relojInited = true; alarmaStartLoop() } }
+
+function switchRelojTab(tab, btn){
+  document.querySelectorAll('#section-reloj .freq-tab').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  ;['crono','timer','count','alarmas'].forEach(p => {
+    document.getElementById('reloj-panel-'+p).style.display = p === tab ? '' : 'none'
+  })
+}
+
+// ── CRONÓMETRO ──────────────────────────────────────────────
+let _cronoMs = 0, _cronoRunning = false, _cronoInterval = null, _cronoLaps = []
+
+function cronoToggle(){
+  if(_cronoRunning){
+    clearInterval(_cronoInterval); _cronoRunning = false
+    document.getElementById('crono-btn-start').textContent = '▶'
+    document.getElementById('crono-btn-start').style.background = 'linear-gradient(135deg,#00C2FF,#0084b0)'
+    document.getElementById('crono-btn-lap').style.display = ''
+  } else {
+    const start = Date.now() - _cronoMs
+    _cronoInterval = setInterval(() => { _cronoMs = Date.now() - start; _cronoRender() }, 50)
+    _cronoRunning = true
+    document.getElementById('crono-btn-start').textContent = '⏸'
+    document.getElementById('crono-btn-start').style.background = 'linear-gradient(135deg,#555,#333)'
+    document.getElementById('crono-btn-lap').style.display = ''
+  }
+}
+
+function cronoReset(){
+  clearInterval(_cronoInterval); _cronoRunning = false; _cronoMs = 0; _cronoLaps = []
+  document.getElementById('crono-btn-start').textContent = '▶'
+  document.getElementById('crono-btn-start').style.background = 'linear-gradient(135deg,#00C2FF,#0084b0)'
+  document.getElementById('crono-btn-lap').style.display = 'none'
+  document.getElementById('crono-laps').innerHTML = ''
+  _cronoRender()
+}
+
+function cronoLap(){
+  _cronoLaps.push(_cronoMs)
+  const el = document.getElementById('crono-laps')
+  const prev = _cronoLaps[_cronoLaps.length - 2] || 0
+  const diff = _cronoMs - prev
+  el.innerHTML = `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;color:var(--text-muted)">
+    <span>Vuelta ${_cronoLaps.length}</span><span style="color:#00C2FF">${_fmtMs(diff)}</span><span>${_fmtMs(_cronoMs)}</span>
+  </div>` + el.innerHTML
+}
+
+function _cronoRender(){
+  const h = Math.floor(_cronoMs/3600000), m = Math.floor((_cronoMs%3600000)/60000), s = Math.floor((_cronoMs%60000)/1000), ms = Math.floor((_cronoMs%1000)/10)
+  document.getElementById('crono-display').textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  document.getElementById('crono-ms').textContent = String(ms).padStart(2,'0')
+  const rot = ((_cronoMs % 60000) / 60000) * 628
+  document.getElementById('crono-ring').style.strokeDashoffset = 628 - rot
+}
+
+function _fmtMs(ms){ const m=Math.floor(ms/60000),s=Math.floor((ms%60000)/1000),cs=Math.floor((ms%1000)/10); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}` }
+
+// ── TEMPORIZADOR ─────────────────────────────────────────────
+let _timerTotal = 0, _timerLeft = 0, _timerRunning = false, _timerInterval = null
+
+function timerSetMin(min){ _timerSet(min * 60) }
+
+function timerSetCustom(){
+  const m = parseInt(document.getElementById('timer-custom-min').value) || 0
+  const s = parseInt(document.getElementById('timer-custom-sec').value) || 0
+  _timerSet(m * 60 + s)
+}
+
+function _timerSet(secs){
+  clearInterval(_timerInterval); _timerRunning = false
+  _timerTotal = secs; _timerLeft = secs
+  document.getElementById('timer-btn-start').textContent = '▶'
+  document.getElementById('timer-btn-start').style.background = 'linear-gradient(135deg,#EF9F27,#b87000)'
+  document.getElementById('timer-label').textContent = 'listo'
+  _timerRender()
+}
+
+function timerToggle(){
+  if(!_timerLeft) return
+  if(_timerRunning){
+    clearInterval(_timerInterval); _timerRunning = false
+    document.getElementById('timer-btn-start').textContent = '▶'
+    document.getElementById('timer-btn-start').style.background = 'linear-gradient(135deg,#EF9F27,#b87000)'
+  } else {
+    const end = Date.now() + _timerLeft * 1000
+    _timerInterval = setInterval(() => {
+      _timerLeft = Math.max(0, Math.ceil((end - Date.now()) / 1000))
+      _timerRender()
+      if(_timerLeft <= 0){ clearInterval(_timerInterval); _timerRunning = false; _timerDone() }
+    }, 250)
+    _timerRunning = true
+    document.getElementById('timer-btn-start').textContent = '⏸'
+    document.getElementById('timer-btn-start').style.background = 'linear-gradient(135deg,#555,#333)'
+    document.getElementById('timer-label').textContent = 'corriendo...'
+  }
+}
+
+function timerReset(){ _timerSet(_timerTotal) }
+
+function _timerRender(){
+  const m = Math.floor(_timerLeft/60), s = _timerLeft % 60
+  document.getElementById('timer-display').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  const pct = _timerTotal ? (_timerLeft / _timerTotal) : 0
+  document.getElementById('timer-ring').style.strokeDashoffset = 628 * (1 - pct)
+  const col = pct > 0.33 ? '#EF9F27' : '#E24B4A'
+  document.getElementById('timer-ring').style.stroke = col
+}
+
+function _timerDone(){
+  document.getElementById('timer-display').textContent = '00:00'
+  document.getElementById('timer-label').textContent = '¡listo!'
+  document.getElementById('timer-btn-start').textContent = '▶'
+  document.getElementById('timer-btn-start').style.background = 'linear-gradient(135deg,#EF9F27,#b87000)'
+  _playBeep()
+  showToast('⏳ ¡Tiempo completado!')
+}
+
+// ── CONTADOR ─────────────────────────────────────────────────
+let _countVal = 0, _countTotal = 0
+
+function countAdd(n){
+  _countVal = Math.max(0, _countVal + n)
+  _countTotal += n > 0 ? n : 0
+  document.getElementById('count-display').textContent = _countVal.toLocaleString()
+  document.getElementById('count-total').textContent = `Total acumulado: ${_countTotal.toLocaleString()}`
+}
+
+function countReset(){
+  _countVal = 0; _countTotal = 0
+  document.getElementById('count-display').textContent = '0'
+  document.getElementById('count-total').textContent = 'Total acumulado: 0'
+}
+
+// ── ALARMAS ──────────────────────────────────────────────────
+let _alarmas = JSON.parse(localStorage.getItem('os_alarmas') || '[]')
+let _alarmaLoop = null
+
+function alarmaStartLoop(){
+  _alarmaLoop = setInterval(_alarmaCheck, 10000)
+}
+
+function _alarmaCheck(){
+  const now = new Date()
+  const hhmm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+  _alarmas.filter(a => a.activa && a.hora === hhmm && a.lastFired !== hhmm).forEach(a => {
+    a.lastFired = hhmm
+    _playBeep(3)
+    showToast(`🔔 Alarma: ${a.label || a.hora}`)
+    _alarmasSave()
+  })
+}
+
+function alarmaAgregar(){
+  const hora  = document.getElementById('alarma-hora-input').value
+  const label = document.getElementById('alarma-label-input').value.trim()
+  if(!hora){ showToast('Elige una hora'); return }
+  _alarmas.push({ id: 'al_'+Date.now(), hora, label, activa: true, lastFired: null })
+  _alarmas.sort((a,b) => a.hora.localeCompare(b.hora))
+  _alarmasSave()
+  document.getElementById('alarma-hora-input').value = ''
+  document.getElementById('alarma-label-input').value = ''
+  _alarmasRender()
+}
+
+function alarmaToggle(id){
+  const a = _alarmas.find(x => x.id === id)
+  if(a){ a.activa = !a.activa; a.lastFired = null; _alarmasSave(); _alarmasRender() }
+}
+
+function alarmaEliminar(id){
+  _alarmas = _alarmas.filter(x => x.id !== id)
+  _alarmasSave(); _alarmasRender()
+}
+
+function _alarmasSave(){ localStorage.setItem('os_alarmas', JSON.stringify(_alarmas)) }
+
+function _alarmasRender(){
+  const el = document.getElementById('alarmas-list')
+  if(!el) return
+  if(!_alarmas.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:13px">Sin alarmas configuradas</div>'
+    return
+  }
+  el.innerHTML = _alarmas.map(a => `
+    <div class="alarma-item" style="${a.activa?'':'opacity:.4'}">
+      <div style="flex:1">
+        <div class="alarma-hora">${a.hora}</div>
+        ${a.label ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${a.label}</div>` : ''}
+      </div>
+      <label class="alarma-toggle">
+        <input type="checkbox" ${a.activa?'checked':''} onchange="alarmaToggle('${a.id}')">
+        <span class="alarma-slider"></span>
+      </label>
+      <button onclick="alarmaEliminar('${a.id}')" style="padding:6px 10px;border-radius:7px;border:1px solid rgba(226,75,74,0.2);background:transparent;color:var(--red);font-size:12px;cursor:pointer">✕</button>
+    </div>`).join('')
+}
+
+// ── BEEP ──────────────────────────────────────────────────────
+function _playBeep(times = 1){
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    let t = ctx.currentTime
+    for(let i = 0; i < times; i++){
+      const o = ctx.createOscillator(), g = ctx.createGain()
+      o.connect(g); g.connect(ctx.destination)
+      o.frequency.value = 880; o.type = 'sine'
+      g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
+      o.start(t); o.stop(t + 0.4)
+      t += 0.5
+    }
+  } catch(e){}
+}

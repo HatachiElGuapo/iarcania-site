@@ -87,6 +87,9 @@
         <button class="nav-item" onclick="showSection('hogar',this)">
           <span class="nav-icon">🏠</span>Hogar
         </button>
+        <button class="nav-item" onclick="showSection('reloj',this)">
+          <span class="nav-icon">⏱️</span>Reloj
+        </button>
       </div>
       <div class="nav-separator" id="nav-sep-dinero" onclick="toggleNavGroup('dinero')"><span class="nav-sep-arrow">▼</span>Dinero</div>
       <div class="nav-group" id="group-dinero">
@@ -833,6 +836,111 @@
       </div>
       <div id="hogar-list" style="display:flex;flex-direction:column;gap:8px">
         <div class="loading"><div class="spinner"></div><br>Cargando tareas del hogar...</div>
+      </div>
+    </div>
+
+    <!-- RELOJ -->
+    <div class="section" id="section-reloj">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">⏱️ Reloj</h1>
+          <div class="page-sub">Cronómetro · Temporizador · Contador · Alarmas</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="freq-tab active" id="reloj-tab-crono"   onclick="switchRelojTab('crono',this)">⏱ Cronómetro</button>
+        <button class="freq-tab"        id="reloj-tab-timer"   onclick="switchRelojTab('timer',this)">⏳ Temporizador</button>
+        <button class="freq-tab"        id="reloj-tab-count"   onclick="switchRelojTab('count',this)">🔢 Contador</button>
+        <button class="freq-tab"        id="reloj-tab-alarmas" onclick="switchRelojTab('alarmas',this)">🔔 Alarmas</button>
+      </div>
+
+      <!-- CRONÓMETRO -->
+      <div id="reloj-panel-crono">
+        <div style="display:flex;flex-direction:column;align-items:center;padding:32px 0 24px">
+          <div style="position:relative;width:220px;height:220px;margin-bottom:32px">
+            <svg width="220" height="220" style="position:absolute;top:0;left:0;transform:rotate(-90deg)">
+              <circle cx="110" cy="110" r="100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+              <circle id="crono-ring" cx="110" cy="110" r="100" fill="none" stroke="#00C2FF" stroke-width="8" stroke-linecap="round" stroke-dasharray="628" stroke-dashoffset="0" style="transition:stroke-dashoffset .1s linear"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div id="crono-display" style="font-size:42px;font-weight:300;color:#e8e8e8;font-family:'Outfit',sans-serif;letter-spacing:2px">00:00:00</div>
+              <div id="crono-ms" style="font-size:14px;color:var(--text-muted);margin-top:2px">00</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px">
+            <button id="crono-btn-start" onclick="cronoToggle()" style="width:80px;height:80px;border-radius:50%;border:none;background:linear-gradient(135deg,#00C2FF,#0084b0);color:#000;font-size:24px;cursor:pointer;font-weight:700;box-shadow:0 4px 20px rgba(0,194,255,0.3)">▶</button>
+            <button onclick="cronoReset()" style="width:56px;height:56px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:18px;cursor:pointer;align-self:center">↺</button>
+          </div>
+          <div id="crono-laps" style="width:100%;max-width:340px;margin-top:24px"></div>
+          <button onclick="cronoLap()" id="crono-btn-lap" style="margin-top:12px;padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif;display:none">+ Vuelta</button>
+        </div>
+      </div>
+
+      <!-- TEMPORIZADOR -->
+      <div id="reloj-panel-timer" style="display:none">
+        <div style="display:flex;flex-direction:column;align-items:center;padding:32px 0 24px">
+          <div style="position:relative;width:220px;height:220px;margin-bottom:32px">
+            <svg width="220" height="220" style="position:absolute;top:0;left:0;transform:rotate(-90deg)">
+              <circle cx="110" cy="110" r="100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+              <circle id="timer-ring" cx="110" cy="110" r="100" fill="none" stroke="#EF9F27" stroke-width="8" stroke-linecap="round" stroke-dasharray="628" stroke-dashoffset="0" style="transition:stroke-dashoffset .5s linear"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div id="timer-display" style="font-size:42px;font-weight:300;color:#e8e8e8;font-family:'Outfit',sans-serif;letter-spacing:2px">00:00</div>
+              <div id="timer-label" style="font-size:11px;color:var(--text-muted);margin-top:4px">listo</div>
+            </div>
+          </div>
+          <div id="timer-presets" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:20px">
+            <button onclick="timerSetMin(5)"  class="timer-preset">5 min</button>
+            <button onclick="timerSetMin(10)" class="timer-preset">10 min</button>
+            <button onclick="timerSetMin(15)" class="timer-preset">15 min</button>
+            <button onclick="timerSetMin(20)" class="timer-preset">20 min</button>
+            <button onclick="timerSetMin(25)" class="timer-preset">25 min</button>
+            <button onclick="timerSetMin(45)" class="timer-preset">45 min</button>
+            <button onclick="timerSetMin(60)" class="timer-preset">1 hora</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px">
+            <input type="number" id="timer-custom-min" min="1" max="999" placeholder="min" style="width:70px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;font-family:'Outfit',sans-serif;outline:none;text-align:center">
+            <span style="color:var(--text-muted);font-size:13px">:</span>
+            <input type="number" id="timer-custom-sec" min="0" max="59" placeholder="seg" style="width:70px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;font-family:'Outfit',sans-serif;outline:none;text-align:center">
+            <button onclick="timerSetCustom()" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(239,159,39,0.4);background:rgba(239,159,39,0.08);color:#EF9F27;font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Setear</button>
+          </div>
+          <div style="display:flex;gap:12px">
+            <button id="timer-btn-start" onclick="timerToggle()" style="width:80px;height:80px;border-radius:50%;border:none;background:linear-gradient(135deg,#EF9F27,#b87000);color:#000;font-size:24px;cursor:pointer;font-weight:700;box-shadow:0 4px 20px rgba(239,159,39,0.3)">▶</button>
+            <button onclick="timerReset()" style="width:56px;height:56px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:18px;cursor:pointer;align-self:center">↺</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTADOR -->
+      <div id="reloj-panel-count" style="display:none">
+        <div style="display:flex;flex-direction:column;align-items:center;padding:40px 0 24px">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.1em;margin-bottom:16px">CONTADOR</div>
+          <div id="count-display" style="font-size:96px;font-weight:200;color:#e8e8e8;font-family:'Outfit',sans-serif;line-height:1;margin-bottom:8px">0</div>
+          <div id="count-total" style="font-size:12px;color:var(--text-muted);margin-bottom:40px">Total acumulado: 0</div>
+          <div style="display:flex;gap:16px;align-items:center;margin-bottom:32px">
+            <button onclick="countAdd(-1)" style="width:52px;height:52px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:22px;cursor:pointer">−</button>
+            <button onclick="countAdd(1)" style="width:96px;height:96px;border-radius:50%;border:none;background:linear-gradient(135deg,#5DCAA5,#2d9e79);color:#000;font-size:40px;cursor:pointer;font-weight:700;box-shadow:0 4px 24px rgba(93,202,165,0.35)">+</button>
+            <button onclick="countAdd(-1)" style="visibility:hidden;width:52px;height:52px"></button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:20px" id="count-presets">
+            <button onclick="countAdd(10)"  class="timer-preset">+10</button>
+            <button onclick="countAdd(50)"  class="timer-preset">+50</button>
+            <button onclick="countAdd(100)" class="timer-preset">+100</button>
+            <button onclick="countAdd(200)" class="timer-preset">+200</button>
+            <button onclick="countAdd(500)" class="timer-preset">+500</button>
+          </div>
+          <button onclick="countReset()" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Resetear</button>
+        </div>
+      </div>
+
+      <!-- ALARMAS -->
+      <div id="reloj-panel-alarmas" style="display:none">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <input type="time" id="alarma-hora-input" style="background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:16px;font-family:'Outfit',sans-serif;outline:none">
+          <input type="text" id="alarma-label-input" placeholder="Etiqueta (opcional)" style="flex:1;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none" onkeydown="if(event.key==='Enter')alarmaAgregar()">
+          <button onclick="alarmaAgregar()" style="padding:10px 16px;border-radius:8px;border:1px solid rgba(93,202,165,0.3);background:rgba(93,202,165,0.08);color:#5DCAA5;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">+ Agregar</button>
+        </div>
+        <div id="alarmas-list"></div>
       </div>
     </div>
 
