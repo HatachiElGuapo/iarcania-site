@@ -835,9 +835,71 @@ async function loadAgendaForDate(dateStr){
   _agendaCache = _parseLocalAgenda(dateStr)
 }
 
+let _agendaTab = 'timeline'
+
+function switchAgendaTab(tab, btn){
+  _agendaTab = tab
+  document.querySelectorAll('#section-agenda .freq-tab').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('agenda-timeline').style.display  = tab === 'timeline' ? '' : 'none'
+  document.getElementById('agenda-hoy-view').style.display  = tab === 'hoy'      ? '' : 'none'
+  if(tab === 'hoy') renderAgendaHoy()
+}
+
 async function loadAndRenderAgenda(){
   await loadAgendaForDate(getAgendaDateStr())
   renderAgenda()
+  if(_agendaTab === 'hoy') renderAgendaHoy()
+}
+
+function renderAgendaHoy(){
+  const el = document.getElementById('agenda-hoy-view')
+  if(!el) return
+
+  // Hábitos activos de hoy con hora
+  const habitosConHora = allActivities
+    .filter(a => a.is_active && a.hora_sugerida && (a.frequency||'diaria') === 'diaria' && !['skincare_sub','limpieza_sub'].includes(a.category))
+    .map(a => ({ hora: a.hora_sugerida, titulo: a.name, tipo: 'habito', color: CAT_COLORS[a.category]||'#555', cat: CAT_LABELS[a.category]||a.category, done: !!habitLogs[a.id] }))
+
+  const habitosSinHora = allActivities
+    .filter(a => a.is_active && !a.hora_sugerida && (a.frequency||'diaria') === 'diaria' && !['skincare_sub','limpieza_sub'].includes(a.category))
+    .map(a => ({ hora: null, titulo: a.name, tipo: 'habito', color: CAT_COLORS[a.category]||'#555', cat: CAT_LABELS[a.category]||a.category, done: !!habitLogs[a.id] }))
+
+  // Tareas de hoy
+  const tareasHoy = allTasks
+    .filter(t => t.status !== 'completada' && t.status !== 'archivada' && (t.date_due === TODAY || t.due_date === TODAY))
+    .map(t => ({ hora: t.time_due || (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null), titulo: t.title, tipo: 'tarea', color: (CATS[t.category]||CATS.habitos).color, cat: (CATS[t.category]||CATS.habitos).label, done: t.status === 'completada' }))
+
+  // Citas de hoy
+  const citasHoy = (typeof allCitas !== 'undefined' ? allCitas : [])
+    .filter(c => c.date === TODAY || c.fecha === TODAY)
+    .map(c => ({ hora: c.hora || c.time || null, titulo: c.title || c.nombre, tipo: 'cita', color: '#EF9F27', cat: 'Cita', done: false }))
+
+  const conHora = [...habitosConHora, ...tareasHoy.filter(t=>t.hora), ...citasHoy.filter(c=>c.hora)]
+    .sort((a,b) => a.hora.localeCompare(b.hora))
+  const sinHora = [...habitosSinHora, ...tareasHoy.filter(t=>!t.hora), ...citasHoy.filter(c=>!c.hora)]
+
+  const iconTipo = { habito:'🔄', tarea:'✅', cita:'📞' }
+  const labelTipo = { habito:'Hábito', tarea:'Tarea', cita:'Cita' }
+
+  const fila = (item) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);${item.done?'opacity:.45':''}">
+      <div style="width:48px;font-size:11px;font-weight:700;color:${item.hora?item.color:'var(--text-muted)'};flex-shrink:0;text-align:right">${item.hora||'—'}</div>
+      <div style="width:3px;height:36px;border-radius:2px;background:${item.color};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:${item.done?'var(--text-muted)':'var(--text)'};${item.done?'text-decoration:line-through':''}">
+          ${iconTipo[item.tipo]} ${item.titulo}
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${labelTipo[item.tipo]} · ${item.cat}</div>
+      </div>
+      ${item.done ? '<span style="font-size:11px;color:#5DCAA5">✓</span>' : ''}
+    </div>`
+
+  const sepHdr = (txt) => `<div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.08em;padding:12px 0 6px">${txt}</div>`
+
+  el.innerHTML = (conHora.length ? sepHdr('CON HORA') + conHora.map(fila).join('') : '')
+    + (sinHora.length ? sepHdr('SIN HORA ASIGNADA') + sinHora.map(fila).join('') : '')
+    || '<div style="color:var(--text-muted);padding:20px;text-align:center">Sin actividades para hoy</div>'
 }
 
 function _sbAgendaRow(dateStr, slotKey, item){

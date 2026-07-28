@@ -532,7 +532,12 @@
         </div>
         <button class="btn-add" onclick="openAgendaModal()">＋ Agregar tarea</button>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:1.2rem">
+        <button id="agenda-tab-timeline" class="freq-tab active" onclick="switchAgendaTab('timeline',this)">📅 Agenda</button>
+        <button id="agenda-tab-hoy" class="freq-tab" onclick="switchAgendaTab('hoy',this)">🌅 Vista de hoy</button>
+      </div>
       <div id="agenda-timeline"></div>
+      <div id="agenda-hoy-view" style="display:none"></div>
 
       <!-- Modal agregar tarea a la agenda -->
       <div id="agenda-add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:flex-end;justify-content:center" onclick="if(event.target===this)closeAgendaModal()">
