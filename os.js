@@ -2213,9 +2213,12 @@ function renderTrabajoDash(){
       const isCita = !!cita
       const name = item.title || item.name || '?'
       const done = !!fi.completed
+      const horaItem = isCita
+        ? (item.datetime ? new Date(item.datetime).toTimeString().slice(0,5) : null)
+        : (item.time_due ? item.time_due.slice(0,5) : (item.notes && /^\d{2}:\d{2}$/.test(item.notes.trim()) ? item.notes.trim() : null))
       const tag = isCita
-        ? `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">📅 Cita</span>`
-        : (item.category ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${item.category}</span>` : '')
+        ? `<span style="font-size:10px;color:#EF9F27;flex-shrink:0">📅${horaItem?' '+horaItem:''}</span>`
+        : `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${horaItem?'🕐'+horaItem+(item.category?' · ':''):''} ${item.category||''}</span>`
       return `<div class="ritual-item${done?' done':''}" style="opacity:${done?'.6':'1'};cursor:pointer" onclick="_toggleTrabajoFocus('${fi.id}')">
         <div class="ritual-check${done?' done':''}" style="${done?'background:var(--gold);border-color:var(--gold);color:#000':'border-color:rgba(201,168,76,0.4);'}pointer-events:none">${done?'✓':''}</div>
         <span class="ritual-label" style="flex:1">${name}</span>
