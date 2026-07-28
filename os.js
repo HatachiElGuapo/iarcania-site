@@ -2290,6 +2290,8 @@ function _renderTrabajoPanelList(){
       const parts = []
       if(item.category) parts.push(`<span>${item.category}</span>`)
       if(item.due_date)  parts.push(`<span>${item.due_date.slice(0,10)}</span>`)
+      const horaTask = item.time_due ? item.time_due.slice(0,5) : (item.notes && /^\d{2}:\d{2}$/.test(item.notes.trim()) ? item.notes.trim() : null)
+      if(horaTask) parts.push(`<span>🕐 ${horaTask}</span>`)
       if(parts.length) meta = `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0;display:flex;gap:4px">${parts.join(' · ')}</span>`
     }
     return `<div onclick="_agregarTrabajoFocus('${item.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
