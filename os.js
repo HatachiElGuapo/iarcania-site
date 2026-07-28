@@ -710,7 +710,7 @@ function renderTaskList(elId, tasks){
   function taskRow(t){
     const cat = CATS[t.category] || CATS.habitos
     const done = t.status === 'completada'
-    const hora = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
+    const hora = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
     const fecha = t.due_date || null
     return `<div class="task-item${done?' done':''}"
       data-id="${t.id}"
@@ -2750,7 +2750,7 @@ function renderDashTasksSection(elId, tasks, listKey){
     const fc   = isHoy ? (t._focusCompleted || t.status === 'completada') : (t.status === 'completada')
     const fn   = isHoy ? (t._focusNote || '') : ''
     const isOverdue = t.due_date && (t.due_date||'').slice(0,10) < todayBogota() && !fc
-    const horaTask = t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null
+    const horaTask = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
     const fecha = t.due_date || null
     const checkClick = isHoy ? `event.stopPropagation();toggleFocusCheck('${t.id}')` : `toggleTask('${t.id}')`
     return `<div class="task-item${fc?' done':''}" style="border-left-color:${fc?'var(--border)':isOverdue?'var(--red)':cat.color}">
@@ -3943,7 +3943,7 @@ function openEditTask(id){
   document.getElementById('t-cat').value = task.category || 'iarcania'
   document.getElementById('t-priority').value = task.priority || 'alta'
   document.getElementById('t-due').value = task.due_date || ''
-  document.getElementById('t-time').value = (task.notes && /^\d{2}:\d{2}$/.test(task.notes.trim())) ? task.notes.trim() : ''
+  document.getElementById('t-time').value = task.time_due ? task.time_due.slice(0,5) : ((task.notes && /^\d{2}:\d{2}$/.test(task.notes.trim())) ? task.notes.trim() : '')
   document.getElementById('task-delete-btn').style.display = 'flex'
   document.getElementById('archive-note-area').style.display = 'none'
   document.getElementById('archive-note-input').value = ''
@@ -4001,7 +4001,7 @@ async function saveTask(){
     color: cat.color,
     priority: document.getElementById('t-priority').value,
     due_date: document.getElementById('t-due').value || null,
-    notes: document.getElementById('t-time').value || null,
+    time_due: document.getElementById('t-time').value || null,
   }
   if(existingId){
     await SB_P.from('tasks').update(taskData).eq('id', existingId)
