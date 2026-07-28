@@ -1787,8 +1787,7 @@ function _limpiezaSeccionRows(ids, color){
 
 function _limpiezaModalContent(){
   const sep = (label, color) => `<div style="font-size:10px;font-weight:700;color:${color};letter-spacing:.06em;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid ${color}22">${label}</div>`
-  return sep('🚿 BAÑARME', '#00C2FF') + _limpiezaSeccionRows(LIMPIEZA_BANO_IDS, '#00C2FF')
-       + sep('👕 VESTIRME', '#C4A35A') + _limpiezaSeccionRows(LIMPIEZA_VESTIR_IDS, '#C4A35A')
+  return _limpiezaSeccionRows(LIMPIEZA_BANO_IDS, '#00C2FF')
 }
 
 function showLimpiezaModal(){
@@ -4952,8 +4951,8 @@ let selectedDate = TODAY
 
 const SKINCARE_NOCHE_IDS  = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
 const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
-const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_termo','a_secar_cab','a_friz','a_skin_hidra_m','a_secar_toalla']
-const LIMPIEZA_VESTIR_IDS = ['a_cambiar']
+const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_termo','a_secar_cab','a_friz','a_skin_hidra_m','a_secar_toalla','a_cambiar']
+const LIMPIEZA_VESTIR_IDS = []
 const SKINCARE_SEED = [
   {id:'a_skin_micelar',   name:'Agua micelar (cabello)',   category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
   {id:'a_skin_lavar_n',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:2},
