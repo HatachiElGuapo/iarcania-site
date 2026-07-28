@@ -3703,7 +3703,8 @@ async function renderHabitoProgressPanel(activityId, customAnchor){
 
   const allLogDates = (logs||[]).map(l => l.date).sort()
   const logSet = new Set(allLogDates)
-  const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
+  const createdAt = act.created_at ? act.created_at.slice(0,10) : TODAY
+  const firstLogDate = createdAt
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
   if(!progressAnchorDates[activityId]){
@@ -5611,7 +5612,8 @@ async function _renderRachaDetalleContenido(activityId, customAnchor){
 
   const allLogDates = (logs||[]).map(l => l.date).sort()
   const logSet = new Set(allLogDates)
-  const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
+  const createdAt = act.created_at ? act.created_at.slice(0,10) : TODAY
+  const firstLogDate = createdAt
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
   if(!progressAnchorDates[activityId]){
