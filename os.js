@@ -1813,7 +1813,7 @@ function showEjerciciosModal(tipo){
     cuello:        { id:'cuello-modal',  title:'🧠 Ejercicios de cuello', ids: CUELLO_SUB_IDS,       color:'#6B7FD4' },
     nariz:         { id:'nariz-modal',   title:'👃 Ejercicios de nariz',  ids: NARIZ_SUB_IDS,        color:'#6B7FD4' },
     skincare_noche:{ id:'skin-n-modal',  title:'🌙 Skincare noche',       ids: SKINCARE_NOCHE_IDS,   color:'#378ADD' },
-    cierre:        { id:'cierre-modal',  title:'🌛 Rutina de cierre',     ids: CIERRE_SUB_IDS,       color:'#378ADD' },
+    cierre:        { id:'cierre-modal',  title:'🌛 Rutina de cierre',     ids: [...SKINCARE_NOCHE_IDS, 'a10'], color:'#378ADD' },
   }[tipo]
   if(!cfg) return
   document.getElementById(cfg.id)?.remove()
@@ -1852,9 +1852,10 @@ function showEjerciciosModal(tipo){
 
 function _reRenderEjModal(tipo){
   const cfg = {
-    cuello:        { id:'cuello-modal', ids: CUELLO_SUB_IDS,     color:'#6B7FD4' },
-    nariz:         { id:'nariz-modal',  ids: NARIZ_SUB_IDS,      color:'#6B7FD4' },
-    skincare_noche:{ id:'skin-n-modal', ids: SKINCARE_NOCHE_IDS, color:'#378ADD' },
+    cuello:        { id:'cuello-modal', ids: CUELLO_SUB_IDS,                       color:'#6B7FD4' },
+    nariz:         { id:'nariz-modal',  ids: NARIZ_SUB_IDS,                        color:'#6B7FD4' },
+    skincare_noche:{ id:'skin-n-modal', ids: SKINCARE_NOCHE_IDS,                   color:'#378ADD' },
+    cierre:        { id:'cierre-modal', ids: [...SKINCARE_NOCHE_IDS, 'a10'],       color:'#378ADD' },
   }[tipo]
   if(!cfg) return
   const el = document.getElementById(cfg.id+'-rows')
