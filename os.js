@@ -1826,7 +1826,7 @@ function renderMatutinaDash(){
     if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
 
     if(a.id === 'a_skin_m'){
-      return `<div class="ritual-item" onclick="openModal('limpieza')" style="cursor:pointer">
+      return `<div class="ritual-item" onclick="showLimpiezaModal()" style="cursor:pointer">
         <span style="font-size:16px">🚿</span>
         <span class="ritual-label">Limpieza personal básica</span>
         <span style="font-size:11px;color:#C4A35A;margin-left:auto">→ abrir</span>
