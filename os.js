@@ -4955,7 +4955,7 @@ const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a
 const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca','a_secar_toalla']
 const LIMPIEZA_VESTIR_IDS = ['a_secar_cab','a_cambiar']
 const SKINCARE_SEED = [
-  {id:'a_skin_micelar',   name:'Agua micelar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
+  {id:'a_skin_micelar',   name:'Agua micelar (cabello)', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
   {id:'a_skin_lavar_n',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:2},
   {id:'a_skin_hidra_n',   name:'Hidratante',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:3},
   {id:'a_skin_contorno_n',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:4},
@@ -4975,7 +4975,8 @@ async function seedSkincareActivities(existingIds){
   if(toInsert.length) await SB_P.from('activities').insert(toInsert)
   // Corregir nombres que cambiaron en el seed
   const namePatches = [
-    { id:'a_secar_toalla', name:'Secar toalla, gorro y chancletas' },
+    { id:'a_secar_toalla',  name:'Secar toalla, gorro y chancletas' },
+    { id:'a_skin_micelar',  name:'Agua micelar (cabello)' },
   ]
   for(const p of namePatches){
     const existing = allActivities.find(a => a.id === p.id)
