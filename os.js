@@ -10490,14 +10490,23 @@ async function guardarNuevaCita(){
 // BRÚJULA — Áreas de vida + filosofía + tareas de mañana
 // ============================================================
 let allAreas = []
+let allLifeProjects = []
+let allLifeSteps = []
 let _areaModalEditId = null
 let _filosofiaAreaId = null
+let _brujulaAreaOpen = null
 
 const AREA_COLORS = ['#E24B4A','#378ADD','#5DCAA5','#EF9F27','#8B6CF6','#C9A84C','#00C2FF','#E07BA0','#888888']
 
 async function loadBrujula(){
-  const { data } = await SB_P.from('life_areas').select('*').eq('user_id', USER_ID).order('sort_order').order('created_at')
-  allAreas = data || []
+  const [areasRes, projRes, stepsRes] = await Promise.all([
+    SB_P.from('life_areas').select('*').eq('user_id', USER_ID).order('sort_order').order('created_at'),
+    SB_P.from('life_projects').select('*').eq('user_id', USER_ID).order('sort_order'),
+    SB_P.from('life_project_steps').select('*').eq('user_id', USER_ID).order('sort_order'),
+  ])
+  allAreas = areasRes.data || []
+  allLifeProjects = projRes.data || []
+  allLifeSteps = stepsRes.data || []
   if(!allAreas.length) await _seedBrujulaAreas()
   renderBrujulaAreas()
   renderBrujulaManana()
@@ -10543,19 +10552,53 @@ function renderBrujulaAreas(){
   }
   el.innerHTML = allAreas.map(area => {
     const color = area.color || '#888'
-    const tareasMañana = allTasks.filter(t => t.area_id === area.id && t.date_due === _manana() && t.status !== 'completada')
-    const badgeM = tareasMañana.length ? `<span style="background:${color};color:#000;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px">${tareasMañana.length}</span>` : ''
-    return `<div style="background:#111;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer" onclick="openFilosofiaModal('${area.id}')">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${area.enfoque_actual?'8px':'0'}">
+    const isOpen = _brujulaAreaOpen === area.id
+    const proyectos = allLifeProjects.filter(p => p.area_id === area.id && p.status === 'activo')
+    const badgeP = proyectos.length ? `<span style="background:${color}22;color:${color};font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px">${proyectos.length} proy.</span>` : ''
+
+    let proyectosHtml = ''
+    if(isOpen){
+      proyectosHtml = `<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">` +
+        proyectos.map(p => {
+          const steps = allLifeSteps.filter(s => s.project_id === p.id)
+          const pending = steps.filter(s => s.status === 'pendiente')
+          const done = steps.filter(s => s.status === 'completado')
+          const next = pending[0]
+          return `<div style="margin-bottom:12px;background:#0C0C0C;border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,0.05)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:${next?'8px':'0'}">
+              <span style="font-size:13px;font-weight:700;color:var(--text);flex:1">${p.name}</span>
+              <span style="font-size:10px;color:var(--text-muted)">${done.length}/${steps.length} pasos</span>
+              <button onclick="event.stopPropagation();openNuevoPasoModal('${p.id}')" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ paso</button>
+              <button onclick="event.stopPropagation();completarProyecto('${p.id}')" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(93,202,165,0.3);background:transparent;color:#5DCAA5;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✓ listo</button>
+            </div>
+            ${next ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${color}11;border-radius:8px;border-left:3px solid ${color}">
+              <div style="flex:1">
+                <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:.05em;margin-bottom:2px">→ SIGUIENTE PASO</div>
+                <div style="font-size:13px;color:var(--text)">${next.title}</div>
+                ${next.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${next.notes}</div>`:''}
+              </div>
+              <button onclick="event.stopPropagation();completarPaso('${next.id}')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(93,202,165,0.4);background:transparent;color:#5DCAA5;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✓</button>
+            </div>` : `<div style="font-size:12px;color:var(--text-muted);padding:4px 0">Sin pasos pendientes — <button onclick="event.stopPropagation();openNuevoPasoModal('${p.id}')" style="background:none;border:none;color:${color};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;padding:0">agrega uno</button></div>`}
+            ${pending.length > 1 ? `<div style="margin-top:6px;padding-left:4px">${pending.slice(1).map(s=>`<div style="font-size:11px;color:var(--text-muted);padding:2px 0;opacity:.6">· ${s.title}</div>`).join('')}</div>` : ''}
+          </div>`
+        }).join('') +
+        `<button onclick="event.stopPropagation();openNuevoProyectoModal('${area.id}')" style="width:100%;padding:8px;border-radius:8px;border:1px dashed rgba(255,255,255,0.12);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;margin-top:4px">+ Nuevo proyecto</button>
+      </div>`
+    }
+
+    return `<div style="background:#111;border:1px solid ${isOpen?color+'44':'rgba(255,255,255,0.06)'};border-radius:12px;padding:16px;margin-bottom:10px;transition:border-color .2s">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="_brujulaAreaOpen=_brujulaAreaOpen==='${area.id}'?null:'${area.id}';renderBrujulaAreas()">
         <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <div style="font-size:15px;font-weight:700;color:var(--text);flex:1">${area.nombre}</div>
-        ${badgeM}
-        <div style="display:flex;gap:6px">
-          <button onclick="event.stopPropagation();openEditAreaModal('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✏️</button>
-          <button onclick="event.stopPropagation();eliminarArea('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
+        ${badgeP}
+        <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+          <button onclick="openEditAreaModal('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✏️</button>
+          <button onclick="eliminarArea('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
         </div>
+        <span style="color:var(--text-muted);font-size:12px">${isOpen?'▲':'▼'}</span>
       </div>
-      ${area.enfoque_actual ? `<div style="font-size:12px;color:${color};opacity:.85;padding-left:20px">${area.enfoque_actual}</div>` : ''}
+      ${area.enfoque_actual && !isOpen ? `<div style="font-size:12px;color:${color};opacity:.85;padding-left:20px;margin-top:6px">${area.enfoque_actual}</div>` : ''}
+      ${proyectosHtml}
     </div>`
   }).join('')
 }
@@ -10669,6 +10712,96 @@ async function guardarArea(){
 async function eliminarArea(areaId){
   if(!confirm('¿Eliminar esta área?')) return
   await SB_P.from('life_areas').delete().eq('id', areaId)
+  await loadBrujula()
+}
+
+function openNuevoProyectoModal(areaId){
+  const area = allAreas.find(a => a.id === areaId)
+  const color = area?.color || '#888'
+  const el = document.createElement('div')
+  el.id = 'modal-life-project'
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
+  el.innerHTML = `<div style="background:#1a1a1a;border:1px solid ${color}44;border-radius:14px;padding:22px 20px;width:340px;max-width:92vw" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span style="font-size:15px;font-weight:700;color:var(--text)">Nuevo proyecto — ${area?.nombre||''}</span>
+      <button onclick="document.getElementById('modal-life-project').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div class="field"><label>Nombre del proyecto *</label>
+      <input id="lp-name" type="text" placeholder="Ej: Sitio web cliente X" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+    </div>
+    <div class="field" style="margin-top:10px"><label>Descripción (opcional)</label>
+      <textarea id="lp-desc" placeholder="¿Qué implica este proyecto?" rows="2" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;resize:none"></textarea>
+    </div>
+    <button onclick="_guardarProyecto('${areaId}')" style="width:100%;margin-top:14px;padding:11px;border-radius:8px;border:none;background:${color};color:#000;font-weight:700;font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif">Crear proyecto</button>
+  </div>`
+  document.body.appendChild(el)
+  el.addEventListener('click', e => { if(e.target===el) el.remove() })
+  setTimeout(() => document.getElementById('lp-name')?.focus(), 50)
+}
+
+async function _guardarProyecto(areaId){
+  const name = document.getElementById('lp-name')?.value.trim()
+  if(!name) return
+  const desc = document.getElementById('lp-desc')?.value.trim() || null
+  const rec = { id:'lp_'+Date.now(), user_id:USER_ID, area_id:areaId, name, description:desc, status:'activo', sort_order:allLifeProjects.filter(p=>p.area_id===areaId).length }
+  await SB_P.from('life_projects').insert(rec)
+  document.getElementById('modal-life-project')?.remove()
+  _brujulaAreaOpen = areaId
+  await loadBrujula()
+}
+
+function openNuevoPasoModal(projectId){
+  const proj = allLifeProjects.find(p => p.id === projectId)
+  const area = allAreas.find(a => a.id === proj?.area_id)
+  const color = area?.color || '#888'
+  const el = document.createElement('div')
+  el.id = 'modal-life-step'
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
+  el.innerHTML = `<div style="background:#1a1a1a;border:1px solid ${color}44;border-radius:14px;padding:22px 20px;width:340px;max-width:92vw" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span style="font-size:15px;font-weight:700;color:var(--text)">Nuevo paso — ${proj?.name||''}</span>
+      <button onclick="document.getElementById('modal-life-step').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div class="field"><label>Acción concreta *</label>
+      <input id="ls-title" type="text" placeholder="Ej: Diseñar wireframe home" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+    </div>
+    <div class="field" style="margin-top:10px"><label>Notas (opcional)</label>
+      <input id="ls-notes" type="text" placeholder="Contexto o detalles" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+    </div>
+    <button onclick="_guardarPaso('${projectId}')" style="width:100%;margin-top:14px;padding:11px;border-radius:8px;border:none;background:${color};color:#000;font-weight:700;font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif">Agregar paso</button>
+  </div>`
+  document.body.appendChild(el)
+  el.addEventListener('click', e => { if(e.target===el) el.remove() })
+  setTimeout(() => document.getElementById('ls-title')?.focus(), 50)
+}
+
+async function _guardarPaso(projectId){
+  const title = document.getElementById('ls-title')?.value.trim()
+  if(!title) return
+  const notes = document.getElementById('ls-notes')?.value.trim() || null
+  const existing = allLifeSteps.filter(s => s.project_id === projectId)
+  const rec = { id:'ls_'+Date.now(), user_id:USER_ID, project_id:projectId, title, notes, status:'pendiente', sort_order:existing.length }
+  await SB_P.from('life_project_steps').insert(rec)
+  document.getElementById('modal-life-step')?.remove()
+  const proj = allLifeProjects.find(p => p.id === projectId)
+  if(proj) _brujulaAreaOpen = proj.area_id
+  await loadBrujula()
+}
+
+async function completarPaso(stepId){
+  await SB_P.from('life_project_steps').update({ status:'completado' }).eq('id', stepId)
+  const step = allLifeSteps.find(s => s.id === stepId)
+  if(step) step.status = 'completado'
+  const proj = allLifeProjects.find(p => p.id === step?.project_id)
+  if(proj) _brujulaAreaOpen = proj.area_id
+  await loadBrujula()
+}
+
+async function completarProyecto(projectId){
+  if(!confirm('¿Marcar este proyecto como completado?')) return
+  await SB_P.from('life_projects').update({ status:'completado' }).eq('id', projectId)
+  const proj = allLifeProjects.find(p => p.id === projectId)
+  if(proj) { proj.status = 'completado'; _brujulaAreaOpen = proj.area_id }
   await loadBrujula()
 }
 
