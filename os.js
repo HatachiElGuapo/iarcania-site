@@ -1813,11 +1813,22 @@ function showEjerciciosModal(tipo){
     cuello:        { id:'cuello-modal',  title:'🧠 Ejercicios de cuello', ids: CUELLO_SUB_IDS,       color:'#6B7FD4' },
     nariz:         { id:'nariz-modal',   title:'👃 Ejercicios de nariz',  ids: NARIZ_SUB_IDS,        color:'#6B7FD4' },
     skincare_noche:{ id:'skin-n-modal',  title:'🌙 Skincare noche',       ids: SKINCARE_NOCHE_IDS,   color:'#378ADD' },
+    cierre:        { id:'cierre-modal',  title:'🌛 Rutina de cierre',     ids: CIERRE_SUB_IDS,       color:'#378ADD' },
   }[tipo]
   if(!cfg) return
   document.getElementById(cfg.id)?.remove()
   const subActs = cfg.ids.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
   const rows = () => subActs.map(s => {
+    if(s.id === 'a_skin_noche'){
+      const subs = SKINCARE_NOCHE_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+      const doneCount = subs.filter(x => !!habitLogs[x.id]).length
+      const allDone = subs.length > 0 && doneCount === subs.length
+      return `<div class="ritual-item${allDone?' done':''}" onclick="showEjerciciosModal('skincare_noche')" style="padding:8px 4px">
+        <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${allDone?cfg.color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${allDone?`background:${cfg.color};color:#000`:''}">${allDone?'✓':''}</div>
+        <span style="font-size:13px;color:${allDone?'var(--text-muted)':'var(--text)'};${allDone?'text-decoration:line-through':''}">${s.name}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${doneCount}/${subs.length}</span>
+      </div>`
+    }
     const done = !!habitLogs[s.id]
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${s.id}').then(()=>_reRenderEjModal('${tipo}'))" style="padding:8px 4px">
       <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?cfg.color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${cfg.color};color:#000`:''}">${done?'✓':''}</div>
@@ -2430,7 +2441,7 @@ function _minimoBtn(act){
   return `<button onclick="event.stopPropagation();showMinimumModal('${act.id}')" title="Marcar mínimo" style="background:transparent;border:1px solid rgba(201,168,76,0.3);border-radius:4px;color:rgba(201,168,76,0.6);font-size:10px;padding:1px 5px;cursor:pointer;font-family:Outfit,sans-serif;flex-shrink:0;line-height:1.4">~</button>`
 }
 
-const CIERRE_SUB_IDS = ['a_skin_noche', 'a_cambiar', 'a10']
+const CIERRE_SUB_IDS = ['a_skin_noche', 'a10']
 let _cierreExpanded = false
 let _skincareNocheExpanded = false
 let _skincareMananaExpanded = false
@@ -2509,40 +2520,14 @@ function renderRutinaNocturnaDash(){
 
     if(a.id === 'a_cierre'){
       const subActs = CIERRE_SUB_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
-      const allDone = subActs.every(x => !!habitLogs[x.id])
-      if(!_cierreExpanded){
-        const doneSubs = subActs.filter(x => !!habitLogs[x.id])
-        return `<div class="ritual-item${allDone?' done':''}" onclick="_cierreExpanded=true;renderRutinaNocturnaDash()">
-          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDone?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
-          ${hora}
-        </div>`
-      }
-      const subRows = subActs.map(s => {
-        const sDone = !!habitLogs[s.id]
-        if(s.id === 'a_skin_noche'){
-          const skinSubs = SKINCARE_NOCHE_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
-          const skinDone = skinSubs.filter(x => !!habitLogs[x.id])
-          const skinAll = skinSubs.length > 0 && skinDone.length === skinSubs.length
-          return `<div class="ritual-item${skinAll?' done':''}" onclick="event.stopPropagation();showEjerciciosModal('skincare_noche')" style="padding-left:20px">
-            <div class="ritual-check${skinAll?' done':''}" style="${skinAll?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${skinAll?'✓':''}</div>
-            <span class="ritual-label" style="font-size:12px">${s.name}</span>
-            <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${skinDone.length}/${skinSubs.length}</span>
-          </div>`
-        }
-        return `<div class="ritual-item${sDone?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderRutinaNocturnaDash)" style="padding-left:20px">
-          <div class="ritual-check${sDone?' done':''}" style="${sDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${sDone?'✓':''}</div>
-          <span class="ritual-label" style="font-size:12px">${s.name}</span>
-        </div>`
-      }).join('')
-      return `<div>
-        <div class="ritual-item" onclick="_cierreExpanded=false;renderRutinaNocturnaDash()">
-          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDone?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:#378ADD;margin-left:auto">▲ cerrar</span>
-        </div>
-        ${subRows}
+      const skinSubs = SKINCARE_NOCHE_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+      const allDone = subActs.filter(s => s.id !== 'a_skin_noche').every(x => !!habitLogs[x.id]) && skinSubs.every(x => !!habitLogs[x.id])
+      const doneSubs = [...subActs.filter(s => s.id !== 'a_skin_noche' && !!habitLogs[s.id]), ...skinSubs.filter(x => !!habitLogs[x.id])]
+      const totalSubs = subActs.filter(s => s.id !== 'a_skin_noche').length + skinSubs.length
+      return `<div class="ritual-item${allDone?' done':''}" onclick="showEjerciciosModal('cierre')">
+        <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${allDone?'✓':''}</div>
+        <span class="ritual-label">${a.name}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${totalSubs}</span>
       </div>`
     }
 
@@ -5013,7 +4998,7 @@ function isCrisisModeActive(){ return !!getCrisisHoy() }
 function todayBogota() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 let selectedDate = TODAY
 
-const SKINCARE_NOCHE_IDS  = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
+const SKINCARE_NOCHE_IDS  = ['a_cambiar','a_skin_lavar_noche','a_skin_limpiador','a_skin_hidra_noche','a_cinta_boca']
 const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
 const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_termo','a_secar_cab','a_friz','a_skin_hidra_m','a_secar_toalla','a_cambiar']
 const LIMPIEZA_VESTIR_IDS = []
