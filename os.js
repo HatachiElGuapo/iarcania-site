@@ -1826,10 +1826,15 @@ function renderMatutinaDash(){
     if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
 
     if(a.id === 'a_skin_m'){
-      return `<div class="ritual-item" onclick="showLimpiezaModal()" style="cursor:pointer">
-        <span style="font-size:16px">🚿</span>
+      const banoCompleto = _esDiaBanoCompleto()
+      const limpActs = LIMPIEZA_BANO_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+        .filter(x => x.frequency !== 'semanal' || banoCompleto)
+      const limpDone = limpActs.every(x => !!habitLogs[x.id])
+      const limpCount = limpActs.filter(x => !!habitLogs[x.id]).length
+      return `<div class="ritual-item${limpDone?' done':''}" onclick="showLimpiezaModal()" style="cursor:pointer">
+        <div class="ritual-check${limpDone?' done':''}" style="${limpDone?'background:#00C2FF;border-color:#00C2FF;color:#000':'border-color:rgba(0,194,255,0.3)'}">${limpDone?'✓':''}</div>
         <span class="ritual-label">Limpieza personal básica</span>
-        <span style="font-size:11px;color:#C4A35A;margin-left:auto">→ abrir</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${limpCount}/${limpActs.length}</span>
       </div>`
     }
 
