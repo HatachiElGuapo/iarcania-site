@@ -1309,7 +1309,10 @@
     </div>
     <div class="form-row">
       <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="t-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-      <div class="field"><label>Hora (opcional)</label><input type="time" id="t-time" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div style="display:flex;gap:8px">
+        <div class="field" style="flex:1"><label>Hora inicio</label><input type="time" id="t-time" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+        <div class="field" style="flex:1"><label>Hora fin</label><input type="time" id="t-time-end" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      </div>
     </div>
     <div id="archive-note-area" style="display:none;margin-bottom:10px">
       <textarea id="archive-note-input" rows="2" placeholder="Nota de archivo (opcional)..." style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;resize:none;box-sizing:border-box"></textarea>

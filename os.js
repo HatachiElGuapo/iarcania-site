@@ -1343,11 +1343,13 @@ function renderAgenda(){
   const agendaDateStr = getAgendaDateStr()
   const autoMap = {}
   allTasks.forEach(t => {
-    if(t.due_date===agendaDateStr && t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim())){
-      const bm = Math.floor(agendaToMin(t.notes.trim())/AGENDA_SLOT)*AGENDA_SLOT
+    const horaInicio = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
+    if(t.due_date===agendaDateStr && horaInicio){
+      const bm = Math.floor(agendaToMin(horaInicio)/AGENDA_SLOT)*AGENDA_SLOT
       const bk = agendaFromMin(Math.min(bm, 23*60+(60-AGENDA_SLOT)))
       if(!autoMap[bk]) autoMap[bk]=[]
-      autoMap[bk].push(t)
+      const dur = t.time_end ? Math.max(AGENDA_SLOT, Math.round((agendaToMin(t.time_end.slice(0,5)) - bm)/AGENDA_SLOT)*AGENDA_SLOT) : AGENDA_SLOT
+      autoMap[bk].push({...t, dur})
     }
   })
 
@@ -3919,7 +3921,7 @@ function convertirEnTarea(activityId){
   document.getElementById('t-cat').value = 'personal'
   document.getElementById('t-priority').value = 'alta'
   document.getElementById('t-due').value = ''
-  document.getElementById('t-time').value = ''
+  document.getElementById('t-time').value = ''; const _te = document.getElementById('t-time-end'); if(_te) _te.value = ''
   document.getElementById('task-delete-btn').style.display = 'none'
   openModal('task')
 }
@@ -3999,7 +4001,7 @@ function openNewTask(){
   document.getElementById('t-cat').value = 'iarcania'
   document.getElementById('t-priority').value = 'alta'
   document.getElementById('t-due').value = ''
-  document.getElementById('t-time').value = ''
+  document.getElementById('t-time').value = ''; const _te = document.getElementById('t-time-end'); if(_te) _te.value = ''
   document.getElementById('task-delete-btn').style.display = 'none'
   openModal('task')
 }
@@ -4014,6 +4016,7 @@ function openEditTask(id){
   document.getElementById('t-priority').value = task.priority || 'alta'
   document.getElementById('t-due').value = task.due_date || ''
   document.getElementById('t-time').value = task.time_due ? task.time_due.slice(0,5) : ((task.notes && /^\d{2}:\d{2}$/.test(task.notes.trim())) ? task.notes.trim() : '')
+  const _teEl = document.getElementById('t-time-end'); if(_teEl) _teEl.value = task.time_end ? task.time_end.slice(0,5) : ''
   document.getElementById('task-delete-btn').style.display = 'flex'
   document.getElementById('archive-note-area').style.display = 'none'
   document.getElementById('archive-note-input').value = ''
@@ -4072,6 +4075,7 @@ async function saveTask(){
     priority: document.getElementById('t-priority').value,
     due_date: document.getElementById('t-due').value || null,
     time_due: document.getElementById('t-time').value || null,
+    time_end: document.getElementById('t-time-end').value || null,
   }
   if(existingId){
     await SB_P.from('tasks').update(taskData).eq('id', existingId)
@@ -4808,7 +4812,7 @@ function crearTareaDesdefecha(bdId){
   document.getElementById('t-cat').value = cat
   document.getElementById('t-priority').value = 'alta'
   document.getElementById('t-due').value = ''
-  document.getElementById('t-time').value = ''
+  document.getElementById('t-time').value = ''; const _te = document.getElementById('t-time-end'); if(_te) _te.value = ''
   document.getElementById('task-delete-btn').style.display = 'none'
   openModal('task')
 }
