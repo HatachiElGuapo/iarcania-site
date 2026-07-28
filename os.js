@@ -3763,6 +3763,11 @@ function _hpDayCells(anchorDate, firstLogDate, logSet, freq){
 }
 
 function _hpDayGrid(cells, habitColor){
+  const CELL = 13, GAP = 2
+  const MN = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const DOW = ['L','M','X','J','V','S','D']
+
+  // Pad to Monday of first cell's week
   const padded = []
   if(cells.length){
     const first = new Date(cells[0].ds)
@@ -3771,19 +3776,46 @@ function _hpDayGrid(cells, habitColor){
   }
   padded.push(...cells)
   while(padded.length%7!==0) padded.push({ds:'',status:'empty'})
-  const labels = ['L','M','X','J','V','S','D']
-  return `<div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;width:100%">
-      ${labels.map(l=>`<div style="font-size:7px;color:var(--text-muted);text-align:center">${l}</div>`).join('')}
-    </div>
-    <div class="hp-grid" style="grid-template-columns:repeat(7,1fr)">
-      ${padded.map(c=>{
-        const day = c.ds ? new Date(c.ds).getUTCDate() : ''
-        const isToday = c.ds === TODAY
-        return `<div class="hp-cell ${c.status}" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:${isToday?'700':'400'};color:${c.status==='done'?'rgba(0,0,0,0.7)':c.status==='fail'?'rgba(255,255,255,0.8)':'var(--text-muted)'};${isToday?'outline:2px solid var(--accent);outline-offset:-2px;border-radius:3px':'border-radius:2px'}" title="${c.ds}">${day}</div>`
-      }).join('')}
-    </div>
+
+  const numWeeks = padded.length/7
+
+  // Build rows: row[day][week]
+  const rows = Array.from({length:7}, (_,d) =>
+    Array.from({length:numWeeks}, (_,w) => padded[w*7+d])
+  )
+
+  // Month labels: one per week column (show label on first week of each month)
+  let lastMonth = -1
+  const monthCols = Array.from({length:numWeeks}, (_,w) => {
+    const cell = rows.find(r => r[w]?.ds)?.[w]
+    if(!cell?.ds) return ''
+    const m = new Date(cell.ds).getMonth()
+    if(m !== lastMonth){ lastMonth = m; return MN[m] }
+    return ''
+  })
+
+  const cs = `width:${CELL}px;height:${CELL}px;flex-shrink:0;border-radius:2px`
+
+  const monthRow = `<div style="display:flex;gap:${GAP}px;margin-left:${CELL+GAP+2}px;margin-bottom:2px">
+    ${monthCols.map(l => `<div style="width:${CELL}px;font-size:7px;color:var(--text-muted);flex-shrink:0">${l}</div>`).join('')}
   </div>`
+
+  const dayRows = rows.map((row, i) => {
+    const showLabel = i===0||i===2||i===4||i===6
+    const cells = row.map(c => {
+      const isToday = c.ds === TODAY
+      const txtColor = c.status==='done' ? 'rgba(0,0,0,0.65)' : c.status==='fail' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)'
+      const day = c.ds ? new Date(c.ds).getUTCDate() : ''
+      const extra = isToday ? `;outline:2px solid var(--accent);outline-offset:-2px` : ''
+      return `<div class="hp-cell ${c.status}" style="${cs}${extra};display:flex;align-items:center;justify-content:center;font-size:6px;color:${txtColor}" title="${c.ds}">${day}</div>`
+    }).join('')
+    return `<div style="display:flex;align-items:center;gap:${GAP}px;margin-bottom:${GAP}px">
+      <div style="width:${CELL}px;font-size:7px;color:var(--text-muted);text-align:right;flex-shrink:0">${showLabel ? DOW[i] : ''}</div>
+      ${cells}
+    </div>`
+  }).join('')
+
+  return `<div style="overflow-x:auto">${monthRow}${dayRows}</div>`
 }
 
 function _hpDayList(cells, habitColor, firstLogDate){
