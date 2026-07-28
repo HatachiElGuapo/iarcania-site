@@ -1808,6 +1808,55 @@ function showLimpiezaModal(){
   overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove() })
 }
 
+function showEjerciciosModal(tipo){
+  const cfg = {
+    cuello: { id:'cuello-modal', title:'🧠 Ejercicios de cuello', ids: CUELLO_SUB_IDS, color:'#6B7FD4' },
+    nariz:  { id:'nariz-modal',  title:'👃 Ejercicios de nariz',  ids: NARIZ_SUB_IDS,  color:'#6B7FD4' },
+  }[tipo]
+  if(!cfg) return
+  document.getElementById(cfg.id)?.remove()
+  const subActs = cfg.ids.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  const rows = () => subActs.map(s => {
+    const done = !!habitLogs[s.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${s.id}').then(()=>_reRenderEjModal('${tipo}'))" style="padding:8px 4px">
+      <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?cfg.color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${cfg.color};color:#000`:''}">${done?'✓':''}</div>
+      <span style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''}">${s.name}</span>
+    </div>`
+  }).join('')
+  const overlay = document.createElement('div')
+  overlay.id = cfg.id
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
+  overlay.innerHTML = `
+    <div style="background:#1a1a1a;border:1px solid var(--border);border-radius:14px;padding:20px;width:300px;max-width:92vw;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:15px;font-weight:700;color:var(--text)">${cfg.title}</span>
+        <button onclick="document.getElementById('${cfg.id}').remove()" style="background:transparent;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0;line-height:1">✕</button>
+      </div>
+      <div id="${cfg.id}-rows">${rows()}</div>
+    </div>`
+  document.body.appendChild(overlay)
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove() })
+}
+
+function _reRenderEjModal(tipo){
+  const cfg = {
+    cuello: { id:'cuello-modal', ids: CUELLO_SUB_IDS, color:'#6B7FD4' },
+    nariz:  { id:'nariz-modal',  ids: NARIZ_SUB_IDS,  color:'#6B7FD4' },
+  }[tipo]
+  if(!cfg) return
+  const el = document.getElementById(cfg.id+'-rows')
+  if(!el) return
+  const subActs = cfg.ids.map(id => allActivities.find(a => a.id === id)).filter(Boolean)
+  el.innerHTML = subActs.map(s => {
+    const done = !!habitLogs[s.id]
+    return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${s.id}').then(()=>_reRenderEjModal('${tipo}'))" style="padding:8px 4px">
+      <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?cfg.color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${cfg.color};color:#000`:''}">${done?'✓':''}</div>
+      <span style="font-size:13px;color:${done?'var(--text-muted)':'var(--text)'};${done?'text-decoration:line-through':''}">${s.name}</span>
+    </div>`
+  }).join('')
+  renderSecundariosNocheDash()
+}
+
 function _renderLimpiezaModalRows(){
   const el = document.getElementById('limpieza-modal-rows')
   if(!el) return
@@ -2598,56 +2647,17 @@ function renderSecundariosNocheDash(){
   if(!acts.length){ el.innerHTML = '<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">Sin actividades configuradas</div>'; return }
   el.innerHTML = acts.map(a => {
     const done = !!habitLogs[a.id]
-    if(a.id === 'a_ej_cuello'){
-      const subActs = CUELLO_SUB_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+    if(a.id === 'a_ej_cuello' || a.id === 'a_ej_nariz'){
+      const tipo = a.id === 'a_ej_cuello' ? 'cuello' : 'nariz'
+      const subIds = a.id === 'a_ej_cuello' ? CUELLO_SUB_IDS : NARIZ_SUB_IDS
+      const subActs = subIds.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
       const doneSubs = subActs.filter(x => !!habitLogs[x.id])
-      const allDone = doneSubs.length === subActs.length && subActs.length > 0
-      if(!_cuelloExpanded){
-        return `<div class="ritual-item${allDone?' done':''}" onclick="_cuelloExpanded=true;renderSecundariosNocheDash()">
-          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${allDone?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
-        </div>`
-      }
-      const subRows = subActs.map(s => {
-        const sd = !!habitLogs[s.id]
-        return `<div class="ritual-item${sd?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderSecundariosNocheDash)" style="padding-left:24px">
-          <div class="ritual-check${sd?' done':''}" style="${sd?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${sd?'✓':''}</div>
-          <span class="ritual-label">${s.name}</span>
-        </div>`
-      }).join('')
-      return `<div>
-        <div class="ritual-item" onclick="_cuelloExpanded=false;renderSecundariosNocheDash()" style="opacity:.6">
-          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${allDone?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:var(--text-muted);margin-left:auto">▲ cerrar</span>
-        </div>
-        ${subRows}
+      const allDone = subActs.length > 0 && doneSubs.length === subActs.length
+      return `<div class="ritual-item${allDone?' done':''}" onclick="showEjerciciosModal('${tipo}')">
+        <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${allDone?'✓':''}</div>
+        <span class="ritual-label">${a.name}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
       </div>`
-    }
-    if(a.id === 'a_ej_nariz'){
-      const subActs = NARIZ_SUB_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
-      const doneSubs = subActs.filter(x => !!habitLogs[x.id])
-      const allDone = doneSubs.length === subActs.length && subActs.length > 0
-      if(!_narizExpanded){
-        return `<div class="ritual-item${allDone?' done':''}" onclick="_narizExpanded=true;renderSecundariosNocheDash()">
-          <div class="ritual-check${allDone?' done':''}" style="${allDone?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${allDone?'✓':''}</div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:var(--text-muted);margin-left:auto;opacity:.7">${doneSubs.length}/${subActs.length}</span>
-        </div>`
-      }
-      const subRows = subActs.map(s => {
-        const sd = !!habitLogs[s.id]
-        return `<div class="ritual-item${sd?' done':''}" onclick="toggleHabito('${s.id}')" style="padding-left:24px">
-          <div class="ritual-check${sd?' done':''}" style="${sd?'background:#6B7FD4;border-color:#6B7FD4;color:#000':'border-color:rgba(107,127,212,0.4)'}">${sd?'✓':''}</div>
-          <span class="ritual-label">${s.name}</span>
-        </div>`
-      }).join('')
-      return `<div class="ritual-item" onclick="_narizExpanded=false;renderSecundariosNocheDash()" style="opacity:.6;font-size:11px">
-          <div class="ritual-check" style="border-color:rgba(107,127,212,0.4)"></div>
-          <span class="ritual-label">${a.name}</span>
-          <span style="font-size:10px;color:var(--text-muted);margin-left:auto">▲ cerrar</span>
-        </div>${subRows}`
     }
     const isMin = !!habitLogs[a.id]?.is_minimum
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}')">
