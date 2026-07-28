@@ -1688,6 +1688,7 @@ function update2020Widget(){
   renderTrabajoDash()
   renderInicioDiaDash()
   renderRutinaNocturnaDash()
+  renderCierreDiaDash()
   renderPermisosDia()
   renderSecundariosNocheDash()
 }
