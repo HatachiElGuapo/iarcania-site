@@ -1688,6 +1688,7 @@ function update2020Widget(){
   renderTrabajoDash()
   renderInicioDiaDash()
   renderRutinaNocturnaDash()
+  renderPermisosDia()
   renderSecundariosNocheDash()
 }
 
@@ -6850,6 +6851,7 @@ async function toggleHabito(activityId){
 
   renderHabitos()
   update2020Widget()
+  renderPermisosDia()
 }
 
 // ── SISTEMA DE MÍNIMOS ──────────────────────────────────────────────────────
@@ -11813,4 +11815,97 @@ async function cargarPlanDia(){
   closeModal('plan-dia')
   renderTasks()
   showToast(`✅ ${parsed.length} tareas creadas para ${fecha}`)
+}
+
+// ─── SISTEMA DE PERMISOS ──────────────────────────────────────────────────────
+
+const PERMISOS_ESTANDAR = [
+  { id:'ep1', icon:'🎬', label:'Ver un episodio de serie' },
+  { id:'ep2', icon:'🎮', label:'30 min de videojuego o entretenimiento libre' },
+  { id:'ep3', icon:'🍕', label:'Pedir comida sin culpa' },
+]
+const PERMISOS_IDEAL = [
+  { id:'ip1', icon:'🎬', label:'Maratón de 2-3 episodios' },
+  { id:'ip2', icon:'🎮', label:'2 horas de tiempo libre total' },
+  { id:'ip3', icon:'🛍️', label:'Compra pequeña que tengas pendiente' },
+  { id:'ip4', icon:'🌙', label:'Noche libre sin agenda' },
+]
+
+function _getPermisosData(){
+  try { return JSON.parse(localStorage.getItem('permisos_data') || '{}') } catch(e){ return {} }
+}
+function _savePermisosData(d){ localStorage.setItem('permisos_data', JSON.stringify(d)) }
+
+function _calcTipoDia(){
+  const modo = localStorage.getItem('modo_emergencia')
+  if(modo && modo !== 'null' && modo !== 'estandar') return null // mínimo/enfermo/especial = sin permisos
+  const acts = allActivities.filter(a => a.is_active && (a.frequency||'diaria') === 'diaria')
+  if(!acts.length) return null
+  const completadas = acts.filter(a => !!habitLogs[a.id]).length
+  const pct = completadas / acts.length
+  if(pct >= 0.85) return 'ideal'
+  if(pct >= 0.5 || modo === 'estandar') return 'estandar'
+  return null
+}
+
+function _updatePermisosStreak(tipoDia){
+  const d = _getPermisosData()
+  const hoy = TODAY
+  if(d.lastDate === hoy) return d // ya procesado hoy
+  if(!tipoDia){ // día sin permisos, rompe racha
+    d.racha = 0
+    d.lastDate = hoy
+    _savePermisosData(d)
+    return d
+  }
+  // día con permisos
+  const ayer = new Date(hoy); ayer.setDate(ayer.getDate()-1)
+  const ayerStr = ayer.toLocaleDateString('en-CA')
+  if(d.lastDate === ayerStr) d.racha = (d.racha||0) + 1
+  else d.racha = 1
+  d.lastDate = hoy
+  // racha de 3 → +1 día descanso
+  if(d.racha > 0 && d.racha % 3 === 0){
+    d.descansos = (d.descansos||0) + 1
+    d.bonusSemana = (d.bonusSemana||0) + 1
+    // semana completa (7 días) → acumula 3
+    if(d.racha % 7 === 0) d.descansos = (d.descansos||0) + 2 // ya sumó 1 arriba
+  }
+  _savePermisosData(d)
+  return d
+}
+
+function usarDiaDescanso(){
+  const d = _getPermisosData()
+  if(!d.descansos || d.descansos < 1) return showToast('No tienes días de descanso acumulados')
+  if(!confirm('¿Usar un día de descanso? La siguiente semana tu bono vuelve a 1 día.')) return
+  d.descansos = d.descansos - 1
+  d.bonusSemana = 1 // resetea bono
+  _savePermisosData(d)
+  renderPermisosDia()
+  showToast('🌿 Día de descanso activado — disfrútalo sin culpa')
+}
+
+function renderPermisosDia(){
+  const el = document.getElementById('permisos-widget')
+  if(!el) return
+  const tipoDia = _calcTipoDia()
+  const d = _getPermisosData()
+  const descansos = d.descansos || 0
+  const racha = d.racha || 0
+  if(!tipoDia && descansos === 0){ el.innerHTML = ''; return }
+  const permisos = tipoDia === 'ideal' ? PERMISOS_IDEAL : tipoDia === 'estandar' ? PERMISOS_ESTANDAR : []
+  const color = tipoDia === 'ideal' ? '#8B6CF6' : '#378ADD'
+  const label = tipoDia === 'ideal' ? '✨ Día ideal' : '⚡ Día estándar'
+  el.innerHTML = `<div style="background:#111;border:1px solid ${color}33;border-radius:12px;padding:14px 16px;margin-bottom:12px;border-left:3px solid ${color}">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700;color:${color}">${label}</span>
+      <span style="font-size:10px;color:var(--text-muted);margin-left:auto">🔥 ${racha} días seguidos</span>
+      ${descansos > 0 ? `<button onclick="usarDiaDescanso()" style="padding:3px 10px;border-radius:6px;border:1px solid rgba(93,202,165,0.4);background:transparent;color:#5DCAA5;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">🌿 ${descansos} día${descansos>1?'s':''} descanso</button>` : ''}
+    </div>
+    ${permisos.length ? `<div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.06em;margin-bottom:6px">PERMISOS DE HOY</div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      ${permisos.map(p=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)"><span>${p.icon}</span><span>${p.label}</span></div>`).join('')}
+    </div>` : ''}
+  </div>`
 }
