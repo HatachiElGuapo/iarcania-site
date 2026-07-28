@@ -11602,3 +11602,74 @@ function _playBeep(times = 1, type = 'timer'){
     }
   } catch(e){ console.warn('Audio error:', e) }
 }
+
+// ============================================================
+// CARGAR PLAN DEL DÍA
+// ============================================================
+function openPlanDiaModal(){
+  const manana = _manana()
+  document.getElementById('plan-dia-fecha').value = manana
+  document.getElementById('plan-dia-texto').value = ''
+  document.getElementById('plan-dia-preview').innerHTML = ''
+  openModal('plan-dia')
+}
+
+function _parsePlanLinea(linea){
+  const trim = linea.trim()
+  if(!trim) return null
+  const m = trim.match(/^(\d{1,2}:\d{2})\s+(.+)$/)
+  if(m) return { hora: m[1].padStart(5,'0'), titulo: m[2].trim() }
+  return { hora: null, titulo: trim }
+}
+
+function planDiaPreview(){
+  const lines = document.getElementById('plan-dia-texto').value.split('\n')
+  const parsed = lines.map(_parsePlanLinea).filter(Boolean)
+  const el = document.getElementById('plan-dia-preview')
+  if(!parsed.length){ el.innerHTML = ''; return }
+
+  el.innerHTML = `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+    ${parsed.map((t,i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:${i<parsed.length-1?'1px solid rgba(255,255,255,0.04)':'none'}">
+      <span style="font-size:11px;font-weight:700;color:#8B6CF6;min-width:40px">${t.hora||'—'}</span>
+      <span style="font-size:13px;color:var(--text)">${t.titulo}</span>
+    </div>`).join('')}
+  </div>
+  <div style="font-size:11px;color:var(--text-muted);margin-top:6px;text-align:right">${parsed.length} tarea${parsed.length!==1?'s':''}</div>`
+
+  document.getElementById('plan-dia-btn').textContent = `Crear ${parsed.length} tarea${parsed.length!==1?'s':''}`
+}
+
+async function cargarPlanDia(){
+  const texto  = document.getElementById('plan-dia-texto').value
+  const fecha  = document.getElementById('plan-dia-fecha').value
+  const cat    = document.getElementById('plan-dia-cat').value
+  if(!fecha){ showToast('Elige una fecha'); return }
+
+  const parsed = texto.split('\n').map(_parsePlanLinea).filter(Boolean)
+  if(!parsed.length){ showToast('Escribe al menos una tarea'); return }
+
+  const btn = document.getElementById('plan-dia-btn')
+  btn.textContent = 'Creando...'; btn.disabled = true
+
+  for(const t of parsed){
+    const task = {
+      id: 'task_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      title: t.titulo,
+      category: cat,
+      due_date: fecha,
+      notes: t.hora || null,
+      priority: 'alta',
+      status: 'pendiente',
+      assigned_to: USER_ID,
+      created_by: USER_ID,
+    }
+    const { data, error } = await SB_P.from('tasks').insert(task).select().single()
+    if(data) allTasks.push(data)
+    else if(error) console.warn('Error insertando tarea:', error)
+    await new Promise(r => setTimeout(r, 80))
+  }
+
+  closeModal('plan-dia')
+  renderTasks()
+  showToast(`✅ ${parsed.length} tareas creadas para ${fecha}`)
+}
