@@ -1688,7 +1688,6 @@ function update2020Widget(){
   renderTrabajoDash()
   renderInicioDiaDash()
   renderRutinaNocturnaDash()
-  renderCierreDiaDash()
   renderPermisosDia()
   renderSecundariosNocheDash()
 }
@@ -2431,7 +2430,7 @@ function _minimoBtn(act){
   return `<button onclick="event.stopPropagation();showMinimumModal('${act.id}')" title="Marcar mínimo" style="background:transparent;border:1px solid rgba(201,168,76,0.3);border-radius:4px;color:rgba(201,168,76,0.6);font-size:10px;padding:1px 5px;cursor:pointer;font-family:Outfit,sans-serif;flex-shrink:0;line-height:1.4">~</button>`
 }
 
-const CIERRE_SUB_IDS = ['a_cambiar', 'a10']  // Cambiarme, Ropa siguiente día
+const CIERRE_SUB_IDS = ['a_skin_noche', 'a_cambiar', 'a10']
 let _cierreExpanded = false
 let _skincareNocheExpanded = false
 let _skincareMananaExpanded = false
@@ -2522,6 +2521,16 @@ function renderRutinaNocturnaDash(){
       }
       const subRows = subActs.map(s => {
         const sDone = !!habitLogs[s.id]
+        if(s.id === 'a_skin_noche'){
+          const skinSubs = SKINCARE_NOCHE_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
+          const skinDone = skinSubs.filter(x => !!habitLogs[x.id])
+          const skinAll = skinSubs.length > 0 && skinDone.length === skinSubs.length
+          return `<div class="ritual-item${skinAll?' done':''}" onclick="event.stopPropagation();showEjerciciosModal('skincare_noche')" style="padding-left:20px">
+            <div class="ritual-check${skinAll?' done':''}" style="${skinAll?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${skinAll?'✓':''}</div>
+            <span class="ritual-label" style="font-size:12px">${s.name}</span>
+            <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${skinDone.length}/${skinSubs.length}</span>
+          </div>`
+        }
         return `<div class="ritual-item${sDone?' done':''}" onclick="event.stopPropagation();toggleHabito('${s.id}').then(renderRutinaNocturnaDash)" style="padding-left:20px">
           <div class="ritual-check${sDone?' done':''}" style="${sDone?'background:#378ADD;border-color:#378ADD;color:#000':'border-color:rgba(55,138,221,0.4)'}">${sDone?'✓':''}</div>
           <span class="ritual-label" style="font-size:12px">${s.name}</span>
