@@ -3777,7 +3777,11 @@ function _hpDayGrid(cells, habitColor){
       ${labels.map(l=>`<div style="font-size:7px;color:var(--text-muted);text-align:center">${l}</div>`).join('')}
     </div>
     <div class="hp-grid" style="grid-template-columns:repeat(7,1fr)">
-      ${padded.map(c=>`<div class="hp-cell ${c.status}" style="aspect-ratio:1" title="${c.ds}"></div>`).join('')}
+      ${padded.map(c=>{
+        const day = c.ds ? new Date(c.ds).getUTCDate() : ''
+        const isToday = c.ds === TODAY
+        return `<div class="hp-cell ${c.status}" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:${isToday?'700':'400'};color:${c.status==='done'?'rgba(0,0,0,0.7)':c.status==='fail'?'rgba(255,255,255,0.8)':'var(--text-muted)'};${isToday?'outline:2px solid var(--accent);outline-offset:-2px;border-radius:3px':'border-radius:2px'}" title="${c.ds}">${day}</div>`
+      }).join('')}
     </div>
   </div>`
 }
