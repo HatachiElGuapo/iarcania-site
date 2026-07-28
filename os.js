@@ -1751,9 +1751,7 @@ function _limpiezaAllIds(){ return [...LIMPIEZA_BANO_IDS, ...LIMPIEZA_VESTIR_IDS
 function renderLimpiezaDash(){
   const el = document.getElementById('dash-limpieza-body')
   if(!el) return
-  const banoCompleto = _esDiaBanoCompleto()
   const allActs = _limpiezaAllIds().map(id => allActivities.find(a => a.id === id)).filter(Boolean)
-    .filter(a => a.frequency !== 'semanal' || banoCompleto)
   const done  = allActs.every(a => !!habitLogs[a.id])
   const count = allActs.filter(a => !!habitLogs[a.id]).length
 
@@ -1772,11 +1770,9 @@ function _esDiaBanoCompleto(){
 }
 
 function _limpiezaSeccionRows(ids, color){
-  const banoCompleto = _esDiaBanoCompleto()
   return ids.map(id => {
     const a = allActivities.find(x => x.id === id)
     if(!a) return ''
-    if(a.frequency === 'semanal' && !banoCompleto) return ''
     const done = !!habitLogs[a.id]
     return `<div class="ritual-item${done?' done':''}" onclick="toggleHabito('${a.id}').then(()=>{renderLimpiezaDash();_renderLimpiezaModalRows()})" style="padding:8px 4px">
       <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${done?color:'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;${done?`background:${color};color:#000`:''}">${done?'✓':''}</div>
@@ -1826,9 +1822,7 @@ function renderMatutinaDash(){
     if(SLOT_HABITS[a.id]) return renderSlotHabito(a.id, a.name)
 
     if(a.id === 'a_skin_m'){
-      const banoCompleto = _esDiaBanoCompleto()
       const limpActs = LIMPIEZA_BANO_IDS.map(id => allActivities.find(x => x.id === id)).filter(Boolean)
-        .filter(x => x.frequency !== 'semanal' || banoCompleto)
       const limpDone = limpActs.every(x => !!habitLogs[x.id])
       const limpCount = limpActs.filter(x => !!habitLogs[x.id]).length
       return `<div class="ritual-item${limpDone?' done':''}" onclick="showLimpiezaModal()" style="cursor:pointer">
