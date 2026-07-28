@@ -4952,8 +4952,8 @@ let selectedDate = TODAY
 
 const SKINCARE_NOCHE_IDS  = ['a_skin_micelar','a_skin_lavar_n','a_skin_hidra_n','a_skin_contorno_n','a_skin_exfol','a_skin_masca']
 const SKINCARE_MANANA_IDS = ['a_skin_lavar_m','a_skin_hidra_m','a_skin_solar','a_skin_contorno_m']
-const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_secar_toalla']
-const LIMPIEZA_VESTIR_IDS = ['a_secar_cab','a_cambiar']
+const LIMPIEZA_BANO_IDS   = ['a_skin_micelar','a14','a_perfume','a_skin_contorno_n','a_skin_hidra_n','a_skin_solar','a_skin_exfol','a_skin_masca','a_secar_toalla','a_skin_hidra_m','a_termo','a_secar_cab','a_friz']
+const LIMPIEZA_VESTIR_IDS = ['a_cambiar']
 const SKINCARE_SEED = [
   {id:'a_skin_micelar',   name:'Agua micelar (cabello)',   category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:1},
   {id:'a_skin_lavar_n',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:2},
@@ -4966,6 +4966,8 @@ const SKINCARE_SEED = [
   {id:'a_skin_lavar_m',   name:'Lavar cara',       category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:7},
   {id:'a_skin_hidra_m',   name:'Crema hidratante manos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:8},
   {id:'a_skin_solar',     name:'Filtro solar',     category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:9},
+  {id:'a_termo',          name:'Termo protector',  category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:13},
+  {id:'a_friz',           name:'Friz',             category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:14},
   {id:'a_skin_contorno_m',name:'Contorno de ojos', category:'skincare_sub', frequency:'diaria', is_active:true, sort_order:10},
   {id:'a_secar_cab',      name:'Secar cabello',    category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:11},
   {id:'a_secar_toalla',   name:'Secar toalla, gorro y chancletas', category:'limpieza_sub', frequency:'diaria', is_active:true, sort_order:12},
