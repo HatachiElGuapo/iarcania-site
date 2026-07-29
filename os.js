@@ -5233,9 +5233,9 @@ async function loadHabitos(){
   })
 
   renderHabitos()
+  update2020Widget()
   if(selectedDate === TODAY){
     renderVicios()
-    update2020Widget()
     renderAlimentacionDash()
   }
 }
