@@ -1336,7 +1336,8 @@ function renderAgenda(){
       const bk = agendaFromMin(Math.min(bm, 23*60+(60-AGENDA_SLOT)))
       const color = CAT_COLORS[a.category]||'#555'
       const done = !!habitLogs[a.id]
-      const dur = a.hora_fin ? Math.max(AGENDA_SLOT, Math.round((agendaToMin(a.hora_fin) - bm)/AGENDA_SLOT)*AGENDA_SLOT) : AGENDA_SLOT
+      const _endMin = a.hora_fin ? agendaToMin(a.hora_fin) : null
+      const dur = _endMin !== null ? Math.max(AGENDA_SLOT, Math.round(((_endMin < bm ? _endMin + 24*60 : _endMin) - bm)/AGENDA_SLOT)*AGENDA_SLOT) : AGENDA_SLOT
       if(!autoMap[bk]) autoMap[bk]=[]
       autoMap[bk].push({id:a.id, title:a.name, category:a.category, status: done?'completada':'pendiente', time_end:a.hora_fin||null, dur, _isHabit:true, _color:color})
       const n = Math.ceil(dur/AGENDA_SLOT)
