@@ -9936,17 +9936,26 @@ function renderExpenses(){
   const total = filtered.reduce((s,e) => s + Number(e.amount||0), 0)
   const porCat = {}
   filtered.forEach(e => { const c = e.category||'otros'; porCat[c] = (porCat[c]||0) + Number(e.amount||0) })
+  const budgets = JSON.parse(localStorage.getItem('budgets_cat') || '{}')
   const catGrid = Object.entries(porCat).sort((a,b) => b[1]-a[1]).map(([c,t]) => {
     const {label,icon} = GASTO_CATS[c] || {label:c,icon:'📦'}
     const pct = total > 0 ? Math.round(t/total*100) : 0
-    return `<div style="background:#0A0A0A;border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+    const budget = budgets[c] || 0
+    const budgetPct = budget > 0 ? Math.min(Math.round(t/budget*100), 100) : 0
+    const overBudget = budget > 0 && t > budget
+    const barColor = !budget ? 'var(--red)' : overBudget ? '#E24B4A' : '#5DCAA5'
+    const budgetLabel = budget > 0
+      ? `<span onclick="editBudget('${c}')" style="font-size:10px;color:${overBudget?'#E24B4A':'var(--text-muted)'};cursor:pointer;text-decoration:underline dotted" title="Clic para editar presupuesto">${overBudget?'⚠️ ':''}${fmt(t)} / ${fmt(budget)}</span>`
+      : `<span onclick="editBudget('${c}')" style="font-size:10px;color:var(--text-muted);cursor:pointer;opacity:.6" title="Clic para establecer presupuesto">+ presupuesto</span>`
+    return `<div style="background:#0A0A0A;border:1px solid ${overBudget?'rgba(226,75,74,0.3)':'var(--border)'};border-radius:8px;padding:10px 12px">
       <div style="display:flex;justify-content:space-between;margin-bottom:5px">
         <span style="font-size:12px;color:var(--text-muted)">${icon} ${label}</span>
         <span style="font-size:11px;color:var(--text-muted)">${pct}%</span>
       </div>
-      <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:6px">${fmt(t)}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:4px">${fmt(t)}</div>
+      <div style="margin-bottom:6px">${budgetLabel}</div>
       <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px">
-        <div style="height:100%;width:${pct}%;background:var(--red);border-radius:2px"></div>
+        <div style="height:100%;width:${budget?budgetPct:pct}%;background:${barColor};border-radius:2px"></div>
       </div>
     </div>`
   }).join('')
@@ -10031,6 +10040,19 @@ function renderExpenses(){
   }).join('')
 
   el.innerHTML = navHtml + balanceHtml + resumenHtml + chartHtml + listHtml
+}
+
+function editBudget(cat){
+  const {label} = GASTO_CATS[cat] || {label:cat}
+  const budgets = JSON.parse(localStorage.getItem('budgets_cat') || '{}')
+  const current = budgets[cat] || ''
+  const val = prompt(`Presupuesto mensual para ${label} (COP, 0 para quitar):`, current)
+  if(val === null) return
+  const n = Number(val.replace(/\D/g,''))
+  if(n > 0) budgets[cat] = n
+  else delete budgets[cat]
+  localStorage.setItem('budgets_cat', JSON.stringify(budgets))
+  renderExpenses()
 }
 
 function openModalGasto(){
