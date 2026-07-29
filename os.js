@@ -10124,8 +10124,15 @@ function renderMetasCompra(){
     </div>`
   }
 
+  const totAlta  = pendientes.filter(m=>m.priority==='alta').reduce((s,m)=>s+(m.price||0),0)
+  const totMedia = pendientes.filter(m=>m.priority==='media').reduce((s,m)=>s+(m.price||0),0)
+  const totBaja  = pendientes.filter(m=>m.priority==='baja').reduce((s,m)=>s+(m.price||0),0)
+  const prioBars = [['alta','#E24B4A',totAlta],['media','#EF9F27',totMedia],['baja','#5DCAA5',totBaja]]
+    .filter(([,,v])=>v>0)
+    .map(([l,c,v])=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px"><span style="color:${c}">${l.charAt(0).toUpperCase()+l.slice(1)}</span><span style="color:var(--text)">${fmt(v)}</span></div>`).join('')
+
   el.innerHTML =
-    (total > 0 ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Total estimado pendiente: <strong style="color:var(--text)">${fmt(total)}</strong></div>` : '') +
+    (total > 0 ? `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">${prioBars}<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text-muted)">Total estimado</span><strong style="color:var(--text)">${fmt(total)}</strong></div></div>` : '') +
     pendientes.map(renderItem).join('') +
     (compradas.length ? `<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin:16px 0 8px">Compradas</div>` + compradas.map(renderItem).join('') : '')
 }
