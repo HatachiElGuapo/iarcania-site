@@ -417,40 +417,6 @@
           </div>
         </div>
 
-        <!-- 4. Tareas extra -->
-        <div class="dash-section" style="border-color:rgba(139,108,246,0.2)">
-          <div class="dash-section-hdr" onclick="toggleDashSection('extra')">
-            <span style="font-size:13px;font-weight:600;color:#8B6CF6">⚡ Tareas extra</span>
-            <span class="dash-arrow" id="dash-extra-arrow">▼</span>
-          </div>
-          <div class="dash-section-body collapsed" id="dash-extra-body">
-            <div class="task-list" id="extra-tasks"></div>
-            <div style="padding:6px 0 2px">
-              <div id="btns-add-extra" style="display:flex;gap:6px">
-                <button onclick="openExtraTaskPanel()" style="flex:1;background:transparent;border:1px dashed var(--border);border-radius:7px;padding:8px 10px;color:var(--text-muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center">+ Agregar tarea</button>
-                <button onclick="openExtraCitasPanel()" style="background:transparent;border:1px dashed rgba(239,159,39,0.4);border-radius:7px;padding:8px 10px;color:#EF9F27;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-align:center;white-space:nowrap">📅 Desde citas</button>
-              </div>
-              <div id="panel-add-extra" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border)">
-                  <span style="font-size:12px;font-weight:600;color:var(--text-dim)">Seleccionar tareas</span>
-                  <button onclick="closeExtraTaskPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
-                </div>
-                <div style="padding:8px 10px 4px">
-                  <input type="text" id="search-extra-panel" placeholder="🔍 Filtrar tareas..." oninput="renderExtraTaskPanel(this.value)" style="width:100%;background:#111;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
-                </div>
-                <div id="panel-extra-list" style="max-height:280px;overflow-y:auto"></div>
-              </div>
-              <div id="panel-citas-extra" style="display:none;margin-top:6px;background:#0C0C0C;border:1px solid rgba(239,159,39,0.25);border-radius:8px;overflow:hidden">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(239,159,39,0.15)">
-                  <span style="font-size:12px;font-weight:600;color:#EF9F27">📅 Citas disponibles</span>
-                  <button onclick="closeExtraCitasPanel()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 4px;font-family:'Outfit',sans-serif">✕ Cerrar</button>
-                </div>
-                <div id="panel-citas-extra-list" style="max-height:280px;overflow-y:auto"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <!-- Tabla de tareas de trabajo -->
