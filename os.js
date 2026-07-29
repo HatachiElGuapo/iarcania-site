@@ -2271,7 +2271,7 @@ function renderWorkTasksTable(){
   const end = new Date(TODAY); end.setDate(end.getDate() + days)
   const endStr = end.toISOString().slice(0,10)
   const tasks = (allTasks || [])
-    .filter(t => t.category === 'trabajo' && t.status !== 'archivada' && t.due_date && t.due_date <= endStr)
+    .filter(t => t.status !== 'archivada' && t.due_date && t.due_date <= endStr)
     .sort((a,b) => {
       const ao = a.status === 'completada' ? 1 : 0
       const bo = b.status === 'completada' ? 1 : 0
