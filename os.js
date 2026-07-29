@@ -3763,7 +3763,7 @@ function _hpDayCells(anchorDate, firstLogDate, logSet, freq, minimoSet=new Set()
 }
 
 function _hpDayGrid(cells, habitColor){
-  const CELL = 110, GAP = 6
+  const CELL = 140, GAP = 6
   const MN = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   const DOW = ['L','M','X','J','V','S','D']
 
