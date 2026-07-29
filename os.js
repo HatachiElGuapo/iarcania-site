@@ -11309,7 +11309,8 @@ function filterSelectorTareas(q){
 function renderSelectorTareas(q){
   const el = document.getElementById('st-lista')
   if(!el) return
-  const pending  = allTasks.filter(t => t.status !== 'completada')
+  const hoyIds = new Set(hoyFocusItems.map(x => x.task_id))
+  const pending  = allTasks.filter(t => t.status !== 'completada' && !hoyIds.has(t.id))
   const filtered = q ? pending.filter(t => t.title.toLowerCase().includes(q)) : pending
 
   if(!filtered.length){
