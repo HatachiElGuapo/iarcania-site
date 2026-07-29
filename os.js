@@ -520,6 +520,7 @@ function switchDineroTab(tab){
   if(tab === 'gastos')   loadExpenses()
   if(tab === 'facturas') loadFacturas()
   if(tab === 'cobros')   loadPayments()
+  if(tab === 'escanear') loadScanHistory()
 }
 
 // --- TASKS ---
@@ -9843,6 +9844,7 @@ async function saveMovimiento(){
 
 // --- GASTOS ---
 let allExpenses = []
+let allIncome = []
 // _gastoMes: offset en meses desde el actual (0 = actual, -1 = anterior, etc.)
 let _gastoMes = 0
 
@@ -9858,8 +9860,12 @@ const GASTO_CATS = {
 }
 
 async function loadExpenses(){
-  const { data } = await SB_P.from('expenses').select('*').order('date',{ascending:false})
-  allExpenses = data || []
+  const [expRes, incRes] = await Promise.all([
+    SB_P.from('expenses').select('*').order('date',{ascending:false}),
+    SB_P.from('income').select('*').order('date',{ascending:false})
+  ])
+  allExpenses = expRes.data || []
+  allIncome   = incRes.data || []
   renderExpenses()
 }
 
@@ -9901,6 +9907,29 @@ function renderExpenses(){
     <button onclick="navGasto(-1)" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:2px 8px;line-height:1;border-radius:6px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">←</button>
     <span style="font-size:14px;font-weight:600;color:var(--text)">${mesLabel}</span>
     <button onclick="navGasto(1)" ${isCurrentMonth?'disabled':''} style="background:transparent;border:none;color:${isCurrentMonth?'rgba(255,255,255,0.15)':'var(--text-muted)'};cursor:${isCurrentMonth?'default':'pointer'};font-size:18px;padding:2px 8px;line-height:1;border-radius:6px" ${isCurrentMonth?'':' onmouseover="this.style.color=\'var(--text)\'" onmouseout="this.style.color=\'var(--text-muted)\'"'}>→</button>
+  </div>`
+
+  // RESUMEN INGRESOS vs GASTOS
+  const { start: rs, end: re } = getGastoRange()
+  const ingresosMes = allIncome.filter(i => i.date && i.date >= rs && i.date <= re)
+    .reduce((s,i) => s + Number(i.amount||0), 0)
+  const gastosMes = allExpenses.filter(e => e.date && e.date >= rs && e.date <= re)
+    .reduce((s,e) => s + Number(e.amount||0), 0)
+  const saldo = ingresosMes - gastosMes
+  const saldoColor = saldo >= 0 ? '#5DCAA5' : '#E24B4A'
+  const balanceHtml = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+    <div style="background:#0A0A0A;border:1px solid rgba(93,202,165,0.25);border-radius:10px;padding:12px 14px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Ingresos</div>
+      <div style="font-size:20px;font-weight:700;color:#5DCAA5;font-family:'Playfair Display',serif">${fmt(ingresosMes)}</div>
+    </div>
+    <div style="background:#0A0A0A;border:1px solid rgba(226,75,74,0.25);border-radius:10px;padding:12px 14px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Gastos</div>
+      <div style="font-size:20px;font-weight:700;color:#E24B4A;font-family:'Playfair Display',serif">${fmt(gastosMes)}</div>
+    </div>
+    <div style="background:#0A0A0A;border:1px solid ${saldoColor}44;border-radius:10px;padding:12px 14px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Saldo</div>
+      <div style="font-size:20px;font-weight:700;color:${saldoColor};font-family:'Playfair Display',serif">${saldo>=0?'+':''}${fmt(saldo)}</div>
+    </div>
   </div>`
 
   // RESUMEN
@@ -9961,7 +9990,7 @@ function renderExpenses(){
 
   // LISTA agrupada por semana
   if(!filtered.length){
-    el.innerHTML = navHtml + resumenHtml + chartHtml +
+    el.innerHTML = navHtml + balanceHtml + resumenHtml + chartHtml +
       `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Sin gastos en este mes.</div>`
     return
   }
@@ -10001,7 +10030,7 @@ function renderExpenses(){
     </div>`
   }).join('')
 
-  el.innerHTML = navHtml + resumenHtml + chartHtml + listHtml
+  el.innerHTML = navHtml + balanceHtml + resumenHtml + chartHtml + listHtml
 }
 
 function openModalGasto(){
@@ -10194,8 +10223,35 @@ async function registrarEscaneo(){
     if(error){ showToast('❌ Error: '+error.message); return }
     showToast('✅ Gasto registrado')
     resetScanTab()
+    await loadScanHistory()
     switchDineroTab('gastos')
   }
+}
+
+async function loadScanHistory(){
+  const el = document.getElementById('scan-history')
+  if(!el) return
+  const { data } = await SB_P.from('expenses')
+    .select('*').eq('user_id', USER_ID)
+    .order('created_at',{ascending:false}).limit(5)
+  const items = data || []
+  if(!items.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px 0">Aún no hay gastos registrados.</div>'
+    return
+  }
+  const fmt = n => '$' + Number(n).toLocaleString('es-CO')
+  el.innerHTML = `<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Últimos registros guardados</div>` +
+    items.map(e => {
+      const hora = e.created_at ? new Date(e.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}) : ''
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#0A0A0A;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+        <span style="font-size:11px;color:#5DCAA5;flex-shrink:0">✓</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.description||'—'}</div>
+          <div style="font-size:10px;color:var(--text-muted)">${e.date||''} · ${hora}</div>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:#E24B4A;flex-shrink:0">${fmt(e.amount)}</div>
+      </div>`
+    }).join('')
 }
 
 // --- CITAS ---
