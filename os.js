@@ -1355,9 +1355,14 @@ function renderAgenda(){
     if(t.due_date===agendaDateStr && horaInicio){
       const bm = Math.floor(agendaToMin(horaInicio)/AGENDA_SLOT)*AGENDA_SLOT
       const bk = agendaFromMin(Math.min(bm, 23*60+(60-AGENDA_SLOT)))
-      if(!autoMap[bk]) autoMap[bk]=[]
       const dur = t.time_end ? Math.max(AGENDA_SLOT, Math.round((agendaToMin(t.time_end.slice(0,5)) - bm)/AGENDA_SLOT)*AGENDA_SLOT) : AGENDA_SLOT
-      autoMap[bk].push({...t, dur})
+      const slots = Math.ceil(dur/AGENDA_SLOT)
+      for(let i=0; i<slots; i++){
+        const slotBk = agendaFromMin(Math.min(bm + i*AGENDA_SLOT, 23*60+(60-AGENDA_SLOT)))
+        if(!autoMap[slotBk]) autoMap[slotBk]=[]
+        if(i===0) autoMap[slotBk].push({...t, dur})
+        else if(!autoMap[slotBk].find(x=>x.id===t.id)) autoMap[slotBk].push({...t, dur, _cont:true})
+      }
     }
   })
 
@@ -1480,12 +1485,13 @@ function renderAgenda(){
     }).join('')
 
     const autoHTML = autos.map(t => {
+      if(t._cont) return `<div style="height:2px;background:${(CATS[t.category]||CATS.habitos).color}22;border-radius:1px;margin:1px 0"></div>`
       const cat = CATS[t.category]||CATS.habitos
       const done = t.status==='completada'
       return `<div class="agenda-chip" style="border-color:${cat.color}33;background:${cat.color}0D;${done?'opacity:0.5':''}">
         ${chipCheck(t,cat)}
         <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''}">${t.title}</span>
-        <span style="color:${cat.color};font-size:9px;flex-shrink:0">auto</span>
+        <span style="color:${cat.color};font-size:9px;flex-shrink:0">${t.time_end?t.time_end.slice(0,5):'auto'}</span>
         <button onclick="removeAutoAgendaTask('${t.id}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>
       </div>`
     }).join('')
