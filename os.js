@@ -11296,6 +11296,14 @@ async function eliminarTareaDesdeArea(taskId){
 let _selectorTab = 'existente'
 let _selectorSelected = new Set()
 
+const TASK_TEMPLATES = [
+  { title:'Almuerzo',       cat:'personal', priority:'media' },
+  { title:'Siesta',         cat:'personal', priority:'baja'  },
+  { title:'Mercado',        cat:'personal', priority:'media' },
+  { title:'Llamada',        cat:'personal', priority:'media' },
+  { title:'Ejercicio',      cat:'habitos',  priority:'alta'  },
+]
+
 function openNuevaTareaModal(){
   document.getElementById('st-title').value = ''
   document.getElementById('st-due').value = ''
@@ -11303,7 +11311,20 @@ function openNuevaTareaModal(){
   const stEnd = document.getElementById('st-time-end'); if(stEnd) stEnd.value = ''
   document.getElementById('st-cat').value = 'iarcania'
   document.getElementById('st-priority').value = 'alta'
+  const row = document.getElementById('task-templates-row')
+  if(row){
+    row.innerHTML = TASK_TEMPLATES.map(t =>
+      `<button onclick="applyTaskTemplate(${JSON.stringify(t).replace(/"/g,'&quot;')})" style="background:#1A1A1A;border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif">${t.title}</button>`
+    ).join('')
+  }
   openModal('selector-tarea')
+}
+
+function applyTaskTemplate(t){
+  document.getElementById('st-title').value = t.title
+  document.getElementById('st-cat').value = t.cat
+  document.getElementById('st-priority').value = t.priority
+  document.getElementById('st-time').focus()
 }
 
 function switchSelectorTab(tab){
