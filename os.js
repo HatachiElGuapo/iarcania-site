@@ -3696,13 +3696,14 @@ async function renderHabitoProgressPanel(activityId, customAnchor){
   const habitColor = act.color || '#f97316'
 
   const { data: logs } = await SB_P.from('activity_logs')
-    .select('date')
+    .select('date,nivel')
     .eq('activity_id', activityId)
     .eq('user_id', USER_ID)
     .order('date')
 
   const allLogDates = (logs||[]).map(l => l.date).sort()
   const logSet = new Set(allLogDates)
+  const minimoSet = new Set((logs||[]).filter(l => l.nivel === 'minimo').map(l => l.date))
   const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
@@ -3715,7 +3716,7 @@ async function renderHabitoProgressPanel(activityId, customAnchor){
   let gridHTML = '', listHTML = ''
 
   if(freq === 'diaria' || freq === 'recurrente'){
-    const cells = _hpDayCells(anchorDate, firstLogDate, logSet, freq)
+    const cells = _hpDayCells(anchorDate, firstLogDate, logSet, freq, minimoSet)
     gridHTML = _hpDayGrid(cells, habitColor)
     listHTML = _hpDayList(cells, habitColor, firstLogDate)
   } else if(freq === 'semanal'){
@@ -3742,7 +3743,7 @@ async function renderHabitoProgressPanel(activityId, customAnchor){
   </div>`
 }
 
-function _hpDayCells(anchorDate, firstLogDate, logSet, freq){
+function _hpDayCells(anchorDate, firstLogDate, logSet, freq, minimoSet=new Set()){
   const cells = []
   const d = new Date(anchorDate), end = new Date(TODAY)
   while(d <= end){
@@ -3751,7 +3752,7 @@ function _hpDayCells(anchorDate, firstLogDate, logSet, freq){
     const before = ds < firstLogDate
     let status
     if(before) status = 'gray'
-    else if(hasLog) status = 'done'
+    else if(hasLog) status = minimoSet.has(ds) ? 'minimo' : 'done'
     else if(freq === 'recurrente') status = 'gray'
     else if(ds < TODAY) status = 'fail'
     else status = 'gray'
@@ -5640,13 +5641,14 @@ async function _renderRachaDetalleContenido(activityId, customAnchor){
   const habitColor = act.color || CAT_COLORS[act.category] || '#f97316'
 
   const { data: logs } = await SB_P.from('activity_logs')
-    .select('date')
+    .select('date,nivel')
     .eq('activity_id', activityId)
     .eq('user_id', USER_ID)
     .order('date')
 
   const allLogDates = (logs||[]).map(l => l.date).sort()
   const logSet = new Set(allLogDates)
+  const minimoSet = new Set((logs||[]).filter(l => l.nivel === 'minimo').map(l => l.date))
   const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
@@ -5658,7 +5660,7 @@ async function _renderRachaDetalleContenido(activityId, customAnchor){
 
   let gridHTML = '', listHTML = ''
   if(freq === 'diaria' || freq === 'recurrente'){
-    const cells = _hpDayCells(anchorDate, firstLogDate, logSet, freq)
+    const cells = _hpDayCells(anchorDate, firstLogDate, logSet, freq, minimoSet)
     gridHTML = _hpDayGrid(cells, habitColor)
     listHTML = _hpDayList(cells, habitColor, firstLogDate)
   } else if(freq === 'semanal'){
