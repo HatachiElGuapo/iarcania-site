@@ -10070,7 +10070,7 @@ function _saveMetasCompra(arr){ localStorage.setItem('metas_compra', JSON.string
 
 function saveMetaCompra(){
   const name = document.getElementById('mc-name').value.trim()
-  const price = Number(document.getElementById('mc-price').value) || 0
+  const price = Number(document.getElementById('mc-price').value.replace(/\./g,'')) || 0
   const priority = document.getElementById('mc-priority').value
   if(!name){ showToast('❌ Escribe un nombre'); return }
   const metas = _getMetasCompra()
