@@ -511,7 +511,7 @@ function switchDineroTab(tab){
   })
   const actions = document.getElementById('dinero-tab-actions')
   if(actions){
-    if(tab === 'gastos')   actions.innerHTML = `<button class="btn-add" onclick="openModalGasto()">+ Gasto</button><button class="btn-add" onclick="openModalIngreso()" style="margin-left:6px;border-color:#5DCAA5;color:#5DCAA5">+ Ingreso</button>`
+    if(tab === 'gastos')   { actions.style.display='flex'; actions.style.gap='6px'; actions.innerHTML = `<button class="btn-add" onclick="openModalGasto()">+ Gasto</button><button class="btn-add" onclick="openModalIngreso()" style="border-color:#5DCAA5;color:#5DCAA5">+ Ingreso</button>` }
     else if(tab === 'facturas') actions.innerHTML = `<button class="btn-add" onclick="openModal('nueva-factura')">+ Nueva factura</button>`
     else if(tab === 'cobros')   actions.innerHTML = `<button class="btn-add" onclick="openModal('payment')">+ Registrar cobro</button>`
     else actions.innerHTML = ''
