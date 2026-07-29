@@ -5030,7 +5030,7 @@ const CAT_COLORS = {
   trabajo_profundo:    '#8B6CF6',
   secundarios_tarde:   '#EF9F27',
   secundarios_noche:   '#6B7FD4',
-  rutina_nocturna:     '#378ADD',
+  rutina_nocturna:     '#C07FD4',
   cierre_dia:          '#6B7FD4',
   inicio_dia:          '#5DCAA5',
   identidad_diaria:    '#C4A35A',
