@@ -225,7 +225,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .hp-grid{display:grid;gap:2px;width:100%}
 .hp-cell{border-radius:2px}
 .hp-cell.done{background:#C9A84C}
-.hp-cell.minimo{background:var(--hp-color,#f97316)}
+.hp-cell.minimo{background:#d4622a}
 .hp-cell.fail{background:#c0392b}
 .hp-cell.gray{background:#2d6a4f}
 .hp-cell.empty{background:transparent;pointer-events:none}
