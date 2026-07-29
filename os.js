@@ -6702,17 +6702,14 @@ async function navegarDia(delta){
 }
 
 function _updateHabitosDateLabel(){
-  const lbl = document.getElementById('habitos-date-label')
-  const nxt = document.getElementById('habitos-nav-next')
-  if(!lbl) return
-  if(selectedDate === TODAY){
-    lbl.textContent = 'Hoy'
-    if(nxt) nxt.style.opacity = '.3'
-  } else {
-    const d = new Date(selectedDate + 'T12:00:00')
-    lbl.textContent = d.toLocaleDateString('es-CO', { day:'numeric', month:'short' })
-    if(nxt) nxt.style.opacity = '1'
-  }
+  const isToday = selectedDate === TODAY
+  const dateText = isToday ? 'Hoy' : new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short' })
+  ;[['habitos-date-label','habitos-nav-next'],['rutinas-date-label','rutinas-nav-next']].forEach(([lid,nid]) => {
+    const lbl = document.getElementById(lid)
+    const nxt = document.getElementById(nid)
+    if(lbl) lbl.textContent = dateText
+    if(nxt) nxt.style.opacity = isToday ? '.3' : '1'
+  })
 }
 
 function filterFreq(freq, btn){
