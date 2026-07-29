@@ -9285,8 +9285,7 @@ async function pagarFacturaRapido(billId, amount, e){
   if(amount > 0 && bill){
     await SB_P.from('expenses').insert({
       id: 'exp_'+Date.now(), user_id: USER_ID, amount,
-      category: bill.category||'servicios', description: bill.name,
-      date: TODAY, created_at: new Date().toISOString()
+      category: bill.category||'servicios', description: bill.name, date: TODAY
     })
   }
   await loadFacturas()
