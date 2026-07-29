@@ -227,7 +227,7 @@ nav{flex:1;padding:.5rem 0;overflow-y:auto}
 .hp-cell.done{background:#C9A84C}
 .hp-cell.minimo{background:var(--hp-color,#f97316)}
 .hp-cell.fail{background:#c0392b}
-.hp-cell.gray{background:var(--border)}
+.hp-cell.gray{background:#2d6a4f}
 .hp-cell.empty{background:transparent;pointer-events:none}
 .hp-list-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
 .hp-list-row:last-child{border-bottom:none}
