@@ -3696,14 +3696,14 @@ async function renderHabitoProgressPanel(activityId, customAnchor){
   const habitColor = act.color || '#f97316'
 
   const { data: logs } = await SB_P.from('activity_logs')
-    .select('date,nivel')
+    .select('date,is_minimum')
     .eq('activity_id', activityId)
     .eq('user_id', USER_ID)
     .order('date')
 
   const allLogDates = (logs||[]).map(l => l.date).sort()
   const logSet = new Set(allLogDates)
-  const minimoSet = new Set((logs||[]).filter(l => l.nivel === 'minimo').map(l => l.date))
+  const minimoSet = new Set((logs||[]).filter(l => l.is_minimum).map(l => l.date))
   const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
@@ -5641,14 +5641,14 @@ async function _renderRachaDetalleContenido(activityId, customAnchor){
   const habitColor = act.color || CAT_COLORS[act.category] || '#f97316'
 
   const { data: logs } = await SB_P.from('activity_logs')
-    .select('date,nivel')
+    .select('date,is_minimum')
     .eq('activity_id', activityId)
     .eq('user_id', USER_ID)
     .order('date')
 
   const allLogDates = (logs||[]).map(l => l.date).sort()
   const logSet = new Set(allLogDates)
-  const minimoSet = new Set((logs||[]).filter(l => l.nivel === 'minimo').map(l => l.date))
+  const minimoSet = new Set((logs||[]).filter(l => l.is_minimum).map(l => l.date))
   const firstLogDate = allLogDates.length ? allLogDates[0] : TODAY
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
