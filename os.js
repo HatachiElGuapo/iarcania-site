@@ -1325,8 +1325,11 @@ function renderAgenda(){
     })
   })
 
-  // Hábitos diarios con hora_sugerida
+  // Auto-tasks by block (due on agenda date with HH:MM in notes)
   const agendaDateStr = getAgendaDateStr()
+  const autoMap = {}
+
+  // Hábitos diarios con hora_sugerida
   ;(allActivities||[]).filter(a => a.is_active && a.hora_sugerida && ['diaria','recurrente'].includes(a.frequency||'diaria') && !['skincare_sub','limpieza_sub'].includes(a.category))
     .forEach(a => {
       const bm = Math.floor(agendaToMin(a.hora_sugerida)/AGENDA_SLOT)*AGENDA_SLOT
@@ -1345,9 +1348,6 @@ function renderAgenda(){
         contMap[contBk].push({color, title:a.name, taskId:a.id, startKey:bk, isHabit:true, isCita:false, isEvent:false, note:null, dur, contIdx:i, totalConts:n-1})
       }
     })
-
-  // Auto-tasks by block (due on agenda date with HH:MM in notes)
-  const autoMap = {}
   allTasks.forEach(t => {
     const horaInicio = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
     if(t.due_date===agendaDateStr && horaInicio){
