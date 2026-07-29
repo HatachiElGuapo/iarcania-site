@@ -452,6 +452,20 @@
         </div>
 
       </div>
+
+      <!-- Tabla de tareas de trabajo -->
+      <div class="card" style="margin-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-size:13px;font-weight:600;color:var(--text)">📋 Tareas</span>
+          <div style="display:flex;gap:4px">
+            <button class="freq-tab active" id="wt-sem"  onclick="setWorkRange('sem',this)">Semana</button>
+            <button class="freq-tab"        id="wt-2sem" onclick="setWorkRange('2sem',this)">2 sem</button>
+            <button class="freq-tab"        id="wt-mes"  onclick="setWorkRange('mes',this)">Mes</button>
+            <button class="freq-tab"        id="wt-3m"   onclick="setWorkRange('3m',this)">3 meses</button>
+          </div>
+        </div>
+        <div id="work-tasks-table"></div>
+      </div>
     </div>
 
     <!-- BRÚJULA -->

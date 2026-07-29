@@ -439,7 +439,7 @@ function showSection(id, btn){
   if(id === 'gestion-habitos') renderGestionHabitos()
   if(id === 'hogar') loadHogar()
   if(id === 'citas') loadCitas()
-  if(id === 'trabajo'){ loadProyectoDia(); loadTareasHoy().then(renderTrabajoDash) }
+  if(id === 'trabajo'){ loadProyectoDia(); loadTareasHoy().then(renderTrabajoDash); renderWorkTasksTable() }
   if(id === 'libros') loadBooks()
   if(id === 'guiones') loadScripts()
   if(id === 'slides') onSlidesEnter()
@@ -2254,6 +2254,64 @@ let _trabajoExpandido = false
 let _trabajoPanelOpen = false
 let _trabajoPanelQuery = ''
 let _trabajoPanelTab = 'tareas'
+
+let _workRange = 'sem'
+
+function setWorkRange(range, btn){
+  _workRange = range
+  document.querySelectorAll('#section-trabajo .freq-tab').forEach(b => b.classList.remove('active'))
+  if(btn) btn.classList.add('active')
+  renderWorkTasksTable()
+}
+
+function renderWorkTasksTable(){
+  const el = document.getElementById('work-tasks-table')
+  if(!el) return
+  const days = { sem:7, '2sem':14, mes:30, '3m':90 }[_workRange] || 7
+  const end = new Date(TODAY); end.setDate(end.getDate() + days)
+  const endStr = end.toISOString().slice(0,10)
+  const tasks = (allTasks || [])
+    .filter(t => t.category === 'trabajo' && t.status !== 'archivada' && t.due_date && t.due_date <= endStr)
+    .sort((a,b) => {
+      const ao = a.status === 'completada' ? 1 : 0
+      const bo = b.status === 'completada' ? 1 : 0
+      if(ao !== bo) return ao - bo
+      return (a.due_date||'').localeCompare(b.due_date||'')
+    })
+  if(!tasks.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:20px 0">Sin tareas en este rango</div>'
+    return
+  }
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em">
+      <th style="text-align:left;padding:4px 8px;font-weight:500;width:24px"></th>
+      <th style="text-align:left;padding:4px 8px;font-weight:500">Tarea</th>
+      <th style="text-align:right;padding:4px 8px;font-weight:500;white-space:nowrap">Fecha</th>
+    </tr></thead>
+    <tbody>${tasks.map(t => {
+      const done = t.status === 'completada'
+      const overdue = !done && t.due_date < TODAY
+      const dateColor = overdue ? '#E24B4A' : done ? 'var(--text-muted)' : 'var(--text-dim)'
+      return `<tr style="border-top:1px solid var(--border);${done?'opacity:.45':''}">
+        <td style="padding:8px 8px 8px 8px">
+          <button onclick="toggleTaskStatus('${t.id}')" style="width:16px;height:16px;border-radius:50%;border:2px solid ${done?'#5DCAA5':'var(--border)'};background:${done?'#5DCAA5':'transparent'};cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#000;font-size:9px">${done?'✓':''}</button>
+        </td>
+        <td style="padding:8px 4px;color:var(--text);${done?'text-decoration:line-through':''}">${t.title||''}</td>
+        <td style="padding:8px 8px 8px 4px;text-align:right;color:${dateColor};white-space:nowrap">${t.due_date||''}</td>
+      </tr>`
+    }).join('')}</tbody>
+  </table>`
+}
+
+function toggleTaskStatus(id){
+  const t = allTasks.find(x => x.id === id)
+  if(!t) return
+  const newStatus = t.status === 'completada' ? 'pendiente' : 'completada'
+  SB_P.from('tasks').update({ status: newStatus }).eq('id', id)
+  t.status = newStatus
+  renderWorkTasksTable()
+  renderTasks()
+}
 
 function renderTrabajoDash(){
   const TARGETS = ['trabajo-expandible', 'trabajo-expandible-r']
