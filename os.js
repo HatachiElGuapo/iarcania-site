@@ -1356,12 +1356,18 @@ function renderAgenda(){
       const bm = Math.floor(agendaToMin(horaInicio)/AGENDA_SLOT)*AGENDA_SLOT
       const bk = agendaFromMin(Math.min(bm, 23*60+(60-AGENDA_SLOT)))
       const dur = t.time_end ? Math.max(AGENDA_SLOT, Math.round((agendaToMin(t.time_end.slice(0,5)) - bm)/AGENDA_SLOT)*AGENDA_SLOT) : AGENDA_SLOT
-      const slots = Math.ceil(dur/AGENDA_SLOT)
-      for(let i=0; i<slots; i++){
-        const slotBk = agendaFromMin(Math.min(bm + i*AGENDA_SLOT, 23*60+(60-AGENDA_SLOT)))
-        if(!autoMap[slotBk]) autoMap[slotBk]=[]
-        if(i===0) autoMap[slotBk].push({...t, dur})
-        else if(!autoMap[slotBk].find(x=>x.id===t.id)) autoMap[slotBk].push({...t, dur, _cont:true})
+      if(!autoMap[bk]) autoMap[bk]=[]
+      autoMap[bk].push({...t, dur})
+      // continuaciones via contMap (igual que citas/pinned)
+      const cat = CATS[t.category]||CATS.habitos
+      const n = Math.ceil(dur/AGENDA_SLOT)
+      const totalConts = n - 1
+      for(let i=1; i<n; i++){
+        const contBm = bm + i*AGENDA_SLOT
+        if(contBm>=24*60) break
+        const contBk = agendaFromMin(contBm)
+        if(!contMap[contBk]) contMap[contBk]=[]
+        contMap[contBk].push({color:cat.color, title:t.title, taskId:t.id, startKey:bk, isHabit:false, isCita:false, isEvent:false, note:null, dur, contIdx:i, totalConts})
       }
     }
   })
@@ -1485,10 +1491,11 @@ function renderAgenda(){
     }).join('')
 
     const autoHTML = autos.map(t => {
-      if(t._cont) return `<div style="height:2px;background:${(CATS[t.category]||CATS.habitos).color}22;border-radius:1px;margin:1px 0"></div>`
       const cat = CATS[t.category]||CATS.habitos
       const done = t.status==='completada'
-      return `<div class="agenda-chip" style="border-color:${cat.color}33;background:${cat.color}0D;${done?'opacity:0.5':''}">
+      const hasCont = t.dur > AGENDA_SLOT
+      const contStyle = hasCont ? 'border-radius:6px 6px 0 0;border-bottom:none;margin-bottom:0' : ''
+      return `<div class="agenda-chip" style="border-color:${cat.color}33;background:${cat.color}0D;${done?'opacity:0.5':''};${contStyle}">
         ${chipCheck(t,cat)}
         <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''}">${t.title}</span>
         <span style="color:${cat.color};font-size:9px;flex-shrink:0">${t.time_end?t.time_end.slice(0,5):'auto'}</span>
