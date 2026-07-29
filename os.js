@@ -2292,12 +2292,13 @@ function renderWorkTasksTable(){
       const done = t.status === 'completada'
       const overdue = !done && t.due_date < TODAY
       const dateColor = overdue ? '#E24B4A' : done ? 'var(--text-muted)' : 'var(--text-dim)'
+      const hora = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
       return `<tr style="border-top:1px solid var(--border);${done?'opacity:.45':''}">
         <td style="padding:8px 8px 8px 8px">
           <button onclick="toggleTaskStatus('${t.id}')" style="width:16px;height:16px;border-radius:50%;border:2px solid ${done?'#5DCAA5':'var(--border)'};background:${done?'#5DCAA5':'transparent'};cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#000;font-size:9px">${done?'✓':''}</button>
         </td>
         <td style="padding:8px 4px;color:var(--text);${done?'text-decoration:line-through':''}">${t.title||''}</td>
-        <td style="padding:8px 8px 8px 4px;text-align:right;color:${dateColor};white-space:nowrap">${t.due_date||''}</td>
+        <td style="padding:8px 8px 8px 4px;text-align:right;color:${dateColor};white-space:nowrap">${t.due_date||''}${hora?`<br><span style="font-size:10px;color:var(--text-muted)">🕐 ${hora}</span>`:''}</td>
       </tr>`
     }).join('')}</tbody>
   </table>`
