@@ -741,29 +741,7 @@ function renderTaskList(elId, tasks){
 }
 
 // --- AGENDA HORARIA ---
-const AGENDA_SCHEDULE = [
-  { time:'03:40', label:'Despertar, cama y agua' },
-  { time:'04:00', label:'Entrenamiento matutino', dur: 40 },
-  { time:'04:40', label:'Baño frío' },
-  { time:'05:00', label:'Meditar' },
-  { time:'05:20', label:'Escritura / Diario' },
-  { time:'05:40', label:'Planificación' },
-  { time:'06:00', label:'Trabajo profundo' },
-  { time:'10:00', label:'Tomar sol' },
-  { time:'10:20', label:'Llamar familiar' },
-  { time:'10:40', label:'Tareas ligeras' },
-  { time:'12:00', label:'Almuerzo' },
-  { time:'13:00', label:'Estudio / Ideas' },
-  { time:'15:00', label:'Apoyo mamá' },
-  { time:'17:00', label:'Limpieza' },
-  { time:'17:20', label:'Descanso' },
-  { time:'18:00', label:'Entrenamiento nocturno' },
-  { time:'18:40', label:'Cenar / Estirar' },
-  { time:'19:00', label:'Cenar' },
-  { time:'19:20', label:'Escritura + lista hábitos' },
-  { time:'19:40', label:'Skincare / Ropa' },
-  { time:'20:00', label:'Dormir' },
-]
+const AGENDA_SCHEDULE = []
 
 let _agendaDayOffset = 0
 
@@ -1347,8 +1325,28 @@ function renderAgenda(){
     })
   })
 
-  // Auto-tasks by block (due on agenda date with HH:MM in notes)
+  // Hábitos diarios con hora_sugerida
   const agendaDateStr = getAgendaDateStr()
+  ;(allActivities||[]).filter(a => a.is_active && a.hora_sugerida && ['diaria','recurrente'].includes(a.frequency||'diaria') && !['skincare_sub','limpieza_sub'].includes(a.category))
+    .forEach(a => {
+      const bm = Math.floor(agendaToMin(a.hora_sugerida)/AGENDA_SLOT)*AGENDA_SLOT
+      const bk = agendaFromMin(Math.min(bm, 23*60+(60-AGENDA_SLOT)))
+      const color = CAT_COLORS[a.category]||'#555'
+      const done = !!habitLogs[a.id]
+      const dur = a.hora_fin ? Math.max(AGENDA_SLOT, Math.round((agendaToMin(a.hora_fin) - bm)/AGENDA_SLOT)*AGENDA_SLOT) : AGENDA_SLOT
+      if(!autoMap[bk]) autoMap[bk]=[]
+      autoMap[bk].push({id:a.id, title:a.name, category:a.category, status: done?'completada':'pendiente', time_end:a.hora_fin||null, dur, _isHabit:true, _color:color})
+      const n = Math.ceil(dur/AGENDA_SLOT)
+      for(let i=1; i<n; i++){
+        const contBm = bm + i*AGENDA_SLOT
+        if(contBm>=24*60) break
+        const contBk = agendaFromMin(contBm)
+        if(!contMap[contBk]) contMap[contBk]=[]
+        contMap[contBk].push({color, title:a.name, taskId:a.id, startKey:bk, isHabit:true, isCita:false, isEvent:false, note:null, dur, contIdx:i, totalConts:n-1})
+      }
+    })
+
+  // Auto-tasks by block (due on agenda date with HH:MM in notes)
   const autoMap = {}
   allTasks.forEach(t => {
     const horaInicio = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
@@ -1491,15 +1489,17 @@ function renderAgenda(){
     }).join('')
 
     const autoHTML = autos.map(t => {
-      const cat = CATS[t.category]||CATS.habitos
+      const color = t._color || (CATS[t.category]||CATS.habitos).color
       const done = t.status==='completada'
       const hasCont = t.dur > AGENDA_SLOT
       const contStyle = hasCont ? 'border-radius:6px 6px 0 0;border-bottom:none;margin-bottom:0' : ''
-      return `<div class="agenda-chip" style="border-color:${cat.color}33;background:${cat.color}0D;${done?'opacity:0.5':''};${contStyle}">
-        ${chipCheck(t,cat)}
+      const dotEl = `<div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>`
+      const checkEl = t._isHabit ? dotEl : chipCheck(t, {color})
+      return `<div class="agenda-chip" style="border-color:${color}33;background:${color}0D;${done?'opacity:0.5':''};${contStyle}">
+        ${checkEl}
         <span style="flex:1;${done?'text-decoration:line-through;color:var(--text-muted)':''}">${t.title}</span>
-        <span style="color:${cat.color};font-size:9px;flex-shrink:0">${t.time_end?t.time_end.slice(0,5):'auto'}</span>
-        <button onclick="removeAutoAgendaTask('${t.id}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>
+        <span style="color:${color};font-size:9px;flex-shrink:0">${t.time_end?t.time_end.slice(0,5):''}</span>
+        ${t._isHabit?'':`<button onclick="removeAutoAgendaTask('${t.id}')" style="font-size:13px;color:var(--text-muted);background:transparent;border:none;cursor:pointer;padding:0;line-height:1;flex-shrink:0">×</button>`}
       </div>`
     }).join('')
 
