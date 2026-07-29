@@ -511,9 +511,10 @@ function switchDineroTab(tab){
   })
   const actions = document.getElementById('dinero-tab-actions')
   if(actions){
-    if(tab === 'gastos')   { actions.style.display='flex'; actions.style.gap='6px'; actions.innerHTML = `<button class="btn-add" onclick="openModalGasto()">+ Gasto</button><button class="btn-add" onclick="openModalIngreso()" style="border-color:#5DCAA5;color:#5DCAA5">+ Ingreso</button>` }
+    if(tab === 'gastos')        { actions.style.display='flex'; actions.style.gap='6px'; actions.innerHTML = `<button class="btn-add" onclick="openModalGasto()">+ Gasto</button><button class="btn-add" onclick="openModalIngreso()" style="border-color:#5DCAA5;color:#5DCAA5">+ Ingreso</button>` }
     else if(tab === 'facturas') actions.innerHTML = `<button class="btn-add" onclick="openModal('nueva-factura')">+ Nueva factura</button>`
     else if(tab === 'cobros')   actions.innerHTML = `<button class="btn-add" onclick="openModal('payment')">+ Registrar cobro</button>`
+    else if(tab === 'metas')    actions.innerHTML = `<button class="btn-add" onclick="openModal('meta-compra')">+ Nueva meta</button>`
     else actions.innerHTML = ''
   }
   if(tab === 'cuentas')  loadFinanzas()
@@ -522,7 +523,6 @@ function switchDineroTab(tab){
   if(tab === 'cobros')   loadPayments()
   if(tab === 'escanear') loadScanHistory()
   if(tab === 'metas')    renderMetasCompra()
-  if(tab === 'metas')    actions.innerHTML = `<button class="btn-add" onclick="openModal('meta-compra')">+ Nueva meta</button>`
 }
 
 // --- TASKS ---
