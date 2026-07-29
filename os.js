@@ -3226,7 +3226,7 @@ function renderTodayTaskPanel(query){
   if(_quickCreateType) return  // mini-form abierto, no destruir su contexto
   const hoyIds = getDashList('hoy')
   const q = (query||'').toLowerCase().trim()
-  const tasks = allTasks.filter(t => t.status !== 'completada' &&
+  const tasks = allTasks.filter(t => t.status !== 'completada' && !hoyIds.includes(t.id) &&
     (!q || t.title.toLowerCase().includes(q)))
   const groups = {}
   tasks.forEach(t => {
@@ -12138,9 +12138,11 @@ function openPlanDiaModal(){
 function _parsePlanLinea(linea){
   const trim = linea.trim()
   if(!trim) return null
+  const mRange = trim.match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s+(.+)$/)
+  if(mRange) return { hora: mRange[1].padStart(5,'0'), horaFin: mRange[2].padStart(5,'0'), titulo: mRange[3].trim() }
   const m = trim.match(/^(\d{1,2}:\d{2})\s+(.+)$/)
-  if(m) return { hora: m[1].padStart(5,'0'), titulo: m[2].trim() }
-  return { hora: null, titulo: trim }
+  if(m) return { hora: m[1].padStart(5,'0'), horaFin: null, titulo: m[2].trim() }
+  return { hora: null, horaFin: null, titulo: trim }
 }
 
 function planDiaPreview(){
@@ -12151,7 +12153,7 @@ function planDiaPreview(){
 
   el.innerHTML = `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
     ${parsed.map((t,i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:${i<parsed.length-1?'1px solid rgba(255,255,255,0.04)':'none'}">
-      <span style="font-size:11px;font-weight:700;color:#8B6CF6;min-width:40px">${t.hora||'—'}</span>
+      <span style="font-size:11px;font-weight:700;color:#8B6CF6;min-width:40px">${t.hora||'—'}${t.horaFin?`<span style="color:var(--text-muted)">-${t.horaFin}</span>`:''}</span>
       <span style="font-size:13px;color:var(--text)">${t.titulo}</span>
     </div>`).join('')}
   </div>
@@ -12179,6 +12181,7 @@ async function cargarPlanDia(){
       category: cat,
       due_date: fecha,
       notes: t.hora || null,
+      time_end: t.horaFin || null,
       priority: 'alta',
       status: 'pendiente',
       assigned_to: USER_ID,
