@@ -11277,19 +11277,14 @@ async function eliminarTareaDesdeArea(taskId){
 let _selectorTab = 'existente'
 let _selectorSelected = new Set()
 
-async function openNuevaTareaModal(){
-  _selectorSelected = new Set()
-  document.getElementById('st-search').value = ''
+function openNuevaTareaModal(){
   document.getElementById('st-title').value = ''
   document.getElementById('st-due').value = ''
   document.getElementById('st-time').value = ''
   const stEnd = document.getElementById('st-time-end'); if(stEnd) stEnd.value = ''
   document.getElementById('st-cat').value = 'iarcania'
   document.getElementById('st-priority').value = 'alta'
-  switchSelectorTab('existente')
   openModal('selector-tarea')
-  if(!hoyFocusItems.length) await loadTareasHoy()
-  renderSelectorTareas('')
 }
 
 function switchSelectorTab(tab){
