@@ -1,3 +1,4 @@
+// v2026-07-29
 const { createClient } = supabase
 const TODAY = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
 
