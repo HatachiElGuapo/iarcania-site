@@ -2276,7 +2276,10 @@ function renderWorkTasksTable(){
       const ao = a.status === 'completada' ? 1 : 0
       const bo = b.status === 'completada' ? 1 : 0
       if(ao !== bo) return ao - bo
-      return (a.due_date||'').localeCompare(b.due_date||'')
+      const getHora = t => t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : '99:99')
+      const dateA = (a.due_date||'') + 'T' + getHora(a)
+      const dateB = (b.due_date||'') + 'T' + getHora(b)
+      return dateA.localeCompare(dateB)
     })
   if(!tasks.length){
     el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:20px 0">Sin tareas en este rango</div>'
