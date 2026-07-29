@@ -1342,8 +1342,7 @@ function renderAgenda(){
       autoMap[bk].push({id:a.id, title:a.name, category:a.category, status: done?'completada':'pendiente', time_end:a.hora_fin||null, dur, _isHabit:true, _color:color})
       const n = Math.ceil(dur/AGENDA_SLOT)
       for(let i=1; i<n; i++){
-        const contBm = bm + i*AGENDA_SLOT
-        if(contBm>=24*60) break
+        const contBm = (bm + i*AGENDA_SLOT) % (24*60)
         const contBk = agendaFromMin(contBm)
         if(!contMap[contBk]) contMap[contBk]=[]
         contMap[contBk].push({color, title:a.name, taskId:a.id, startKey:bk, isHabit:true, isCita:false, isEvent:false, note:null, dur, contIdx:i, totalConts:n-1})
