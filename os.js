@@ -9259,24 +9259,36 @@ async function confirmarPagoFactura(billId, e){
   const fecha = document.getElementById('pagar-fecha').value
   if(!monto || !fecha){ showToast('Ingresa el monto y la fecha'); return }
   document.getElementById('pagar-overlay').remove()
+  const bill = allBills.find(b => b.id === billId)
   const { error } = await SB_P.from('bill_payments').insert({
-    id: 'pay_'+Date.now(),
-    bill_id: billId,
-    amount: monto,
-    paid_date: fecha,
-    notes: null
+    id: 'pay_'+Date.now(), bill_id: billId, amount: monto, paid_date: fecha, notes: null
   })
   if(error){ showToast('❌ Error al guardar'); return }
+  if(monto > 0 && bill){
+    await SB_P.from('expenses').insert({
+      id: 'exp_'+Date.now(), user_id: USER_ID, amount: monto,
+      category: bill.category||'servicios', description: bill.name,
+      date: fecha, created_at: new Date().toISOString()
+    })
+  }
   await loadFacturas()
   showToast('✓ Factura pagada')
 }
 
 async function pagarFacturaRapido(billId, amount, e){
   e.stopPropagation()
+  const bill = allBills.find(b => b.id === billId)
   const { error } = await SB_P.from('bill_payments').insert({
     id: 'pay_'+Date.now(), bill_id: billId, amount: amount||0, paid_date: TODAY, notes: null
   })
   if(error){ showToast('❌ Error al guardar'); return }
+  if(amount > 0 && bill){
+    await SB_P.from('expenses').insert({
+      id: 'exp_'+Date.now(), user_id: USER_ID, amount,
+      category: bill.category||'servicios', description: bill.name,
+      date: TODAY, created_at: new Date().toISOString()
+    })
+  }
   await loadFacturas()
   showToast('✓ Factura pagada')
 }
