@@ -2255,7 +2255,7 @@ let _trabajoPanelOpen = false
 let _trabajoPanelQuery = ''
 let _trabajoPanelTab = 'tareas'
 
-let _workRange = 'sem'
+let _workRange = 'hoy'
 let _trabajoTab = 'hoy'
 
 function switchTrabajoTab(tab, btn){
@@ -2277,11 +2277,12 @@ function setWorkRange(range, btn){
 function renderWorkTasksTable(){
   const el = document.getElementById('work-tasks-table')
   if(!el) return
-  const days = { sem:7, '2sem':14, mes:30, '3m':90 }[_workRange] || 7
+  const days = { hoy:0, sem:7, '2sem':14, mes:30, '3m':90 }[_workRange] ?? 0
   const end = new Date(TODAY); end.setDate(end.getDate() + days)
   const endStr = end.toISOString().slice(0,10)
+  const startStr = _workRange === 'hoy' ? TODAY : '2000-01-01'
   const tasks = (allTasks || [])
-    .filter(t => t.status !== 'archivada' && t.due_date && t.due_date <= endStr)
+    .filter(t => t.status !== 'archivada' && t.due_date && t.due_date >= startStr && t.due_date <= endStr)
     .sort((a,b) => {
       const ao = a.status === 'completada' ? 1 : 0
       const bo = b.status === 'completada' ? 1 : 0
