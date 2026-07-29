@@ -368,6 +368,15 @@
           <h1 class="page-title">💼 Trabajo</h1>
         </div>
       </div>
+
+      <!-- Tabs trabajo -->
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="freq-tab active" id="wtab-hoy"    onclick="switchTrabajoTab('hoy',this)">🗓 Hoy</button>
+        <button class="freq-tab"        id="wtab-tareas" onclick="switchTrabajoTab('tareas',this)">📋 Tareas</button>
+      </div>
+
+      <!-- Tab: Hoy -->
+      <div id="trabajo-tab-hoy">
       <div class="alert-bar alert-red" id="bd-alert-t" style="display:none">
         <span class="alert-label">📅 PRÓXIMAS FECHAS</span>
         <div id="bd-pills-t"></div>
@@ -418,19 +427,19 @@
         </div>
 
       </div>
+      </div><!-- /trabajo-tab-hoy -->
 
-      <!-- Tabla de tareas de trabajo -->
-      <div class="card" style="margin-top:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <span style="font-size:13px;font-weight:600;color:var(--text)">📋 Tareas</span>
-          <div style="display:flex;gap:4px">
-            <button class="freq-tab active" id="wt-sem"  onclick="setWorkRange('sem',this)">Semana</button>
-            <button class="freq-tab"        id="wt-2sem" onclick="setWorkRange('2sem',this)">2 sem</button>
-            <button class="freq-tab"        id="wt-mes"  onclick="setWorkRange('mes',this)">Mes</button>
-            <button class="freq-tab"        id="wt-3m"   onclick="setWorkRange('3m',this)">3 meses</button>
-          </div>
+      <!-- Tab: Tareas -->
+      <div id="trabajo-tab-tareas" style="display:none">
+        <div style="display:flex;gap:4px;margin-bottom:12px">
+          <button class="freq-tab active" id="wt-sem"  onclick="setWorkRange('sem',this)">Semana</button>
+          <button class="freq-tab"        id="wt-2sem" onclick="setWorkRange('2sem',this)">2 sem</button>
+          <button class="freq-tab"        id="wt-mes"  onclick="setWorkRange('mes',this)">Mes</button>
+          <button class="freq-tab"        id="wt-3m"   onclick="setWorkRange('3m',this)">3 meses</button>
         </div>
-        <div id="work-tasks-table"></div>
+        <div class="card">
+          <div id="work-tasks-table"></div>
+        </div>
       </div>
     </div>
 

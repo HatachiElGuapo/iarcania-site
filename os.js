@@ -2256,6 +2256,16 @@ let _trabajoPanelQuery = ''
 let _trabajoPanelTab = 'tareas'
 
 let _workRange = 'sem'
+let _trabajoTab = 'hoy'
+
+function switchTrabajoTab(tab, btn){
+  _trabajoTab = tab
+  document.querySelectorAll('#section-trabajo .freq-tab[id^="wtab-"]').forEach(b => b.classList.remove('active'))
+  if(btn) btn.classList.add('active')
+  document.getElementById('trabajo-tab-hoy').style.display    = tab === 'hoy'    ? '' : 'none'
+  document.getElementById('trabajo-tab-tareas').style.display = tab === 'tareas' ? '' : 'none'
+  if(tab === 'tareas') renderWorkTasksTable()
+}
 
 function setWorkRange(range, btn){
   _workRange = range
