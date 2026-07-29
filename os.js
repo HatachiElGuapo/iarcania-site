@@ -3708,7 +3708,7 @@ async function renderHabitoProgressPanel(activityId, customAnchor){
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
   if(!progressAnchorDates[activityId]){
-    const d = new Date(TODAY); d.setMonth(d.getMonth()-3)
+    const d = new Date(TODAY); d.setDate(d.getDate()-35)
     progressAnchorDates[activityId] = d.toISOString().slice(0,10)
   }
   const anchorDate = progressAnchorDates[activityId]
@@ -5653,7 +5653,7 @@ async function _renderRachaDetalleContenido(activityId, customAnchor){
 
   if(customAnchor) progressAnchorDates[activityId] = customAnchor
   if(!progressAnchorDates[activityId]){
-    const d = new Date(TODAY); d.setMonth(d.getMonth()-3)
+    const d = new Date(TODAY); d.setDate(d.getDate()-35)
     progressAnchorDates[activityId] = d.toISOString().slice(0,10)
   }
   const anchorDate = progressAnchorDates[activityId]
