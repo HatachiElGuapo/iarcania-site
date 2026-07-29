@@ -1741,56 +1741,38 @@
 
 <div class="modal-overlay" id="modal-selector-tarea">
   <div class="modal" style="max-width:500px">
-    <h3 id="st-modal-title">Nueva tarea</h3>
-    <!-- Tabs -->
-    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px">
-      <button id="st-tab-existente" onclick="switchSelectorTab('existente')" style="flex:1;padding:9px 0;background:transparent;border:none;border-bottom:2px solid var(--gold);color:var(--gold);font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer;transition:all .15s">Seleccionar existente</button>
-      <button id="st-tab-nueva" onclick="switchSelectorTab('nueva')" style="flex:1;padding:9px 0;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-family:'Outfit',sans-serif;font-size:13px;cursor:pointer;transition:all .15s">Crear nueva</button>
-    </div>
-    <!-- Panel: Seleccionar existente -->
-    <div id="st-panel-existente">
-      <input id="st-search" type="text" placeholder="🔍 Buscar tarea..." oninput="filterSelectorTareas(this.value)" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;margin-bottom:10px">
-      <div id="st-lista" style="max-height:320px;overflow-y:auto;padding-right:4px"></div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;padding-bottom:4px" id="st-sel-count">0 seleccionadas</div>
-      <div class="btn-row">
-        <button class="btn-cancel" onclick="closeModal('selector-tarea')">Cancelar</button>
-        <button class="btn-save" onclick="confirmarSeleccionTareas()">Agregar a Hoy →</button>
+    <h3>Nueva tarea</h3>
+    <div class="field"><label>Título</label><input type="text" id="st-title" placeholder="¿Qué hay que hacer?"/></div>
+    <div class="form-row">
+      <div class="field"><label>Categoría</label>
+        <select id="st-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="iarcania">IArcanIA</option>
+          <option value="contenido">Contenido</option>
+          <option value="proyectos">Proyectos</option>
+          <option value="personal">Personal</option>
+          <option value="familia">Familia</option>
+          <option value="infra">Infraestructura</option>
+          <option value="habitos">Hábitos</option>
+        </select>
+      </div>
+      <div class="field"><label>Prioridad</label>
+        <select id="st-priority" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="alta">Alta</option>
+          <option value="media">Media</option>
+          <option value="baja">Baja</option>
+        </select>
       </div>
     </div>
-    <!-- Panel: Crear nueva -->
-    <div id="st-panel-nueva" style="display:none">
-      <div class="field"><label>Título</label><input type="text" id="st-title" placeholder="¿Qué hay que hacer?"/></div>
-      <div class="form-row">
-        <div class="field"><label>Categoría</label>
-          <select id="st-cat" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
-            <option value="iarcania">IArcanIA</option>
-            <option value="contenido">Contenido</option>
-            <option value="proyectos">Proyectos</option>
-            <option value="personal">Personal</option>
-            <option value="familia">Familia</option>
-            <option value="infra">Infraestructura</option>
-            <option value="habitos">Hábitos</option>
-          </select>
-        </div>
-        <div class="field"><label>Prioridad</label>
-          <select id="st-priority" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
-            <option value="alta">Alta</option>
-            <option value="media">Media</option>
-            <option value="baja">Baja</option>
-          </select>
-        </div>
+    <div class="form-row">
+      <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="st-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+      <div style="display:flex;gap:8px">
+        <div class="field" style="flex:1"><label>Hora inicio</label><input type="time" id="st-time" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
+        <div class="field" style="flex:1"><label>Hora fin</label><input type="time" id="st-time-end" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
       </div>
-      <div class="form-row">
-        <div class="field"><label>Fecha límite (opcional)</label><input type="date" id="st-due" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-        <div style="display:flex;gap:8px">
-          <div class="field" style="flex:1"><label>Hora inicio</label><input type="time" id="st-time" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-          <div class="field" style="flex:1"><label>Hora fin</label><input type="time" id="st-time-end" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none"/></div>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn-cancel" onclick="closeModal('selector-tarea')">Cancelar</button>
-        <button class="btn-save" onclick="saveNuevaTareaFromSelector()">Guardar tarea</button>
-      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('selector-tarea')">Cancelar</button>
+      <button class="btn-save" onclick="saveNuevaTareaFromSelector()">Guardar tarea</button>
     </div>
   </div>
 </div>
