@@ -2065,8 +2065,9 @@
   <div class="modal-box" style="max-width:520px">
     <div class="modal-title">📋 Cargar plan del día</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;background:#0C0C0C;border-radius:8px;padding:10px 12px;line-height:1.8">
-      Una tarea por línea. Hora opcional al inicio:<br>
-      <span style="color:#8B6CF6">06:00 Organizar espacio + estudiar guión</span><br>
+      Una tarea por línea. Hora de inicio o rango opcional:<br>
+      <span style="color:#8B6CF6">06:00-08:00 Organizar espacio + estudiar guión</span><br>
+      <span style="color:#8B6CF6">08:00 Grabar libro de aire</span><br>
       <span style="color:var(--text-muted)">Taladro + repisas (sin hora)</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -2086,7 +2087,7 @@
         </select>
       </div>
     </div>
-    <textarea id="plan-dia-texto" rows="10" placeholder="06:00 Organizar espacio + crear + estudiar guión de aire&#10;08:00 Grabar libro de aire&#10;10:00 Crear + estudiar guión de agua&#10;13:00 Grabar libro de agua&#10;Taladro + repisas + pegante de madera" oninput="planDiaPreview()" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;resize:vertical;line-height:1.7;margin-bottom:12px"></textarea>
+    <textarea id="plan-dia-texto" rows="10" placeholder="06:00-08:00 Organizar espacio + crear + estudiar guión de aire&#10;08:00-10:00 Grabar libro de aire&#10;10:00-13:00 Crear + estudiar guión de agua&#10;13:00-15:00 Grabar libro de agua&#10;Taladro + repisas + pegante de madera" oninput="planDiaPreview()" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;resize:vertical;line-height:1.7;margin-bottom:12px"></textarea>
     <div id="plan-dia-preview" style="margin-bottom:16px"></div>
     <div style="display:flex;gap:8px">
       <button onclick="cargarPlanDia()" id="plan-dia-btn" style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(139,108,246,0.4);background:rgba(139,108,246,0.1);color:#8B6CF6;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">Crear tareas</button>
