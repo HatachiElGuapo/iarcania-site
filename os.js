@@ -1330,7 +1330,7 @@ function renderAgenda(){
   const autoMap = {}
 
   // Hábitos diarios con hora_sugerida
-  ;(allActivities||[]).filter(a => a.is_active && a.hora_sugerida && ['diaria','recurrente'].includes(a.frequency||'diaria') && !['skincare_sub','limpieza_sub','secundarios_manana','secundarios_tarde','secundarios_noche'].includes(a.category))
+  ;(allActivities||[]).filter(a => a.is_active && a.hora_sugerida && ['diaria','recurrente'].includes(a.frequency||'diaria') && !['skincare_sub','limpieza_sub','secundarios_manana','secundarios_tarde','secundarios_noche','identidad_diaria','trabajo_profundo'].includes(a.category))
     .forEach(a => {
       const bm = Math.floor(agendaToMin(a.hora_sugerida)/AGENDA_SLOT)*AGENDA_SLOT
       const bk = agendaFromMin(Math.min(bm, 23*60+(60-AGENDA_SLOT)))
