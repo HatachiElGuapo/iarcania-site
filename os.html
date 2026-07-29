@@ -1649,6 +1649,30 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-ingreso">
+  <div class="modal">
+    <h3>Nuevo ingreso</h3>
+    <div class="form-row">
+      <div class="field"><label>Monto (COP)</label><input type="number" id="i-amount" placeholder="0" min="0"/></div>
+      <div class="field"><label>Fecha</label><input type="date" id="i-date"/></div>
+    </div>
+    <div class="field"><label>Fuente</label>
+      <select id="i-source" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+        <option value="cliente">👤 Cliente</option>
+        <option value="freelance">💼 Freelance</option>
+        <option value="venta">🛍️ Venta</option>
+        <option value="transferencia">💸 Transferencia</option>
+        <option value="otro">📦 Otro</option>
+      </select>
+    </div>
+    <div class="field"><label>Descripción</label><input type="text" id="i-desc" placeholder="¿De dónde viene?"/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('ingreso')">Cancelar</button>
+      <button class="btn-save" onclick="saveIngreso()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-pagar-factura">
   <div class="modal">
     <h3 id="pagar-factura-title">Marcar como pagada</h3>

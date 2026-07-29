@@ -511,7 +511,7 @@ function switchDineroTab(tab){
   })
   const actions = document.getElementById('dinero-tab-actions')
   if(actions){
-    if(tab === 'gastos')   actions.innerHTML = `<button class="btn-add" onclick="openModalGasto()">+ Nuevo gasto</button>`
+    if(tab === 'gastos')   actions.innerHTML = `<button class="btn-add" onclick="openModalGasto()">+ Gasto</button><button class="btn-add" onclick="openModalIngreso()" style="margin-left:6px;border-color:#5DCAA5;color:#5DCAA5">+ Ingreso</button>`
     else if(tab === 'facturas') actions.innerHTML = `<button class="btn-add" onclick="openModal('nueva-factura')">+ Nueva factura</button>`
     else if(tab === 'cobros')   actions.innerHTML = `<button class="btn-add" onclick="openModal('payment')">+ Registrar cobro</button>`
     else actions.innerHTML = ''
@@ -10039,6 +10039,30 @@ function openModalGasto(){
   document.getElementById('g-cat').value = 'mercado'
   document.getElementById('g-date').value = TODAY
   document.getElementById('modal-gasto').classList.add('open')
+}
+
+function openModalIngreso(){
+  document.getElementById('i-amount').value = ''
+  document.getElementById('i-desc').value = ''
+  document.getElementById('i-source').value = 'cliente'
+  document.getElementById('i-date').value = TODAY
+  document.getElementById('modal-ingreso').classList.add('open')
+}
+
+async function saveIngreso(){
+  const amount = Number(document.getElementById('i-amount').value)
+  const source = document.getElementById('i-source').value
+  const description = document.getElementById('i-desc').value.trim()
+  const date = document.getElementById('i-date').value || TODAY
+  if(!amount){ showToast('❌ Ingresa un monto'); return }
+  const { error } = await SB_P.from('income').insert({
+    id: 'inc_'+Date.now(), user_id: USER_ID, amount, source, description, date,
+    created_at: new Date().toISOString()
+  })
+  if(error){ showToast('❌ Error: '+error.message); return }
+  closeModal('ingreso')
+  showToast('✅ Ingreso guardado')
+  await loadExpenses()
 }
 
 async function saveGasto(){
