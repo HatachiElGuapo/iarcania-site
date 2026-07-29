@@ -498,7 +498,7 @@ function toggleNavGroup(name){
 })()
 
 // --- SECCIÓN DINERO ---
-const DINERO_TABS = ['cuentas','gastos','facturas','escanear','cobros','metas']
+const DINERO_TABS = ['cuentas','facturas','gastos','cobros','metas','escanear']
 let _dineroTab = 'cuentas'
 let _isPopState = false
 
