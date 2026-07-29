@@ -1154,6 +1154,7 @@
         <button class="freq-tab"        id="dtab-facturas" onclick="switchDineroTab('facturas')">🧾 Facturas</button>
         <button class="freq-tab"        id="dtab-escanear" onclick="switchDineroTab('escanear')">📷 Escanear</button>
         <button class="freq-tab"        id="dtab-cobros"   onclick="switchDineroTab('cobros')">🤝 Cobros</button>
+        <button class="freq-tab"        id="dtab-metas"    onclick="switchDineroTab('metas')">🛒 Metas</button>
       </div>
       <!-- Cuentas -->
       <div id="dinero-tab-cuentas">
@@ -1241,6 +1242,8 @@
         <div class="payment-list" id="payment-list">
           <div class="loading"><div class="spinner"></div><br>Cargando...</div>
         </div>
+      <div id="dinero-tab-metas" style="display:none">
+        <div id="metas-list"></div>
       </div>
     </div>
 
@@ -1645,6 +1648,27 @@
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('gasto')">Cancelar</button>
       <button class="btn-save" onclick="saveGasto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-meta-compra">
+  <div class="modal">
+    <h3>Nueva meta de compra</h3>
+    <div class="field"><label>Nombre</label><input type="text" id="mc-name" placeholder="Ej: Nevera, Violín..."/></div>
+    <div class="form-row">
+      <div class="field"><label>Precio estimado (COP)</label><input type="number" id="mc-price" placeholder="0" min="0"/></div>
+      <div class="field"><label>Prioridad</label>
+        <select id="mc-priority" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
+          <option value="alta">🔴 Alta</option>
+          <option value="media" selected>🟡 Media</option>
+          <option value="baja">🟢 Baja</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal('meta-compra')">Cancelar</button>
+      <button class="btn-save" onclick="saveMetaCompra()">Guardar</button>
     </div>
   </div>
 </div>

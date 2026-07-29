@@ -498,7 +498,7 @@ function toggleNavGroup(name){
 })()
 
 // --- SECCIÓN DINERO ---
-const DINERO_TABS = ['cuentas','gastos','facturas','escanear','cobros']
+const DINERO_TABS = ['cuentas','gastos','facturas','escanear','cobros','metas']
 let _dineroTab = 'cuentas'
 let _isPopState = false
 
@@ -521,6 +521,8 @@ function switchDineroTab(tab){
   if(tab === 'facturas') loadFacturas()
   if(tab === 'cobros')   loadPayments()
   if(tab === 'escanear') loadScanHistory()
+  if(tab === 'metas')    renderMetasCompra()
+  if(tab === 'metas')    actions.innerHTML = `<button class="btn-add" onclick="openModal('meta-compra')">+ Nueva meta</button>`
 }
 
 // --- TASKS ---
@@ -10061,6 +10063,71 @@ function renderExpenses(){
   }).join('')
 
   el.innerHTML = navHtml + balanceHtml + resumenHtml + chartHtml + listHtml
+}
+
+function _getMetasCompra(){ return JSON.parse(localStorage.getItem('metas_compra') || '[]') }
+function _saveMetasCompra(arr){ localStorage.setItem('metas_compra', JSON.stringify(arr)) }
+
+function saveMetaCompra(){
+  const name = document.getElementById('mc-name').value.trim()
+  const price = Number(document.getElementById('mc-price').value) || 0
+  const priority = document.getElementById('mc-priority').value
+  if(!name){ showToast('❌ Escribe un nombre'); return }
+  const metas = _getMetasCompra()
+  metas.push({ id: 'mc_'+Date.now(), name, price, priority, done: false })
+  _saveMetasCompra(metas)
+  closeModal('meta-compra')
+  renderMetasCompra()
+}
+
+function toggleMetaCompra(id){
+  const metas = _getMetasCompra()
+  const m = metas.find(x => x.id === id)
+  if(m) m.done = !m.done
+  _saveMetasCompra(metas)
+  renderMetasCompra()
+}
+
+function deleteMetaCompra(id){
+  _saveMetasCompra(_getMetasCompra().filter(x => x.id !== id))
+  renderMetasCompra()
+}
+
+function renderMetasCompra(){
+  const el = document.getElementById('metas-list')
+  if(!el) return
+  const metas = _getMetasCompra()
+  const fmt = n => n > 0 ? '$' + Number(n).toLocaleString('es-CO') : '—'
+  const PRIO = { alta: { label:'Alta', color:'#E24B4A' }, media: { label:'Media', color:'#EF9F27' }, baja: { label:'Baja', color:'#5DCAA5' } }
+
+  if(!metas.length){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>Sin metas de compra. Agrega la primera.</div>'
+    return
+  }
+
+  const pendientes = metas.filter(m => !m.done).sort((a,b) => {
+    const po = {alta:0,media:1,baja:2}
+    return (po[a.priority]??1) - (po[b.priority]??1)
+  })
+  const compradas = metas.filter(m => m.done)
+  const total = pendientes.reduce((s,m) => s + (m.price||0), 0)
+
+  const renderItem = m => {
+    const p = PRIO[m.priority] || PRIO.media
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;${m.done?'opacity:.45':''}">
+      <button onclick="toggleMetaCompra('${m.id}')" style="width:20px;height:20px;border-radius:50%;border:2px solid ${m.done?'#5DCAA5':'var(--border)'};background:${m.done?'#5DCAA5':'transparent'};cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#000;font-size:11px">${m.done?'✓':''}</button>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:var(--text);${m.done?'text-decoration:line-through':''}">${m.name}</div>
+        <div style="font-size:11px;color:${p.color};margin-top:2px">${p.label} · ${fmt(m.price)}</div>
+      </div>
+      <button onclick="deleteMetaCompra('${m.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:2px 6px">🗑</button>
+    </div>`
+  }
+
+  el.innerHTML =
+    (total > 0 ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Total estimado pendiente: <strong style="color:var(--text)">${fmt(total)}</strong></div>` : '') +
+    pendientes.map(renderItem).join('') +
+    (compradas.length ? `<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin:16px 0 8px">Compradas</div>` + compradas.map(renderItem).join('') : '')
 }
 
 function editBudget(cat){
