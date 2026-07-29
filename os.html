@@ -718,7 +718,12 @@
           <h1 class="page-title">Hábitos</h1>
           <div class="page-sub" id="habitos-sub">Hoy</div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;align-items:center;gap:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:2px 4px">
+            <button onclick="navegarDia(-1)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1">‹</button>
+            <span id="habitos-date-label" style="font-size:12px;color:var(--text-dim);min-width:60px;text-align:center">Hoy</span>
+            <button onclick="navegarDia(1)" id="habitos-nav-next" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1">›</button>
+          </div>
           <button class="btn-add" onclick="openActivityModal()" style="background:rgba(139,108,246,0.15);border-color:rgba(139,108,246,0.4);color:#8B6CF6">+ Nueva</button>
         </div>
       </div>

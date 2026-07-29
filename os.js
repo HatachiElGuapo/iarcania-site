@@ -6698,6 +6698,21 @@ async function navegarDia(delta){
   if(nuevo > TODAY) return
   selectedDate = nuevo
   await loadHabitos()
+  _updateHabitosDateLabel()
+}
+
+function _updateHabitosDateLabel(){
+  const lbl = document.getElementById('habitos-date-label')
+  const nxt = document.getElementById('habitos-nav-next')
+  if(!lbl) return
+  if(selectedDate === TODAY){
+    lbl.textContent = 'Hoy'
+    if(nxt) nxt.style.opacity = '.3'
+  } else {
+    const d = new Date(selectedDate + 'T12:00:00')
+    lbl.textContent = d.toLocaleDateString('es-CO', { day:'numeric', month:'short' })
+    if(nxt) nxt.style.opacity = '1'
+  }
 }
 
 function filterFreq(freq, btn){
