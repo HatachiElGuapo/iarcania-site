@@ -5551,11 +5551,15 @@ function renderRachas(){
   const detalle  = document.getElementById('rachas-detalle')
   if(!panorama) return
 
-  const acts = allActivities.filter(a =>
-    a.is_active &&
-    (a.frequency||'diaria') !== 'unico' &&
-    (a.frequency||'diaria') !== 'unica'
-  )
+  const FREQ_ORDER = { diaria:0, recurrente:1, semanal:2, mensual:3 }
+  const acts = allActivities
+    .filter(a => a.is_active && (a.frequency||'diaria') !== 'unico' && (a.frequency||'diaria') !== 'unica')
+    .sort((a,b) => {
+      const fa = a.frequency||'diaria', fb = b.frequency||'diaria'
+      const fo = (FREQ_ORDER[fa]??9) - (FREQ_ORDER[fb]??9)
+      if(fo !== 0) return fo
+      return (a.hora_sugerida||'99:99').localeCompare(b.hora_sugerida||'99:99')
+    })
 
   if(!acts.length){
     panorama.innerHTML = '<div class="empty-state"><div class="empty-icon">📈</div>No hay hábitos activos aún.</div>'
