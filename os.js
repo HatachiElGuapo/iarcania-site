@@ -873,7 +873,7 @@ function renderAgendaHoy(){
   // Tareas de hoy
   const tareasHoy = allTasks
     .filter(t => t.status !== 'completada' && t.status !== 'archivada' && (t.date_due === TODAY || t.due_date === TODAY))
-    .map(t => ({ hora: t.time_due || (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null), titulo: t.title, tipo: 'tarea', color: (CATS[t.category]||CATS.habitos).color, cat: (CATS[t.category]||CATS.habitos).label, done: t.status === 'completada' }))
+    .map(t => ({ hora: t.time_due || (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null), horaFin: t.time_end || null, titulo: t.title, tipo: 'tarea', color: (CATS[t.category]||CATS.habitos).color, cat: (CATS[t.category]||CATS.habitos).label, done: t.status === 'completada' }))
 
   // Citas de hoy
   const citasHoy = (typeof allCitas !== 'undefined' ? allCitas : [])
@@ -887,18 +887,22 @@ function renderAgendaHoy(){
   const iconTipo = { habito:'🔄', tarea:'✅', cita:'📞' }
   const labelTipo = { habito:'Hábito', tarea:'Tarea', cita:'Cita' }
 
-  const fila = (item) => `
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);${item.done?'opacity:.45':''}">
-      <div style="width:48px;font-size:11px;font-weight:700;color:${item.hora?item.color:'var(--text-muted)'};flex-shrink:0;text-align:right">${item.hora||'—'}</div>
-      <div style="width:3px;height:36px;border-radius:2px;background:${item.color};flex-shrink:0"></div>
+  const fila = (item) => {
+    const horaLabel = item.hora ? (item.horaFin ? `${item.hora}–${item.horaFin}` : item.hora) : '—'
+    const durMin = (item.hora && item.horaFin) ? (() => { const [h1,m1]=item.hora.split(':').map(Number); const [h2,m2]=item.horaFin.split(':').map(Number); return (h2*60+m2)-(h1*60+m1) })() : null
+    const durLabel = durMin ? `${durMin>=60?Math.floor(durMin/60)+'h':''}${durMin%60?durMin%60+'min':''}` : ''
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);${item.done?'opacity:.45':''}">
+      <div style="width:72px;font-size:11px;font-weight:700;color:${item.hora?item.color:'var(--text-muted)'};flex-shrink:0;text-align:right;line-height:1.4">${horaLabel}</div>
+      <div style="width:3px;height:${durMin?Math.max(36,durMin/2):36}px;border-radius:2px;background:${item.color};flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:${item.done?'var(--text-muted)':'var(--text)'};${item.done?'text-decoration:line-through':''}">
           ${iconTipo[item.tipo]} ${item.titulo}
         </div>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${labelTipo[item.tipo]} · ${item.cat}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${labelTipo[item.tipo]} · ${item.cat}${durLabel?' · ⏱ '+durLabel:''}</div>
       </div>
       ${item.done ? '<span style="font-size:11px;color:#5DCAA5">✓</span>' : ''}
     </div>`
+  }
 
   const sepHdr = (txt) => `<div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.08em;padding:12px 0 6px">${txt}</div>`
 
