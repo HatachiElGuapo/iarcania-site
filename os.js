@@ -11283,6 +11283,7 @@ function openNuevaTareaModal(){
   document.getElementById('st-title').value = ''
   document.getElementById('st-due').value = ''
   document.getElementById('st-time').value = ''
+  const stEnd = document.getElementById('st-time-end'); if(stEnd) stEnd.value = ''
   document.getElementById('st-cat').value = 'iarcania'
   document.getElementById('st-priority').value = 'alta'
   switchSelectorTab('existente')
@@ -11380,8 +11381,9 @@ async function saveNuevaTareaFromSelector(){
     category:    catKey,
     color:       cat.color,
     priority:    document.getElementById('st-priority').value,
-    due_date:    document.getElementById('st-due').value  || null,
-    notes:       document.getElementById('st-time').value || null,
+    due_date:    document.getElementById('st-due').value      || null,
+    notes:       document.getElementById('st-time').value     || null,
+    time_end:    document.getElementById('st-time-end')?.value || null,
     assigned_to: USER_ID,
     created_by:  USER_ID,
     status:      'pendiente'
