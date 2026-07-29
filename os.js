@@ -9271,6 +9271,16 @@ async function confirmarPagoFactura(billId, e){
   showToast('✓ Factura pagada')
 }
 
+async function pagarFacturaRapido(billId, amount, e){
+  e.stopPropagation()
+  const { error } = await SB_P.from('bill_payments').insert({
+    id: 'pay_'+Date.now(), bill_id: billId, amount: amount||0, paid_date: TODAY, notes: null
+  })
+  if(error){ showToast('❌ Error al guardar'); return }
+  await loadFacturas()
+  showToast('✓ Factura pagada')
+}
+
 async function marcarFacturaPagada(billId, amount, e){
   e.stopPropagation()
   abrirPagarFactura(billId, amount, e)
@@ -9356,8 +9366,8 @@ function renderFacturas(){
       <td style="padding:14px 10px;font-size:13px;color:var(--text-muted);text-align:right;white-space:nowrap">${fmt(bill.estimated_amount)}</td>
       <td style="padding:14px 10px;text-align:right">
         ${!isPaid
-          ? `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>`
-          : `<span style="font-size:11px;color:#4ade80">✓</span>`
+          ? `<button onclick="pagarFacturaRapido('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>`
+          : `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:transparent;border:none;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagada</button>`
         }
       </td>
     </tr>
