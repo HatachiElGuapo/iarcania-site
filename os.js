@@ -664,7 +664,9 @@ function renderTasks(){
   document.getElementById('stat-done').textContent    = done.length
   // Dashboard: Mis 5 tareas
   const hoyIds   = getDashList('hoy')
-  const hoyTasks = hoyIds.map(id => {
+  const autoHoyIds = (allTasks||[]).filter(t => t.due_date === TODAY && t.status !== 'completada' && t.status !== 'archivada' && !hoyIds.includes(t.id)).map(t => t.id)
+  const allHoyIds = [...hoyIds, ...autoHoyIds]
+  const hoyTasks = allHoyIds.map(id => {
     const fi = hoyFocusItems.find(x => x.task_id === id)
     const t  = allTasks.find(t => t.id === id)
     if(t) return { ...t, _focusCompleted: fi?.completed || false, _focusNote: fi?.notes || '' }
