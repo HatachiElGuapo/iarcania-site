@@ -12435,6 +12435,7 @@ function _checkActividadesPendientes(){
         icon: '/favicon.ico',
         tag: v.id,
       })
+      _playBeep(1, 'timer')
     })
   }
 }
