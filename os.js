@@ -9513,11 +9513,9 @@ function renderFacturas(){
         <div style="font-size:10px;color:${statusColor};margin-top:2px">${statusLabel}</div>
       </td>
       <td style="padding:14px 10px;font-size:13px;color:var(--text-muted);text-align:right;white-space:nowrap">${fmt(bill.estimated_amount)}</td>
-      <td style="padding:14px 10px;text-align:right">
-        ${!isPaid
-          ? `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>`
-          : `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:transparent;border:none;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagada</button>`
-        }
+      <td style="padding:14px 10px;text-align:right;white-space:nowrap">
+        ${isPaid ? `<span style="font-size:11px;color:#4ade80;margin-right:8px">✓ Pagada</span>` : ''}
+        <button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">+ Pago</button>
       </td>
     </tr>`
   }
