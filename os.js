@@ -9473,8 +9473,12 @@ function renderFacturas(){
       </tr>`
     }).join('')
 
-    const statusColor = isPaid ? '#4ade80' : isOverdue ? 'var(--red)' : 'var(--text-muted)'
-    const statusLabel = isPaid ? `✓ Pagada · ${fmt(lastPay?.amount)}` : isOverdue ? `⚠ Vencida (día ${bill.due_day})` : `Vence día ${bill.due_day}`
+    const dueDateObj = new Date(TODAY.slice(0,7) + '-' + String(bill.due_day).padStart(2,'0'))
+    const todayObj   = new Date(TODAY)
+    const diffDays   = Math.round((dueDateObj - todayObj) / (1000*60*60*24))
+    const dueLabel   = diffDays === 0 ? '¡Vence hoy!' : diffDays > 0 ? `Vence en ${diffDays} día${diffDays===1?'':'s'} (día ${bill.due_day})` : `Vencida hace ${Math.abs(diffDays)} día${Math.abs(diffDays)===1?'':'s'}`
+    const statusColor = isPaid ? '#4ade80' : diffDays <= 0 ? 'var(--red)' : diffDays <= 3 ? '#f97316' : 'var(--text-muted)'
+    const statusLabel = isPaid ? `✓ Pagada · ${fmt(lastPay?.amount)}` : dueLabel
 
     return `<tr onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
       <td style="padding:14px 14px">
@@ -9485,7 +9489,7 @@ function renderFacturas(){
       <td style="padding:14px 10px;font-size:13px;color:var(--text-muted);text-align:right;white-space:nowrap">${fmt(bill.estimated_amount)}</td>
       <td style="padding:14px 10px;text-align:right">
         ${!isPaid
-          ? `<button onclick="pagarFacturaRapido('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>`
+          ? `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>`
           : `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:transparent;border:none;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagada</button>`
         }
       </td>
