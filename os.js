@@ -9342,12 +9342,31 @@ function abrirHistorialFactura(billId){
   if(!bill) return
   const fmt = n => '$' + Number(n||0).toLocaleString('es-CO')
   const hist = (allBillPaymentsHistory.filter(p => p.bill_id === billId) || []).sort((a,b) => b.paid_date.localeCompare(a.paid_date))
+  const total = hist.reduce((s,p) => s + Number(p.amount||0), 0)
+  const byMonth = {}
+  hist.forEach(p => {
+    const ym = p.paid_date.slice(0,7)
+    if(!byMonth[ym]) byMonth[ym] = []
+    byMonth[ym].push(p)
+  })
   const rows = hist.length
-    ? hist.map(p => {
-        const fecha = new Date(p.paid_date+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'})
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
-          <span style="font-size:13px;color:var(--text-dim)">${fecha}</span>
-          <span style="font-size:13px;font-weight:600;color:#4ade80">${fmt(p.amount)}</span>
+    ? Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).map(ym => {
+        const [y,m] = ym.split('-')
+        const label = new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-CO',{month:'long',year:'numeric'})
+        const monthTotal = byMonth[ym].reduce((s,p) => s+Number(p.amount||0), 0)
+        const pagos = byMonth[ym].map(p => {
+          const fecha = new Date(p.paid_date+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'short'})
+          return `<div style="display:flex;justify-content:space-between;padding:4px 0 4px 12px;border-bottom:1px solid rgba(255,255,255,0.03)">
+            <span style="font-size:11px;color:var(--text-muted)">${fecha}</span>
+            <span style="font-size:11px;color:#4ade80">${fmt(p.amount)}</span>
+          </div>`
+        }).join('')
+        return `<div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
+            <span style="font-size:12px;font-weight:600;color:var(--text);text-transform:capitalize">${label}</span>
+            <span style="font-size:12px;font-weight:600;color:#4ade80">${fmt(monthTotal)}</span>
+          </div>
+          ${pagos}
         </div>`
       }).join('')
     : `<div style="padding:16px 0;font-size:13px;color:var(--text-muted);text-align:center">Sin pagos registrados</div>`
@@ -9357,7 +9376,10 @@ function abrirHistorialFactura(billId){
         <div style="font-size:15px;font-weight:600;color:var(--text)">${bill.name}</div>
         <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1">×</button>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Estimado mensual: ${fmt(bill.estimated_amount)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:11px;color:var(--text-muted)">Estimado mensual: ${fmt(bill.estimated_amount)}</span>
+        ${hist.length ? `<span style="font-size:11px;color:var(--gold)">Total histórico: ${fmt(total)}</span>` : ''}
+      </div>
       <div style="overflow-y:auto;flex:1">${rows}</div>
     </div>
   </div>`
