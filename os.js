@@ -9342,48 +9342,92 @@ function abrirHistorialFactura(billId){
   if(!bill) return
   const fmt = n => '$' + Number(n||0).toLocaleString('es-CO')
   const hist = (allBillPaymentsHistory.filter(p => p.bill_id === billId) || []).sort((a,b) => b.paid_date.localeCompare(a.paid_date))
-  const total = hist.reduce((s,p) => s + Number(p.amount||0), 0)
+
+  // Saldo acumulado: estimado × meses con actividad - pagos reales
   const byMonth = {}
   hist.forEach(p => {
     const ym = p.paid_date.slice(0,7)
     if(!byMonth[ym]) byMonth[ym] = []
     byMonth[ym].push(p)
   })
-  const rows = hist.length
-    ? Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).map(ym => {
-        const [y,m] = ym.split('-')
-        const label = new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-CO',{month:'long',year:'numeric'})
-        const monthTotal = byMonth[ym].reduce((s,p) => s+Number(p.amount||0), 0)
-        const pagos = byMonth[ym].map(p => {
-          const fecha = new Date(p.paid_date+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'short'})
-          return `<div style="display:flex;justify-content:space-between;padding:4px 0 4px 12px;border-bottom:1px solid rgba(255,255,255,0.03)">
-            <span style="font-size:11px;color:var(--text-muted)">${fecha}</span>
-            <span style="font-size:11px;color:#4ade80">${fmt(p.amount)}</span>
-          </div>`
-        }).join('')
-        return `<div style="margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
-            <span style="font-size:12px;font-weight:600;color:var(--text);text-transform:capitalize">${label}</span>
-            <span style="font-size:12px;font-weight:600;color:#4ade80">${fmt(monthTotal)}</span>
-          </div>
-          ${pagos}
-        </div>`
-      }).join('')
-    : `<div style="padding:16px 0;font-size:13px;color:var(--text-muted);text-align:center">Sin pagos registrados</div>`
+  const meses = Object.keys(byMonth).length
+  const totalPagos  = hist.filter(p => p.type !== 'cargo_extra').reduce((s,p) => s+Number(p.amount||0), 0)
+  const totalExtras = hist.filter(p => p.type === 'cargo_extra').reduce((s,p) => s+Number(p.amount||0), 0)
+  const totalEsperado = meses * Number(bill.estimated_amount||0) + totalExtras
+  const saldo = totalEsperado - totalPagos  // positivo = debes, negativo = pagaste de más
+  const proximoMes = Number(bill.estimated_amount||0) + Math.max(0, saldo)
+
+  const rows = Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).map(ym => {
+    const [y,m] = ym.split('-')
+    const label = new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-CO',{month:'long',year:'numeric'})
+    const pagosM  = byMonth[ym].filter(p=>p.type!=='cargo_extra')
+    const extrasM = byMonth[ym].filter(p=>p.type==='cargo_extra')
+    const monthPagado = pagosM.reduce((s,p)=>s+Number(p.amount||0),0)
+    const monthExtra  = extrasM.reduce((s,p)=>s+Number(p.amount||0),0)
+    const monthTotal  = monthPagado + monthExtra
+    const filas = byMonth[ym].map(p => {
+      const fecha = new Date(p.paid_date+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'short'})
+      const isExtra = p.type === 'cargo_extra'
+      const extraLabel = isExtra ? (' · cargo extra' + (p.notes_extra ? ': '+p.notes_extra : '')) : ''
+      const color = isExtra ? '#f97316' : '#4ade80'
+      const signo = isExtra ? '+' : ''
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0 4px 12px;border-bottom:1px solid rgba(255,255,255,0.03)">'
+        + '<span style="font-size:11px;color:var(--text-muted)">' + fecha + extraLabel + '</span>'
+        + '<span style="font-size:11px;color:' + color + '">' + signo + fmt(p.amount) + '</span>'
+        + '</div>'
+    }).join('')
+    const extraBadge = monthExtra ? (' <span style="color:#f97316;font-size:10px">+' + fmt(monthExtra) + ' extra</span>') : ''
+    return '<div style="margin-bottom:8px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)">'
+      + '<span style="font-size:12px;font-weight:600;color:var(--text);text-transform:capitalize">' + label + '</span>'
+      + '<span style="font-size:12px;font-weight:600;color:#4ade80">' + fmt(monthPagado) + extraBadge + '</span>'
+      + '</div>' + filas + '</div>'
+  }).join('') || `<div style="padding:16px 0;font-size:13px;color:var(--text-muted);text-align:center">Sin pagos registrados</div>`
+
+  const saldoColor = saldo > 0 ? 'var(--red)' : '#4ade80'
+  const saldoLabel = saldo > 0 ? `Debes ${fmt(saldo)}` : saldo < 0 ? `A favor ${fmt(Math.abs(saldo))}` : 'Al día'
+
   const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
-    <div style="background:#111;border:1px solid var(--border);border-radius:12px;padding:20px;width:380px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <div style="background:#111;border:1px solid var(--border);border-radius:12px;padding:20px;width:400px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:15px;font-weight:600;color:var(--text)">${bill.name}</div>
         <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1">×</button>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <span style="font-size:11px;color:var(--text-muted)">Estimado mensual: ${fmt(bill.estimated_amount)}</span>
-        ${hist.length ? `<span style="font-size:11px;color:var(--gold)">Total histórico: ${fmt(total)}</span>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Estimado/mes</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${fmt(bill.estimated_amount)}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Saldo</div>
+          <div style="font-size:13px;font-weight:600;color:${saldoColor}">${saldoLabel}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Próximo mes</div>
+          <div style="font-size:13px;font-weight:600;color:${saldo>0?'var(--red)':'var(--text)'}">${fmt(proximoMes)}</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button onclick="abrirCargoExtra('${billId}',this.closest('[style*=fixed]'))" style="font-size:11px;padding:4px 12px;background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:6px;color:#f97316;cursor:pointer;font-family:'Outfit',sans-serif">+ Cargo extra</button>
       </div>
       <div style="overflow-y:auto;flex:1">${rows}</div>
     </div>
   </div>`
   document.body.insertAdjacentHTML('beforeend', html)
+}
+
+async function abrirCargoExtra(billId, overlayEl){
+  const desc = prompt('Descripción del cargo extra (ej: reparación medidor)')
+  if(!desc) return
+  const monto = parseFloat(prompt('Monto del cargo extra'))
+  if(!monto || isNaN(monto)) return
+  await SB_P.from('bill_payments').insert({
+    id: 'pay_'+Date.now(), bill_id: billId, amount: monto,
+    paid_date: TODAY, type: 'cargo_extra', notes: null, notes_extra: desc
+  })
+  await loadFacturas()
+  overlayEl?.remove()
+  abrirHistorialFactura(billId)
 }
 
 function abrirPagarFactura(billId, estimado, e){
