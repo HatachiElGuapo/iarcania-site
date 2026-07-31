@@ -9337,6 +9337,33 @@ function facturasWidgetToggle(el){
   localStorage.setItem('facturas_widget_open', JSON.stringify(!open))
 }
 
+function abrirHistorialFactura(billId){
+  const bill = allBills.find(b => b.id === billId)
+  if(!bill) return
+  const fmt = n => '$' + Number(n||0).toLocaleString('es-CO')
+  const hist = (allBillPaymentsHistory.filter(p => p.bill_id === billId) || []).sort((a,b) => b.paid_date.localeCompare(a.paid_date))
+  const rows = hist.length
+    ? hist.map(p => {
+        const fecha = new Date(p.paid_date+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'})
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="font-size:13px;color:var(--text-dim)">${fecha}</span>
+          <span style="font-size:13px;font-weight:600;color:#4ade80">${fmt(p.amount)}</span>
+        </div>`
+      }).join('')
+    : `<div style="padding:16px 0;font-size:13px;color:var(--text-muted);text-align:center">Sin pagos registrados</div>`
+  const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+    <div style="background:#111;border:1px solid var(--border);border-radius:12px;padding:20px;width:380px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:15px;font-weight:600;color:var(--text)">${bill.name}</div>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1">×</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Estimado mensual: ${fmt(bill.estimated_amount)}</div>
+      <div style="overflow-y:auto;flex:1">${rows}</div>
+    </div>
+  </div>`
+  document.body.insertAdjacentHTML('beforeend', html)
+}
+
 function abrirPagarFactura(billId, estimado, e){
   e.stopPropagation()
   const bill = allBills.find(b => b.id === billId)
@@ -9480,25 +9507,16 @@ function renderFacturas(){
     const statusColor = isPaid ? '#4ade80' : diffDays <= 0 ? 'var(--red)' : diffDays <= 3 ? '#f97316' : 'var(--text-muted)'
     const statusLabel = isPaid ? `✓ Pagada · ${fmt(lastPay?.amount)}` : dueLabel
 
-    return `<tr onclick="toggleSvcHistorial('${key}')" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
+    return `<tr onclick="abrirHistorialFactura('${bill.id}')" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
       <td style="padding:14px 14px">
-        <span id="chev-${key}" style="font-size:10px;color:var(--text-muted);margin-right:6px">▸</span>
         <span style="font-size:13px;font-weight:500;color:${isPaid?'var(--text-muted)':isOverdue?'var(--red)':'var(--text)'}${isPaid?';text-decoration:line-through':''}">${bill.name}</span>
-        <div style="font-size:10px;color:${statusColor};margin-top:2px;margin-left:16px">${statusLabel}</div>
+        <div style="font-size:10px;color:${statusColor};margin-top:2px">${statusLabel}</div>
       </td>
       <td style="padding:14px 10px;font-size:13px;color:var(--text-muted);text-align:right;white-space:nowrap">${fmt(bill.estimated_amount)}</td>
       <td style="padding:14px 10px;text-align:right">
         ${!isPaid
           ? `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:6px;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagar</button>`
           : `<button onclick="abrirPagarFactura('${bill.id}',${bill.estimated_amount||0},event)" style="font-size:11px;padding:4px 10px;background:transparent;border:none;color:#4ade80;cursor:pointer;font-family:'Outfit',sans-serif;white-space:nowrap">✓ Pagada</button>`
-        }
-      </td>
-    </tr>
-    <tr id="svc-hist-${key}" style="display:none">
-      <td colspan="3" style="padding:0;background:rgba(0,0,0,0.25);border-bottom:1px solid rgba(255,255,255,0.06)">
-        ${histRows
-          ? `<table style="width:100%;border-collapse:collapse">${histRows}</table>`
-          : `<div style="padding:10px 14px;font-size:12px;color:var(--text-muted)">Sin historial de pagos</div>`
         }
       </td>
     </tr>`
