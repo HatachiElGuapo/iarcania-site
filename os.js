@@ -9349,7 +9349,12 @@ function abrirPagarFactura(billId, estimado, e){
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Monto real pagado</div>
       <input type="number" id="pagar-monto" value="${estimado||''}" placeholder="0" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:12px">
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Fecha de pago</div>
-      <input type="date" id="pagar-fecha" value="${TODAY}" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:16px;color-scheme:dark">
+      <input type="date" id="pagar-fecha" value="${TODAY}" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:12px;color-scheme:dark">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Pagar desde cuenta</div>
+      <select id="pagar-cuenta" style="width:100%;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:16px">
+        <option value="">Sin descontar de cuenta</option>
+        ${allAccounts.map(a => `<option value="${a.id}">${a.name} · $${Number(a.balance||0).toLocaleString('es-CO')}</option>`).join('')}
+      </select>
       <div style="display:flex;gap:8px">
         <button onclick="document.getElementById('pagar-overlay').remove()" style="flex:1;padding:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px">Cancelar</button>
         <button onclick="confirmarPagoFactura('${billId}',event)" style="flex:1;padding:10px;background:#4ade80;border:none;border-radius:8px;color:#000;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600">✓ Confirmar</button>
@@ -9365,11 +9370,12 @@ async function confirmarPagoFactura(billId, e){
   e.stopPropagation()
   const monto = parseFloat(document.getElementById('pagar-monto').value)
   const fecha = document.getElementById('pagar-fecha').value
+  const cuentaId = document.getElementById('pagar-cuenta')?.value || ''
   if(!monto || !fecha){ showToast('Ingresa el monto y la fecha'); return }
   document.getElementById('pagar-overlay').remove()
   const bill = allBills.find(b => b.id === billId)
   const { error } = await SB_P.from('bill_payments').insert({
-    id: 'pay_'+Date.now(), bill_id: billId, amount: monto, paid_date: fecha, notes: null
+    id: 'pay_'+Date.now(), bill_id: billId, amount: monto, paid_date: fecha, notes: cuentaId||null
   })
   if(error){ showToast('❌ Error al guardar'); return }
   if(monto > 0 && bill){
@@ -9379,7 +9385,14 @@ async function confirmarPagoFactura(billId, e){
       date: fecha, created_at: new Date().toISOString()
     })
   }
-  await loadFacturas()
+  if(cuentaId){
+    const acc = allAccounts.find(a => a.id === cuentaId)
+    if(acc){
+      const newBalance = Number(acc.balance||0) - monto
+      await SB_P.from('accounts').update({balance: newBalance}).eq('id', cuentaId)
+    }
+  }
+  await Promise.all([loadFacturas(), loadFinanzas()])
   showToast('✓ Factura pagada')
 }
 
