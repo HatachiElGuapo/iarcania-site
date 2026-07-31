@@ -9465,24 +9465,11 @@ function renderFacturas(){
     const lastPay   = hist[0]
     const key       = 'bf_'+idx
 
-    const byMonth = {}
-    hist.forEach(p => {
-      const ym = p.paid_date.slice(0,7)
-      byMonth[ym] = (byMonth[ym]||0) + Number(p.amount||0)
-    })
-    const months = Object.keys(byMonth).sort((a,b) => b.localeCompare(a))
-    const vals   = months.map(ym => byMonth[ym])
-    const dMax   = Math.max(...vals, 1)
-
-    const histRows = months.slice(0,12).map(ym => {
-      const [y,m] = ym.split('-')
-      const label = new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-CO',{month:'short',year:'numeric'})
-      const val   = byMonth[ym]
-      const barW  = Math.round((val/dMax)*100)
+    const histRows = hist.slice(0,24).map(p => {
+      const fecha = new Date(p.paid_date+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'short',year:'numeric'})
       return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-        <td style="padding:7px 14px;font-size:12px;color:var(--text-dim);white-space:nowrap">${label}</td>
-        <td style="padding:7px 8px;width:100%"><div style="background:rgba(255,255,255,0.05);border-radius:3px;height:5px"><div style="width:${barW}%;height:100%;background:#C4A35A;border-radius:3px"></div></div></td>
-        <td style="padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap">${fmt(val)}</td>
+        <td style="padding:8px 14px;font-size:12px;color:var(--text-dim);white-space:nowrap">${fecha}</td>
+        <td style="padding:8px 14px;font-size:12px;font-weight:600;color:#4ade80;text-align:right;white-space:nowrap">${fmt(p.amount)}</td>
       </tr>`
     }).join('')
 
