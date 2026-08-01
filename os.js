@@ -12431,7 +12431,7 @@ async function initActividadesAlert(){
       _notifPermission = p === 'granted'
     }
   }
-  setInterval(_checkActividadesPendientes, 60000)
+  setInterval(_checkActividadesPendientes, 600000)
   _checkActividadesPendientes()
 }
 
