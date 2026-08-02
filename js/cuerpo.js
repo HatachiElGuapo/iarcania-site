@@ -100,6 +100,28 @@ function renderCuerpo() {
       </div>
     </div>
 
+    <div style="background:#111;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:1.5rem">
+      <div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.08em;margin-bottom:10px">HORARIO GYM</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <div style="background:#0C0C0C;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:9px;font-weight:700;color:#5DCAA5;letter-spacing:.06em;margin-bottom:3px">L – V</div>
+          <div style="font-size:12px;color:var(--text);white-space:nowrap">5am – 10pm</div>
+        </div>
+        <div style="background:#0C0C0C;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:9px;font-weight:700;color:#EF9F27;letter-spacing:.06em;margin-bottom:3px">SÁB</div>
+          <div style="font-size:12px;color:var(--text);white-space:nowrap">— 6pm</div>
+        </div>
+        <div style="background:#0C0C0C;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:9px;font-weight:700;color:#8B6CF6;letter-spacing:.06em;margin-bottom:3px">DOM</div>
+          <div style="font-size:12px;color:var(--text);white-space:nowrap">8am – 1pm</div>
+        </div>
+        <div style="background:#0C0C0C;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:9px;font-weight:700;color:#E07BA0;letter-spacing:.06em;margin-bottom:3px">FESTI</div>
+          <div style="font-size:12px;color:var(--text);white-space:nowrap">7am – 2pm</div>
+        </div>
+      </div>
+    </div>
+
     <div class="freq-tabs" style="margin-bottom:1.5rem" id="cx-tabs">
       <button class="freq-tab${_cTab==='registro'    ?' active':''}" onclick="cuerpoTab('registro',this)">📋 Registro</button>
       <button class="freq-tab${_cTab==='nutricion'   ?' active':''}" onclick="cuerpoTab('nutricion',this)">🍽️ Nutrición</button>
