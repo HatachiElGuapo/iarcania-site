@@ -2922,10 +2922,13 @@ function renderDashTasksSection(elId, tasks, listKey){
     const horaTask = t.time_due ? t.time_due.slice(0,5) : (t.notes && /^\d{2}:\d{2}$/.test(t.notes.trim()) ? t.notes.trim() : null)
     const fecha = t.due_date || null
     const checkClick = isHoy ? `event.stopPropagation();toggleFocusCheck('${t.id}')` : `toggleTask('${t.id}')`
+    const proj = t.project_id ? (allLifeProjects||[]).find(p => p.id === t.project_id) : null
+    const projArea = proj ? (allAreas||[]).find(a => a.id === proj.area_id) : null
+    const projChip = proj ? `<span style="font-size:9px;font-weight:700;color:${projArea?.color||'#888'};background:${(projArea?.color||'#888')}18;padding:1px 6px;border-radius:8px;letter-spacing:.04em;margin-left:4px">${proj.name}</span>` : ''
     return `<div class="task-item${fc?' done':''}" style="border-left-color:${fc?'var(--border)':isOverdue?'var(--red)':cat.color}">
       <div class="task-check" onclick="${checkClick}" style="${fc?`background:${cat.color};border-color:${cat.color}`:''}cursor:pointer">${fc?'✓':''}</div>
       <div class="task-text"${!isHoy?` onclick="${checkClick}" style="cursor:pointer"`:''}>
-        <div${fc?' style="text-decoration:line-through"':''}>${t.title}</div>
+        <div${fc?' style="text-decoration:line-through"':''}>${t.title}${projChip}</div>
         ${isOverdue?`<div style="font-size:10px;color:var(--red);margin-top:2px">⚠️ Vencida: ${fecha}</div>`:
           (horaTask||fecha)?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${fecha?'📅 '+fecha:''}${horaTask?' 🕐'+horaTask:''}</div>`:''}
         ${fn?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">📝 ${fn}</div>`:''}
@@ -10980,26 +10983,23 @@ async function guardarNuevaCita(){
 }
 
 // ============================================================
-// BRÚJULA — Áreas de vida + filosofía + tareas de mañana
+// BRÚJULA — Áreas de vida → Objetivos → Proyectos → Sub-proyectos → Tareas
 // ============================================================
 let allAreas = []
 let allLifeProjects = []
-let allLifeSteps = []
 let _areaModalEditId = null
 let _filosofiaAreaId = null
-let _brujulaAreaOpen = null
+let _brujulaOpen = new Set()
 
 const AREA_COLORS = ['#E24B4A','#378ADD','#5DCAA5','#EF9F27','#8B6CF6','#C9A84C','#00C2FF','#E07BA0','#888888']
 
 async function loadBrujula(){
-  const [areasRes, projRes, stepsRes] = await Promise.all([
+  const [areasRes, projRes] = await Promise.all([
     SB_P.from('life_areas').select('*').eq('user_id', USER_ID).order('sort_order').order('created_at'),
     SB_P.from('life_projects').select('*').eq('user_id', USER_ID).order('sort_order'),
-    SB_P.from('life_project_steps').select('*').eq('user_id', USER_ID).order('sort_order'),
   ])
   allAreas = areasRes.data || []
   allLifeProjects = projRes.data || []
-  allLifeSteps = stepsRes.data || []
   if(!allAreas.length) await _seedBrujulaAreas()
   renderBrujulaAreas()
   renderBrujulaManana()
@@ -11032,67 +11032,100 @@ async function _seedBrujulaAreas(){
   allAreas = data || []
 }
 
+function _brujulaToggle(id){
+  if(_brujulaOpen.has(id)) _brujulaOpen.delete(id)
+  else _brujulaOpen.add(id)
+  renderBrujulaAreas()
+}
+
+function _renderProjectNode(proj, depth, areaColor){
+  const isOpen = _brujulaOpen.has(proj.id)
+  const children = allLifeProjects.filter(p => p.parent_id === proj.id && p.status === 'activo')
+  const projTasks = (allTasks||[]).filter(t => t.project_id === proj.id && t.status !== 'completada' && t.status !== 'archivada')
+  const doneTasks = (allTasks||[]).filter(t => t.project_id === proj.id && t.status === 'completada').length
+  const totalKnown = projTasks.length + doneTasks
+  const pct = totalKnown > 0 ? Math.round(doneTasks / totalKnown * 100) : null
+
+  const depthLabels = ['OBJETIVO','PROYECTO','SUB-PROYECTO']
+  const depthLabel = depthLabels[Math.min(depth, 2)] || ('NIV.'+(depth+1))
+  const indent = depth * 14
+  const bg = depth === 0 ? '#0e0e0e' : depth === 1 ? '#0C0C0C' : '#0a0a0a'
+  const borderColor = isOpen ? areaColor+'55' : 'rgba(255,255,255,0.05)'
+
+  let contentHtml = ''
+  if(isOpen){
+    if(children.length){
+      contentHtml += children.map(c => _renderProjectNode(c, depth+1, areaColor)).join('')
+      contentHtml += '<button onclick="event.stopPropagation();openNuevoProyectoModal(\'' + proj.area_id + '\',\'' + proj.id + '\')" style="display:block;margin-top:6px;padding:5px 10px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:\'Outfit\',sans-serif">+ Sub-proyecto</button>'
+    } else {
+      const active  = projTasks.filter(t => !!t.due_date)
+      const backlog = projTasks.filter(t => !t.due_date)
+      const allPT   = [...active, ...backlog]
+      if(allPT.length){
+        contentHtml += '<div style="margin-top:8px">' + allPT.map(t => {
+          const isActive = !!t.due_date
+          const dl = t.due_date === TODAY ? 'hoy' : t.due_date === _manana() ? 'mañana' : t.due_date ? t.due_date.slice(5) : 'backlog'
+          return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">'
+            + '<div style="width:5px;height:5px;border-radius:50%;background:' + (isActive ? areaColor : 'var(--text-muted)') + ';flex-shrink:0"></div>'
+            + '<span style="font-size:12px;color:' + (isActive ? 'var(--text)' : 'var(--text-muted)') + ';flex:1">' + t.title + '</span>'
+            + '<span style="font-size:10px;color:var(--text-muted)">' + dl + '</span>'
+            + '</div>'
+        }).join('') + '</div>'
+      } else {
+        contentHtml += '<div style="font-size:12px;color:var(--text-muted);margin-top:8px;padding:4px 0">Sin tareas — agrega una para arrancar</div>'
+      }
+      contentHtml += '<button onclick="event.stopPropagation();openNuevaTareaEnProyecto(\'' + proj.id + '\')" style="margin-top:8px;padding:5px 12px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:\'Outfit\',sans-serif">+ Tarea</button>'
+    }
+  }
+
+  return '<div style="margin-left:' + indent + 'px;margin-bottom:8px;background:' + bg + ';border:1px solid ' + borderColor + ';border-radius:10px;padding:11px">'
+    + '<div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="event.stopPropagation();_brujulaToggle(\'' + proj.id + '\')">'
+    +   '<span style="font-size:9px;font-weight:700;color:' + areaColor + ';letter-spacing:.08em;opacity:.7;flex-shrink:0">' + depthLabel + '</span>'
+    +   '<span style="font-size:13px;font-weight:700;color:var(--text);flex:1">' + proj.name + '</span>'
+    +   (pct !== null ? '<span style="font-size:10px;color:var(--text-muted)">' + pct + '%</span>' : '')
+    +   '<button onclick="event.stopPropagation();completarProyecto(\'' + proj.id + '\')" style="padding:2px 7px;border-radius:5px;border:1px solid rgba(93,202,165,0.3);background:transparent;color:#5DCAA5;font-size:10px;cursor:pointer;font-family:\'Outfit\',sans-serif">✓</button>'
+    +   '<span style="color:var(--text-muted);font-size:11px">' + (isOpen ? '▲' : '▼') + '</span>'
+    + '</div>'
+    + (proj.description && !isOpen ? '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">' + proj.description + '</div>' : '')
+    + (isOpen ? '<div style="margin-top:8px">' + contentHtml + '</div>' : '')
+    + '</div>'
+}
+
 function renderBrujulaAreas(){
   const el = document.getElementById('brujula-areas-list')
   if(!el) return
   if(!allAreas.length){
-    el.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text-muted)">
-      <div style="font-size:32px;margin-bottom:12px">🧭</div>
-      <div style="font-size:14px;margin-bottom:6px">Sin áreas todavía</div>
-      <div style="font-size:12px">Crea tu primera área para empezar a orientar tus días</div>
-    </div>`
+    el.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-muted)"><div style="font-size:32px;margin-bottom:12px">🧭</div><div style="font-size:14px;margin-bottom:6px">Sin áreas todavía</div><div style="font-size:12px">Crea tu primera área para empezar a orientar tus días</div></div>'
     return
   }
   el.innerHTML = allAreas.map(area => {
     const color = area.color || '#888'
-    const isOpen = _brujulaAreaOpen === area.id
-    const proyectos = allLifeProjects.filter(p => p.area_id === area.id && p.status === 'activo')
-    const badgeP = proyectos.length ? `<span style="background:${color}22;color:${color};font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px">${proyectos.length} proy.</span>` : ''
+    const isOpen = _brujulaOpen.has(area.id)
+    const rootProjects = allLifeProjects.filter(p => p.area_id === area.id && !p.parent_id && p.status === 'activo')
+    const badge = rootProjects.length ? '<span style="background:' + color + '22;color:' + color + ';font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px">' + rootProjects.length + ' obj.</span>' : ''
 
-    let proyectosHtml = ''
+    let innerHtml = ''
     if(isOpen){
-      proyectosHtml = `<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)">` +
-        proyectos.map(p => {
-          const steps = allLifeSteps.filter(s => s.project_id === p.id)
-          const pending = steps.filter(s => s.status === 'pendiente')
-          const done = steps.filter(s => s.status === 'completado')
-          const next = pending[0]
-          return `<div style="margin-bottom:12px;background:#0C0C0C;border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,0.05)">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:${next?'8px':'0'}">
-              <span style="font-size:13px;font-weight:700;color:var(--text);flex:1">${p.name}</span>
-              <span style="font-size:10px;color:var(--text-muted)">${done.length}/${steps.length} pasos</span>
-              <button onclick="event.stopPropagation();openNuevoPasoModal('${p.id}')" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">+ paso</button>
-              <button onclick="event.stopPropagation();completarProyecto('${p.id}')" style="padding:2px 8px;border-radius:5px;border:1px solid rgba(93,202,165,0.3);background:transparent;color:#5DCAA5;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✓ listo</button>
-            </div>
-            ${next ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${color}11;border-radius:8px;border-left:3px solid ${color}">
-              <div style="flex:1">
-                <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:.05em;margin-bottom:2px">→ SIGUIENTE PASO</div>
-                <div style="font-size:13px;color:var(--text)">${next.title}</div>
-                ${next.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${next.notes}</div>`:''}
-              </div>
-              <button onclick="event.stopPropagation();completarPaso('${next.id}')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(93,202,165,0.4);background:transparent;color:#5DCAA5;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✓</button>
-            </div>` : `<div style="font-size:12px;color:var(--text-muted);padding:4px 0">Sin pasos pendientes — <button onclick="event.stopPropagation();openNuevoPasoModal('${p.id}')" style="background:none;border:none;color:${color};cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;padding:0">agrega uno</button></div>`}
-            ${pending.length > 1 ? `<div style="margin-top:6px;padding-left:4px">${pending.slice(1).map(s=>`<div style="font-size:11px;color:var(--text-muted);padding:2px 0;opacity:.6">· ${s.title}</div>`).join('')}</div>` : ''}
-          </div>`
-        }).join('') +
-        `<button onclick="event.stopPropagation();openNuevoProyectoModal('${area.id}')" style="width:100%;padding:8px;border-radius:8px;border:1px dashed rgba(255,255,255,0.12);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;margin-top:4px">+ Nuevo proyecto</button>
-      </div>`
+      innerHtml = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">'
+        + rootProjects.map(p => _renderProjectNode(p, 0, color)).join('')
+        + '<button onclick="event.stopPropagation();openNuevoProyectoModal(\'' + area.id + '\',null)" style="width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px dashed rgba(255,255,255,0.12);background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:\'Outfit\',sans-serif">+ Nuevo objetivo</button>'
+        + '</div>'
     }
 
-    return `<div style="background:#111;border:1px solid ${isOpen?color+'44':'rgba(255,255,255,0.06)'};border-radius:12px;padding:16px;margin-bottom:10px;transition:border-color .2s">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="_brujulaAreaOpen=_brujulaAreaOpen==='${area.id}'?null:'${area.id}';renderBrujulaAreas()">
-        <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <div style="font-size:15px;font-weight:700;color:var(--text);flex:1">${area.nombre}</div>
-        ${badgeP}
-        <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
-          <button onclick="openEditAreaModal('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✏️</button>
-          <button onclick="eliminarArea('${area.id}')" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif">✕</button>
-        </div>
-        <span style="color:var(--text-muted);font-size:12px">${isOpen?'▲':'▼'}</span>
-      </div>
-      ${area.enfoque_actual && !isOpen ? `<div style="font-size:12px;color:${color};opacity:.85;padding-left:20px;margin-top:6px">${area.enfoque_actual}</div>` : ''}
-      ${proyectosHtml}
-    </div>`
+    return '<div style="background:#111;border:1px solid ' + (isOpen ? color+'44' : 'rgba(255,255,255,0.06)') + ';border-radius:12px;padding:16px;margin-bottom:10px;transition:border-color .2s">'
+      + '<div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="_brujulaToggle(\'' + area.id + '\')">'
+      +   '<div style="width:10px;height:10px;border-radius:50%;background:' + color + ';flex-shrink:0"></div>'
+      +   '<div style="font-size:15px;font-weight:700;color:var(--text);flex:1">' + area.nombre + '</div>'
+      +   badge
+      +   '<div style="display:flex;gap:6px" onclick="event.stopPropagation()">'
+      +     '<button onclick="openEditAreaModal(\'' + area.id + '\')" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:\'Outfit\',sans-serif">✏️</button>'
+      +     '<button onclick="eliminarArea(\'' + area.id + '\')" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(226,75,74,0.3);background:transparent;color:var(--red);font-size:11px;cursor:pointer;font-family:\'Outfit\',sans-serif">✕</button>'
+      +   '</div>'
+      +   '<span style="color:var(--text-muted);font-size:12px">' + (isOpen ? '▲' : '▼') + '</span>'
+      + '</div>'
+      + (area.enfoque_actual && !isOpen ? '<div style="font-size:12px;color:' + color + ';opacity:.85;padding-left:20px;margin-top:6px">' + area.enfoque_actual + '</div>' : '')
+      + innerHtml
+      + '</div>'
   }).join('')
 }
 
@@ -11101,7 +11134,7 @@ function renderBrujulaManana(){
   const list = document.getElementById('brujula-manana-list')
   if(!wrap || !list) return
   const manana = _manana()
-  const tareasM = allTasks.filter(t => t.date_due === manana && t.status !== 'completada')
+  const tareasM = allTasks.filter(t => t.due_date === manana && t.status !== 'completada')
   if(!tareasM.length){ wrap.style.display = 'none'; return }
   wrap.style.display = 'block'
 
@@ -11208,93 +11241,109 @@ async function eliminarArea(areaId){
   await loadBrujula()
 }
 
-function openNuevoProyectoModal(areaId){
-  const area = allAreas.find(a => a.id === areaId)
-  const color = area?.color || '#888'
+function openNuevoProyectoModal(areaId, parentId){
+  const area   = allAreas.find(a => a.id === areaId)
+  const parent = parentId ? allLifeProjects.find(p => p.id === parentId) : null
+  const color  = area?.color || '#888'
+  const depth  = !parentId ? 0 : !parent?.parent_id ? 1 : 2
+  const labels = ['Nuevo objetivo','Nuevo proyecto','Nuevo sub-proyecto']
+  const under  = parent ? parent.name : (area?.nombre || '')
   const el = document.createElement('div')
   el.id = 'modal-life-project'
   el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
-  el.innerHTML = `<div style="background:#1a1a1a;border:1px solid ${color}44;border-radius:14px;padding:22px 20px;width:340px;max-width:92vw" onclick="event.stopPropagation()">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <span style="font-size:15px;font-weight:700;color:var(--text)">Nuevo proyecto — ${area?.nombre||''}</span>
-      <button onclick="document.getElementById('modal-life-project').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer">✕</button>
-    </div>
-    <div class="field"><label>Nombre del proyecto *</label>
-      <input id="lp-name" type="text" placeholder="Ej: Sitio web cliente X" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
-    </div>
-    <div class="field" style="margin-top:10px"><label>Descripción (opcional)</label>
-      <textarea id="lp-desc" placeholder="¿Qué implica este proyecto?" rows="2" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none;resize:none"></textarea>
-    </div>
-    <button onclick="_guardarProyecto('${areaId}')" style="width:100%;margin-top:14px;padding:11px;border-radius:8px;border:none;background:${color};color:#000;font-weight:700;font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif">Crear proyecto</button>
-  </div>`
+  el.innerHTML = '<div style="background:#1a1a1a;border:1px solid ' + color + '44;border-radius:14px;padding:22px 20px;width:340px;max-width:92vw" onclick="event.stopPropagation()">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +   '<span style="font-size:15px;font-weight:700;color:var(--text)">' + labels[depth] + ' — ' + under + '</span>'
+    +   '<button onclick="document.getElementById(\'modal-life-project\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="field"><label>Nombre *</label>'
+    +   '<input id="lp-name" type="text" placeholder="Ej: Grabar libro de agua" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:\'Outfit\',sans-serif;font-size:13px;outline:none">'
+    + '</div>'
+    + '<div class="field" style="margin-top:10px"><label>Descripción (opcional)</label>'
+    +   '<textarea id="lp-desc" rows="2" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:\'Outfit\',sans-serif;font-size:13px;outline:none;resize:none"></textarea>'
+    + '</div>'
+    + '<button onclick="_guardarProyecto(\'' + areaId + '\',\'' + (parentId||'') + '\')" style="width:100%;margin-top:14px;padding:11px;border-radius:8px;border:none;background:' + color + ';color:#000;font-weight:700;font-size:14px;cursor:pointer;font-family:\'Outfit\',sans-serif">Crear</button>'
+    + '</div>'
   document.body.appendChild(el)
   el.addEventListener('click', e => { if(e.target===el) el.remove() })
   setTimeout(() => document.getElementById('lp-name')?.focus(), 50)
 }
 
-async function _guardarProyecto(areaId){
+async function _guardarProyecto(areaId, parentId){
   const name = document.getElementById('lp-name')?.value.trim()
   if(!name) return
   const desc = document.getElementById('lp-desc')?.value.trim() || null
-  const rec = { id:'lp_'+Date.now(), user_id:USER_ID, area_id:areaId, name, description:desc, status:'activo', sort_order:allLifeProjects.filter(p=>p.area_id===areaId).length }
+  const pid  = parentId || null
+  const rec  = { id:'lp_'+Date.now(), user_id:USER_ID, area_id:areaId, parent_id:pid, name, description:desc, status:'activo', sort_order: allLifeProjects.filter(p=>p.parent_id===pid && p.area_id===areaId).length }
   await SB_P.from('life_projects').insert(rec)
   document.getElementById('modal-life-project')?.remove()
-  _brujulaAreaOpen = areaId
+  _brujulaOpen.add(areaId)
+  if(pid) _brujulaOpen.add(pid)
   await loadBrujula()
 }
 
-function openNuevoPasoModal(projectId){
-  const proj = allLifeProjects.find(p => p.id === projectId)
-  const area = allAreas.find(a => a.id === proj?.area_id)
+function openNuevaTareaEnProyecto(projectId){
+  const proj  = allLifeProjects.find(p => p.id === projectId)
+  const area  = allAreas.find(a => a.id === proj?.area_id)
   const color = area?.color || '#888'
   const el = document.createElement('div')
-  el.id = 'modal-life-step'
+  el.id = 'modal-proj-task'
   el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center'
-  el.innerHTML = `<div style="background:#1a1a1a;border:1px solid ${color}44;border-radius:14px;padding:22px 20px;width:340px;max-width:92vw" onclick="event.stopPropagation()">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <span style="font-size:15px;font-weight:700;color:var(--text)">Nuevo paso — ${proj?.name||''}</span>
-      <button onclick="document.getElementById('modal-life-step').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer">✕</button>
-    </div>
-    <div class="field"><label>Acción concreta *</label>
-      <input id="ls-title" type="text" placeholder="Ej: Diseñar wireframe home" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
-    </div>
-    <div class="field" style="margin-top:10px"><label>Notas (opcional)</label>
-      <input id="ls-notes" type="text" placeholder="Contexto o detalles" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;outline:none">
-    </div>
-    <button onclick="_guardarPaso('${projectId}')" style="width:100%;margin-top:14px;padding:11px;border-radius:8px;border:none;background:${color};color:#000;font-weight:700;font-size:14px;cursor:pointer;font-family:'Outfit',sans-serif">Agregar paso</button>
-  </div>`
+  el.innerHTML = '<div style="background:#1a1a1a;border:1px solid ' + color + '44;border-radius:14px;padding:22px 20px;width:340px;max-width:92vw" onclick="event.stopPropagation()">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +   '<span style="font-size:15px;font-weight:700;color:var(--text)">Nueva tarea — ' + (proj?.name||'') + '</span>'
+    +   '<button onclick="document.getElementById(\'modal-proj-task\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div class="field"><label>¿Qué hay que hacer? *</label>'
+    +   '<input id="pt-title" type="text" placeholder="Ej: Grabar parte 1" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:\'Outfit\',sans-serif;font-size:13px;outline:none">'
+    + '</div>'
+    + '<div class="field" style="margin-top:10px"><label>Fecha (vacío = backlog)</label>'
+    +   '<input id="pt-date" type="date" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:\'Outfit\',sans-serif;font-size:13px;outline:none">'
+    + '</div>'
+    + '<div class="field" style="margin-top:10px"><label>Prioridad</label>'
+    +   '<select id="pt-priority" style="width:100%;box-sizing:border-box;background:#0C0C0C;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:\'Outfit\',sans-serif;font-size:13px;outline:none">'
+    +     '<option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option>'
+    +   '</select>'
+    + '</div>'
+    + '<button onclick="_guardarTareaProyecto(\'' + projectId + '\',\'' + (proj?.area_id||'') + '\')" style="width:100%;margin-top:14px;padding:11px;border-radius:8px;border:none;background:' + color + ';color:#000;font-weight:700;font-size:14px;cursor:pointer;font-family:\'Outfit\',sans-serif">Agregar tarea</button>'
+    + '</div>'
   document.body.appendChild(el)
   el.addEventListener('click', e => { if(e.target===el) el.remove() })
-  setTimeout(() => document.getElementById('ls-title')?.focus(), 50)
+  setTimeout(() => document.getElementById('pt-title')?.focus(), 50)
 }
 
-async function _guardarPaso(projectId){
-  const title = document.getElementById('ls-title')?.value.trim()
-  if(!title) return
-  const notes = document.getElementById('ls-notes')?.value.trim() || null
-  const existing = allLifeSteps.filter(s => s.project_id === projectId)
-  const rec = { id:'ls_'+Date.now(), user_id:USER_ID, project_id:projectId, title, notes, status:'pendiente', sort_order:existing.length }
-  await SB_P.from('life_project_steps').insert(rec)
-  document.getElementById('modal-life-step')?.remove()
-  const proj = allLifeProjects.find(p => p.id === projectId)
-  if(proj) _brujulaAreaOpen = proj.area_id
-  await loadBrujula()
-}
-
-async function completarPaso(stepId){
-  await SB_P.from('life_project_steps').update({ status:'completado' }).eq('id', stepId)
-  const step = allLifeSteps.find(s => s.id === stepId)
-  if(step) step.status = 'completado'
-  const proj = allLifeProjects.find(p => p.id === step?.project_id)
-  if(proj) _brujulaAreaOpen = proj.area_id
-  await loadBrujula()
+async function _guardarTareaProyecto(projectId, areaId){
+  const title = document.getElementById('pt-title')?.value.trim()
+  if(!title){ showToast('Escribe el título'); return }
+  const due_date = document.getElementById('pt-date')?.value || null
+  const priority = document.getElementById('pt-priority')?.value || 'media'
+  const task = {
+    id: 'task_'+Date.now(),
+    user_id: USER_ID,
+    title,
+    project_id: projectId,
+    area_id: areaId || null,
+    category: 'iarcania',
+    due_date,
+    priority,
+    status: 'pendiente',
+    created_at: new Date().toISOString(),
+  }
+  const { data, error } = await SB_P.from('tasks').insert(task).select().single()
+  if(error){ showToast('Error: '+error.message); return }
+  if(data) allTasks.push(data)
+  document.getElementById('modal-proj-task')?.remove()
+  _brujulaOpen.add(areaId)
+  _brujulaOpen.add(projectId)
+  renderBrujulaAreas()
+  showToast('Tarea agregada' + (due_date ? '' : ' al backlog'))
 }
 
 async function completarProyecto(projectId){
   if(!confirm('¿Marcar este proyecto como completado?')) return
   await SB_P.from('life_projects').update({ status:'completado' }).eq('id', projectId)
   const proj = allLifeProjects.find(p => p.id === projectId)
-  if(proj) { proj.status = 'completado'; _brujulaAreaOpen = proj.area_id }
+  if(proj){ proj.status = 'completado'; _brujulaOpen.add(proj.area_id) }
   await loadBrujula()
 }
 
