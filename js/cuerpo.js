@@ -101,7 +101,10 @@ function renderCuerpo() {
     </div>
 
     <div style="background:#111;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:1.5rem">
-      <div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.08em;margin-bottom:10px">HORARIO GYM</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.08em">HORARIO GYM</div>
+        <button onclick="abrirTareaGym()" style="padding:4px 12px;border-radius:20px;border:1px solid rgba(93,202,165,0.4);background:transparent;color:#5DCAA5;font-size:11px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif">+ Agendar</button>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
         <div style="background:#0C0C0C;border-radius:8px;padding:8px 10px;text-align:center">
           <div style="font-size:9px;font-weight:700;color:#5DCAA5;letter-spacing:.06em;margin-bottom:3px">L – V</div>
@@ -506,4 +509,19 @@ function _cRefreshStats() {
   if (ep) { ep.textContent = pesoHoy != null ? pesoHoy + ' kg' : '—'; ep.className = 'stat-num' + (pesoHoy ? ' green' : '') }
   if (es) { es.textContent = series;   es.className = 'stat-num' + (series   > 0 ? ' green' : '') }
   if (ee)   ee.textContent = exUnicas
+}
+
+function abrirTareaGym(){
+  if(typeof openNuevaTareaModal === 'function') openNuevaTareaModal()
+  setTimeout(() => {
+    const title = document.getElementById('st-title')
+    const cat   = document.getElementById('st-cat')
+    const prio  = document.getElementById('st-priority')
+    const tab   = document.getElementById('st-tab-nueva')
+    if(tab) tab.click()
+    if(title) title.value = 'Gym'
+    if(cat)   cat.value   = 'habitos'
+    if(prio)  prio.value  = 'alta'
+    document.getElementById('st-due')?.focus()
+  }, 80)
 }
