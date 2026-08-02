@@ -10269,8 +10269,10 @@ function saveMetaCompra(){
   const priority = document.getElementById('mc-priority').value
   if(!name){ showToast('❌ Escribe un nombre'); return }
   const metas = _getMetasCompra()
-  metas.push({ id: 'mc_'+Date.now(), name, price, priority, done: false })
+  const target_date = document.getElementById('mc-date')?.value || null
+  metas.push({ id: 'mc_'+Date.now(), name, price, priority, target_date, done: false })
   _saveMetasCompra(metas)
+  const mcDate = document.getElementById('mc-date'); if(mcDate) mcDate.value = ''
   closeModal('meta-compra')
   renderMetasCompra()
 }
@@ -10313,7 +10315,7 @@ function renderMetasCompra(){
       <button onclick="toggleMetaCompra('${m.id}')" style="width:20px;height:20px;border-radius:50%;border:2px solid ${m.done?'#5DCAA5':'var(--border)'};background:${m.done?'#5DCAA5':'transparent'};cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#000;font-size:11px">${m.done?'✓':''}</button>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:var(--text);${m.done?'text-decoration:line-through':''}">${m.name}</div>
-        <div style="font-size:11px;color:${p.color};margin-top:2px">${p.label} · ${fmt(m.price)}</div>
+        <div style="font-size:11px;color:${p.color};margin-top:2px">${p.label} · ${fmt(m.price)}${m.target_date ? ' · 📅 '+m.target_date : ''}</div>
       </div>
       <button onclick="deleteMetaCompra('${m.id}')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:2px 6px">🗑</button>
     </div>`
