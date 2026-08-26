@@ -6,8 +6,8 @@ export function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-xs text-text-muted">
-      {label}
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs font-semibold text-text-muted">{label}</span>
       {children}
     </label>
   );

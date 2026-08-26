@@ -3,6 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Logo } from "@/components/brand/logo";
+import { Blobs } from "@/components/brand/blobs";
+import { Field } from "@/components/ui/field";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,37 +36,38 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg-deep px-4">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg-deep px-4">
+      <Blobs grid />
+
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-md border border-border bg-bg-card p-8"
+        className="card-glow relative z-10 w-full max-w-sm space-y-5 p-8"
       >
-        <h1 className="font-display text-2xl text-text-primary">
-          Iniciar sesión
-        </h1>
-
-        <div>
-          <label className="mb-1 block text-xs text-text-muted">Correo</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full rounded-sm border border-border bg-bg-dark px-3 py-2 text-text-primary outline-none focus:border-purple-mid"
-          />
+        <div className="flex justify-center">
+          <Logo size={40} wordmarkSize={26} tagline="Sistema personal" />
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs text-text-muted">
-            Contraseña
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full rounded-sm border border-border bg-bg-dark px-3 py-2 text-text-primary outline-none focus:border-purple-mid"
-          />
+        <div className="space-y-4">
+          <Field label="Correo">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoFocus
+              className="input w-full"
+            />
+          </Field>
+
+          <Field label="Contraseña">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="input w-full"
+            />
+          </Field>
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
@@ -71,7 +75,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-sm bg-gradient-cta py-2 font-semibold text-white shadow-glow-purple disabled:opacity-50"
+          className="w-full rounded-sm bg-gradient-cta py-2.5 font-semibold text-white shadow-glow-purple transition-shadow hover:shadow-glow-purple-hover disabled:opacity-50"
         >
           {loading ? "Entrando…" : "Entrar"}
         </button>

@@ -38,9 +38,57 @@
 }
 
 @layer components {
-  /* Input compartido por los formularios de secciones del dashboard */
+  /* Input compartido por los formularios de secciones del dashboard — receta
+     real de preview/components-form.html (fondo blanco al 4%, borde blanco
+     al 8%, foco morado con tinte de fondo), no la genérica de antes. */
   .input {
-    @apply rounded-sm border border-border bg-bg-dark px-2 py-1.5 text-sm text-text-primary outline-none focus:border-purple-mid;
+    @apply rounded-sm border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-text-primary outline-none transition-colors;
+    @apply placeholder:text-text-dim;
+    @apply focus:border-purple-mid focus:bg-purple-mid/[0.05];
+  }
+
+  /* Card con glow al hover — receta de colors_and_type.css .card: barra de
+     gradiente arriba que se revela con scaleX, borde que se aclara, y un
+     leve translateY. Usar junto con `group` en el contenedor si el hover
+     necesita afectar hijos. */
+  .card-glow {
+    @apply relative overflow-hidden rounded-md border border-border bg-bg-card transition-[border-color,transform] duration-300;
+  }
+  .card-glow::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #7c3aed, #d4af37);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  .card-glow:hover {
+    @apply -translate-y-1 border-border-hover;
+  }
+  .card-glow:hover::before {
+    transform: scaleX(1);
+  }
+
+  /* Label de sección — mayúsculas con línea dorada, igual que el original */
+  .section-label {
+    @apply inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[2px] text-gold;
+  }
+  .section-label::before {
+    content: "";
+    display: block;
+    width: 20px;
+    height: 1px;
+    background: currentColor;
+  }
+
+  /* Número destacado — degradado morado→dorado con background-clip, igual
+     que colors_and_type.css .stat-num */
+  .stat-num {
+    @apply bg-gradient-text bg-clip-text font-display font-bold text-transparent;
   }
 }
 

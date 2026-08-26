@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { recursos, recursosSensibles } from "@/lib/db/schema/recursos";
 import { Field } from "@/components/ui/field";
+import { PageHeader } from "@/components/app/page-header";
 import { createRecurso, updateRecurso, deleteRecurso } from "./actions";
 
 type Recurso = InferSelectModel<typeof recursos>;
@@ -51,8 +52,11 @@ export default async function RecursosPage() {
 
   return (
     <div className="space-y-6 p-8">
-      <h1 className="font-display text-2xl text-text-primary">Recursos</h1>
-      <p className="text-xs text-text-muted">{list.length} recurso{list.length !== 1 ? "s" : ""}</p>
+      <PageHeader eyebrow="Negocio" title="Recursos" icon="📦">
+        <span className="text-xs text-text-muted">
+          {list.length} recurso{list.length !== 1 ? "s" : ""}
+        </span>
+      </PageHeader>
 
       {list.length === 0 ? (
         <p className="text-sm text-text-muted">Sin recursos todavía.</p>
@@ -71,7 +75,9 @@ export default async function RecursosPage() {
       )}
 
       <details>
-        <summary className="cursor-pointer text-xs text-text-muted">+ Nuevo recurso</summary>
+        <summary className="cursor-pointer text-xs font-semibold text-text-muted hover:text-purple-light">
+          + Nuevo recurso
+        </summary>
         <RecursoForm action={createRecurso} isAdmin={isAdmin} />
       </details>
     </div>
@@ -98,7 +104,7 @@ function RecursoRow({
   });
 
   return (
-    <div className="rounded-md border border-border bg-bg-card p-4">
+    <div className="card-glow p-4">
       <div className="flex items-center gap-3">
         <span className="text-lg">{tipo.icon}</span>
         <div className="flex-1">
@@ -145,7 +151,7 @@ function RecursoForm({
   return (
     <form
       action={action}
-      className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+      className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border-hover/50 bg-bg-card/50 p-4"
     >
       {recurso && <input type="hidden" name="id" value={recurso.id} />}
       <Field label="Título">

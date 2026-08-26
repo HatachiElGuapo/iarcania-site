@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { clients, projects, payments, invoices } from "@/lib/db/schema/clientes";
 import { Field } from "@/components/ui/field";
+import { PageHeader } from "@/components/app/page-header";
 import { todayISO, currentMonthRangeISO } from "@/lib/date/bogota";
 import {
   createClient,
@@ -70,12 +71,12 @@ export default async function ClientesPage() {
 
   return (
     <div className="space-y-6 p-8">
-      <h1 className="font-display text-2xl text-text-primary">Clientes</h1>
+      <PageHeader eyebrow="Negocio" title="Clientes" icon="🤝" />
 
       {allClients.length > 0 && (
         <div className="flex flex-wrap gap-3">
           <div className="min-w-[160px] flex-1 rounded-md border border-border bg-bg-card px-4 py-3">
-            <div className="text-lg font-bold text-green-400">
+            <div className="stat-num text-lg">
               ${cobradoEsteMes.toLocaleString("es-CO")}
             </div>
             <div className="text-xs text-text-muted">Cobrado este mes</div>
@@ -109,10 +110,12 @@ export default async function ClientesPage() {
       )}
 
       <details>
-        <summary className="cursor-pointer text-xs text-text-muted">+ Nuevo cliente</summary>
+        <summary className="cursor-pointer text-xs font-semibold text-text-muted hover:text-purple-light">
+          + Nuevo cliente
+        </summary>
         <form
           action={createClient}
-          className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+          className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border-hover/50 bg-bg-card/50 p-4"
         >
           <Field label="Nombre">
             <input type="text" name="name" required className="input" />
@@ -154,9 +157,9 @@ function ClientCard({
   const totalPendiente = clientInvoices.reduce((a, i) => a + i.amount, 0);
 
   return (
-    <details className="rounded-md border border-border bg-bg-card p-4">
+    <details className="card-glow p-4">
       <summary className="flex cursor-pointer items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-mid/20 text-sm">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-mid/20 text-sm font-semibold text-purple-light">
           {client.name.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1">
