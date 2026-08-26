@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { agencyClients, agencyPayments } from "@/lib/db/schema/agencia";
+import { todayISO } from "@/lib/date/bogota";
 
 async function requireUserId() {
   const session = await auth();
@@ -31,7 +32,7 @@ export async function createAgencyClient(formData: FormData) {
     email,
     service,
     monthlyAmount,
-    startDate: new Date().toISOString().slice(0, 10),
+    startDate: todayISO(),
   });
 
   revalidatePath("/dashboard/dinero/cobros");
