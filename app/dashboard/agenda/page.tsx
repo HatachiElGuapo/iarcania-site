@@ -4,7 +4,6 @@ import { db } from "@/lib/db/client";
 import { agendaItems } from "@/lib/db/schema/agenda";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { appointments } from "@/lib/db/schema/citas";
-import { Field } from "@/components/ui/field";
 import { CATS } from "@/lib/constants/cats";
 import { createBlock, updateBlock, deleteBlock } from "./actions";
 import { todayISO, addDaysISO as addDays } from "@/lib/date/bogota";
@@ -32,6 +31,12 @@ function fmt(m: number) {
   return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
+function fmtDur(mins: number) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
+}
+
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -45,6 +50,7 @@ export default async function AgendaPage({
   const userId = session!.user.id;
   const { date: dateParam, pre, edit } = await searchParams;
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO();
+  const isToday = date === todayISO();
 
   const [blocks, pendingTasks, citas] = await Promise.all([
     db
@@ -79,6 +85,35 @@ export default async function AgendaPage({
   const totalTicks = (windowEnd - windowStart) / 10;
   const totalScheduled = blocks.reduce((sum, b) => sum + b.duration, 0);
   const freeMinutes = Math.max(0, windowEnd - windowStart - totalScheduled);
+  const freeTicks = Math.floor(freeMinutes / 10);
+
+  const occupancy: { key: string; label: string; color: string; minutes: number }[] = [];
+  const occByKey = new Map<string, { label: string; color: string; minutes: number }>();
+  for (const b of blocks) {
+    let key: string;
+    let label: string;
+    let color: string;
+    if (b.itemType === "task") {
+      const t = b.itemId ? taskById.get(b.itemId) : undefined;
+      const c = t?.category ? CATS[t.category] : null;
+      key = t?.category ?? "sin-categoria";
+      label = c?.label ?? "Sin categoría";
+      color = c?.color ?? "#4a4440";
+    } else if (b.itemType === "cita") {
+      key = "cita";
+      label = "Citas";
+      color = TYPE_META.cita.accent;
+    } else {
+      key = "nota";
+      label = "Notas";
+      color = TYPE_META.nota.accent;
+    }
+    const existing = occByKey.get(key);
+    if (existing) existing.minutes += b.duration;
+    else occByKey.set(key, { label, color, minutes: b.duration });
+  }
+  for (const [key, v] of occByKey) occupancy.push({ key, ...v });
+  occupancy.sort((a, b) => b.minutes - a.minutes);
 
   const dateLong = capitalize(
     new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-CO", {
@@ -93,28 +128,38 @@ export default async function AgendaPage({
 
   return (
     <div className="space-y-5 p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-center gap-3.5 border-b border-border pb-4">
         <div>
-          <h1 className="mb-0.5 text-[26px] text-text-primary">Agenda</h1>
-          <p className="text-xs text-text-dim">
+          <h1 className="text-2xl text-text-primary">Agenda</h1>
+          <p className="mt-0.5 text-xs text-text-dim">
             {dateLong} · rejilla de 10 min · {blocks.length} bloque{blocks.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-border bg-bg-card px-1 py-0.5">
-          <a
-            href={`/dashboard/agenda?date=${addDays(date, -1)}`}
-            className="px-1.5 text-base leading-none text-text-muted hover:text-text-primary"
-          >
+        <div className="flex items-stretch overflow-hidden rounded-lg border border-border bg-bg-card">
+          <a href={`/dashboard/agenda?date=${addDays(date, -1)}`} className="border-r border-border px-2.5 text-sm leading-none text-text-muted hover:text-text-primary flex items-center">
             ‹
           </a>
-          <span className="min-w-[70px] text-center text-xs text-text-dim">
-            {date === todayISO() ? "Hoy" : date}
-          </span>
           <a
-            href={`/dashboard/agenda?date=${addDays(date, 1)}`}
-            className="px-1.5 text-base leading-none text-text-muted hover:text-text-primary"
+            href={`/dashboard/agenda?date=${todayISO()}`}
+            className={`px-3.5 py-1.5 text-xs font-medium ${isToday ? "bg-bg-card-2 text-gold" : "text-text-muted hover:text-text-primary"}`}
           >
+            {isToday ? "Hoy" : date}
+          </a>
+          <a href={`/dashboard/agenda?date=${addDays(date, 1)}`} className="border-l border-border px-2.5 text-sm leading-none text-text-muted hover:text-text-primary flex items-center">
             ›
+          </a>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-stretch overflow-hidden rounded-lg border border-border bg-bg-card text-[11.5px]">
+            <span className="bg-bg-card-2 px-2.5 py-1.5 text-gold">10 min</span>
+            <span className="border-l border-border px-2.5 py-1.5 text-text-muted">30 min</span>
+            <span className="border-l border-border px-2.5 py-1.5 text-text-muted">1 h</span>
+          </div>
+          <span className="rounded-lg border border-border bg-bg-card px-3 py-1.5 text-xs text-text-muted">
+            {fmt(windowStart)} – {fmt(windowEnd)}
+          </span>
+          <a href="#agregar-bloque" className="btn-primary">
+            + Bloque
           </a>
         </div>
       </div>
@@ -124,9 +169,6 @@ export default async function AgendaPage({
         <div className="card-glow overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gold">Rejilla del día</span>
-            <span className="ml-auto text-[11px] text-text-dim">
-              {fmt(windowStart)} – {fmt(windowEnd)}
-            </span>
           </div>
 
           <div
@@ -136,13 +178,14 @@ export default async function AgendaPage({
             {Array.from({ length: totalTicks }, (_, i) => {
               const m = windowStart + i * 10;
               const onHour = m % 60 === 0;
+              const onHalf = m % 60 === 30;
               return (
                 <span
                   key={`t-${i}`}
                   style={{ gridColumn: 1, gridRow: i + 1 }}
-                  className="text-right text-[10px] tabular-nums leading-none text-text-dim"
+                  className={`text-right tabular-nums leading-none ${onHour ? "text-[11px] text-text-muted" : "text-[10px] text-text-dim"}`}
                 >
-                  {onHour ? fmt(m) : ""}
+                  {onHour ? fmt(m) : onHalf ? ":30" : ""}
                 </span>
               );
             })}
@@ -212,19 +255,36 @@ export default async function AgendaPage({
           {editBlock && (
             <form
               action={updateBlock}
-              className="flex flex-wrap items-end gap-3 border-t border-dashed border-border bg-bg-deep/40 p-4"
+              className="flex flex-wrap items-center gap-2 border-t border-dashed border-border bg-bg-deep/40 p-3"
             >
               <input type="hidden" name="id" value={editBlock.id} />
-              <span className="basis-full text-[11px] text-text-dim">Editando bloque de las {editBlock.blockTime}</span>
-              <Field label="Hora">
-                <input type="time" name="blockTime" step={600} defaultValue={editBlock.blockTime} required className="input" />
-              </Field>
-              <Field label="Duración (min)">
-                <input type="number" name="duration" defaultValue={editBlock.duration} min={10} step={10} className="input" />
-              </Field>
-              <Field label="Notas">
-                <input type="text" name="notes" defaultValue={editBlock.notes ?? ""} className="input w-48" />
-              </Field>
+              <span className="text-[11px] text-text-dim">Editando bloque de las {editBlock.blockTime}:</span>
+              <input
+                type="time"
+                name="blockTime"
+                step={600}
+                defaultValue={editBlock.blockTime}
+                required
+                aria-label="Hora"
+                className="rounded-md border border-border bg-bg-card px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-purple-mid/50"
+              />
+              <input
+                type="number"
+                name="duration"
+                defaultValue={editBlock.duration}
+                min={10}
+                step={10}
+                aria-label="Duración en minutos"
+                className="w-16 rounded-md border border-border bg-bg-card px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-purple-mid/50"
+              />
+              <input
+                type="text"
+                name="notes"
+                defaultValue={editBlock.notes ?? ""}
+                placeholder="Notas…"
+                aria-label="Notas"
+                className="flex-1 rounded-md border border-border bg-bg-card px-2.5 py-1.5 text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-purple-mid/50"
+              />
               <button type="submit" className="btn-primary">
                 Guardar
               </button>
@@ -234,33 +294,62 @@ export default async function AgendaPage({
             </form>
           )}
 
-          <form action={createBlock} id="agregar-bloque" className="flex flex-wrap items-end gap-3 border-t border-border bg-bg-deep/40 p-4">
+          <form
+            action={createBlock}
+            id="agregar-bloque"
+            className="flex flex-wrap items-center gap-2 border-t border-border bg-bg-card-2/40 p-3"
+          >
             <input type="hidden" name="date" value={date} />
-            <Field label="Hora">
-              <input type="time" name="blockTime" step={600} required className="input" />
-            </Field>
-            <Field label="Duración (min)">
-              <input type="number" name="duration" defaultValue={20} min={10} step={10} className="input" />
-            </Field>
-            <Field label="Tipo">
-              <select name="itemType" defaultValue={pre ? "task" : "nota"} className="input">
-                <option value="nota">Nota libre</option>
-                <option value="task">Tarea vinculada</option>
-              </select>
-            </Field>
-            <Field label="Tarea (si aplica)">
-              <select name="itemId" defaultValue={pre ?? ""} className="input">
-                <option value="">—</option>
-                {pendingTasks.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Notas">
-              <input type="text" name="notes" className="input w-48" />
-            </Field>
+            <input
+              type="time"
+              name="blockTime"
+              step={600}
+              required
+              aria-label="Hora"
+              className="rounded-md border border-border bg-bg-card px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-purple-mid/50"
+            />
+            <div className="flex items-stretch overflow-hidden rounded-md border border-border bg-bg-card text-xs">
+              <span className="flex items-center px-2 text-text-muted">−</span>
+              <input
+                type="number"
+                name="duration"
+                defaultValue={20}
+                min={10}
+                step={10}
+                aria-label="Duración en minutos"
+                className="w-14 border-x border-border bg-transparent px-1 py-1.5 text-center text-text-primary outline-none"
+              />
+              <span className="flex items-center px-2 text-text-muted">min</span>
+            </div>
+            <select
+              name="itemType"
+              defaultValue={pre ? "task" : "nota"}
+              aria-label="Tipo de bloque"
+              className="rounded-md border border-border bg-bg-card px-2.5 py-1.5 text-xs text-text-muted outline-none"
+            >
+              <option value="nota">Nota libre</option>
+              <option value="task">Tarea vinculada</option>
+            </select>
+            <select
+              name="itemId"
+              defaultValue={pre ?? ""}
+              aria-label="Tarea a vincular"
+              className="rounded-md border border-border bg-bg-card px-2.5 py-1.5 text-xs text-text-muted outline-none"
+            >
+              <option value="">—</option>
+              {pendingTasks.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              name="notes"
+              placeholder="Notas…"
+              aria-label="Notas"
+              className="min-w-[140px] flex-1 rounded-md border border-border bg-bg-card px-2.5 py-1.5 text-xs text-text-primary outline-none placeholder:text-text-dim"
+            />
             <button type="submit" className="btn-primary">
               + Agregar
             </button>
@@ -290,6 +379,8 @@ export default async function AgendaPage({
                       className="flex items-center gap-2.5 rounded-md border border-border border-l-[3px] bg-bg-deep px-2.5 py-1.5 text-[12px] text-text-primary hover:border-border-hover"
                     >
                       <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                      <span className="shrink-0 text-[10px] text-text-dim">10 min</span>
+                      <span className="shrink-0 text-text-dim">⠿</span>
                     </a>
                   );
                 })}
@@ -300,22 +391,25 @@ export default async function AgendaPage({
           {citas.length > 0 && (
             <div className="card-glow overflow-hidden">
               <div className="border-b border-border px-4 py-2.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-gold">Citas próximas</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gold">Citas por agendar</span>
               </div>
               <div className="flex flex-col gap-1.5 p-3">
                 {citas.map((c) => (
-                  <div key={c.id} className="rounded-md border border-gold/20 bg-gold/[0.04] px-2.5 py-1.5">
-                    <div className="truncate text-[12px] text-text-primary">{c.title}</div>
-                    <div className="mt-0.5 text-[11px] text-gold">
-                      {c.datetime.toLocaleString("es-CO", {
-                        timeZone: "America/Bogota",
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
+                  <div key={c.id} className="flex items-center gap-2.5 rounded-md border border-gold/20 bg-gold/[0.04] px-2.5 py-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12px] text-text-primary">{c.title}</div>
+                      <div className="mt-0.5 text-[11px] text-gold">
+                        {c.datetime.toLocaleString("es-CO", {
+                          timeZone: "America/Bogota",
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     </div>
+                    <span className="shrink-0 text-[11px] text-text-dim">Agendar</span>
                   </div>
                 ))}
               </div>
@@ -326,20 +420,27 @@ export default async function AgendaPage({
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-dim">
               Ocupación {fmt(windowStart)} – {fmt(windowEnd)}
             </div>
-            <div className="flex items-center gap-2 text-xs text-text-muted">
-              <span className="flex-1">Agendado</span>
-              <span className="text-text-primary">
-                {Math.floor(totalScheduled / 60)}h {totalScheduled % 60}min
-              </span>
-            </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
-              <div
-                className="h-full bg-purple-mid"
-                style={{ width: `${Math.min(100, (totalScheduled / Math.max(1, windowEnd - windowStart)) * 100)}%` }}
-              />
-            </div>
+            {occupancy.length === 0 ? (
+              <p className="text-xs text-text-muted">Nada agendado todavía.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {occupancy.map((o) => (
+                  <div key={o.key} className="flex items-center gap-2.5 text-xs text-text-muted">
+                    <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: o.color }} />
+                    <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                    <span className="h-1 max-w-[74px] flex-1 overflow-hidden rounded-full bg-border">
+                      <span
+                        className="block h-full"
+                        style={{ width: `${Math.min(100, (o.minutes / Math.max(1, totalScheduled)) * 100)}%`, background: o.color }}
+                      />
+                    </span>
+                    <span className="min-w-[44px] shrink-0 text-right text-[11px] text-text-dim">{fmtDur(o.minutes)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="mt-2 text-[11px] text-text-dim">
-              Libre: {Math.floor(freeMinutes / 60)}h {freeMinutes % 60}min
+              Libre: {fmtDur(freeMinutes)} en {freeTicks} ticks sueltos
             </div>
           </div>
         </div>

@@ -1,7 +1,8 @@
-import { and, asc, eq, gte, lte, lt, ne, type InferSelectModel, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, lte, lt, ne, isNull, type InferSelectModel, type SQL } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { tasks } from "@/lib/db/schema/trabajo";
+import { agendaItems } from "@/lib/db/schema/agenda";
 import { Field } from "@/components/ui/field";
 import { CATS } from "@/lib/constants/cats";
 import {
@@ -15,12 +16,13 @@ import { todayISO, addDaysISO } from "@/lib/date/bogota";
 
 type Task = InferSelectModel<typeof tasks>;
 
-const TIEMPO_TABS: { id: string; label: string }[] = [
-  { id: "todas", label: "Todas" },
-  { id: "hoy", label: "Hoy" },
-  { id: "semana", label: "Semana" },
-  { id: "vencidas", label: "Vencidas" },
-  { id: "completadas", label: "Completadas" },
+const TIEMPO_TABS: { id: string; label: string; icon: string }[] = [
+  { id: "todas", label: "Todas", icon: "≡" },
+  { id: "hoy", label: "Hoy", icon: "☀" },
+  { id: "semana", label: "Semana", icon: "▤" },
+  { id: "vencidas", label: "Vencidas", icon: "!" },
+  { id: "completadas", label: "Completadas", icon: "✓" },
+  { id: "sinfecha", label: "Sin fecha", icon: "∅" },
 ];
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -34,6 +36,10 @@ const PRIORITY_BADGE: Record<string, string> = {
   media: "bg-gold/10 text-gold",
   baja: "bg-white/5 text-text-muted",
 };
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 function tiempoWhere(tiempo: string, today: string, weekEnd: string): SQL[] {
   const conditions: SQL[] = [ne(tasks.status, "archivada")];
@@ -49,18 +55,13 @@ function tiempoWhere(tiempo: string, today: string, weekEnd: string): SQL[] {
     conditions.push(gte(tasks.dueDate, today));
     conditions.push(lte(tasks.dueDate, weekEnd));
     conditions.push(ne(tasks.status, "completada"));
+  } else if (tiempo === "sinfecha") {
+    conditions.push(isNull(tasks.dueDate));
+    conditions.push(ne(tasks.status, "completada"));
   } else {
     conditions.push(ne(tasks.status, "completada"));
   }
   return conditions;
-}
-
-function bucketOf(dueDate: string | null, today: string, weekEnd: string) {
-  if (!dueDate) return "sinFecha";
-  if (dueDate < today) return "vencidas";
-  if (dueDate === today) return "hoy";
-  if (dueDate <= weekEnd) return "semana";
-  return "masAdelante";
 }
 
 export default async function ActividadesPage({
@@ -169,6 +170,15 @@ export default async function ActividadesPage({
 
   const openId = (open && rows.some((r) => r.id === open) ? open : rows[0]?.id) ?? null;
   const openTask = openId ? rows.find((r) => r.id === openId) ?? null : null;
+  const openBlock = openTask
+    ? (
+        await db
+          .select()
+          .from(agendaItems)
+          .where(and(eq(agendaItems.userId, userId), eq(agendaItems.itemType, "task"), eq(agendaItems.itemId, openTask.id)))
+          .limit(1)
+      )[0]
+    : undefined;
 
   const qs = (extra: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
@@ -182,31 +192,13 @@ export default async function ActividadesPage({
     return s ? `/dashboard/actividades?${s}` : "/dashboard/actividades";
   };
 
-  const BUCKET_LABELS: Record<string, { label: string; color: string }> = {
-    vencidas: { label: "Vencidas", color: "#f87171" },
-    hoy: { label: "Hoy", color: "#C4A35A" },
-    semana: { label: "Esta semana", color: "#8a8070" },
-    masAdelante: { label: "Más adelante", color: "#8a8070" },
-    sinFecha: { label: "Sin fecha", color: "#4a4440" },
-  };
-  const BUCKET_ORDER = ["vencidas", "hoy", "semana", "masAdelante", "sinFecha"];
-
-  const groupedSections =
-    tiempo === "todas"
-      ? BUCKET_ORDER.map((key) => ({
-          key,
-          ...BUCKET_LABELS[key],
-          items: rows.filter((t) => bucketOf(t.dueDate, today, weekEnd) === key),
-        })).filter((g) => g.items.length > 0)
-      : [{ key: tiempo, label: "", color: "", items: rows }];
-
   function TaskRow({ task }: { task: Task }) {
     const isOverdue = task.dueDate && task.dueDate < today && task.status !== "completada";
     const c = task.category ? CATS[task.category] : null;
     const isOpen = task.id === openId;
     return (
       <div
-        className={`flex items-center gap-2.5 border-b border-white/[0.04] px-2.5 py-2 last:border-0 ${
+        className={`flex items-center gap-2.5 border-b border-white/[0.045] px-2.5 py-2 last:border-0 ${
           isOpen ? "bg-white/[0.03]" : ""
         }`}
         style={{ borderLeft: `2px solid ${isOverdue ? "#f87171" : task.status === "completada" ? "#1e1e1e" : (c?.color ?? "#1e1e1e")}` }}
@@ -226,7 +218,7 @@ export default async function ActividadesPage({
         </form>
         <a
           href={qs({ open: task.id })}
-          className={`min-w-0 flex-1 truncate text-[13px] ${
+          className={`min-w-0 flex-1 truncate text-[12.5px] ${
             task.status === "completada" ? "text-text-dim line-through" : "text-text-primary"
           }`}
         >
@@ -239,57 +231,56 @@ export default async function ActividadesPage({
           </span>
         )}
         <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-semibold uppercase ${PRIORITY_BADGE[task.priority] ?? ""}`}
+          className={`w-[52px] shrink-0 rounded-full py-0.5 text-center text-[9.5px] font-semibold uppercase ${PRIORITY_BADGE[task.priority] ?? ""}`}
         >
           {task.priority}
         </span>
-        <span className={`w-16 shrink-0 text-right text-[11px] tabular-nums ${isOverdue ? "text-red-400" : "text-text-muted"}`}>
-          {task.dueDate ? task.dueDate.replace(`${today.slice(0, 4)}-`, "") : "—"}
+        <span className={`w-[88px] shrink-0 text-right text-[11px] tabular-nums ${isOverdue ? "text-red-400" : "text-text-muted"}`}>
+          {task.dueDate ? task.dueDate.replace(`${today.slice(0, 4)}-`, "") : "sin fecha"}
         </span>
-        <form action={archiveTask}>
-          <input type="hidden" name="id" value={task.id} />
-          <button type="submit" className="shrink-0 text-[10px] text-text-dim hover:text-text-muted">
-            Archivar
-          </button>
-        </form>
-        <form action={deleteTask}>
-          <input type="hidden" name="id" value={task.id} />
-          <button type="submit" className="shrink-0 text-[10px] text-text-dim hover:text-red-400">
-            Eliminar
-          </button>
-        </form>
+        <details className="group relative shrink-0">
+          <summary className="cursor-pointer list-none px-0.5 text-xs leading-none text-text-dim marker:content-none hover:text-text-muted">
+            ⋯
+          </summary>
+          <div className="absolute right-0 top-5 z-20 flex w-32 flex-col gap-0.5 rounded-md border border-border bg-bg-card p-1.5 shadow-xl">
+            <a href={`/dashboard/agenda?pre=${task.id}`} className="rounded-sm px-2 py-1 text-left text-[11px] text-text-muted hover:bg-white/5 hover:text-text-primary">
+              Agendar
+            </a>
+            <form action={archiveTask}>
+              <input type="hidden" name="id" value={task.id} />
+              <button type="submit" className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-text-muted hover:bg-white/5 hover:text-text-primary">
+                Archivar
+              </button>
+            </form>
+            <form action={deleteTask}>
+              <input type="hidden" name="id" value={task.id} />
+              <button type="submit" className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-text-muted hover:bg-white/5 hover:text-red-400">
+                Eliminar
+              </button>
+            </form>
+          </div>
+        </details>
       </div>
     );
   }
 
   return (
     <div className="space-y-5 p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="mb-0.5 text-[26px] text-text-primary">Actividades</h1>
-          <p className="text-xs text-text-dim">
-            {tabCounts["todas"] ?? 0} activas · {tabCounts["vencidas"] ?? 0} vencidas · {completedThisMonth} completadas este mes
-          </p>
-        </div>
-        <a href={qs({ archivadas: "1" })} className="btn-secondary">
-          Ver archivadas ({archivedCount})
-        </a>
-      </div>
-
       <div className="grid items-start gap-4 lg:grid-cols-[190px_1fr_300px]">
         {/* Rail de filtros */}
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <div>
-            <div className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-text-dim">Vistas</div>
+            <div className="mb-1 px-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim">Vistas</div>
             <div className="flex flex-col gap-0.5">
               {TIEMPO_TABS.map((t) => (
                 <a
                   key={t.id}
                   href={qs({ tiempo: t.id === "todas" ? undefined : t.id })}
-                  className={`flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-[12.5px] ${
+                  className={`flex items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-[12.5px] ${
                     tiempo === t.id ? "bg-bg-card-2 text-text-primary" : "text-text-muted hover:text-text-primary"
                   }`}
                 >
+                  <span className="w-3.5 shrink-0 text-center text-[11px]">{t.icon}</span>
                   <span className="flex-1">{t.label}</span>
                   <span className={`text-[11px] ${tiempo === t.id ? "text-gold" : "text-text-dim"}`}>
                     {tabCounts[t.id] ?? 0}
@@ -300,21 +291,13 @@ export default async function ActividadesPage({
           </div>
 
           <div>
-            <div className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-text-dim">Categorías</div>
+            <div className="mb-1 px-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim">Categorías</div>
             <div className="flex flex-col gap-0.5">
-              <a
-                href={qs({ cat: undefined })}
-                className={`rounded-sm px-2.5 py-1.5 text-[12.5px] ${
-                  !cat ? "bg-bg-card-2 text-text-primary" : "text-text-muted hover:text-text-primary"
-                }`}
-              >
-                Todas las categorías
-              </a>
               {Object.entries(CATS).map(([key, c]) => (
                 <a
                   key={key}
-                  href={qs({ cat: key })}
-                  className={`flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-[12.5px] ${
+                  href={qs({ cat: cat === key ? undefined : key })}
+                  className={`flex items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-[12.5px] ${
                     cat === key ? "bg-bg-card-2 text-text-primary" : "text-text-muted hover:text-text-primary"
                   }`}
                 >
@@ -327,98 +310,120 @@ export default async function ActividadesPage({
           </div>
 
           <div>
-            <div className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-text-dim">Prioridad</div>
+            <div className="mb-1 px-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-dim">Prioridad</div>
             <div className="flex flex-col gap-0.5">
               {(["alta", "media", "baja"] as const).map((p) => (
-                <div key={p} className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px]">
+                <div key={p} className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px] text-text-muted">
+                  <span className="h-4 w-4 shrink-0 rounded border border-[#262626]" />
                   <span className={`flex-1 capitalize ${PRIORITY_COLOR[p]}`}>{p}</span>
                   <span className="text-[11px] text-text-dim">{prioCounts[p] ?? 0}</span>
                 </div>
               ))}
             </div>
           </div>
+
+          <div className="mt-auto flex flex-col gap-1.5 border-t border-border pt-3 text-[11.5px] text-text-dim">
+            <a href={qs({ archivadas: "1" })} className="text-left hover:text-text-muted">
+              Archivadas ({archivedCount})
+            </a>
+            <a href={qs({ tiempo: "completadas" })} className="text-left hover:text-text-muted">
+              Completadas este mes ({completedThisMonth})
+            </a>
+          </div>
         </div>
 
         {/* Lista */}
-        <div className="card-glow overflow-hidden">
-          <form action={createTask} className="border-b border-border px-3 py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-purple-mid">+</span>
-              <input
-                type="text"
-                name="title"
-                required
-                placeholder="Escribe una tarea y presiona Enter…"
-                className="min-w-0 flex-1 bg-transparent text-[12.5px] text-text-primary outline-none placeholder:text-text-dim"
-              />
-              <button type="submit" className="text-[11px] text-text-muted hover:text-gold">
-                Agregar
-              </button>
+        <div className="flex flex-col rounded-md border border-border">
+          <div className="flex items-center gap-3 rounded-t-md px-3 py-2.5">
+            <div>
+              <h1 className="text-[21px] text-text-primary">Actividades</h1>
+              <p className="mt-0.5 text-[11.5px] text-text-dim">
+                {tabCounts["todas"] ?? 0} activas · {tabCounts["vencidas"] ?? 0} vencidas · orden por fecha
+              </p>
             </div>
-            <details className="mt-1.5">
-              <summary className="cursor-pointer text-[11px] text-text-dim hover:text-text-muted">Más opciones</summary>
-              <div className="mt-2 flex flex-wrap items-end gap-3">
-                <Field label="Categoría">
-                  <select name="category" defaultValue={cat ?? ""} className="input">
-                    <option value="">Sin categoría</option>
-                    {Object.entries(CATS).map(([key, c]) => (
-                      <option key={key} value={key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Prioridad">
-                  <select name="priority" defaultValue="media" className="input">
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </select>
-                </Field>
-                <Field label="Vence">
-                  <input type="date" name="dueDate" className="input" />
-                </Field>
-                <Field label="Hora inicio">
-                  <input type="time" name="timeDue" className="input" />
-                </Field>
-                <Field label="Hora fin">
-                  <input type="time" name="timeEnd" className="input" />
-                </Field>
+            <div className="ml-auto flex items-center gap-1.5 text-[11.5px]">
+              <span className="rounded-[7px] border border-border bg-bg-card px-2.5 py-1.5 text-text-muted">Vence ↑</span>
+              <span className="rounded-[7px] border border-border bg-bg-card px-2.5 py-1.5 text-text-muted">Agrupar ▾</span>
+              <span className="rounded-[7px] border border-border bg-bg-card px-2.5 py-1.5 text-text-muted">⌘K</span>
+            </div>
+          </div>
+
+          <div className="border-t border-border px-3 pb-2.5 pt-2">
+            <form action={createTask}>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-bg-card px-3 py-2">
+                <span className="text-[13px] text-purple-mid">+</span>
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  placeholder="Escribe una tarea y presiona Enter…"
+                  className="min-w-0 flex-1 bg-transparent text-[12.5px] text-text-primary outline-none placeholder:text-text-dim"
+                />
+                <span className="shrink-0 text-[11px] text-text-dim/70">hoy · media</span>
+                <button type="submit" className="sr-only">
+                  Agregar
+                </button>
               </div>
-            </details>
-          </form>
+              <details className="mt-1">
+                <summary className="cursor-pointer text-[10.5px] text-text-dim hover:text-text-muted">
+                  + opciones (categoría, prioridad, fecha)
+                </summary>
+                <div className="mt-2 flex flex-wrap items-end gap-3">
+                  <Field label="Categoría">
+                    <select name="category" defaultValue={cat ?? ""} className="input">
+                      <option value="">Sin categoría</option>
+                      {Object.entries(CATS).map(([key, c]) => (
+                        <option key={key} value={key}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Prioridad">
+                    <select name="priority" defaultValue="media" className="input">
+                      <option value="alta">Alta</option>
+                      <option value="media">Media</option>
+                      <option value="baja">Baja</option>
+                    </select>
+                  </Field>
+                  <Field label="Vence">
+                    <input type="date" name="dueDate" defaultValue={today} className="input" />
+                  </Field>
+                  <Field label="Hora inicio">
+                    <input type="time" name="timeDue" className="input" />
+                  </Field>
+                  <Field label="Hora fin">
+                    <input type="time" name="timeEnd" className="input" />
+                  </Field>
+                </div>
+              </details>
+            </form>
+          </div>
 
           {rows.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-text-muted">No hay tareas para este filtro.</p>
+            <p className="border-t border-border px-3 py-6 text-center text-sm text-text-muted">No hay tareas para este filtro.</p>
           ) : (
-            <div className="flex flex-col">
-              {groupedSections.map((g) => (
-                <div key={g.key}>
-                  {g.label && (
-                    <div className="flex items-center gap-2 px-3 pb-1 pt-2.5">
-                      <span
-                        className="text-[10px] font-semibold uppercase tracking-wider"
-                        style={{ color: g.color }}
-                      >
-                        {g.label}
-                      </span>
-                      <span className="h-px flex-1 bg-border" />
-                      <span className="text-[10px] text-text-dim">{g.items.length}</span>
-                    </div>
-                  )}
-                  {g.items.map((task) => (
-                    <TaskRow key={task.id} task={task} />
-                  ))}
-                </div>
+            <div className="flex flex-col border-t border-border">
+              {rows.map((task) => (
+                <TaskRow key={task.id} task={task} />
               ))}
             </div>
           )}
+
+          <div className="mt-auto flex items-center gap-2 rounded-b-md border-t border-border bg-bg-card-2/40 px-3 py-2 text-[11px] text-text-dim">
+            <span>{rows.length} visibles</span>
+            <span className="ml-auto">
+              Seleccionadas: 0 · <span className="text-text-muted">Completar</span> · <span className="text-text-muted">Agendar</span> ·{" "}
+              <span className="text-text-muted">Archivar</span>
+            </span>
+          </div>
         </div>
 
         {/* Detalle */}
         <div className="card-glow overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gold">Detalle</span>
+            <span className="ml-auto text-[11px] text-text-dim">Esc para cerrar</span>
           </div>
           {!openTask ? (
             <p className="px-4 py-6 text-center text-xs text-text-muted">Selecciona una tarea para ver el detalle.</p>
@@ -451,15 +456,18 @@ export default async function ActividadesPage({
 
               <div className="flex flex-col gap-2">
                 {[
+                  { label: "Categoría", value: openTask.category && CATS[openTask.category] ? CATS[openTask.category].label : "Sin categoría" },
+                  { label: "Prioridad", value: capitalize(openTask.priority) },
                   { label: "Vence", value: openTask.dueDate ?? "Sin fecha" },
                   {
                     label: "Hora",
                     value: openTask.timeDue ? `${openTask.timeDue}${openTask.timeEnd ? ` – ${openTask.timeEnd}` : ""}` : "Sin hora",
                   },
+                  { label: "Agenda", value: openBlock ? `Bloque ${openBlock.blockTime} · ${openBlock.duration} min` : "Sin agendar" },
                 ].map((f) => (
                   <div key={f.label} className="flex items-center gap-2.5">
                     <span className="w-16 shrink-0 text-[11px] text-text-dim">{f.label}</span>
-                    <span className="flex-1 rounded-sm border border-border bg-bg-deep px-2.5 py-1.5 text-xs text-text-muted">
+                    <span className="flex-1 truncate rounded-sm border border-border bg-bg-deep px-2.5 py-1.5 text-xs text-text-muted">
                       {f.value}
                     </span>
                   </div>
