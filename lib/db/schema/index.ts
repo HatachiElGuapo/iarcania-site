@@ -22,3 +22,4 @@ export * from "./libros";
 export * from "./escuela";
 export * from "./guiones";
 export * from "./crm";
+export * from "./agencia";

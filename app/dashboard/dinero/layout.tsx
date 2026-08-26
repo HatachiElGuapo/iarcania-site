@@ -2,6 +2,7 @@ const TABS: { href: string; label: string }[] = [
   { href: "/dashboard/dinero/cuentas", label: "Cuentas" },
   { href: "/dashboard/dinero/facturas", label: "Facturas" },
   { href: "/dashboard/dinero/gastos", label: "Gastos" },
+  { href: "/dashboard/dinero/cobros", label: "Cobros" },
   { href: "/dashboard/dinero/metas", label: "Metas" },
   { href: "/dashboard/dinero/escanear", label: "Escanear" },
 ];

@@ -1,5 +1,37 @@
 # Notas de migración — Next.js
 
+## Dinero → Cobros — decisiones tomadas durante la migración (cierra el dashboard completo)
+
+- **Este sí es el dominio de agencia (SB_I), a diferencia de CRM y
+  Planner** — leído directo en `os.js`: `loadClients()`/`saveClient()`/
+  `loadPayments()`/`savePayment()` (la sección Cobros de Dinero) usan
+  `SB_I.from('clients')`/`SB_I.from('payments')`, el proyecto Supabase de
+  agencia, no `SB_P`. Es la primera pieza de toda la migración que
+  realmente pertenece a ese dominio — CRM y Planner, pese a lo que sugería
+  el nombre, resultaron ser `SB_P` (ver esas dos secciones más abajo). Se
+  crearon `crm_clients`/`crm_payments` (`lib/db/schema/agencia.ts`), los
+  nombres reservados desde el inicio de la migración en "Dominios de datos
+  con nombres duplicados" — ahora sí tienen dueño real.
+- **No es lo mismo que la sección Clientes** (`clients`/`payments`/
+  `projects`/`invoices`, dominio personal/freelance) — son dos CRMs
+  distintos del original con datos distintos (clientes reales de la
+  agencia IArcanIA vs. clientes personales/freelance de Miguel), ahora en
+  tablas separadas con nombres separados, sin cruzarse.
+- **El original solo tenía insertar + leer** (`saveClient`/`savePayment`),
+  sin editar ni eliminar ni cambiar estado — se agregó
+  `updateAgencyClientStatus`/`deleteAgencyClient`/`markAgencyPaymentPaid`/
+  `deleteAgencyPayment`, mismo criterio de siempre.
+- **Vive en `/dashboard/dinero/cobros`**, restaurando la posición original
+  del tab (Cuentas/Facturas/Gastos/**Cobros**/Metas/Escanear) que se había
+  sacado del nav al migrar Dinero por depender de Clientes/CRM.
+- **Verificado en caliente end-to-end vía HTTP real**: crear cliente de
+  agencia → registrar cobro pendiente (aparece el resumen "$X por
+  cobrar") → marcar pagado (el resumen desaparece, ya no hay pendientes)
+  → eliminar cobro → eliminar cliente → estado limpio. Con esto se
+  completan las 5 secciones de Negocio pendientes (Workspace, CRM,
+  Planner, Platform→Recursos, Cobros) — todo el dashboard migrado a
+  Next.js/Drizzle/Postgres queda funcionalmente completo.
+
 ## Platform — decisión tomada, no migrado como página propia
 
 - **`platform.html` no es una herramienta real** — a diferencia de CRM y
