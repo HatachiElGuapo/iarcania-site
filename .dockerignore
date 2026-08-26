@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.gitignore
+npm-debug.log*
+
+# Secretos — se inyectan en runtime vía env_file de docker-compose, nunca a la imagen
+.env
+.env*.local
+
+*.md
+.vscode
+.idea
