@@ -16,6 +16,7 @@ function revalidateAll() {
   revalidatePath("/dashboard/habitos");
   revalidatePath("/dashboard/habitos/gestion");
   revalidatePath("/dashboard/habitos/rachas");
+  revalidatePath("/dashboard");
 }
 
 export async function createActivity(formData: FormData) {

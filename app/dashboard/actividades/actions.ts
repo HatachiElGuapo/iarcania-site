@@ -39,6 +39,7 @@ export async function createTask(formData: FormData) {
   });
 
   revalidatePath("/dashboard/actividades");
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/trabajo");
   revalidatePath("/dashboard/trabajo/tareas");
 }
@@ -58,6 +59,7 @@ export async function toggleTaskStatus(formData: FormData) {
     .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 
   revalidatePath("/dashboard/actividades");
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/trabajo");
   revalidatePath("/dashboard/trabajo/tareas");
 }
@@ -72,6 +74,7 @@ export async function archiveTask(formData: FormData) {
     .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 
   revalidatePath("/dashboard/actividades");
+  revalidatePath("/dashboard");
 }
 
 export async function unarchiveTask(formData: FormData) {
@@ -84,6 +87,7 @@ export async function unarchiveTask(formData: FormData) {
     .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 
   revalidatePath("/dashboard/actividades");
+  revalidatePath("/dashboard");
 }
 
 export async function deleteTask(formData: FormData) {
@@ -93,5 +97,6 @@ export async function deleteTask(formData: FormData) {
   await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 
   revalidatePath("/dashboard/actividades");
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/trabajo/tareas");
 }

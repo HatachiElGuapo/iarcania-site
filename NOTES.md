@@ -1,5 +1,54 @@
 # Notas de migración — Next.js
 
+## Rutinas v2 — piloto de fluidez/densidad (antes de escalar al resto)
+
+- **El feedback no era solo de estilo**: "se ve estático" resultó ser 3
+  problemas concretos — controles del original que no se migraron,
+  densidad de información más baja que el original, y Server Actions sin
+  feedback optimista (se sentían como recarga de página aunque
+  `revalidatePath` no recarga de verdad).
+- **Controles restaurados** (comparando contra `os.js` sección por
+  sección, sin revivir el sistema hardcodeado de 20/20/20/modo emergencia
+  que ya se descartó): navegador de día (‹ Hoy ›, basado en `navegarDia`
+  del original — no puede ir al futuro, solo al pasado, vía
+  `?date=YYYY-MM-DD`), quick-add inline de tarea y de hábito directo en
+  cada card (reutilizando `createTask`/`createActivity`), fila completa
+  clickeable para togglear (no solo el checkbox, como `onclick` en
+  `.task-item` del original), color por categoría en el borde izquierdo de
+  cada tarea (`CATS`, como `taskRow()` en `os.js`).
+- **Densidad**: se agregó una tercera sección real "Próximos 7 días"
+  (tareas con `dueDate` entre mañana y +7, excluyendo completadas/
+  archivadas) — usa datos reales que ya existían pero no se mostraban en
+  ningún lado del home.
+- **Feedback optimista sin `useOptimistic`** — el proyecto está en React
+  18.3 (`useOptimistic` es de React 19); se implementó el mismo efecto a
+  mano: `components/app/optimistic-toggle-row.tsx` (`ToggleRow`) mantiene
+  estado local con `useState`, cambia la UI al toque, y corre la Server
+  Action en segundo plano vía `useTransition` (revierte si falla).
+  **Encontrado en el camino**: RSC no permite pasar funciones de un Server
+  Component a un Client Component como prop — ni siquiera como
+  `children` (error real: "Functions are not valid as a child of Client
+  Components" / "Functions cannot be passed directly to Client
+  Components"). El diseño inicial con patrón render-prop
+  (`children: (done, toggle) => ReactNode`) y un callback
+  `buildFormData: (next) => Record<string,string>` fallaba por esto. Se
+  rediseñó para que el componente reciba solo datos serializables:
+  `fieldsOn`/`fieldsOff` como objetos planos ya resueltos en el servidor
+  (para hábitos, donde el toggle no depende de dirección, son el mismo
+  objeto), y `meta` como JSX pre-renderizado (JSX sí es serializable de
+  servidor a cliente, a diferencia de funciones planas).
+- **Verificado que el feedback es real, no solo maquetado**: capturé con
+  Chrome headless el estado 50ms después de un clic real — el checkbox ya
+  aparece marcado y tachado, antes de que un roundtrip al servidor
+  pudiera completarse — y confirmé contra Postgres que el registro
+  (`activity_logs`) sí quedó persistido. Verifiqué también los dos
+  quick-add (tarea y hábito) y el navegador de día, todo vía HTTP real
+  contra la cuenta real, limpiando los datos de prueba al terminar.
+- **`ToggleRow` queda como componente reutilizable** para aplicar el mismo
+  patrón de fluidez al resto de las secciones (checkboxes de tareas,
+  hábitos, checklists) cuando se escale el estilo `os.css` a las ~19
+  páginas restantes.
+
 ## Rutinas (home del dashboard) — decisiones tomadas durante la migración
 
 - **No se replicó la vista original tal cual, a propósito** — `os.html`
