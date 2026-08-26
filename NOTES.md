@@ -1,5 +1,32 @@
 # Notas de migración — Next.js
 
+## Platform — decisión tomada, no migrado como página propia
+
+- **`platform.html` no es una herramienta real** — a diferencia de CRM y
+  Planner (mismo hallazgo repetido dos veces con esas dos), `platform.html`
+  no toca Supabase para nada (cero `SB_P`/`SB_I`/`createClient` en todo el
+  archivo). Es un mockup de un producto "Platform" multi-tenant para
+  pitchear a clientes potenciales: landing page de marketing
+  (`PageLanding`), login falso con 3 usuarios hardcodeados en texto plano
+  (`admin@iarcania.co/admin123`, etc.), y una biblioteca de recursos con
+  datos de ejemplo (`SEED_RESOURCES`) que vive solo en `useState` — se
+  reinicia en cada carga de página, no hay nada real que preservar.
+- **Decisión del usuario, confirmada explícitamente**: no se migra como
+  página aparte (ni la landing, ni el login demo, ni un sistema
+  multi-tenant — eso sería un proyecto propio con su propia arquitectura
+  de auth si algún día se retoma). Se fusionó solo lo rescatable: sus 3
+  tipos de recurso (`json`, `video`, `procedimiento`, que no existían en
+  Recursos) se agregaron al CHECK constraint y al mapa de tipos de
+  `/dashboard/recursos` (que ya migrado tenía `curso/sop/prompt/workflow/
+  plantilla/entregable` + control de visibilidad por rol) — sin duplicar
+  una segunda biblioteca de recursos con su propia infraestructura.
+- **Nav item y stub `/dashboard/platform` eliminados** — no se dejó un
+  placeholder "pendiente de migrar" permanente para algo que no se va a
+  construir.
+- **Verificado en caliente**: los 3 tipos nuevos aparecen en el selector
+  de Recursos y un recurso `tipo='json'` se crea sin violar el CHECK
+  constraint real de Postgres. `/dashboard/platform` devuelve 404.
+
 ## Planner — decisiones tomadas durante la migración
 
 - **Mismo hallazgo que CRM, pero más profundo**: `planner.html` no es un

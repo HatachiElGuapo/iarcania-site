@@ -14,6 +14,9 @@ const RECURSOS_TIPOS: Record<string, { label: string; icon: string }> = {
   workflow: { label: "Workflow", icon: "⚙️" },
   plantilla: { label: "Plantilla", icon: "📄" },
   entregable: { label: "Entregable", icon: "📦" },
+  json: { label: "JSON", icon: "🔧" },
+  video: { label: "Video", icon: "▶️" },
+  procedimiento: { label: "Procedimiento", icon: "📜" },
 };
 
 const ESTADO_COLOR: Record<string, string> = {

@@ -1,0 +1,2 @@
+ALTER TABLE "recursos" DROP CONSTRAINT "recursos_tipo_chk";--> statement-breakpoint
+ALTER TABLE "recursos" ADD CONSTRAINT "recursos_tipo_chk" CHECK ("recursos"."tipo" IN ('curso','sop','prompt','workflow','plantilla','entregable','json','video','procedimiento'));

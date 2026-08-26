@@ -25,7 +25,6 @@ const NAV: { href: string; label: string }[] = [
   { href: "/dashboard/crm", label: "CRM" },
   { href: "/dashboard/escuela", label: "Escuela" },
   { href: "/dashboard/planner", label: "Planner" },
-  { href: "/dashboard/platform", label: "Platform" },
 ];
 
 export default async function DashboardLayout({

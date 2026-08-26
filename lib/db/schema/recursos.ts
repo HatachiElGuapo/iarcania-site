@@ -23,7 +23,11 @@ export const recursos = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     titulo: text("titulo").notNull(),
-    // 'curso' | 'sop' | 'prompt' | 'workflow' | 'plantilla' | 'entregable'
+    // 'curso' | 'sop' | 'prompt' | 'workflow' | 'plantilla' | 'entregable' |
+    // 'json' | 'video' | 'procedimiento' — los últimos 3 vienen de
+    // platform.html (mockup de producto sin datos reales ni backend,
+    // descartado — ver NOTES.md "Platform"), fusionados aquí en vez de
+    // construir una biblioteca de recursos separada para lo mismo.
     tipo: text("tipo").notNull().default("curso"),
     // 'vivo' | 'en-progreso' | 'pendiente' | 'archivado'
     estado: text("estado").notNull().default("vivo"),
@@ -38,7 +42,7 @@ export const recursos = pgTable(
     userIdx: index("recursos_user_idx").on(t.userId),
     tipoCheck: check(
       "recursos_tipo_chk",
-      sql`${t.tipo} IN ('curso','sop','prompt','workflow','plantilla','entregable')`,
+      sql`${t.tipo} IN ('curso','sop','prompt','workflow','plantilla','entregable','json','video','procedimiento')`,
     ),
     estadoCheck: check(
       "recursos_estado_chk",
