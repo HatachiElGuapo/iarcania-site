@@ -71,12 +71,12 @@ export default async function ClientesPage() {
 
   return (
     <div className="space-y-6 p-8">
-      <PageHeader eyebrow="Negocio" title="Clientes" icon="🤝" />
+      <PageHeader title="Clientes" subtitle="Clientes activos de IArcanIA" />
 
       {allClients.length > 0 && (
         <div className="flex flex-wrap gap-3">
           <div className="min-w-[160px] flex-1 rounded-md border border-border bg-bg-card px-4 py-3">
-            <div className="stat-num text-lg">
+            <div className="stat-num text-green-400">
               ${cobradoEsteMes.toLocaleString("es-CO")}
             </div>
             <div className="text-xs text-text-muted">Cobrado este mes</div>
@@ -109,13 +109,11 @@ export default async function ClientesPage() {
         </div>
       )}
 
-      <details>
-        <summary className="cursor-pointer text-xs font-semibold text-text-muted hover:text-purple-light">
-          + Nuevo cliente
-        </summary>
+      <details className="group">
+        <summary className="btn-secondary inline-flex w-fit cursor-pointer list-none">+ Nuevo cliente</summary>
         <form
           action={createClient}
-          className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border-hover/50 bg-bg-card/50 p-4"
+          className="card-glow mt-2 flex flex-wrap items-end gap-3 p-4"
         >
           <Field label="Nombre">
             <input type="text" name="name" required className="input" />
@@ -126,10 +124,7 @@ export default async function ClientesPage() {
           <Field label="Servicio">
             <input type="text" name="service" className="input" />
           </Field>
-          <button
-            type="submit"
-            className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-          >
+          <button type="submit" className="btn-primary">
             Crear
           </button>
         </form>
@@ -159,7 +154,7 @@ function ClientCard({
   return (
     <details className="card-glow p-4">
       <summary className="flex cursor-pointer items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-mid/20 text-sm font-semibold text-purple-light">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-gold/20 bg-gold/10 font-display text-sm text-gold">
           {client.name.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1">

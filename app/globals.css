@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tokens y clases de componentes portados de os.css — el dashboard operativo
+   real, no colors_and_type.css (sitio de marketing público). Ver NOTES.md
+   "Sistema de diseño" para el porqué y la comparación completa. */
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -9,100 +13,66 @@
 
   body {
     @apply bg-bg-deep text-text-primary;
-    line-height: 1.6;
-    overflow-x: hidden;
-    position: relative;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Noise texture overlay — idéntico al de colors_and_type.css */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.4;
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-bold;
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: theme("colors.bg.deep");
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: theme("colors.purple.deep");
-    border-radius: 3px;
+    background: #222;
+    border-radius: 2px;
   }
 }
 
 @layer components {
-  /* Input compartido por los formularios de secciones del dashboard — receta
-     real de preview/components-form.html (fondo blanco al 4%, borde blanco
-     al 8%, foco morado con tinte de fondo), no la genérica de antes. */
+  /* Input genérico — os.css no tiene una única clase de input compartida
+     entre secciones (cada una define la suya: .idea-input, .field input,
+     .script-editor-field...) pero todas convergen en la misma receta:
+     fondo de la página (no un gris más claro), borde plano, radio 8px. */
   .input {
-    @apply rounded-sm border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-text-primary outline-none transition-colors;
+    @apply rounded-sm border border-border bg-bg-deep px-3 py-2 text-sm text-text-primary outline-none transition-colors;
     @apply placeholder:text-text-dim;
-    @apply focus:border-purple-mid focus:bg-purple-mid/[0.05];
+    @apply focus:border-purple-mid/50;
   }
 
-  /* Card con glow al hover — receta de colors_and_type.css .card: barra de
-     gradiente arriba que se revela con scaleX, borde que se aclara, y un
-     leve translateY. Usar junto con `group` en el contenedor si el hover
-     necesita afectar hijos. */
+  /* Card — os.css .card / .client-card / .cli-card2: fondo, borde plano,
+     radio 10-12px, SIN barra de gradiente ni lift al hover (eso es del
+     sitio de marketing). El hover solo aclara el borde. */
   .card-glow {
-    @apply relative overflow-hidden rounded-md border border-border bg-bg-card transition-[border-color,transform] duration-300;
-  }
-  .card-glow::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, #7c3aed, #d4af37);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.4s ease;
+    @apply rounded-md border border-border bg-bg-card transition-colors duration-150;
   }
   .card-glow:hover {
-    @apply -translate-y-1 border-border-hover;
-  }
-  .card-glow:hover::before {
-    transform: scaleX(1);
+    @apply border-border-hover;
   }
 
-  /* Label de sección — mayúsculas con línea dorada, igual que el original */
-  .section-label {
-    @apply inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[2px] text-gold;
-  }
-  .section-label::before {
-    content: "";
-    display: block;
-    width: 20px;
-    height: 1px;
-    background: currentColor;
+  /* Botón primario — os.css .btn-save/.btn-primary: morado plano, sin
+     sombra ni gradiente. */
+  .btn-primary {
+    @apply rounded-sm bg-purple-mid px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-light;
   }
 
-  /* Número destacado — degradado morado→dorado con background-clip, igual
-     que colors_and_type.css .stat-num */
+  /* Botón secundario — os.css .btn-add/.btn-cancel: borde plano, texto
+     tenue, se acentúa en dorado al hover. */
+  .btn-secondary {
+    @apply rounded-sm border border-border bg-transparent px-3 py-1.5 text-xs text-text-muted transition-colors hover:border-gold/40 hover:text-gold;
+  }
+
+  /* Número destacado — os.css .stat-num/.cli-sum-num: Playfair, sin color
+     forzado (el llamador decide el color con text-*, ej. text-green-400). */
   .stat-num {
-    @apply bg-gradient-text bg-clip-text font-display font-bold text-transparent;
-  }
-}
-
-@layer utilities {
-  /* Scroll reveal — usado junto a un IntersectionObserver por componente */
-  .reveal {
-    opacity: 0;
-    transform: translateY(28px);
-    transition:
-      opacity 0.7s ease,
-      transform 0.7s ease;
-  }
-  .reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
+    @apply font-display text-[22px] font-bold;
   }
 }

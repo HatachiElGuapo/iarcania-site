@@ -2,11 +2,12 @@
 
 import { signOut } from "next-auth/react";
 
+// Ver os.css .btn-logout — texto plano, sin borde ni fondo.
 export function LogoutButton() {
   return (
     <button
       onClick={() => signOut({ callbackUrl: "/login" })}
-      className="rounded-sm border border-white/[0.08] px-2.5 py-1 text-xs text-text-muted transition-colors hover:border-red-400/30 hover:text-red-400"
+      className="text-[11px] text-text-muted transition-colors hover:text-red-400"
     >
       Cerrar sesión
     </button>

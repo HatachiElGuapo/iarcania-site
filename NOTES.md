@@ -1,5 +1,60 @@
 # Notas de migración — Next.js
 
+## Sistema de diseño — hay DOS sistemas reales, no uno (corrección importante)
+
+- **Primer intento equivocado**: al empezar a pulir el diseño visual, tomé
+  `colors_and_type.css` + `preview/*.html` como la fuente de verdad (ya
+  estaban portados 1:1 a `tailwind.config.ts`/`globals.css` desde antes de
+  esta sesión). Apliqué ese sistema — morado/dorado saturado, Inter, glow al
+  hover, blobs decorativos — a layout, login, Clientes y Recursos.
+- **El usuario comparó contra el original real (os.html) y no calzaba**:
+  `colors_and_type.css` es el sistema del **sitio de marketing público**
+  (`frontend/app/globals.css` según su propio comentario de origen), no el
+  del dashboard operativo. El dashboard real usa **`os.css`**, un sistema
+  distinto: fuente Outfit (no Inter), bordes grises planos `#1e1e1e` (no
+  morado translúcido), dorado apagado `#C4A35A` (no `#d4af37`), nav activo
+  con texto dorado + borde-izquierdo 2px dorado + fondo `#161616` plano (no
+  pastilla morada), cards sin glow ni barra de gradiente ni lift al hover,
+  header de página con subtítulo + botones de acción reales a la derecha
+  (no un `<details>` colapsado), logo de sidebar en texto dorado sólido sin
+  ícono (el ojo arcano es solo del sitio de marketing).
+- **Verificación**: levanté `os.html` con un servidor estático local y le
+  tomé captura real con Chrome headless, bypasseando el gate de auth
+  (`document.getElementById('auth-screen').style.display='none'` +
+  `navTo('clientes')` — el login real depende de una sesión de Supabase que
+  ya no existe) solo para comparar CSS/layout, sin datos reales. Comparé
+  pixel por pixel contra la migración y leí `os.css` completo para sacar
+  los valores exactos en vez de estimarlos.
+- **Decisión del usuario, confirmada explícitamente**: apuntar a `os.css`
+  tal cual — "es una herramienta operativa, no algo para mostrarle a
+  clientes". `colors_and_type.css`/`preview/` quedan como referencia para
+  si algún día se retoma el sitio de marketing público, no para el
+  dashboard.
+- **Reconstrucción**: se redefinieron los VALORES de los tokens ya usados
+  en ~20 páginas (`bg-bg-card`, `border-border`, `text-gold`,
+  `text-text-muted/dim`, `bg-gradient-cta`, `shadow-glow-purple`,
+  `font-display`) en vez de tocar cada archivo — mismo nombre de clase,
+  significado corregido. Dos matices notados al mapear:
+  - `text-muted`/`text-dim`: os.css nombra sus dos grises al revés de lo
+    intuitivo (`--text-dim` #8A8070 es MÁS visible que `--text-muted`
+    #4A4440). Se mapeó por **peso visual real** en el código ya escrito,
+    no por coincidencia de nombre — si no, se habría invertido la
+    jerarquía de todo el texto secundario de la app sin que nada fallara
+    en el build.
+  - `bg-gradient-cta`/`shadow-glow-purple` se redefinieron como
+    gradiente/sombra "planos" (mismo color repetido, sombra `none`) en vez
+    de eliminarse — evita que las ~20 páginas que ya los usan queden con
+    botones sin fondo.
+  - El morado sí es real en el sistema, pero acotado: `--purple: #9b72f0`
+    es el color de botón primario/foco/modal (`.btn-save`, `.field input`
+    en foco, `.modal`), no un acento decorativo — el login (`.auth-card`)
+    es el único lugar fuera de botones donde borde y foco son morados.
+- **Aplicado y re-verificado en caliente** (Chrome headless real, con y sin
+  datos, incluyendo `:hover`) en: layout del dashboard (sidebar 220px,
+  grupos colapsables con flecha + línea, nav activo dorado), login
+  (`.auth-card` exacto), Clientes, Recursos. Falta aplicar a las ~19
+  secciones restantes con el mismo patrón ya validado.
+
 ## Dinero → Cobros — decisiones tomadas durante la migración (cierra el dashboard completo)
 
 - **Este sí es el dominio de agencia (SB_I), a diferencia de CRM y

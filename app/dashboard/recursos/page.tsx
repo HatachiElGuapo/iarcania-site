@@ -52,11 +52,7 @@ export default async function RecursosPage() {
 
   return (
     <div className="space-y-6 p-8">
-      <PageHeader eyebrow="Negocio" title="Recursos" icon="📦">
-        <span className="text-xs text-text-muted">
-          {list.length} recurso{list.length !== 1 ? "s" : ""}
-        </span>
-      </PageHeader>
+      <PageHeader title="Recursos" subtitle={`${list.length} recurso${list.length !== 1 ? "s" : ""}`} />
 
       {list.length === 0 ? (
         <p className="text-sm text-text-muted">Sin recursos todavía.</p>
@@ -75,9 +71,7 @@ export default async function RecursosPage() {
       )}
 
       <details>
-        <summary className="cursor-pointer text-xs font-semibold text-text-muted hover:text-purple-light">
-          + Nuevo recurso
-        </summary>
+        <summary className="btn-secondary inline-flex w-fit cursor-pointer list-none">+ Nuevo recurso</summary>
         <RecursoForm action={createRecurso} isAdmin={isAdmin} />
       </details>
     </div>
@@ -149,10 +143,7 @@ function RecursoForm({
   isAdmin: boolean;
 }) {
   return (
-    <form
-      action={action}
-      className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border-hover/50 bg-bg-card/50 p-4"
-    >
+    <form action={action} className="card-glow mt-2 flex flex-wrap items-end gap-3 p-4">
       {recurso && <input type="hidden" name="id" value={recurso.id} />}
       <Field label="Título">
         <input type="text" name="titulo" defaultValue={recurso?.titulo} required className="input" />
@@ -210,10 +201,7 @@ function RecursoForm({
       )}
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-        >
+        <button type="submit" className="btn-primary">
           Guardar
         </button>
         {recurso && (

@@ -1,6 +1,9 @@
 import type { Config } from "tailwindcss";
 
-// Tokens portados 1:1 desde colors_and_type.css (design system IArcanIA).
+// Tokens portados 1:1 desde os.css (el dashboard operativo real que se usaba
+// a diario) — NO desde colors_and_type.css (ese es el sitio de marketing
+// público, un sistema visual distinto y más vistoso a propósito). Ver
+// NOTES.md "Sistema de diseño" para la comparación completa.
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -11,31 +14,40 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          deep: "#090910",
-          dark: "#0f0f1a",
-          card: "#13131f",
-          "card-2": "#17172a",
+          deep: "#080808", // os.css --bg
+          dark: "#0c0c0c", // sidebar
+          card: "#111111", // os.css --bg-card
+          "card-2": "#161616", // nav-item.active / freq-tab.active
+          hover: "#181818", // os.css --bg-hover
         },
+        // Único color de acción real en os.css (botones primarios, foco de
+        // inputs, modal de login) — no es un sistema de 3 tonos con
+        // gradientes, es un morado plano.
         purple: {
           deep: "#7c3aed",
-          mid: "#a855f7",
-          light: "#c084fc",
+          mid: "#9b72f0", // os.css --purple / .btn-save / .btn-primary
+          light: "#ad8af5", // hover de .btn-primary
         },
         gold: {
-          DEFAULT: "#d4af37",
-          light: "#f0d060",
-          muted: "#b8962e",
-          sat: "#daa520",
+          DEFAULT: "#c4a35a", // os.css --gold
+          light: "#c4a35a",
+          muted: "#c4a35a",
+          sat: "#c4a35a",
         },
         text: {
-          primary: "#f1f0f7",
-          muted: "#9896b0",
-          dim: "#5a5870",
+          primary: "#e8e0d0", // os.css --text
+          // Mapeo por PESO VISUAL, no por nombre — os.css nombra sus dos
+          // tonos de gris al revés de lo intuitivo: --text-dim (#8A8070) es
+          // MÁS visible que --text-muted (#4A4440). Aquí "muted" sigue
+          // siendo el tono medio (como se usa en todo el código ya escrito)
+          // y "dim" el más apagado, para no invertir la jerarquía visual.
+          muted: "#8a8070", // os.css --text-dim
+          dim: "#4a4440", // os.css --text-muted
         },
         border: {
-          DEFAULT: "rgba(168,85,247,0.15)",
-          hover: "rgba(168,85,247,0.35)",
-          gold: "rgba(212,175,55,0.25)",
+          DEFAULT: "#1e1e1e", // os.css --border — gris plano, NO morado
+          hover: "#2a2a2a", // hover genérico (task-item, book-card, script-card)
+          gold: "rgba(196,163,90,0.2)", // os.css --border-gold
         },
       },
       fontFamily: {
@@ -44,47 +56,22 @@ const config: Config = {
       },
       borderRadius: {
         sm: "8px",
-        md: "16px",
-        lg: "24px",
+        md: "12px",
+        lg: "16px",
+      },
+      // "Gradientes" planos (mismo color repetido) y sombras neutralizadas a
+      // propósito — muchas páginas ya escritas usan bg-gradient-cta/
+      // shadow-glow-purple para el botón primario; en vez de editar cada
+      // archivo, se redefine qué significan esas clases para que calcen con
+      // el botón plano real de os.css (.btn-save: #9b72f0 sin sombra), sin
+      // reintroducir el look de gradiente/glow del sitio de marketing.
+      backgroundImage: {
+        "gradient-cta": "linear-gradient(0deg, #9b72f0, #9b72f0)",
+        "gradient-text": "linear-gradient(0deg, #e8e0d0, #e8e0d0)",
       },
       boxShadow: {
-        "glow-purple": "0 0 30px rgba(124,58,237,0.40)",
-        "glow-purple-hover": "0 8px 40px rgba(124,58,237,0.55)",
-        "glow-gold": "0 4px 24px rgba(212,175,55,0.20)",
-      },
-      backgroundImage: {
-        "gradient-cta": "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
-        "gradient-gold": "linear-gradient(135deg, #b8860b 0%, #daa520 100%)",
-        "gradient-text": "linear-gradient(135deg, #c084fc 0%, #f0d060 100%)",
-        "gradient-sep-purple":
-          "linear-gradient(90deg, transparent, #7c3aed, transparent)",
-        "gradient-sep-gold":
-          "linear-gradient(90deg, transparent, #b8962e, transparent)",
-        "gradient-accent": "linear-gradient(90deg, #7c3aed, #d4af37)",
-      },
-      keyframes: {
-        float1: {
-          "0%, 100%": { transform: "translate(0, 0)" },
-          "50%": { transform: "translate(30px, 40px)" },
-        },
-        float2: {
-          "0%, 100%": { transform: "translate(0, 0)" },
-          "50%": { transform: "translate(-20px, -30px)" },
-        },
-        float3: {
-          "0%, 100%": { transform: "translate(0, 0) scale(1)" },
-          "50%": { transform: "translate(15px, -20px) scale(1.1)" },
-        },
-        "pulse-gold": {
-          "0%, 100%": { opacity: "1", transform: "scale(1)" },
-          "50%": { opacity: "0.5", transform: "scale(0.8)" },
-        },
-      },
-      animation: {
-        float1: "float1 8s ease-in-out infinite",
-        float2: "float2 10s ease-in-out infinite",
-        float3: "float3 12s ease-in-out infinite",
-        "pulse-gold": "pulse-gold 2s ease-in-out infinite",
+        "glow-purple": "none",
+        "glow-purple-hover": "none",
       },
     },
   },

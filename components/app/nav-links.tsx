@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 
 type NavItem = { href: string; label: string; icon: string };
@@ -54,38 +55,60 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// Ver os.css .nav-item/.nav-separator/.nav-group — grupos colapsables con
+// flecha que rota, línea que se extiende del label, item activo con texto
+// dorado + borde-izquierdo dorado + fondo #161616 (no una pastilla morada).
 export function NavLinks() {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
-    <nav className="space-y-5">
-      {NAV_GROUPS.map((group) => (
-        <div key={group.label}>
-          <div className="section-label mb-2 px-2">{group.label}</div>
-          <div className="space-y-0.5">
-            {group.items.map((item) => {
-              const active =
-                item.href === "/dashboard"
-                  ? pathname === "/dashboard"
-                  : pathname === item.href || pathname.startsWith(item.href + "/");
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm transition-colors ${
-                    active
-                      ? "bg-purple-mid/10 font-semibold text-purple-light"
-                      : "text-text-muted hover:bg-white/[0.03] hover:text-text-primary"
-                  }`}
-                >
-                  <span className="w-4 text-center text-xs">{item.icon}</span>
-                  {item.label}
-                </a>
-              );
-            })}
+    <nav className="py-2">
+      {NAV_GROUPS.map((group) => {
+        const isCollapsed = !!collapsed[group.label];
+        return (
+          <div key={group.label}>
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => ({ ...c, [group.label]: !c[group.label] }))}
+              className="flex w-full select-none items-center gap-2 px-5 pb-1 pt-3 text-left text-[9px] uppercase tracking-[0.15em] text-text-dim hover:text-text-muted"
+            >
+              <span
+                className={`inline-block flex-shrink-0 text-[8px] transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+              >
+                ▼
+              </span>
+              {group.label}
+              <span className="h-px flex-1 bg-border" />
+            </button>
+            <div
+              className="overflow-hidden transition-[max-height] duration-200 ease-in-out"
+              style={{ maxHeight: isCollapsed ? 0 : 400 }}
+            >
+              {group.items.map((item) => {
+                const active =
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2.5 border-l-2 px-5 py-[11px] text-[13px] transition-colors ${
+                      active
+                        ? "border-gold bg-bg-card-2 text-gold"
+                        : "border-transparent text-text-muted hover:bg-bg-hover hover:text-text-dim"
+                    }`}
+                  >
+                    <span className="w-[18px] flex-shrink-0 text-center text-sm">{item.icon}</span>
+                    {item.label}
+                  </a>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }

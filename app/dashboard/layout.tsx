@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Logo } from "@/components/brand/logo";
-import { Blobs } from "@/components/brand/blobs";
+import { Wordmark } from "@/components/brand/logo";
 import { NavLinks } from "@/components/app/nav-links";
 import { LogoutButton } from "@/components/app/logout-button";
 
+// Ver os.css .sidebar/.sidebar-logo/.sidebar-footer — 220px, sin
+// decoración (sin blobs), logo de texto plano.
 export default async function DashboardLayout({
   children,
 }: {
@@ -15,16 +16,21 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-bg-deep">
-      <aside className="relative flex w-64 shrink-0 flex-col border-r border-border bg-bg-dark">
-        <Blobs />
-        <div className="relative border-b border-border p-4">
-          <Logo size={26} wordmarkSize={17} tagline="Sistema personal" />
+      <aside className="flex w-[220px] shrink-0 flex-col border-r border-border bg-bg-dark">
+        <div className="border-b border-border p-6">
+          <Wordmark size={18} />
+          <div className="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-text-muted">
+            Sistema Operativo
+          </div>
         </div>
-        <div className="relative flex-1 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto">
           <NavLinks />
         </div>
-        <div className="relative flex items-center justify-between gap-2 border-t border-border p-3">
-          <span className="truncate text-xs text-text-dim">{session.user?.email}</span>
+        <div className="border-t border-border px-5 py-4">
+          <div className="mb-0.5 truncate text-xs font-medium text-text-muted">
+            {session.user?.name ?? "Usuario"}
+          </div>
+          <div className="mb-1.5 truncate text-xs text-text-dim">{session.user?.email}</div>
           <LogoutButton />
         </div>
       </aside>
