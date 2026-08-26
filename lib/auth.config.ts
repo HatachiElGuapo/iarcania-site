@@ -6,6 +6,10 @@ import type { NextAuthConfig } from "next-auth";
 // adapter de Drizzle y el provider Credentials para el resto de la app
 // (route handlers y Server Components, que sí corren en Node.js runtime).
 export const authConfig = {
+  // Auth.js v5 rechaza el host por defecto ("UntrustedHost") fuera de
+  // plataformas que lo marcan solas (Vercel) — necesario en cualquier
+  // despliegue propio (Docker, detrás de IP/dominio propio).
+  trustHost: true,
   pages: { signIn: "/login" },
   providers: [],
   callbacks: {

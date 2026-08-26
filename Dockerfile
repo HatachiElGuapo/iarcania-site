@@ -19,6 +19,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# lib/db/client.ts valida DATABASE_URL al importarse (falla rápido si falta
+# en runtime — deseado). Pero "next build" recorre /api/scripts/ai al
+# recolectar datos de las rutas, que importa ese módulo — y .env.local no
+# llega aquí a propósito (.dockerignore, los secretos se inyectan recién en
+# runtime vía env_file). Placeholder solo para que el import no truene;
+# nunca se usa para conectar de verdad durante el build.
+ENV DATABASE_URL="postgres://build:build@localhost:5432/build"
 RUN npm run build
 
 # ── Etapa 3: runtime ─────────────────────────────────────────────────────────
