@@ -1,5 +1,41 @@
 # Notas de migración — Next.js
 
+## Rutinas (home del dashboard) — decisiones tomadas durante la migración
+
+- **No se replicó la vista original tal cual, a propósito** — `os.html`
+  combinaba el home con una rutina matutina muy personalizada y
+  hardcodeada: bloque "20/20/20" con 3 hábitos por ID fijo (`a35`/`a02`/
+  `a14`), ~7 secciones colapsables por momento del día (Despertar, Limpieza,
+  Secundarias mañana, Inicio del día, Trabajo, Rutina nocturna, Secundarios
+  noche), un sistema de "modo emergencia" (normal/estándar/mínimo/enfermo/
+  especial), permisos por completar el 20/20/20, y widgets de cumpleaños
+  próximos. Todo esto ya se había descartado deliberadamente al migrar
+  Hábitos (ver esa sección: "~30 comportamientos hardcodeados por ID de
+  hábito específico... fuera de alcance"). Replicarlo aquí habría
+  contradicho esa decisión ya tomada.
+- **Se construyó un resumen real en su lugar**: saludo + fecha, stats de
+  pendientes/completadas, alerta de tareas vencidas + próxima cita (si
+  hay), "Tareas de hoy" (`tasks` con `dueDate=hoy`) y "Hábitos de hoy"
+  (`activities` frecuencia diaria + `activityLogs` de hoy) — sobre tablas
+  reales ya migradas, no sobre datos hardcodeados.
+- **Los toggles reutilizan las acciones de Actividades y Hábitos tal
+  cual** (`toggleTaskStatus`, `toggleLogToday`) — mismo criterio de
+  siempre (Trabajo reutilizando `createTask` de Actividades, Planner
+  reutilizando `toggleChecklist` de Guiones): un solo lugar de verdad por
+  dominio, Rutinas no tiene su propia copia.
+- **`daily_focus` (listType='hoy'/'extra') no se usó** — está en el schema
+  desde antes (reservado para cuando se migre el planeador de "mañana" de
+  Rutina nocturna) pero nada la escribe todavía; usarla habría mostrado
+  una lista vacía siempre. "Tareas de hoy" usa `tasks.dueDate` directo,
+  que sí tiene datos reales.
+- **Verificado en caliente con datos reales de la cuenta real** (no un
+  usuario de prueba descartable esta vez): sembré 3 tareas, 2 hábitos
+  diarios, 1 cita, confirmé que stats/alertas/listas muestran los valores
+  correctos, hice clic en un checkbox real vía HTTP y confirmé que el
+  conteo pendientes/completadas cambió (2/2 → 1/3) — no fue solo una
+  verificación visual. Limpié todos los datos sembrados al terminar; la
+  cuenta real queda como estaba (vacía).
+
 ## Sistema de diseño — hay DOS sistemas reales, no uno (corrección importante)
 
 - **Primer intento equivocado**: al empezar a pulir el diseño visual, tomé
