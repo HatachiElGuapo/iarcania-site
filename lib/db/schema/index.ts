@@ -21,3 +21,4 @@ export * from "./clientes";
 export * from "./libros";
 export * from "./escuela";
 export * from "./guiones";
+export * from "./crm";

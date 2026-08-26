@@ -1,5 +1,61 @@
 # Notas de migración — Next.js
 
+## CRM — decisiones tomadas durante la migración
+
+- **Corrección importante sobre una nota anterior**: al migrar Clientes se
+  asumió que `crm.html`/`js/crm.js` era el CRM de *agencia* (proyecto
+  Supabase `SB_I`) y se reservaron los nombres `crm_clients`/`crm_payments`
+  para ese dominio (ver "Dominios de datos con nombres duplicados"). Leyendo
+  el código completo de `js/crm.js` para esta migración: **conecta a
+  `SB_P` (personal), el mismo proyecto que Clientes/Dinero**, y reutiliza
+  las mismas tablas `clients`/`projects`/`income`. No existe tal separación
+  — `crm_clients`/`crm_payments` nunca llegaron a crearse como tablas reales
+  en ningún lado. Se corrigió el comentario en `lib/db/schema/clientes.ts`.
+- **`projects` extendido, no duplicado**: Pipeline necesita columnas que el
+  `projects` migrado con Clientes no tenía (`stage`, `value`, `serviceType`,
+  `anticipoPct`, `anticipoPaid`, `closedAt`) — se agregaron como columnas
+  nuevas con default, sin tocar las filas ni el flujo ya migrado de
+  Clientes. `status` (activo/completado, ciclo de vida en Clientes) y
+  `stage` (embudo de ventas: contacted→demo→proposal→negotiation→won/lost,
+  Pipeline) son ejes independientes sobre la misma fila — marcar un deal
+  "ganado" no cambia `status`, completar un proyecto no mueve el `stage`.
+- **`projects.clientId` pasó a nullable** — Pipeline permite crear un deal
+  sin cliente todavía ("Sin cliente" en el original), Clientes
+  (`createProject`) siempre provee uno igual así que no se ve afectado.
+- **`income` extendido con `clientId`/`projectId`/`distributionApplied`** —
+  nullable/default false, el flujo normal de Dinero ("+ Ingreso" en Gastos)
+  no los toca. Se usan solo cuando el ingreso viene de Presupuesto o de un
+  pago de Pipeline.
+- **Presupuesto migrado completo, con una simplificación**: el original
+  mostraba una vista previa de reparto antes de confirmar (paso intermedio
+  client-side). Aquí se aplica directo al guardar — servidor-first, sin
+  estado de preview — y el resultado se ve de inmediato en la tabla de
+  categorías tras el submit. **Verificado en caliente**: presupuesto con 2
+  categorías (prioridad 1 y 2), ingreso que cubre la primera completa y
+  parcialmente la segunda — el reparto por prioridad quedó exacto contra
+  Postgres real.
+- **Sin "eliminar presupuesto"** — se agregó `deactivateBudget` en su lugar
+  (marca `isActive=false`) para no perder el historial de
+  `budget_distributions` ya repartido contra esa categoría.
+- **Deudas**: el original no tenía ningún formulario de alta/pago visible
+  en `js/crm.js` (probablemente se cargaban a mano en Supabase) — se
+  agregaron `createDebt`/`registerDebtPayment`/`deleteDebt`, mismo criterio
+  de "siempre dar una forma de gestionarlo" usado en todo el resto de la
+  migración. Al registrar un abono que salda el total, la deuda pasa a
+  `status='paid'` y se mueve a una sección colapsable "N deudas saldadas"
+  (con opción de eliminar) en vez de desaparecer sin dejar rastro.
+- **Pestaña Clientes no se duplicó** — Clientes ya tiene su propia sección
+  con CRUD completo (`/dashboard/clientes`); aquí solo un resumen (conteo
+  por estado) + link, para no mantener dos UIs sobre el mismo dominio.
+- **Verificado en caliente end-to-end vía HTTP real**: Presupuesto (crear 2
+  categorías → registrar ingreso con reparto automático → desactivar una
+  categoría), Pipeline (crear deal sin cliente → mover de etapa → registrar
+  pago marcando "ganado", confirmando `anticipoPct` calculado correctamente
+  desde el monto real pagado, `anticipoPaid`/`closedAt` seteados, e ingreso
+  vinculado al `projectId`), Deudas (crear → abono parcial → abono que
+  salda → aparece en saldadas → eliminar). Todo contra Postgres real,
+  terminando en estado limpio.
+
 ## Escuela (admin) — decisiones tomadas durante la migración
 
 - **La creación de estudiantes NO vive aquí** — en el original, `students`
@@ -100,6 +156,17 @@
   Guiones) — las 5 secciones tienen schema + acciones + página, typecheck
   limpio (`tsc --noEmit`), y las 5 fueron probadas en caliente contra datos
   reales antes de darlas por cerradas.
+
+## Workspace — decisiones tomadas durante la migración
+
+- **Página 100% estática, sin schema ni acciones** — confirmado en el
+  original (`os.html`, sección `#section-workspace`): es literalmente una
+  lista fija de links externos (n8n, Supabase ×2, Vercel, GitHub ×2,
+  EasyPanel, YouTube, Instagram, YouTube Studio, Canva) agrupada en
+  "Técnico" y "Contenido", sin ningún dato en Supabase detrás. Se copiaron
+  los mismos links tal cual, sin agregar ni quitar ninguno.
+- **Verificado en caliente**: página renderiza 200 con sesión real y
+  todos los links del original presentes.
 
 ## Zona horaria — hallazgo sistémico y retrofit (afecta a casi toda la app)
 

@@ -10,6 +10,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+import { clients, projects } from "./clientes";
 
 // A diferencia del original (3 cuentas hardcodeadas en el cliente:
 // Bolsillo/Nequi/Bancolombia), aquí son gestionables por el usuario —
@@ -84,6 +85,14 @@ export const income = pgTable(
     accountId: uuid("account_id").references(() => financialAccounts.id, {
       onDelete: "set null",
     }),
+    // Vínculo con CRM/Pipeline (crm.ts) — un ingreso puede venir de un pago
+    // de cliente/deal registrado desde Pipeline. Nullable: el flujo normal
+    // de Dinero (botón "+ Ingreso" en Gastos) no los usa.
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    // true una vez que Presupuesto (crm.ts) repartió este ingreso entre
+    // categorías vía budget_distributions.
+    distributionApplied: boolean("distribution_applied").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
