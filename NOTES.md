@@ -1,5 +1,72 @@
 # Notas de migración — Next.js
 
+## Planner — decisiones tomadas durante la migración
+
+- **Mismo hallazgo que CRM, pero más profundo**: `planner.html` no es un
+  dominio separado — conecta al mismo `SB_P` y lee/escribe la misma tabla
+  `scripts` que ya migré en Guiones (`itemToRow`/`rowToItem` en el
+  original mapean directo a `id/title/canal/status/hook/body/cta`, los
+  mismos nombres de columna). El "guion" de 4 bloques que Planner también
+  maneja es el mismo que documenté al migrar Guiones (colapsa a
+  hook/body/cta). Se extendió `scripts` (formato, plataformaOrigen,
+  horaGrab, horaPub) en vez de crear una tabla paralela — mismo criterio
+  que projects/income en CRM.
+- **Bug real del original que no se replicó**: Planner empaquetaba
+  `fechaGrab/horaGrab/horaPub/formato/plataformaOrigen/steps/derivados/guion`
+  como `JSON.stringify(...)` dentro de `scripts.notes` — la MISMA columna
+  que Guiones usa como texto plano de notas de producción. Un guión editado
+  desde una de las dos apps corrompía lo que la otra esperaba ahí. Aquí
+  `notes` sigue siendo texto plano (Guiones), y todo lo demás son columnas
+  tipadas propias o su propia tabla (`script_derivados`) — no hay JSON
+  embebido en columnas de texto en ningún lado de esta migración.
+- **`createScript`/`updateScript`/`deleteScript`/`toggleChecklist` se
+  reutilizan de Guiones tal cual** (import directo, mismo patrón que
+  Trabajo reutilizando `createTask` de Actividades) — Planner no tiene su
+  propia copia de estas acciones. Se agregó `updatePlannerFields` como
+  acción **separada** para formato/plataformaOrigen/fechaGrab/horaGrab/
+  horaPub — a propósito no se fusionó con `updateScript`: el formulario de
+  Guiones no envía estos campos, así que si compartieran una acción cada
+  guardado desde Guiones los pisaría a vacío. Verificado en caliente que
+  ambos paths (crear desde Guiones sin estos campos, crear desde Planner
+  con ellos) funcionan sin pisarse.
+- **Checklist de producción unificado con Guiones, no duplicado** — el
+  original tenía DOS sistemas de pasos de producción distintos sobre la
+  misma fila: el `checklist` de Guiones (guion/imagenes/grabado/editado/
+  thumbnail/publicado) y los `steps` de Planner (Guión/Grabación/Edición/
+  Thumbnail/Programar/Publicar), cada uno con su propio estado/avance
+  automático — un desync más del mismo tipo que Citas→Agenda. Aquí la
+  pestaña Producción de Planner llama al mismo `toggleChecklist` de
+  Guiones sobre las 5 keys compatibles (guion/grabado/editado/thumbnail/
+  publicado) — un solo checklist real. **"Programar" no se migró como
+  paso** — ya está representado por si `fechaGrabacion`/`horaPub` tienen
+  valor, no hace falta un booleano aparte.
+- **`status` de Guiones es el único real** — Planner también tenía su
+  propio vocabulario de estado (idea/grabando/editando/publicado, 4
+  valores) incompatible con el CHECK constraint real de `scripts.status`
+  (5 valores: borrador/en_progreso/listo_grabar/grabado/publicado). No se
+  intentó replicar ese vocabulario aparte — la UI de Planner muestra el
+  status real de Guiones.
+- **`script_derivados` es tabla propia, no JSON embebido** — igual
+  criterio que Libros (capítulos/personajes/escenarios/notas como filas).
+- **Sección "Canal" del original no se migró** — `activePlatforms` nunca
+  se persistía en Supabase en el original (solo `useState` en memoria, se
+  reseteaba a los 3 valores por defecto en cada carga de página) — no
+  había nada real que migrar, era un toggle puramente decorativo.
+- **Editar guión (hook/desarrollo/cierre) no se duplicó en Planner** — la
+  tarjeta de contenido enlaza a `/dashboard/guiones` para eso, mismo
+  criterio que la pestaña Clientes de CRM (un solo lugar por dominio de
+  edición de contenido largo).
+- **Verificado en caliente end-to-end vía HTTP real, incluyendo la
+  interacción entre las dos secciones**: crear desde Planner con
+  formato/plataforma/fecha → crear desde Guiones sin esos campos
+  (confirmando que no se pisan) → editar campos de Planner → crear
+  derivado → cambiar su estado → marcar un paso del checklist desde
+  Producción y confirmar que el `status` avanza igual que en Guiones
+  (mismo `toggleChecklist`) → vista Semanal muestra el guión bajo el día
+  correcto (verificado con la fecha real del sistema, 2026-08-25 =
+  martes, cayendo correctamente bajo "Mar" en la semana que empieza el
+  lunes 24) → limpieza completa contra Postgres real.
+
 ## CRM — decisiones tomadas durante la migración
 
 - **Corrección importante sobre una nota anterior**: al migrar Clientes se

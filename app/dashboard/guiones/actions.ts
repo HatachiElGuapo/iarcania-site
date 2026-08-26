@@ -20,12 +20,24 @@ export async function createScript(formData: FormData) {
   const body = String(formData.get("body") || "").trim() || null;
   const cta = String(formData.get("cta") || "").trim() || null;
   const notes = String(formData.get("notes") || "").trim() || null;
+  // Opcionales, solo usados desde Planner — el formulario de Guiones no los
+  // envía, así que quedan en su default de columna (no se sobreescriben).
+  const formato = formData.get("formato") ? String(formData.get("formato")) : undefined;
+  const plataformaOrigen = formData.get("plataformaOrigen")
+    ? String(formData.get("plataformaOrigen"))
+    : undefined;
+  const fechaGrabacion = formData.get("fechaGrabacion")
+    ? String(formData.get("fechaGrabacion"))
+    : undefined;
 
   if (!title) throw new Error("El título es obligatorio");
 
-  await db.insert(scripts).values({ userId, title, canal, hook, body, cta, notes });
+  await db
+    .insert(scripts)
+    .values({ userId, title, canal, hook, body, cta, notes, formato, plataformaOrigen, fechaGrabacion });
 
   revalidatePath("/dashboard/guiones");
+  revalidatePath("/dashboard/planner");
 }
 
 export async function updateScript(formData: FormData) {
@@ -49,6 +61,7 @@ export async function updateScript(formData: FormData) {
     .where(and(eq(scripts.id, id), eq(scripts.userId, userId)));
 
   revalidatePath("/dashboard/guiones");
+  revalidatePath("/dashboard/planner");
 }
 
 export async function deleteScript(formData: FormData) {
@@ -58,6 +71,7 @@ export async function deleteScript(formData: FormData) {
   await db.delete(scripts).where(and(eq(scripts.id, id), eq(scripts.userId, userId)));
 
   revalidatePath("/dashboard/guiones");
+  revalidatePath("/dashboard/planner");
 }
 
 const CHECKLIST_ORDER = ["borrador", "en_progreso", "listo_grabar", "grabado", "publicado"];
@@ -98,6 +112,7 @@ export async function toggleChecklist(formData: FormData) {
     .where(and(eq(scripts.id, id), eq(scripts.userId, userId)));
 
   revalidatePath("/dashboard/guiones");
+  revalidatePath("/dashboard/planner");
 }
 
 export async function savePublicacion(formData: FormData) {
