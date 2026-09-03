@@ -7,14 +7,32 @@ import { appointments } from "@/lib/db/schema/citas";
 import { CATS } from "@/lib/constants/cats";
 import { todayISO, addDaysISO } from "@/lib/date/bogota";
 import { ToggleRow } from "@/components/app/optimistic-toggle-row";
+import {
+  PageHeader,
+  Card,
+  MetricCard,
+  Segmented,
+  Stepper,
+  Button,
+  Badge,
+  CategoryTag,
+  CategoryDot,
+  EmptyState,
+  QuickCapture,
+  Select,
+  Input,
+  catInfo,
+} from "@/components/ui";
 import { toggleTaskStatus, createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity } from "./habitos/actions";
 
 const PRIORITY_COLOR: Record<string, string> = {
-  alta: "text-red-400",
-  media: "text-gold",
-  baja: "text-text-muted",
+  alta: "text-danger",
+  media: "text-accent-warm",
+  baja: "text-ink-dim",
 };
+
+const PRIORITY_TONE = { alta: "danger", media: "warm", baja: "neutral" } as const;
 
 const APPT_ICON: Record<string, string> = {
   medica: "🏥",
@@ -74,14 +92,13 @@ function blockOf(t: { timeDue: string | null }): "mañana" | "tarde" | "sin" {
 const BLOCK_LABELS = { mañana: "Mañana", tarde: "Tarde", sin: "Sin hora" } as const;
 const BLOCK_ORDER = ["mañana", "tarde", "sin"] as const;
 
-// Home del dashboard — os.html combinaba esto con una vista muy personalizada
-// (rutina 20/20/20, ~30 hábitos hardcodeados por ID, modo emergencia) que
-// NOTES.md ya documentó como deliberadamente fuera de alcance al migrar
-// Hábitos. Aquí es un resumen real sobre las tablas migradas (tasks,
-// activities/activity_logs, appointments) — foco del día, hábitos
-// pendientes, tareas de hoy, próximos 7 días, y un vistazo rápido a lo que
-// necesita atención. Navegador de día (‹ fecha ›) restaurado del original
-// (navegarDia) — no puede ir al futuro, igual que allá.
+// Home del dashboard — arquetipo 6 (Panel resumen) del sistema IArcanIA.
+// os.html combinaba esto con una vista muy personalizada (rutina 20/20/20,
+// ~30 hábitos hardcodeados por ID, modo emergencia) que NOTES.md ya
+// documentó como deliberadamente fuera de alcance. Aquí es un resumen real
+// sobre las tablas migradas (tasks, activities/activity_logs, appointments):
+// foco del día, hábitos pendientes, tareas de hoy, próximos 7 días. El
+// navegador de día (‹ fecha ›) no puede ir al futuro, igual que el original.
 export default async function RutinasPage({
   searchParams,
 }: {
@@ -169,13 +186,6 @@ export default async function RutinasPage({
   });
   const bestStreak = habitsView.length ? Math.max(...habitsView.map((h) => h.streak)) : 0;
 
-  const stats: { value: number; label: string; sub: string; color: string }[] = [
-    { value: pendingToday, label: "pendientes", sub: "hoy", color: "text-text-primary" },
-    { value: doneToday, label: "completadas", sub: `de ${totalToday}`, color: "text-green-400" },
-    { value: overdueTasks.length, label: "vencidas", sub: "", color: "text-red-400" },
-    { value: bestStreak, label: "mejor racha", sub: "días", color: "text-gold" },
-  ];
-
   const filteredDayTasks = dayTasks.filter((t) =>
     filtro === "pendientes" ? t.status !== "completada" : filtro === "alta" ? t.priority === "alta" : true,
   );
@@ -191,8 +201,8 @@ export default async function RutinasPage({
   const categoryLegend = Object.entries(catCounts)
     .map(([key, count]) => ({
       key,
-      label: CATS[key]?.label ?? key,
-      color: CATS[key]?.color ?? "#8a8070",
+      label: catInfo(key).label,
+      color: catInfo(key).color,
       count,
       pct: Math.round((count / maxCatCount) * 100),
     }))
@@ -222,68 +232,49 @@ export default async function RutinasPage({
   };
 
   return (
-    <div className="flex flex-col gap-4 p-7">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="mb-0.5 text-[26px] text-text-primary">
-            Buen día{session!.user?.name ? `, ${session!.user.name}` : ""}
-          </h1>
-          <p className="text-xs text-text-dim">
-            {dateLong} · {nowTime} · Bogotá
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-stretch overflow-hidden rounded-lg border border-border bg-bg-card">
-            <a
-              href={`/dashboard?date=${addDaysISO(date, -1)}`}
-              className="flex items-center border-r border-border px-2.5 text-sm leading-none text-text-muted hover:text-text-primary"
-            >
-              ‹
-            </a>
-            <span className={`px-3.5 py-1.5 text-xs font-medium ${isToday ? "bg-bg-card-2 text-gold" : "text-text-dim"}`}>
-              {isToday ? "Hoy" : fmtDayShort(date)}
-            </span>
-            <a
-              href={isToday ? undefined : `/dashboard?date=${addDaysISO(date, 1)}`}
-              className={`flex items-center border-l border-border px-2.5 text-sm leading-none ${
-                isToday ? "pointer-events-none text-text-muted/30" : "text-text-muted hover:text-text-primary"
-              }`}
-            >
-              ›
-            </a>
-          </div>
-          <a href={`/dashboard/agenda?date=${date}`} className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted hover:text-text-primary">
-            Agenda del día
-          </a>
-          <a href="#nueva-tarea" className="btn-primary">
-            + Nueva tarea
-          </a>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4 p-8">
+      <PageHeader
+        icon="🌅"
+        title={`Buen día${session!.user?.name ? `, ${session!.user.name}` : ""}`}
+        subtitle={`${dateLong} · ${nowTime} · Bogotá`}
+        actions={
+          <>
+            <Stepper
+              prevHref={`/dashboard?date=${addDaysISO(date, -1)}`}
+              nextHref={isToday ? undefined : `/dashboard?date=${addDaysISO(date, 1)}`}
+              label={isToday ? "Hoy" : fmtDayShort(date)}
+              current={isToday}
+            />
+            <Button variant="secondary" href={`/dashboard/agenda?date=${date}`}>
+              Agenda del día
+            </Button>
+            <Button href="#nueva-tarea">+ Nueva tarea</Button>
+          </>
+        }
+      />
 
       <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(4, 1fr) 1.6fr" }}>
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border border-border bg-bg-card px-3.5 py-3">
-            <div className="flex items-baseline gap-1.5">
-              <span className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</span>
-              {s.sub && <span className="text-[11px] text-text-dim">{s.sub}</span>}
-            </div>
-            <div className="mt-0.5 text-[10px] uppercase tracking-wider text-text-muted">{s.label}</div>
-          </div>
-        ))}
-        <div className="flex flex-col justify-center gap-2 rounded-xl border border-gold/20 bg-[#100E07] px-3.5 py-3">
-          <div className="flex justify-between text-[11px] text-text-muted">
+        <MetricCard value={pendingToday} label="pendientes" sub="hoy" tone="primary" />
+        <MetricCard value={doneToday} label="completadas" sub={`de ${totalToday}`} tone="success" />
+        <MetricCard
+          value={overdueTasks.length}
+          label="vencidas"
+          tone={overdueTasks.length ? "danger" : "primary"}
+        />
+        <MetricCard value={bestStreak} label="mejor racha" sub="días" tone="warm" />
+        <div className="flex flex-col justify-center gap-2 rounded-ui-lg border border-accent/25 bg-accent/[0.06] px-3.5 py-3">
+          <div className="flex justify-between text-[11px] text-ink-muted">
             <span>Progreso del día</span>
-            <span className="font-semibold text-gold">
+            <span className="font-semibold text-accent">
               {doneToday} / {totalToday} · {pctToday}%
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-border">
-            <div className="h-full rounded-full bg-gold" style={{ width: `${pctToday}%` }} />
+          <div className="h-1.5 overflow-hidden rounded-full bg-line">
+            <div className="h-full rounded-full bg-accent" style={{ width: `${pctToday}%` }} />
           </div>
-          <div className="text-[10px] text-text-dim">
-            {habitsDone} hábito{habitsDone !== 1 ? "s" : ""} y {tasksDone} tarea{tasksDone !== 1 ? "s" : ""} hechas · quedan{" "}
-            {pendingToday} por hacer
+          <div className="text-[10px] text-ink-dim">
+            {habitsDone} hábito{habitsDone !== 1 ? "s" : ""} y {tasksDone} tarea{tasksDone !== 1 ? "s" : ""} hechas ·
+            quedan {pendingToday} por hacer
           </div>
         </div>
       </div>
@@ -293,7 +284,7 @@ export default async function RutinasPage({
           {overdueTasks.length > 0 && (
             <a
               href="/dashboard/actividades?tiempo=vencidas"
-              className="rounded-lg border border-red-500/25 bg-red-500/[0.06] px-3.5 py-1.5 text-xs text-red-400 transition-colors hover:border-red-500/50"
+              className="rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 py-1.5 text-xs text-danger transition-colors duration-120 hover:border-danger/50"
             >
               ⚠ {overdueTasks.length} tarea{overdueTasks.length !== 1 ? "s" : ""} vencida
               {overdueTasks.length !== 1 ? "s" : ""}
@@ -303,10 +294,10 @@ export default async function RutinasPage({
             <a
               key={a.id}
               href="/dashboard/citas"
-              className={`rounded-lg px-3.5 py-1.5 text-xs transition-colors ${
+              className={`rounded-ui px-3.5 py-1.5 text-xs transition-colors duration-120 ${
                 i === 0
-                  ? "border border-gold/25 bg-gold/[0.06] text-gold hover:border-gold/50"
-                  : "border border-border bg-bg-card text-text-muted"
+                  ? "border border-accent-warm/25 bg-accent-warm/[0.06] text-accent-warm hover:border-accent-warm/50"
+                  : "border border-line bg-surface text-ink-muted"
               }`}
             >
               {APPT_ICON[a.type] ?? "📌"} {a.title} —{" "}
@@ -320,144 +311,134 @@ export default async function RutinasPage({
               })}
             </a>
           ))}
-          <span className="ml-auto text-[11px] text-text-dim">
-            Vista: <span className="text-text-muted">día</span> · <span className="text-text-dim">semana</span>
+          <span className="ml-auto text-[11px] text-ink-dim">
+            Vista: <span className="text-ink-muted">día</span> · <span className="text-ink-dim">semana</span>
           </span>
         </div>
       )}
 
       <div className="grid items-start gap-4" style={{ gridTemplateColumns: "1.35fr 1fr" }}>
-        <section className="flex flex-col rounded-xl border border-border bg-bg-card">
-          <div className="flex items-center gap-2.5 border-b border-border px-4 py-3.5">
-            <h2 className="text-sm font-semibold text-text-primary">Tareas de hoy</h2>
-            <span className="rounded-full border border-border bg-bg-card-2 px-2 py-0.5 text-[10px] text-text-muted">
-              {dayTasks.length}
-            </span>
-            <div className="ml-auto flex items-center gap-1.5 text-[11px]">
-              {FILTROS.map((f) => (
-                <a
-                  key={f.id}
-                  href={qsHome({ filtro: f.id === "todas" ? undefined : f.id })}
-                  className={`rounded-md border px-2.5 py-1 ${
-                    filtro === f.id ? "border-[#2a2a2a] bg-[#1e1e1e] text-[#e8e8e8]" : "border-[#2a2a2a] bg-bg-card-2 text-text-muted"
-                  }`}
-                >
-                  {f.label}
-                </a>
-              ))}
-              <a href="/dashboard/actividades" className="px-1.5 text-text-muted hover:text-gold">
-                Ver todas →
-              </a>
-            </div>
+        <Card
+          title="Tareas de hoy"
+          count={dayTasks.length}
+          action={
+            <a href="/dashboard/actividades" className="hover:text-ink">
+              Ver todas →
+            </a>
+          }
+          flush
+        >
+          <div className="px-3.5 pt-3">
+            <Segmented
+              options={FILTROS.map((f) => ({
+                label: f.label,
+                href: qsHome({ filtro: f.id === "todas" ? undefined : f.id }),
+                active: filtro === f.id,
+              }))}
+            />
           </div>
-          <div className="flex flex-col gap-2.5 p-3">
+          <div className="flex flex-col gap-2.5 p-3.5">
             {blocks.length === 0 ? (
-              <p className="px-1 py-4 text-center text-xs text-text-muted">Sin tareas para este día.</p>
+              <EmptyState icon="🗒️">
+                No tienes tareas para este día. Agrégala con la barra de abajo.
+              </EmptyState>
             ) : (
               blocks.map((b) => (
                 <div key={b.key} className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-2 px-0.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">{b.label}</span>
-                    <span className="h-px flex-1 bg-border" />
-                    <span className="text-[10px] text-text-dim">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-dim">
+                      {b.label}
+                    </span>
+                    <span className="h-px flex-1 bg-line" />
+                    <span className="text-[10px] text-ink-dim">
                       {b.items.length} tarea{b.items.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  {b.items.map((t) => {
-                    const c = t.category ? CATS[t.category] : null;
-                    return (
-                      <ToggleRow
-                        key={t.id}
-                        boxed
-                        label={t.title}
-                        initialDone={t.status === "completada"}
-                        action={toggleTaskStatus}
-                        fieldsOn={{ id: t.id, nextStatus: "completada" }}
-                        fieldsOff={{ id: t.id, nextStatus: "pendiente" }}
-                        borderColor={c?.color}
-                        prefix={
-                          <span className="w-10 shrink-0 text-[11px] tabular-nums text-text-muted">{t.timeDue ?? "—"}</span>
-                        }
-                        meta={
-                          <>
-                            {c && (
-                              <span
-                                className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium"
-                                style={{ background: `${c.color}14`, border: `1px solid ${c.color}33`, color: c.color }}
-                              >
-                                {c.label}
-                              </span>
-                            )}
-                            <span
-                              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                                t.priority === "alta" ? "bg-red-500/10 text-red-400" : t.priority === "media" ? "bg-gold/10 text-gold" : "bg-white/5 text-text-muted"
-                              }`}
-                            >
-                              {t.priority}
-                            </span>
-                            <span className="shrink-0 text-xs text-text-dim">⋯</span>
-                          </>
-                        }
-                      />
-                    );
-                  })}
+                  {b.items.map((t) => (
+                    <ToggleRow
+                      key={t.id}
+                      boxed
+                      label={t.title}
+                      initialDone={t.status === "completada"}
+                      action={toggleTaskStatus}
+                      fieldsOn={{ id: t.id, nextStatus: "completada" }}
+                      fieldsOff={{ id: t.id, nextStatus: "pendiente" }}
+                      borderColor={t.category ? catInfo(t.category).color : undefined}
+                      prefix={
+                        <span className="w-10 shrink-0 text-[11px] tabular-nums text-ink-dim">
+                          {t.timeDue ?? "—"}
+                        </span>
+                      }
+                      meta={
+                        <>
+                          {t.category && <CategoryTag category={t.category} />}
+                          <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
+                            {t.priority}
+                          </Badge>
+                          <span className="shrink-0 text-xs text-ink-dim">⋯</span>
+                        </>
+                      }
+                    />
+                  ))}
                 </div>
               ))
             )}
           </div>
-          <div id="nueva-tarea" className="border-t border-border p-3">
-            <form action={createTask} className="flex flex-wrap items-center gap-2">
-              <input type="hidden" name="dueDate" value={date} />
-              <input
-                type="text"
-                name="title"
-                required
-                placeholder="Nueva tarea para hoy…"
-                className="min-w-[160px] flex-1 rounded-lg border border-border bg-bg-deep px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-dim"
-              />
-              <select name="priority" defaultValue="media" className="rounded-lg border border-border bg-bg-deep px-2.5 py-2 text-xs text-text-muted outline-none">
-                <option value="alta">Alta</option>
-                <option value="media">Media</option>
-                <option value="baja">Baja</option>
-              </select>
-              <select name="category" defaultValue="" className="rounded-lg border border-border bg-bg-deep px-2.5 py-2 text-xs text-text-muted outline-none">
-                <option value="">Sin categoría</option>
-                {Object.entries(CATS).map(([key, c]) => (
-                  <option key={key} value={key}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-              <input type="time" name="timeDue" className="rounded-lg border border-border bg-bg-deep px-2.5 py-2 text-xs text-text-primary outline-none" />
-              <button type="submit" className="btn-primary">
-                + Agregar
-              </button>
-            </form>
+          <div id="nueva-tarea">
+            <QuickCapture
+              action={createTask}
+              placeholder="Nueva tarea para hoy…"
+              hidden={{ dueDate: date }}
+              extras={
+                <>
+                  <Select name="priority" defaultValue="media">
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                  </Select>
+                  <Select name="category" defaultValue="">
+                    <option value="">Sin categoría</option>
+                    {Object.entries(CATS).map(([key, c]) => (
+                      <option key={key} value={key}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input type="time" name="timeDue" />
+                </>
+              }
+            />
           </div>
-        </section>
+        </Card>
 
         <div className="flex flex-col gap-4">
-          <section className="flex flex-col rounded-xl border border-border bg-bg-card">
-            <div className="flex items-center gap-2.5 border-b border-border px-4 py-3.5">
-              <h2 className="text-sm font-semibold text-text-primary">Hábitos de hoy</h2>
-              <span className="rounded-full border border-gold/20 bg-gold/[0.08] px-2 py-0.5 text-[10px] text-gold">
-                {habitsDone} / {dailyHabits.length}
-              </span>
-              <a href="/dashboard/habitos/rachas" className="ml-auto text-[11px] text-text-muted hover:text-gold">
+          <Card
+            title="Hábitos de hoy"
+            count={`${habitsDone} / ${dailyHabits.length}`}
+            action={
+              <a href="/dashboard/habitos/rachas" className="hover:text-ink">
                 Rachas →
               </a>
-            </div>
+            }
+            flush
+          >
             <div className="px-3.5 pt-3">
-              <div className="h-1.5 overflow-hidden rounded-full bg-border">
+              <div className="h-1.5 overflow-hidden rounded-full bg-line">
                 <div
-                  className="h-full rounded-full bg-purple-mid"
-                  style={{ width: dailyHabits.length ? `${Math.round((habitsDone / dailyHabits.length) * 100)}%` : "0%" }}
+                  className="h-full rounded-full bg-accent-warm"
+                  style={{
+                    width: dailyHabits.length
+                      ? `${Math.round((habitsDone / dailyHabits.length) * 100)}%`
+                      : "0%",
+                  }}
                 />
               </div>
             </div>
             <div className="flex flex-col gap-1.5 p-3.5">
               {habitsView.length === 0 ? (
-                <p className="px-1 py-2 text-center text-xs text-text-muted">Sin hábitos diarios activos.</p>
+                <EmptyState icon="🔥">
+                  Aún no sigues ningún hábito diario. Crea el primero abajo.
+                </EmptyState>
               ) : (
                 habitsView.map((h) => (
                   <ToggleRow
@@ -474,82 +455,76 @@ export default async function RutinasPage({
                       <>
                         <span className="flex shrink-0 gap-[2px]">
                           {h.week.map((c, i) => (
-                            <span key={i} className="h-3.5 w-[7px] rounded-sm" style={{ background: c.done ? "#2d6a4f" : "#1a1a1a" }} />
+                            <span
+                              key={i}
+                              className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
+                            />
                           ))}
                         </span>
-                        <span className="shrink-0 rounded-full border border-gold/20 bg-gold/[0.08] px-2 py-0.5 text-[10px] font-semibold text-gold">
-                          🔥 {h.streak}
-                        </span>
+                        <Badge tone="warm">🔥 {h.streak}</Badge>
                       </>
                     }
                   />
                 ))
               )}
             </div>
-            <div className="border-t border-border p-3">
-              <form action={createActivity} className="flex flex-wrap items-center gap-2">
-                <input type="hidden" name="frequency" value="diaria" />
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder="Nuevo hábito diario…"
-                  className="min-w-[120px] flex-1 rounded-lg border border-border bg-bg-deep px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-dim"
-                />
-                <input type="time" name="horaSugerida" className="rounded-lg border border-border bg-bg-deep px-2.5 py-2 text-xs text-text-primary outline-none" />
-                <button type="submit" className="btn-primary">
-                  +
-                </button>
-              </form>
-            </div>
-          </section>
+            <QuickCapture
+              action={createActivity}
+              name="name"
+              placeholder="Nuevo hábito diario…"
+              hidden={{ frequency: "diaria" }}
+              submitLabel="+"
+              extras={<Input type="time" name="horaSugerida" />}
+            />
+          </Card>
 
-          <section className="rounded-xl border border-border bg-bg-card p-4">
-            <div className="mb-2.5 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-text-primary">Por categoría</h2>
-              <span className="text-[11px] text-text-muted">hoy</span>
-            </div>
+          <Card title="Por categoría" action={<span>hoy</span>}>
             {categoryLegend.length === 0 ? (
-              <p className="text-xs text-text-muted">Sin tareas categorizadas hoy.</p>
+              <p className="text-xs text-ink-muted">Ninguna tarea de hoy tiene categoría.</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {categoryLegend.map((c) => (
-                  <div key={c.key} className="flex items-center gap-2.5 text-xs text-text-muted">
-                    <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: c.color }} />
+                  <div key={c.key} className="flex items-center gap-2.5 text-[11.5px] text-ink-muted">
+                    <CategoryDot category={c.key} />
                     <span className="flex-1 truncate">{c.label}</span>
-                    <span className="h-1 max-w-[90px] flex-1 overflow-hidden rounded-full bg-border">
-                      <span className="block h-full rounded-full" style={{ width: `${c.pct}%`, background: c.color }} />
+                    <span className="h-1 max-w-[90px] flex-1 overflow-hidden rounded-full bg-line">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{ width: `${c.pct}%`, background: c.color }}
+                      />
                     </span>
-                    <span className="min-w-[26px] text-right text-[11px] text-text-dim">{c.count}</span>
+                    <span className="min-w-[26px] text-right text-[11px] text-ink-dim">{c.count}</span>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Card>
         </div>
       </div>
 
       {upcomingTasks.length > 0 && (
-        <section className="rounded-xl border border-border bg-bg-card p-4">
-          <div className="mb-3 flex items-center gap-2.5">
-            <h2 className="text-sm font-semibold text-text-primary">Próximos 7 días</h2>
-            <span className="rounded-full border border-border bg-bg-card-2 px-2 py-0.5 text-[10px] text-text-muted">
-              {upcomingTasks.length} tarea{upcomingTasks.length !== 1 ? "s" : ""}
-              {upcomingAppointments.length > 0 ? ` · ${upcomingAppointments.length} cita${upcomingAppointments.length !== 1 ? "s" : ""}` : ""}
-            </span>
-            <a href="/dashboard/actividades?tiempo=semana" className="ml-auto text-[11px] text-text-muted hover:text-gold">
+        <Card
+          title="Próximos 7 días"
+          count={`${upcomingTasks.length} tarea${upcomingTasks.length !== 1 ? "s" : ""}${
+            upcomingAppointments.length > 0
+              ? ` · ${upcomingAppointments.length} cita${upcomingAppointments.length !== 1 ? "s" : ""}`
+              : ""
+          }`}
+          action={
+            <a href="/dashboard/actividades?tiempo=semana" className="hover:text-ink">
               Ver todas →
             </a>
-          </div>
+          }
+        >
           <div className="grid gap-x-6 gap-y-1" style={{ gridTemplateColumns: "1fr 1fr" }}>
             {upcomingTasks.map((t) => {
-              const cat = t.category ? CATS[t.category] : null;
+              const cat = t.category ? catInfo(t.category) : null;
               return (
                 <div key={t.id} className="flex min-w-0 items-center gap-2.5 py-1 text-sm">
-                  <span className="w-24 shrink-0 whitespace-nowrap text-[11px] text-text-muted">
+                  <span className="w-24 shrink-0 whitespace-nowrap text-[11px] text-ink-dim">
                     {fmtDayShort(t.dueDate!)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-text-primary">{t.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
                   {cat && (
                     <span className="text-[10px]" style={{ color: cat.color }}>
                       {cat.label}
@@ -560,7 +535,7 @@ export default async function RutinasPage({
               );
             })}
           </div>
-        </section>
+        </Card>
       )}
     </div>
   );
