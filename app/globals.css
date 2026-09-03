@@ -12,7 +12,10 @@
   }
 
   body {
-    @apply bg-bg-deep text-text-primary;
+    /* Fondo migrado al sistema nuevo (#0F0F11). El color de texto por
+       defecto se queda en el token viejo (#E8E0D0) hasta el PASO 5: las 22
+       secciones sin migrar heredan de aquí y todavía asumen ese tono. */
+    @apply bg-canvas text-text-primary;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;

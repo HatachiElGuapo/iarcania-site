@@ -1,10 +1,10 @@
-// Ver os.css .sidebar-logo-text/.auth-logo — texto Playfair dorado sólido,
-// sin ícono. El original (os.html) no usa el ojo arcano en la app operativa,
-// solo en el sitio de marketing — no se replica aquí.
+// Wordmark del shell (4c): "IArcanIA" en Playfair, texto primario (ink), sin
+// ícono — el ojo arcano es solo del sitio de marketing. El login tiene su
+// propio markup (.auth-logo), no usa este componente.
 export function Wordmark({ size = 18, className = "" }: { size?: number; className?: string }) {
   return (
     <span
-      className={`font-display font-bold tracking-[0.05em] text-gold ${className}`}
+      className={`font-display font-bold tracking-[0.05em] text-ink ${className}`}
       style={{ fontSize: size }}
     >
       IArcanIA

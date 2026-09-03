@@ -100,9 +100,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// Ver os.css .nav-item/.nav-separator/.nav-group — grupos colapsables con
-// flecha que rota, línea que se extiende del label, item activo con texto
-// dorado + borde-izquierdo dorado + fondo #161616 (no una pastilla morada).
+// Sistema nuevo (4c/5a): grupos colapsables con flecha que rota, línea que
+// se extiende del label, item activo con texto dorado (accent-warm) + borde
+// izquierdo dorado de 3px + fondo surface-active (#161616). Nunca fondo
+// violeta — el violeta es solo acción primaria.
 export function NavLinks() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -116,7 +117,7 @@ export function NavLinks() {
             <button
               type="button"
               onClick={() => setCollapsed((c) => ({ ...c, [group.label]: !c[group.label] }))}
-              className="flex w-full select-none items-center gap-2 px-5 pb-1 pt-3 text-left text-[9px] uppercase tracking-[0.15em] text-text-dim hover:text-text-muted"
+              className="flex w-full select-none items-center gap-2 px-5 pb-1 pt-3 text-left text-[9px] uppercase tracking-[0.15em] text-ink-dim transition-colors duration-120 hover:text-ink-muted"
             >
               <span
                 className={`inline-block flex-shrink-0 text-[8px] transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
@@ -124,7 +125,7 @@ export function NavLinks() {
                 ▼
               </span>
               {group.label}
-              <span className="h-px flex-1 bg-border" />
+              <span className="h-px flex-1 bg-line" />
             </button>
             <div
               className="overflow-hidden transition-[max-height] duration-200 ease-in-out"
@@ -139,10 +140,10 @@ export function NavLinks() {
                   <a
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2.5 border-l-2 px-5 py-[11px] text-[13px] transition-colors ${
+                    className={`flex items-center gap-2.5 border-l-[3px] px-5 py-[11px] text-[13px] transition-colors duration-120 ${
                       active
-                        ? "border-gold bg-bg-card-2 text-gold"
-                        : "border-transparent text-text-muted hover:bg-bg-hover hover:text-text-dim"
+                        ? "border-accent-warm bg-surface-active text-accent-warm"
+                        : "border-transparent text-ink-muted hover:bg-surface-2 hover:text-ink"
                     }`}
                   >
                     <span className="w-[18px] flex-shrink-0 text-center text-sm">{item.icon}</span>
