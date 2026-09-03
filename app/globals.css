@@ -75,4 +75,12 @@
   .stat-num {
     @apply font-display text-[22px] font-bold;
   }
+
+  /* ── Sistema nuevo (rebranding) ──────────────────────────────────────
+     Anillo de foco: accent 2px al 22%, sin el outline azul del navegador.
+     Ver documento de diseño 4a ("foco · anillo 2px accent/22"). Lo usan
+     las piezas de components/ui/; no reemplaza nada del sistema viejo. */
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-accent/[0.22];
+  }
 }

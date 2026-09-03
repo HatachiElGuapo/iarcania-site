@@ -3,7 +3,18 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 
-type NavItem = { href: string; label: string; icon: string };
+// `children` son sub-rutas reales (no items del sidebar): las deriva <SubNav>
+// para las pestañas de sección. `tabLabel`, si está, hace que la propia ruta
+// del item sea la primera pestaña (p. ej. "Hoy" en Trabajo). El sidebar
+// sigue mostrando solo el primer nivel.
+type SubItem = { href: string; label: string };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  tabLabel?: string;
+  children?: SubItem[];
+};
 type NavGroup = { label: string; items: NavItem[] };
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -20,8 +31,23 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/citas", label: "Citas", icon: "🏥" },
       { href: "/dashboard/eventos", label: "Eventos", icon: "🎉" },
       { href: "/dashboard/personas", label: "Personas", icon: "👥" },
-      { href: "/dashboard/habitos", label: "Hábitos", icon: "🔥" },
-      { href: "/dashboard/cuerpo", label: "Cuerpo", icon: "🏋️" },
+      {
+        href: "/dashboard/habitos",
+        label: "Hábitos",
+        icon: "🔥",
+        tabLabel: "Hábitos",
+        children: [
+          { href: "/dashboard/habitos/gestion", label: "Gestión" },
+          { href: "/dashboard/habitos/rachas", label: "Rachas" },
+        ],
+      },
+      {
+        href: "/dashboard/cuerpo",
+        label: "Cuerpo",
+        icon: "🏋️",
+        tabLabel: "Cuerpo",
+        children: [{ href: "/dashboard/cuerpo/nutricion", label: "Nutrición" }],
+      },
       { href: "/dashboard/hogar", label: "Hogar", icon: "🏠" },
       { href: "/dashboard/reloj", label: "Reloj", icon: "⏱️" },
     ],
@@ -29,7 +55,13 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Trabajo",
     items: [
-      { href: "/dashboard/trabajo", label: "Trabajo", icon: "💼" },
+      {
+        href: "/dashboard/trabajo",
+        label: "Trabajo",
+        icon: "💼",
+        tabLabel: "Hoy",
+        children: [{ href: "/dashboard/trabajo/tareas", label: "Tareas" }],
+      },
       { href: "/dashboard/brujula", label: "Brújula", icon: "🧭" },
     ],
   },
@@ -45,7 +77,20 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Negocio",
     items: [
-      { href: "/dashboard/dinero", label: "Dinero", icon: "💰" },
+      {
+        href: "/dashboard/dinero",
+        label: "Dinero",
+        icon: "💰",
+        // /dashboard/dinero redirige a /cuentas — no es pestaña propia.
+        children: [
+          { href: "/dashboard/dinero/cuentas", label: "Cuentas" },
+          { href: "/dashboard/dinero/facturas", label: "Facturas" },
+          { href: "/dashboard/dinero/gastos", label: "Gastos" },
+          { href: "/dashboard/dinero/cobros", label: "Cobros" },
+          { href: "/dashboard/dinero/metas", label: "Metas" },
+          { href: "/dashboard/dinero/escanear", label: "Escanear" },
+        ],
+      },
       { href: "/dashboard/clientes", label: "Clientes", icon: "🤝" },
       { href: "/dashboard/crm", label: "CRM", icon: "📊" },
       { href: "/dashboard/recursos", label: "Recursos", icon: "📦" },

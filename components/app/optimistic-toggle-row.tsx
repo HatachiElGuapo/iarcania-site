@@ -74,7 +74,7 @@ export function ToggleRow({
       <span
         className={`flex shrink-0 items-center justify-center border text-[10px] ${
           circle ? "h-5 w-5 rounded-full" : "h-[18px] w-[18px] rounded"
-        } ${done ? "border-purple-mid bg-purple-mid text-white" : "border-[#333333]"}`}
+        } ${done ? "border-accent bg-accent text-white" : "border-[#333333]"}`}
       >
         {done ? "✓" : ""}
       </span>
