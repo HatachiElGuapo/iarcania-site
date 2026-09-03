@@ -6,5 +6,8 @@ export const CATS: Record<string, { label: string; color: string }> = {
   proyectos: { label: "Proyectos", color: "#8B6CF6" },
   personal: { label: "Personal", color: "#5DCAA5" },
   infra: { label: "Infraestructura", color: "#EF9F27" },
-  habitos: { label: "Hábitos", color: "#9896b0" },
+  // Antes #9896b0 — chocaba con el token ink-muted (texto secundario) y se
+  // veía como "sin color". Pasa a accent-warm, coherente con 5a (el dorado
+  // es para «ahora», hábitos y categorías).
+  habitos: { label: "Hábitos", color: "#E8A33D" },
 };
