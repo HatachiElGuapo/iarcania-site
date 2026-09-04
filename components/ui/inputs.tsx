@@ -1,5 +1,25 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cx } from "./cx";
+
+// Etiqueta + control apilados (el reemplazo del <Field> viejo para
+// formularios planos `<form action={serverAction}>`). El ancho del control
+// lo decide quien llama, con `className`.
+export function Labeled({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cx("flex flex-col gap-1", className)}>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-dim">{label}</span>
+      {children}
+    </label>
+  );
+}
 
 // Controles de formulario del sistema nuevo. Fondo = canvas (no un gris más
 // claro), borde plano, radio 6px, foco = anillo accent/22 (sin outline azul).

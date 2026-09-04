@@ -24,7 +24,7 @@ export { Card } from "./card";
 export { Table, TableHead, TableRow } from "./table";
 export { ItemList, ItemRow } from "./item-list";
 export { Chip, Badge, CategoryDot, CategoryTag } from "./chip";
-export { Input, Select, Textarea } from "./inputs";
+export { Input, Select, Textarea, Labeled } from "./inputs";
 export { Segmented, Stepper } from "./segmented";
 export { Progress, MetricCard } from "./progress";
 export { EmptyState, Skeleton } from "./states";

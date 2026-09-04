@@ -1,8 +1,17 @@
-import { and, asc, eq, type InferSelectModel } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { activities } from "@/lib/db/schema/habitos";
-import { Field } from "@/components/ui/field";
+import {
+  Table,
+  TableHead,
+  TableRow,
+  Button,
+  EmptyState,
+  Labeled,
+  Input,
+  Select,
+} from "@/components/ui";
 import {
   createActivity,
   updateActivity,
@@ -11,8 +20,6 @@ import {
   deleteActivity,
 } from "../actions";
 
-type Activity = InferSelectModel<typeof activities>;
-
 const FREQ_OPTIONS = [
   { value: "diaria", label: "Diaria" },
   { value: "semanal", label: "Semanal" },
@@ -20,16 +27,17 @@ const FREQ_OPTIONS = [
   { value: "unica", label: "Única" },
   { value: "recurrente", label: "Recurrente" },
 ];
+const COLS = "minmax(0,1fr) 140px 116px 80px 90px";
 
 export default async function GestionHabitosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ archivadas?: string }>;
+  searchParams: Promise<{ archivadas?: string; edit?: string }>;
 }) {
   const session = await auth();
   const userId = session!.user.id;
-  const { archivadas } = await searchParams;
-  const showArchived = archivadas === "1";
+  const sp = await searchParams;
+  const showArchived = sp.archivadas === "1";
 
   const list = await db
     .select()
@@ -37,152 +45,124 @@ export default async function GestionHabitosPage({
     .where(and(eq(activities.userId, userId), eq(activities.isActive, !showArchived)))
     .orderBy(asc(activities.sortOrder), asc(activities.name));
 
+  const editing = sp.edit ? list.find((a) => a.id === sp.edit) : undefined;
+  const base = showArchived ? "/dashboard/habitos/gestion?archivadas=1" : "/dashboard/habitos/gestion";
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4">
       <a
         href={showArchived ? "/dashboard/habitos/gestion" : "/dashboard/habitos/gestion?archivadas=1"}
-        className="text-xs text-text-muted hover:text-text-primary"
+        className="text-xs text-ink-muted hover:text-ink"
       >
         {showArchived ? "← Ver activos" : "Ver archivados"}
       </a>
 
       {list.length === 0 ? (
-        <p className="text-sm text-text-muted">
-          {showArchived ? "No hay hábitos archivados." : "No hay hábitos todavía."}
-        </p>
+        <EmptyState icon="🔥">
+          {showArchived ? "No hay hábitos archivados." : "No hay hábitos todavía. Crea el primero abajo."}
+        </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-left text-sm">
-            <thead className="text-text-muted">
-              <tr className="border-b border-border">
-                <th className="px-3 py-2 font-medium">Nombre</th>
-                <th className="px-3 py-2 font-medium">Categoría</th>
-                <th className="px-3 py-2 font-medium">Frecuencia</th>
-                <th className="px-3 py-2 font-medium">Hora</th>
-                <th className="px-3 py-2 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((activity) => (
-                <ActivityRow key={activity.id} activity={activity} showArchived={showArchived} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHead cols={COLS}>
+            <span>Nombre</span>
+            <span>Categoría</span>
+            <span>Frecuencia</span>
+            <span>Hora</span>
+            <span className="text-right">Acciones</span>
+          </TableHead>
+          {list.map((a) => (
+            <TableRow key={a.id} cols={COLS}>
+              <span className="truncate text-ink">{a.name}</span>
+              <span className="text-[11.5px] text-ink-muted">{a.category ?? "—"}</span>
+              <span className="text-[11.5px] text-ink-muted">{a.frequency}</span>
+              <span className="text-[11px] tabular-nums text-ink-dim">{a.horaSugerida ?? "—"}</span>
+              <span className="flex justify-end text-[11px] text-ink-dim">
+                <a href={`${base}${base.includes("?") ? "&" : "?"}edit=${a.id}`} className="hover:text-ink">
+                  Editar
+                </a>
+              </span>
+            </TableRow>
+          ))}
+        </Table>
       )}
 
-      {!showArchived && (
+      {editing && (
         <form
-          action={createActivity}
-          className="flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+          action={updateActivity}
+          className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-line bg-surface p-4"
         >
-          <Field label="Nombre">
-            <input type="text" name="name" required className="input" />
-          </Field>
-          <Field label="Categoría">
-            <input type="text" name="category" className="input" />
-          </Field>
-          <Field label="Frecuencia">
-            <select name="frequency" defaultValue="diaria" className="input">
+          <input type="hidden" name="id" value={editing.id} />
+          <span className="w-full text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-dim">
+            Editar · {editing.name}
+          </span>
+          <Labeled label="Nombre">
+            <Input name="name" defaultValue={editing.name} required className="w-48" />
+          </Labeled>
+          <Labeled label="Categoría">
+            <Input name="category" defaultValue={editing.category ?? ""} className="w-36" />
+          </Labeled>
+          <Labeled label="Frecuencia">
+            <Select name="frequency" defaultValue={editing.frequency}>
               {FREQ_OPTIONS.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label}
                 </option>
               ))}
-            </select>
-          </Field>
-          <Field label="Hora sugerida">
-            <input type="time" name="horaSugerida" className="input" />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-          >
-            + Nuevo hábito
-          </button>
+            </Select>
+          </Labeled>
+          <Labeled label="Hora sugerida">
+            <Input type="time" name="horaSugerida" defaultValue={editing.horaSugerida ?? ""} className="w-32" />
+          </Labeled>
+          <Button type="submit">Guardar</Button>
+          {showArchived ? (
+            <Button
+              type="submit"
+              variant="secondary"
+              formAction={unarchiveActivity}
+              className="border-success/40 text-success hover:border-success"
+            >
+              Restaurar
+            </Button>
+          ) : (
+            <Button type="submit" variant="secondary" formAction={archiveActivity}>
+              Archivar
+            </Button>
+          )}
+          <Button type="submit" variant="danger" formAction={deleteActivity}>
+            Eliminar
+          </Button>
+          <Button variant="secondary" href={base}>
+            Cancelar
+          </Button>
+        </form>
+      )}
+
+      {!showArchived && (
+        <form
+          action={createActivity}
+          className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-4"
+        >
+          <Labeled label="Nombre">
+            <Input name="name" required className="w-48" />
+          </Labeled>
+          <Labeled label="Categoría">
+            <Input name="category" className="w-36" />
+          </Labeled>
+          <Labeled label="Frecuencia">
+            <Select name="frequency" defaultValue="diaria">
+              {FREQ_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </Select>
+          </Labeled>
+          <Labeled label="Hora sugerida">
+            <Input type="time" name="horaSugerida" className="w-32" />
+          </Labeled>
+          <Button type="submit">+ Nuevo hábito</Button>
         </form>
       )}
     </div>
-  );
-}
-
-function ActivityRow({
-  activity,
-  showArchived,
-}: {
-  activity: Activity;
-  showArchived: boolean;
-}) {
-  return (
-    <tr className="border-b border-border align-top last:border-0">
-      <td className="px-3 py-2 text-text-primary">{activity.name}</td>
-      <td className="px-3 py-2 text-text-muted">{activity.category ?? "—"}</td>
-      <td className="px-3 py-2 text-text-muted">{activity.frequency}</td>
-      <td className="px-3 py-2 text-text-muted">{activity.horaSugerida ?? "—"}</td>
-      <td className="px-3 py-2">
-        <details>
-          <summary className="cursor-pointer text-xs text-text-muted">Editar</summary>
-          <form
-            action={updateActivity}
-            className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border p-3"
-          >
-            <input type="hidden" name="id" value={activity.id} />
-            <Field label="Nombre">
-              <input type="text" name="name" defaultValue={activity.name} required className="input" />
-            </Field>
-            <Field label="Categoría">
-              <input type="text" name="category" defaultValue={activity.category ?? ""} className="input" />
-            </Field>
-            <Field label="Frecuencia">
-              <select name="frequency" defaultValue={activity.frequency} className="input">
-                {FREQ_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Hora sugerida">
-              <input
-                type="time"
-                name="horaSugerida"
-                defaultValue={activity.horaSugerida ?? ""}
-                className="input"
-              />
-            </Field>
-            <button
-              type="submit"
-              className="rounded-sm bg-gradient-cta px-3 py-1.5 text-xs font-semibold text-white shadow-glow-purple"
-            >
-              Guardar
-            </button>
-            {showArchived ? (
-              <button
-                type="submit"
-                formAction={unarchiveActivity}
-                className="rounded-sm border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:border-green-400"
-              >
-                Restaurar
-              </button>
-            ) : (
-              <button
-                type="submit"
-                formAction={archiveActivity}
-                className="rounded-sm border border-border px-3 py-1.5 text-xs text-text-muted hover:border-purple-mid hover:text-text-primary"
-              >
-                Archivar
-              </button>
-            )}
-            <button
-              type="submit"
-              formAction={deleteActivity}
-              className="rounded-sm border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:border-red-400"
-            >
-              Eliminar
-            </button>
-          </form>
-        </details>
-      </td>
-    </tr>
   );
 }

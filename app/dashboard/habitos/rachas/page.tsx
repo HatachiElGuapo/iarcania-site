@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { todayISO, addDaysISO, currentMonthRangeISO, BOGOTA_OFFSET } from "@/lib/date/bogota";
 import { computeDailyStreak } from "@/lib/habitos/streak";
+import { Table, TableHead, TableRow, EmptyState, cx } from "@/components/ui";
 
 function currentWeekRange(today: string) {
   const dow = new Date(`${today}T12:00:00${BOGOTA_OFFSET}`).getDay();
@@ -11,6 +12,8 @@ function currentWeekRange(today: string) {
   const sunday = addDaysISO(monday, 6);
   return { from: monday, to: sunday };
 }
+
+const COLS = "minmax(0,1fr) 110px 130px";
 
 export default async function RachasPage() {
   const session = await auth();
@@ -71,48 +74,51 @@ export default async function RachasPage() {
     list.push(log.date);
     datesByActivity.set(log.activityId, list);
   }
-
   const doneThisWeek = new Set(weeklyLogs.map((l) => l.activityId));
   const doneThisMonth = new Set(monthlyLogs.map((l) => l.activityId));
 
   return (
-    <div className="space-y-2">
-      <p className="mb-4 text-xs text-text-muted">
-        Semana actual: {week.from} a {week.to} · Mes actual: {month.from} a {month.to}
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-ink-dim">
+        Semana actual {week.from} → {week.to} · Mes actual {month.from} → {month.to}
       </p>
 
       {habits.length === 0 ? (
-        <p className="text-sm text-text-muted">No hay hábitos activos.</p>
+        <EmptyState icon="🔥">No hay hábitos activos.</EmptyState>
       ) : (
-        habits.map((h) => {
-          let indicator: string;
-          let color = "text-text-muted";
-
-          if (h.frequency === "diaria") {
-            const streak = computeDailyStreak(datesByActivity.get(h.id) ?? [], today);
-            indicator = streak > 0 ? `🔥 ${streak} día${streak === 1 ? "" : "s"}` : "—";
-            color = streak > 0 ? "text-gold" : "text-text-muted";
-          } else if (h.frequency === "semanal") {
-            indicator = doneThisWeek.has(h.id) ? "✓ esta semana" : "—";
-            color = doneThisWeek.has(h.id) ? "text-green-400" : "text-text-muted";
-          } else if (h.frequency === "mensual") {
-            indicator = doneThisMonth.has(h.id) ? "✓ este mes" : "—";
-            color = doneThisMonth.has(h.id) ? "text-green-400" : "text-text-muted";
-          } else {
-            indicator = "∞";
-          }
-
-          return (
-            <div
-              key={h.id}
-              className="flex items-center gap-3 rounded-md border border-border bg-bg-card px-4 py-2"
-            >
-              <span className="flex-1 text-sm text-text-primary">{h.name}</span>
-              <span className="text-xs text-text-muted">{h.frequency}</span>
-              <span className={`text-sm font-semibold ${color}`}>{indicator}</span>
-            </div>
-          );
-        })
+        <Table>
+          <TableHead cols={COLS}>
+            <span>Hábito</span>
+            <span>Frecuencia</span>
+            <span className="text-right">Racha</span>
+          </TableHead>
+          {habits.map((h) => {
+            let indicator: string;
+            let tone = "text-ink-dim";
+            if (h.frequency === "diaria") {
+              const streak = computeDailyStreak(datesByActivity.get(h.id) ?? [], today);
+              indicator = streak > 0 ? `🔥 ${streak} día${streak === 1 ? "" : "s"}` : "—";
+              if (streak > 0) tone = "text-accent-warm";
+            } else if (h.frequency === "semanal") {
+              const ok = doneThisWeek.has(h.id);
+              indicator = ok ? "✓ esta semana" : "—";
+              if (ok) tone = "text-success";
+            } else if (h.frequency === "mensual") {
+              const ok = doneThisMonth.has(h.id);
+              indicator = ok ? "✓ este mes" : "—";
+              if (ok) tone = "text-success";
+            } else {
+              indicator = "∞";
+            }
+            return (
+              <TableRow key={h.id} cols={COLS}>
+                <span className="truncate text-ink">{h.name}</span>
+                <span className="text-[11.5px] text-ink-muted">{h.frequency}</span>
+                <span className={cx("text-right text-sm font-semibold", tone)}>{indicator}</span>
+              </TableRow>
+            );
+          })}
+        </Table>
       )}
     </div>
   );
