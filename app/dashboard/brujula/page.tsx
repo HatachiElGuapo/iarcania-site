@@ -1,9 +1,9 @@
-import { and, asc, eq, isNull, ne, type InferSelectModel } from "drizzle-orm";
+import { and, asc, eq, ne, type InferSelectModel } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { lifeAreas, lifeProjects } from "@/lib/db/schema/brujula";
 import { tasks } from "@/lib/db/schema/trabajo";
-import { Field } from "@/components/ui/field";
+import { PageHeader, Card, Labeled, Input, Button, cx } from "@/components/ui";
 import {
   createArea,
   updateArea,
@@ -144,205 +144,177 @@ export default async function BrujulaPage() {
   }
 
   return (
-    <div className="space-y-8 p-8">
-      <h1 className="font-display text-2xl text-text-primary">Brújula</h1>
+    <div className="p-8">
+      <PageHeader icon="🧭" title="Brújula" subtitle={`${areas.length} áreas de vida`} />
 
-      {tomorrowByArea.size > 0 && (
-        <section className="rounded-md border border-border bg-bg-card p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
-            Mañana
-          </h2>
-          <div className="space-y-3">
-            {[...tomorrowByArea.entries()].map(([areaId, list]) => {
-              const area = areas.find((a) => a.id === areaId);
-              return (
-                <div key={areaId}>
-                  <div
-                    className="text-xs font-bold uppercase tracking-wide"
-                    style={{ color: area?.color ?? "#555" }}
-                  >
-                    {area?.nombre ?? "Sin área"}
-                  </div>
-                  {list.map((t) => (
-                    <div key={t.id} className="py-1 text-sm text-text-primary">
-                      {t.title}
+      <div className="flex flex-col gap-8">
+        {tomorrowByArea.size > 0 && (
+          <Card title="Mañana">
+            <div className="flex flex-col gap-3">
+              {[...tomorrowByArea.entries()].map(([areaId, list]) => {
+                const area = areas.find((a) => a.id === areaId);
+                return (
+                  <div key={areaId}>
+                    <div
+                      className="text-[10px] font-bold uppercase tracking-[0.1em]"
+                      style={{ color: area?.color ?? "#5A5870" }}
+                    >
+                      {area?.nombre ?? "Sin área"}
                     </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      <div className="space-y-3">
-        {areas.map((area) => {
-          const rootProjects = allProjects.filter(
-            (p) => p.areaId === area.id && !p.parentId && p.status === "activo",
-          );
-          return (
-            <details
-              key={area.id}
-              className="rounded-md border border-border bg-bg-card p-4"
-            >
-              <summary className="flex cursor-pointer items-center gap-3">
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ background: area.color }}
-                />
-                <span className="font-display text-base font-bold text-text-primary">
-                  {area.nombre}
-                </span>
-                {rootProjects.length > 0 && (
-                  <span
-                    className="rounded-full px-2 py-0.5 text-xs font-bold"
-                    style={{ background: area.color + "22", color: area.color }}
-                  >
-                    {rootProjects.length} obj.
-                  </span>
-                )}
-              </summary>
-
-              {area.enfoqueActual && (
-                <p className="mt-2 pl-6 text-xs" style={{ color: area.color }}>
-                  {area.enfoqueActual}
-                </p>
-              )}
-              {area.filosofia && (
-                <p className="mt-1 pl-6 text-xs text-text-muted">{area.filosofia}</p>
-              )}
-
-              <div className="mt-3 space-y-2 pl-6">
-                {rootProjects.map((p) => (
-                  <ProjectNode
-                    key={p.id}
-                    project={p}
-                    depth={0}
-                    areaColor={area.color}
-                    allProjects={allProjects}
-                    tasksByProject={tasksByProject}
-                  />
-                ))}
-
-                <form action={createProject} className="flex items-end gap-2">
-                  <input type="hidden" name="areaId" value={area.id} />
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="+ Nuevo objetivo"
-                    required
-                    className="input flex-1"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-sm border border-border px-2 py-1.5 text-xs text-text-muted hover:border-purple-mid hover:text-text-primary"
-                  >
-                    Crear
-                  </button>
-                </form>
-
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-text-muted">
-                    Editar área
-                  </summary>
-                  <form
-                    action={updateArea}
-                    className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-3"
-                  >
-                    <input type="hidden" name="id" value={area.id} />
-                    <Field label="Nombre">
-                      <input
-                        type="text"
-                        name="nombre"
-                        defaultValue={area.nombre}
-                        required
-                        className="input"
-                      />
-                    </Field>
-                    <Field label="Color">
-                      <div className="flex gap-1.5">
-                        {AREA_COLORS.map((c) => (
-                          <label key={c}>
-                            <input
-                              type="radio"
-                              name="color"
-                              value={c}
-                              defaultChecked={c === area.color}
-                              className="peer sr-only"
-                            />
-                            <span
-                              className="block h-5 w-5 cursor-pointer rounded-full ring-2 ring-transparent peer-checked:ring-white"
-                              style={{ background: c }}
-                            />
-                          </label>
-                        ))}
+                    {list.map((t) => (
+                      <div key={t.id} className="py-1 text-body text-ink">
+                        {t.title}
                       </div>
-                    </Field>
-                    <Field label="Enfoque actual">
-                      <input
-                        type="text"
-                        name="enfoqueActual"
-                        defaultValue={area.enfoqueActual ?? ""}
-                        className="input w-64"
-                      />
-                    </Field>
-                    <button
-                      type="submit"
-                      className="rounded-sm bg-gradient-cta px-3 py-1.5 text-sm font-semibold text-white shadow-glow-purple"
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      type="submit"
-                      formAction={deleteArea}
-                      className="rounded-sm border border-red-500/30 px-3 py-1.5 text-sm text-red-400 hover:border-red-400"
-                    >
-                      Eliminar área
-                    </button>
-                  </form>
-                </details>
-              </div>
-            </details>
-          );
-        })}
-      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
 
-      <form
-        action={createArea}
-        className="flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
-      >
-        <Field label="Nombre">
-          <input type="text" name="nombre" required className="input" />
-        </Field>
-        <Field label="Color">
-          <div className="flex gap-1.5">
-            {AREA_COLORS.map((c, i) => (
-              <label key={c}>
-                <input
-                  type="radio"
-                  name="color"
-                  value={c}
-                  defaultChecked={i === 0}
-                  className="peer sr-only"
-                />
-                <span
-                  className="block h-5 w-5 cursor-pointer rounded-full ring-2 ring-transparent peer-checked:ring-white"
-                  style={{ background: c }}
-                />
-              </label>
-            ))}
-          </div>
-        </Field>
-        <Field label="Enfoque actual">
-          <input type="text" name="enfoqueActual" className="input w-64" />
-        </Field>
-        <button
-          type="submit"
-          className="rounded-sm border border-border px-4 py-2 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
+        <div className="flex flex-col gap-3">
+          {areas.map((area) => {
+            const rootProjects = allProjects.filter(
+              (p) => p.areaId === area.id && !p.parentId && p.status === "activo",
+            );
+            return (
+              <details key={area.id} className="rounded-ui-lg border border-line bg-surface p-4">
+                <summary className="flex cursor-pointer items-center gap-3">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: area.color }}
+                  />
+                  <span className="font-display text-base font-bold text-ink">{area.nombre}</span>
+                  {rootProjects.length > 0 && (
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                      style={{ background: area.color + "22", color: area.color }}
+                    >
+                      {rootProjects.length} obj.
+                    </span>
+                  )}
+                </summary>
+
+                {area.enfoqueActual && (
+                  <p className="mt-2 pl-6 text-meta" style={{ color: area.color }}>
+                    {area.enfoqueActual}
+                  </p>
+                )}
+                {area.filosofia && (
+                  <p className="mt-1 pl-6 text-meta text-ink-muted">{area.filosofia}</p>
+                )}
+
+                <div className="mt-3 flex flex-col gap-2 pl-6">
+                  {rootProjects.map((p) => (
+                    <ProjectNode
+                      key={p.id}
+                      project={p}
+                      depth={0}
+                      areaColor={area.color}
+                      allProjects={allProjects}
+                      tasksByProject={tasksByProject}
+                    />
+                  ))}
+
+                  <form action={createProject} className="flex items-end gap-2">
+                    <input type="hidden" name="areaId" value={area.id} />
+                    <Input name="name" placeholder="+ Nuevo objetivo" required className="flex-1" />
+                    <Button type="submit" variant="secondary" size="sm">
+                      Crear
+                    </Button>
+                  </form>
+
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-ink-muted hover:text-ink">
+                      Editar área
+                    </summary>
+                    <form
+                      action={updateArea}
+                      className="mt-2 flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-3"
+                    >
+                      <input type="hidden" name="id" value={area.id} />
+                      <Labeled label="Nombre">
+                        <Input name="nombre" defaultValue={area.nombre} required className="w-52" />
+                      </Labeled>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-dim">
+                          Color
+                        </span>
+                        <div className="flex gap-1.5">
+                          {AREA_COLORS.map((c) => (
+                            <label key={c}>
+                              <input
+                                type="radio"
+                                name="color"
+                                value={c}
+                                defaultChecked={c === area.color}
+                                className="peer sr-only"
+                              />
+                              <span
+                                className="block h-5 w-5 cursor-pointer rounded-full ring-2 ring-transparent peer-checked:ring-ink"
+                                style={{ background: c }}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <Labeled label="Enfoque actual">
+                        <Input
+                          name="enfoqueActual"
+                          defaultValue={area.enfoqueActual ?? ""}
+                          className="w-64"
+                        />
+                      </Labeled>
+                      <Button type="submit">Guardar</Button>
+                      <Button type="submit" formAction={deleteArea} variant="danger" size="sm">
+                        Eliminar área
+                      </Button>
+                    </form>
+                  </details>
+                </div>
+              </details>
+            );
+          })}
+        </div>
+
+        <form
+          action={createArea}
+          className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-4"
         >
-          + Nueva área
-        </button>
-      </form>
+          <Labeled label="Nombre">
+            <Input name="nombre" required className="w-52" />
+          </Labeled>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-dim">
+              Color
+            </span>
+            <div className="flex gap-1.5">
+              {AREA_COLORS.map((c, i) => (
+                <label key={c}>
+                  <input
+                    type="radio"
+                    name="color"
+                    value={c}
+                    defaultChecked={i === 0}
+                    className="peer sr-only"
+                  />
+                  <span
+                    className="block h-5 w-5 cursor-pointer rounded-full ring-2 ring-transparent peer-checked:ring-ink"
+                    style={{ background: c }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+          <Labeled label="Enfoque actual">
+            <Input name="enfoqueActual" className="w-64" />
+          </Labeled>
+          <Button type="submit" variant="secondary">
+            + Nueva área
+          </Button>
+        </form>
+      </div>
     </div>
   );
 
@@ -374,7 +346,7 @@ export default async function BrujulaPage() {
     return (
       <details
         style={{ marginLeft: depth * 14 }}
-        className="rounded-md border border-border/60 bg-bg-deep/40 p-3"
+        className="rounded-ui-lg border border-line bg-surface-sunken p-3"
       >
         <summary className="flex cursor-pointer items-center gap-2">
           <span
@@ -383,25 +355,25 @@ export default async function BrujulaPage() {
           >
             {depthLabel}
           </span>
-          <span className="flex-1 text-sm font-bold text-text-primary">
-            {project.name}
-          </span>
-          {pct !== null && <span className="text-xs text-text-muted">{pct}%</span>}
+          <span className="flex-1 text-body font-bold text-ink">{project.name}</span>
+          {pct !== null && <span className="text-meta tabular-nums text-ink-muted">{pct}%</span>}
         </summary>
 
         {project.description && (
-          <p className="mt-1 text-xs text-text-muted">{project.description}</p>
+          <p className="mt-1 text-meta text-ink-muted">{project.description}</p>
         )}
 
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 flex flex-col gap-2">
           <form action={completeProject}>
             <input type="hidden" name="id" value={project.id} />
-            <button
+            <Button
               type="submit"
-              className="rounded-sm border border-green-500/30 px-2 py-1 text-xs text-green-400 hover:border-green-400"
+              variant="secondary"
+              size="sm"
+              className="border-success/30 text-success hover:border-success"
             >
               ✓ Completar
-            </button>
+            </Button>
           </form>
 
           {children.length > 0 ? (
@@ -419,77 +391,59 @@ export default async function BrujulaPage() {
               <form action={createProject} className="flex items-end gap-2">
                 <input type="hidden" name="areaId" value={project.areaId} />
                 <input type="hidden" name="parentId" value={project.id} />
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="+ Sub-proyecto"
-                  required
-                  className="input flex-1"
-                />
-                <button
-                  type="submit"
-                  className="rounded-sm border border-border px-2 py-1.5 text-xs text-text-muted hover:border-purple-mid hover:text-text-primary"
-                >
+                <Input name="name" placeholder="+ Sub-proyecto" required className="flex-1" />
+                <Button type="submit" variant="secondary" size="sm">
                   Crear
-                </button>
+                </Button>
               </form>
             </>
           ) : (
             <>
               {projTasks.length === 0 ? (
-                <p className="text-xs text-text-muted">
-                  Sin tareas — agrega una para arrancar
-                </p>
+                <p className="text-meta text-ink-muted">Sin tareas — agrega una para arrancar.</p>
               ) : (
-                <div className="space-y-1">
-                  {projTasks.map((t) => (
-                    <div key={t.id} className="flex items-center gap-2 text-sm">
-                      <form action={toggleTaskStatus}>
-                        <input type="hidden" name="id" value={t.id} />
-                        <input
-                          type="hidden"
-                          name="nextStatus"
-                          value={t.status === "completada" ? "pendiente" : "completada"}
-                        />
-                        <button
-                          type="submit"
-                          className={`h-3.5 w-3.5 rounded border ${t.status === "completada" ? "border-purple-mid bg-purple-mid" : "border-border"}`}
-                          aria-label="Cambiar estado"
-                        />
-                      </form>
-                      <span
-                        className={
-                          t.status === "completada"
-                            ? "text-text-dim line-through"
-                            : "text-text-primary"
-                        }
-                      >
-                        {t.title}
-                      </span>
-                      <span className="ml-auto text-xs text-text-muted">
-                        {t.dueDate ?? "backlog"}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex flex-col gap-1">
+                  {projTasks.map((t) => {
+                    const taskDone = t.status === "completada";
+                    return (
+                      <div key={t.id} className="flex items-center gap-2 text-body">
+                        <form action={toggleTaskStatus} className="flex">
+                          <input type="hidden" name="id" value={t.id} />
+                          <input
+                            type="hidden"
+                            name="nextStatus"
+                            value={taskDone ? "pendiente" : "completada"}
+                          />
+                          <button
+                            type="submit"
+                            className={cx(
+                              "focus-ring h-3.5 w-3.5 rounded-ui-sm border transition-colors duration-120",
+                              taskDone
+                                ? "border-accent bg-accent"
+                                : "border-line-strong hover:border-ink-dim",
+                            )}
+                            aria-label="Cambiar estado"
+                          />
+                        </form>
+                        <span className={taskDone ? "text-ink-dim line-through" : "text-ink"}>
+                          {t.title}
+                        </span>
+                        <span className="ml-auto text-meta tabular-nums text-ink-muted">
+                          {t.dueDate ?? "backlog"}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               <form action={createTaskInProject} className="flex items-end gap-2">
                 <input type="hidden" name="projectId" value={project.id} />
                 <input type="hidden" name="areaId" value={project.areaId} />
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="+ Tarea"
-                  required
-                  className="input flex-1"
-                />
-                <input type="date" name="dueDate" className="input" />
-                <button
-                  type="submit"
-                  className="rounded-sm border border-border px-2 py-1.5 text-xs text-text-muted hover:border-purple-mid hover:text-text-primary"
-                >
+                <Input name="title" placeholder="+ Tarea" required className="flex-1" />
+                <Input type="date" name="dueDate" className="w-40" />
+                <Button type="submit" variant="secondary" size="sm">
                   Agregar
-                </button>
+                </Button>
               </form>
             </>
           )}
