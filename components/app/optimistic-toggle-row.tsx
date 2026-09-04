@@ -64,26 +64,26 @@ export function ToggleRow({
   return (
     <div
       onClick={toggle}
-      style={borderColor ? { borderLeftColor: done ? "#1e1e1e" : borderColor } : undefined}
-      className={`flex cursor-pointer items-center gap-2.5 transition-colors ${
+      style={borderColor ? { borderLeftColor: done ? "#262629" : borderColor } : undefined}
+      className={`flex cursor-pointer items-center gap-2.5 transition-colors duration-120 ${
         boxed
-          ? `rounded-lg border border-border bg-bg-deep px-3.5 py-2.5 hover:border-border-hover ${borderColor ? "border-l-[3px]" : ""}`
-          : `-mx-1 rounded-sm px-2 py-1.5 hover:bg-white/[0.03] ${borderColor ? "border-l-[3px]" : ""}`
+          ? `rounded-ui-lg border border-line bg-surface px-3.5 py-2.5 hover:border-line-strong ${borderColor ? "border-l-[3px]" : ""}`
+          : `-mx-1 rounded-ui px-2 py-1.5 hover:bg-surface-2 ${borderColor ? "border-l-[3px]" : ""}`
       } ${isPending ? "opacity-60" : ""}`}
     >
       <span
         className={`flex shrink-0 items-center justify-center border text-[10px] ${
           circle ? "h-5 w-5 rounded-full" : "h-[18px] w-[18px] rounded"
-        } ${done ? "border-accent bg-accent text-white" : "border-[#333333]"}`}
+        } ${done ? "border-accent bg-accent text-white" : "border-line-strong"}`}
       >
         {done ? "✓" : ""}
       </span>
       {prefix}
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-sm ${done ? "text-text-dim line-through" : "text-text-primary"}`}>
+        <span className={`block truncate text-sm ${done ? "text-ink-dim line-through" : "text-ink"}`}>
           {label}
         </span>
-        {sublabel && <span className="mt-0.5 block truncate text-[10px] text-text-dim">{sublabel}</span>}
+        {sublabel && <span className="mt-0.5 block truncate text-[10px] text-ink-dim">{sublabel}</span>}
       </span>
       {meta}
     </div>

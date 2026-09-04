@@ -3,11 +3,12 @@
 import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui";
 
-// Ver os.css #auth-screen/.auth-card/.auth-logo/.field/.btn-primary — el
-// único lugar de la app real donde el borde y el foco son morados (todo lo
-// demás usa el gris plano de --border). No agregar blobs/glow: el original
-// no los tiene aquí tampoco.
+// Única pantalla del sistema nuevo que ve alguien que no sea el dueño. Es
+// también el único lugar donde el borde y el foco son violeta (accent): en
+// el resto de la app el violeta se reserva para la acción primaria. Sin
+// blobs ni glow — plano, como el resto del sistema.
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -36,19 +37,23 @@ export default function LoginPage() {
     router.push("/dashboard");
   }
 
+  const fieldCls =
+    "focus-ring w-full rounded-ui-lg border border-accent/20 bg-surface-2 px-3.5 py-3 text-sm " +
+    "text-ink outline-none transition-colors duration-120 placeholder:text-ink-dim focus:border-accent/50";
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg-deep p-4">
+    <main className="flex min-h-screen items-center justify-center bg-canvas p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-[400px] rounded-lg border border-purple-mid/[0.15] bg-[#111120] px-8 py-9"
+        className="w-full max-w-[400px] rounded-ui-lg border border-accent/15 bg-surface px-8 py-9"
       >
-        <div className="mb-6 text-center font-display text-[22px] tracking-[0.05em] text-gold">
+        <div className="mb-6 text-center font-display text-[22px] font-bold tracking-[0.05em] text-accent-warm">
           IArcanIA OS
         </div>
-        <h2 className="mb-6 text-[22px] text-text-primary">Acceso</h2>
+        <h2 className="mb-6 text-[22px] text-ink">Acceso</h2>
 
         <div className="mb-3.5">
-          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[1px] text-[#8a86b0]">
+          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[1px] text-ink-muted">
             Email
           </label>
           <input
@@ -58,12 +63,12 @@ export default function LoginPage() {
             required
             autoFocus
             placeholder="tu@email.com"
-            className="w-full rounded-[10px] border border-purple-mid/[0.18] bg-white/[0.04] px-3.5 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-[#4a4860] focus:border-purple-mid/50"
+            className={fieldCls}
           />
         </div>
 
         <div className="mb-3.5">
-          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[1px] text-[#8a86b0]">
+          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[1px] text-ink-muted">
             Contraseña
           </label>
           <input
@@ -72,20 +77,20 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="••••••••"
-            className="w-full rounded-[10px] border border-purple-mid/[0.18] bg-white/[0.04] px-3.5 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-[#4a4860] focus:border-purple-mid/50"
+            className={fieldCls}
           />
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="mt-1.5 w-full rounded-[10px] bg-purple-mid py-[13px] text-[15px] font-medium text-white transition-[background,transform] hover:-translate-y-px hover:bg-purple-light disabled:opacity-50"
+          className="mt-1.5 w-full rounded-ui-lg py-[13px] text-[15px]"
         >
           {loading ? "Entrando…" : "Entrar"}
-        </button>
+        </Button>
 
         {error && (
-          <div className="mt-3 rounded-md border border-red-400/25 bg-red-400/[0.08] px-3.5 py-2.5 text-center text-sm text-red-400">
+          <div className="mt-3 rounded-ui border border-danger/25 bg-danger/[0.08] px-3.5 py-2.5 text-center text-sm text-danger">
             {error}
           </div>
         )}
