@@ -28,6 +28,7 @@ export { Input, Select, Textarea } from "./inputs";
 export { Segmented, Stepper } from "./segmented";
 export { Progress, MetricCard } from "./progress";
 export { EmptyState, Skeleton } from "./states";
+export { Pagination } from "./pagination";
 export { QuickCapture } from "./quick-capture";
 
 // Contrato de Server Action para <Form> — módulo sin "use client", seguro de
