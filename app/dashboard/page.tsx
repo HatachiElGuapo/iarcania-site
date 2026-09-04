@@ -263,7 +263,7 @@ export default async function RutinasPage({
         />
         <MetricCard value={bestStreak} label="mejor racha" sub="días" tone="warm" />
         <div className="flex flex-col justify-center gap-2 rounded-ui-lg border border-accent/25 bg-accent/[0.06] px-3.5 py-3">
-          <div className="flex justify-between text-[11px] text-ink-muted">
+          <div className="flex justify-between text-meta text-ink-muted">
             <span>Progreso del día</span>
             <span className="font-semibold text-accent">
               {doneToday} / {totalToday} · {pctToday}%
@@ -311,7 +311,7 @@ export default async function RutinasPage({
               })}
             </a>
           ))}
-          <span className="ml-auto text-[11px] text-ink-dim">
+          <span className="ml-auto text-meta text-ink-dim">
             Vista: <span className="text-ink-muted">día</span> · <span className="text-ink-dim">semana</span>
           </span>
         </div>
@@ -365,7 +365,7 @@ export default async function RutinasPage({
                       fieldsOff={{ id: t.id, nextStatus: "pendiente" }}
                       borderColor={t.category ? catInfo(t.category).color : undefined}
                       prefix={
-                        <span className="w-10 shrink-0 text-[11px] tabular-nums text-ink-dim">
+                        <span className="w-10 shrink-0 text-meta tabular-nums text-ink-dim">
                           {t.timeDue ?? "—"}
                         </span>
                       }
@@ -484,7 +484,7 @@ export default async function RutinasPage({
             ) : (
               <div className="flex flex-col gap-1.5">
                 {categoryLegend.map((c) => (
-                  <div key={c.key} className="flex items-center gap-2.5 text-[11.5px] text-ink-muted">
+                  <div key={c.key} className="flex items-center gap-2.5 text-meta text-ink-muted">
                     <CategoryDot category={c.key} />
                     <span className="flex-1 truncate">{c.label}</span>
                     <span className="h-1 max-w-[90px] flex-1 overflow-hidden rounded-full bg-line">
@@ -493,7 +493,7 @@ export default async function RutinasPage({
                         style={{ width: `${c.pct}%`, background: c.color }}
                       />
                     </span>
-                    <span className="min-w-[26px] text-right text-[11px] text-ink-dim">{c.count}</span>
+                    <span className="min-w-[26px] text-right text-meta text-ink-dim">{c.count}</span>
                   </div>
                 ))}
               </div>
@@ -521,7 +521,7 @@ export default async function RutinasPage({
               const cat = t.category ? catInfo(t.category) : null;
               return (
                 <div key={t.id} className="flex min-w-0 items-center gap-2.5 py-1 text-sm">
-                  <span className="w-24 shrink-0 whitespace-nowrap text-[11px] text-ink-dim">
+                  <span className="w-24 shrink-0 whitespace-nowrap text-meta text-ink-dim">
                     {fmtDayShort(t.dueDate!)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>

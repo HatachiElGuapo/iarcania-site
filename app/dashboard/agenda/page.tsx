@@ -241,7 +241,7 @@ export default async function AgendaPage({
               className="flex flex-wrap items-center gap-2 rounded-ui-lg border border-line bg-surface p-3"
             >
               <input type="hidden" name="id" value={editBlock.id} />
-              <span className="text-[11px] text-ink-dim">Editando bloque de las {editBlock.blockTime}:</span>
+              <span className="text-meta text-ink-dim">Editando bloque de las {editBlock.blockTime}:</span>
               <Input
                 type="time"
                 name="blockTime"
@@ -353,7 +353,7 @@ export default async function AgendaPage({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[12px] text-ink">{c.title}</div>
-                      <div className="mt-0.5 text-[11px] text-accent-warm">
+                      <div className="mt-0.5 text-meta text-accent-warm">
                         {c.datetime.toLocaleString("es-CO", {
                           timeZone: "America/Bogota",
                           weekday: "short",
@@ -364,7 +364,7 @@ export default async function AgendaPage({
                         })}
                       </div>
                     </div>
-                    <span className="shrink-0 text-[11px] text-ink-dim">Agendar</span>
+                    <span className="shrink-0 text-meta text-ink-dim">Agendar</span>
                   </div>
                 ))}
               </div>
@@ -389,14 +389,14 @@ export default async function AgendaPage({
                         }}
                       />
                     </span>
-                    <span className="min-w-[44px] shrink-0 text-right text-[11px] text-ink-dim">
+                    <span className="min-w-[44px] shrink-0 text-right text-meta text-ink-dim">
                       {fmtDur(o.minutes)}
                     </span>
                   </div>
                 ))}
               </div>
             )}
-            <div className="mt-2 text-[11px] text-ink-dim">
+            <div className="mt-2 text-meta text-ink-dim">
               Libre: {fmtDur(freeMinutes)} en {freeTicks} ticks sueltos
             </div>
           </Card>

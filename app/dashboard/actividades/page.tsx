@@ -14,6 +14,7 @@ import {
   Badge,
   CategoryDot,
   EmptyState,
+  NoResults,
   QuickCapture,
   Select,
   Input,
@@ -121,7 +122,7 @@ export default async function ActividadesPage({
         />
         {archivedRows.length === 0 ? (
           <EmptyState icon="🗄️">
-            No tienes tareas archivadas. Cuando archives una, aparecerá aquí.
+            No has archivado ninguna tarea. Cuando archives una, aparecerá aquí.
           </EmptyState>
         ) : (
           <Card flush>
@@ -278,7 +279,7 @@ export default async function ActividadesPage({
             <a
               key={key}
               href={qs({ cat: active ? undefined : key })}
-              className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] transition-colors duration-120"
+              className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-meta transition-colors duration-120"
               style={{
                 borderColor: active ? c.color : `${c.color}2e`,
                 background: active ? `${c.color}24` : `${c.color}12`,
@@ -292,7 +293,7 @@ export default async function ActividadesPage({
           );
         })}
         {cat && (
-          <a href={qs({ cat: undefined })} className="text-[11px] text-ink-dim hover:text-ink">
+          <a href={qs({ cat: undefined })} className="text-meta text-ink-dim hover:text-ink">
             limpiar
           </a>
         )}
@@ -301,9 +302,22 @@ export default async function ActividadesPage({
       {/* Grupos */}
       <div className="mt-4 flex flex-col gap-4">
         {rows.length === 0 ? (
-          <EmptyState icon="🗒️">
-            No hay tareas en este filtro. Crea una con la barra de abajo o cambia de vista.
-          </EmptyState>
+          tiempo !== "todas" || cat ? (
+            <NoResults
+              context={
+                <>
+                  {tiempo !== "todas" ? <>en «{TIEMPO_TABS.find((t) => t.id === tiempo)?.label}»</> : null}
+                  {cat ? <> · categoría «{CATS[cat]?.label}»</> : null}
+                </>
+              }
+              clearHref="/dashboard/actividades"
+            />
+          ) : (
+            <EmptyState icon="✅">
+              Todo lo que tienes que hacer vive aquí. Todavía no has creado ninguna tarea — agrega
+              la primera con la barra de abajo.
+            </EmptyState>
+          )
         ) : (
           orderedBuckets.map((bk) => {
             const items = grouped.get(bk)!;
@@ -365,22 +379,22 @@ export default async function ActividadesPage({
                           {m && <span className="shrink-0 text-[10.5px] text-ink-dim">{m}</span>}
                         </span>
                         {c ? (
-                          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: c.color }}>
+                          <span className="flex items-center gap-1.5 text-meta" style={{ color: c.color }}>
                             <CategoryDot category={t.category} />
                             {c.label}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-ink-dim">—</span>
+                          <span className="text-meta text-ink-dim">—</span>
                         )}
                         <span>
                           <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
                             {t.priority}
                           </Badge>
                         </span>
-                        <span className={cx("text-[11px] tabular-nums", isOverdue ? "text-danger" : "text-ink-dim")}>
+                        <span className={cx("text-meta tabular-nums", isOverdue ? "text-danger" : "text-ink-dim")}>
                           {t.dueDate ? shortDate(t.dueDate, year) : "sin fecha"}
                         </span>
-                        <span className="flex justify-end gap-2.5 text-[11px] text-ink-dim">
+                        <span className="flex justify-end gap-2.5 text-meta text-ink-dim">
                           <a href={`/dashboard/agenda?pre=${t.id}`} className="hover:text-ink">
                             Agenda
                           </a>

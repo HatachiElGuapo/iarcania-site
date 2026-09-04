@@ -302,7 +302,7 @@ export function DayGrid({
             className="absolute inset-x-0 text-center text-xs text-ink-muted"
             style={{ top: bodyH / 2 - 8 }}
           >
-            Nada agendado este día.
+            Nada agendado este día. Usa «+ Bloque» para agendar algo.
           </div>
         )}
 
@@ -342,7 +342,7 @@ export function DayGrid({
                 } ${isPending ? "opacity-70" : ""}`}
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="shrink-0 text-[11px]">{ev.icon}</span>
+                  <span className="shrink-0 text-meta">{ev.icon}</span>
                   <span
                     className={`min-w-0 flex-1 truncate text-[12px] ${
                       ev.done ? "text-ink-dim line-through" : "text-ink"
