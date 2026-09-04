@@ -59,7 +59,7 @@ export default async function GestionHabitosPage({
 
       {list.length === 0 ? (
         <EmptyState icon="🔥">
-          {showArchived ? "No hay hábitos archivados." : "No hay hábitos todavía. Crea el primero abajo."}
+          {showArchived ? "No has archivado ningún hábito." : "Todavía no tienes hábitos. Define el primero abajo — nombre, frecuencia y hora sugerida."}
         </EmptyState>
       ) : (
         <Table>
@@ -71,12 +71,12 @@ export default async function GestionHabitosPage({
             <span className="text-right">Acciones</span>
           </TableHead>
           {list.map((a) => (
-            <TableRow key={a.id} cols={COLS}>
+            <TableRow key={a.id} cols={COLS} highlighted={editing?.id === a.id}>
               <span className="truncate text-ink">{a.name}</span>
-              <span className="text-[11.5px] text-ink-muted">{a.category ?? "—"}</span>
-              <span className="text-[11.5px] text-ink-muted">{a.frequency}</span>
-              <span className="text-[11px] tabular-nums text-ink-dim">{a.horaSugerida ?? "—"}</span>
-              <span className="flex justify-end text-[11px] text-ink-dim">
+              <span className="text-meta text-ink-muted">{a.category ?? "—"}</span>
+              <span className="text-meta text-ink-muted">{a.frequency}</span>
+              <span className="text-meta tabular-nums text-ink-dim">{a.horaSugerida ?? "—"}</span>
+              <span className="flex justify-end text-meta text-ink-dim">
                 <a href={`${base}${base.includes("?") ? "&" : "?"}edit=${a.id}`} className="hover:text-ink">
                   Editar
                 </a>

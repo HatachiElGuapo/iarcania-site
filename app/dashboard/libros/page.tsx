@@ -100,7 +100,7 @@ export default async function LibrosPage({
       />
 
       {allBooks.length === 0 ? (
-        <EmptyState icon="📚">Sin libros todavía. Agrega tu primera lectura abajo.</EmptyState>
+        <EmptyState icon="📚">Lo que estás leyendo y lo que quieres leer. Todavía no has agregado ningún libro — agrega tu primera lectura abajo.</EmptyState>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {allBooks.map((b) => {
@@ -204,7 +204,7 @@ async function ChaptersTab({ bookId, userId }: { bookId: string; userId: string 
   return (
     <div className="space-y-3">
       {chapters.length === 0 ? (
-        <p className="text-xs text-ink-muted">Sin capítulos todavía.</p>
+        <p className="text-xs text-ink-muted">Sin capítulos. Agrega el primero abajo para tomar notas por capítulo.</p>
       ) : (
         <div className="space-y-2">
           {chapters.map((c) => (
@@ -259,7 +259,7 @@ async function CharactersTab({ bookId, userId }: { bookId: string; userId: strin
   return (
     <div className="space-y-3">
       {chars.length === 0 ? (
-        <p className="text-xs text-ink-muted">Sin personajes todavía.</p>
+        <p className="text-xs text-ink-muted">Sin personajes. Anota quién es quién a medida que aparecen.</p>
       ) : (
         <div className="space-y-2">
           {chars.map((c) => (
@@ -318,7 +318,7 @@ async function ScenariosTab({ bookId, userId }: { bookId: string; userId: string
   return (
     <div className="space-y-3">
       {scenarios.length === 0 ? (
-        <p className="text-xs text-ink-muted">Sin escenarios todavía.</p>
+        <p className="text-xs text-ink-muted">Sin escenarios. Registra los lugares donde pasa la historia.</p>
       ) : (
         <div className="space-y-2">
           {scenarios.map((s) => (
@@ -370,7 +370,7 @@ async function NotesTab({ bookId, userId }: { bookId: string; userId: string }) 
         {notes.length} nota{notes.length !== 1 ? "s" : ""}
       </p>
       {notes.length === 0 ? (
-        <p className="text-xs text-ink-muted">Sin notas todavía — crea la primera.</p>
+        <p className="text-xs text-ink-muted">Sin notas sueltas de este libro todavía. Crea la primera abajo.</p>
       ) : (
         <div className="space-y-2">
           {notes.map((n) => (

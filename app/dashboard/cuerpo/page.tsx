@@ -63,7 +63,7 @@ export default async function CuerpoPage() {
           Registrado hoy
         </h2>
         {todayLogs.length === 0 ? (
-          <EmptyState icon="🏋️">Todavía no registraste ninguna serie ni cardio hoy.</EmptyState>
+          <EmptyState icon="🏋️">Todavía no has registrado nada hoy. Anota una serie o un cardio desde la lista de ejercicios de abajo.</EmptyState>
         ) : (
           <Table>
             <TableHead cols={LOG_COLS}>
@@ -77,11 +77,11 @@ export default async function CuerpoPage() {
             {todayLogs.map((log) => (
               <TableRow key={log.id} cols={LOG_COLS}>
                 <span className="truncate text-ink">{log.exerciseName}</span>
-                <span className="text-[11.5px] text-ink-muted">{log.setNumber ?? "—"}</span>
-                <span className="text-[11.5px] text-ink-muted">{log.reps ?? "—"}</span>
-                <span className="text-[11.5px] text-ink-muted">{log.weight ?? "—"}</span>
-                <span className="text-[11.5px] text-ink-muted">{log.durationMin ?? "—"}</span>
-                <span className="text-[11.5px] text-ink-muted">{log.distanceKm ?? "—"}</span>
+                <span className="text-meta text-ink-muted">{log.setNumber ?? "—"}</span>
+                <span className="text-meta text-ink-muted">{log.reps ?? "—"}</span>
+                <span className="text-meta text-ink-muted">{log.weight ?? "—"}</span>
+                <span className="text-meta text-ink-muted">{log.durationMin ?? "—"}</span>
+                <span className="text-meta text-ink-muted">{log.distanceKm ?? "—"}</span>
               </TableRow>
             ))}
           </Table>
@@ -93,7 +93,7 @@ export default async function CuerpoPage() {
           Ejercicios
         </h2>
         {userExercises.length === 0 ? (
-          <EmptyState icon="🏋️">Todavía no tienes ejercicios. Agrega el primero abajo.</EmptyState>
+          <EmptyState icon="🏋️">Sin ejercicios. Agrega el primero abajo para empezar a registrar series.</EmptyState>
         ) : (
           <div className="flex flex-col gap-3">
             {userExercises.map((exercise) => (

@@ -84,7 +84,7 @@ export default async function RachasPage() {
       </p>
 
       {habits.length === 0 ? (
-        <EmptyState icon="🔥">No hay hábitos activos.</EmptyState>
+        <EmptyState icon="🔥">Sin hábitos activos. Las rachas aparecen cuando empiezas a marcar.</EmptyState>
       ) : (
         <Table>
           <TableHead cols={COLS}>
@@ -113,7 +113,7 @@ export default async function RachasPage() {
             return (
               <TableRow key={h.id} cols={COLS}>
                 <span className="truncate text-ink">{h.name}</span>
-                <span className="text-[11.5px] text-ink-muted">{h.frequency}</span>
+                <span className="text-meta text-ink-muted">{h.frequency}</span>
                 <span className={cx("text-right text-sm font-semibold", tone)}>{indicator}</span>
               </TableRow>
             );
