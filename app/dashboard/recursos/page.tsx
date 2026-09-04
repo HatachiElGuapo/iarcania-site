@@ -10,6 +10,7 @@ import {
   Button,
   Badge,
   EmptyState,
+  NoResults,
   Input,
   Select,
   Textarea,
@@ -116,7 +117,7 @@ export default async function RecursosPage({
               key={key}
               href={qs({ tipo: active ? undefined : key, page: undefined })}
               className={cx(
-                "rounded-ui border px-2.5 py-1 text-[11px] transition-colors duration-120",
+                "rounded-ui border px-2.5 py-1 text-meta transition-colors duration-120",
                 active
                   ? "border-line-strong bg-surface-2 text-ink"
                   : "border-line bg-surface text-ink-muted hover:text-ink",
@@ -148,15 +149,16 @@ export default async function RecursosPage({
       <div className="mt-4">
         {list.length === 0 ? (
           filtering ? (
-            <EmptyState icon="⌕">
-              Ningún recurso coincide con {q ? <>«{q}»</> : "el filtro"}.{" "}
-              <a href="/dashboard/recursos" className="text-ink underline">
-                Quitar filtros
-              </a>
-            </EmptyState>
+            <NoResults
+              query={q || undefined}
+              context={tipo ? <>del tipo «{TIPOS[tipo].label}»</> : undefined}
+              clearHref="/dashboard/recursos"
+              scopeHref={tipo && q ? `/dashboard/recursos?q=${encodeURIComponent(q)}` : undefined}
+            />
           ) : (
             <EmptyState icon="📦">
-              La biblioteca está vacía. Crea el primer recurso con «+ Nuevo recurso».
+              La biblioteca compartida: cursos, SOPs, prompts, plantillas y entregables. Todavía no
+              hay ninguno — crea el primero con «+ Nuevo recurso».
             </EmptyState>
           )
         ) : (
@@ -173,7 +175,7 @@ export default async function RecursosPage({
                 const t = TIPOS[r.tipo] ?? { label: r.tipo, icon: "📄" };
                 const canEdit = isAdmin || r.userId === userId;
                 return (
-                  <TableRow key={r.id} cols={COLS}>
+                  <TableRow key={r.id} cols={COLS} highlighted={editing?.id === r.id}>
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-ink">
                         {t.icon} {r.titulo}
@@ -182,18 +184,18 @@ export default async function RecursosPage({
                         <span className="truncate text-[10.5px] text-ink-dim">{r.contenido}</span>
                       )}
                     </span>
-                    <span className="text-[11.5px] text-ink-muted">{t.label}</span>
+                    <span className="text-meta text-ink-muted">{t.label}</span>
                     <span>
                       <Badge tone={ESTADO_TONE[r.estado] ?? "neutral"}>{r.estado}</Badge>
                     </span>
-                    <span className="text-[11px] tabular-nums text-ink-dim">
+                    <span className="text-meta tabular-nums text-ink-dim">
                       {r.createdAt.toLocaleDateString("es-CO", {
                         timeZone: "America/Bogota",
                         day: "2-digit",
                         month: "short",
                       })}
                     </span>
-                    <span className="flex justify-end text-[11px] text-ink-dim">
+                    <span className="flex justify-end text-meta text-ink-dim">
                       {canEdit ? (
                         <a href={qs({ edit: r.id })} className="hover:text-ink">
                           Editar

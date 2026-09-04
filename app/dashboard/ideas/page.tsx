@@ -11,6 +11,7 @@ import {
   Badge,
   CategoryDot,
   EmptyState,
+  NoResults,
   QuickCapture,
   Select,
   Input,
@@ -135,7 +136,7 @@ export default async function IdeasPage({
             <a
               key={key}
               href={qs({ cat: active ? undefined : key, page: undefined })}
-              className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] transition-colors duration-120"
+              className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-meta transition-colors duration-120"
               style={{
                 borderColor: active ? c.color : `${c.color}2e`,
                 background: active ? `${c.color}24` : `${c.color}12`,
@@ -148,7 +149,7 @@ export default async function IdeasPage({
           );
         })}
         {(cat || q) && (
-          <a href="/dashboard/ideas" className="text-[11px] text-ink-dim hover:text-ink">
+          <a href="/dashboard/ideas" className="text-meta text-ink-dim hover:text-ink">
             limpiar
           </a>
         )}
@@ -157,15 +158,16 @@ export default async function IdeasPage({
       <div className="mt-4">
         {rows.length === 0 ? (
           filtering ? (
-            <EmptyState icon="⌕">
-              Ninguna idea coincide con {q ? <>«{q}»</> : "los filtros activos"}.{" "}
-              <a href="/dashboard/ideas" className="text-ink underline">
-                Quitar filtros
-              </a>
-            </EmptyState>
+            <NoResults
+              query={q || undefined}
+              context={estado ? <>en «{STATUS_TABS.find((t) => t.id === estado)?.label}»</> : undefined}
+              clearHref="/dashboard/ideas"
+            />
           ) : (
             <EmptyState icon="💡">
-              Todavía no capturaste ninguna idea. Escribe la primera en la barra de abajo.
+              Un buzón para lo que se te ocurre y no quieres perder. Todavía no has capturado
+              ninguna idea — escribe la primera en la barra de abajo y luego la procesas o la
+              conviertes en tarea.
             </EmptyState>
           )
         ) : (
@@ -189,26 +191,26 @@ export default async function IdeasPage({
                       )}
                     </span>
                     {c ? (
-                      <span className="flex items-center gap-1.5 text-[11px]" style={{ color: c.color }}>
+                      <span className="flex items-center gap-1.5 text-meta" style={{ color: c.color }}>
                         <CategoryDot category={idea.category} />
                         {c.label}
                       </span>
                     ) : (
-                      <span className="text-[11px] text-ink-dim">—</span>
+                      <span className="text-meta text-ink-dim">—</span>
                     )}
                     <span>
                       <Badge tone={STATUS_TONE[idea.status as keyof typeof STATUS_TONE] ?? "neutral"}>
                         {idea.status}
                       </Badge>
                     </span>
-                    <span className="text-[11px] tabular-nums text-ink-dim">
+                    <span className="text-meta tabular-nums text-ink-dim">
                       {idea.createdAt.toLocaleDateString("es-CO", {
                         timeZone: "America/Bogota",
                         day: "2-digit",
                         month: "short",
                       })}
                     </span>
-                    <span className="flex justify-end gap-2.5 text-[11px] text-ink-dim">
+                    <span className="flex justify-end gap-2.5 text-meta text-ink-dim">
                       <form action={createTaskFromIdea}>
                         <input type="hidden" name="id" value={idea.id} />
                         <button type="submit" className="hover:text-ink">

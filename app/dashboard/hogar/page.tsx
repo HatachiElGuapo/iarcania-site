@@ -162,7 +162,7 @@ export default async function HogarPage() {
                 const logs = weekByTypeDate.get(`${chore.id}|${d.date}`) ?? [];
                 const names = [...new Set(logs.map((l) => l.doneBy).filter(Boolean))];
                 return (
-                  <span key={d.date} className="text-center text-[11px] text-ink-dim">
+                  <span key={d.date} className="text-center text-meta text-ink-dim">
                     {names.length > 0 ? names.join("+") : "·"}
                   </span>
                 );

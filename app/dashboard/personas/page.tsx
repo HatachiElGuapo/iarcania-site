@@ -10,6 +10,7 @@ import {
   TableRow,
   Button,
   EmptyState,
+  NoResults,
   QuickCapture,
   Input,
   Select,
@@ -157,16 +158,15 @@ export default async function PersonasPage({
       <div className="mt-4">
         {rows.length === 0 ? (
           filtering ? (
-            <EmptyState icon="⌕">
-              Ninguna persona coincide con {q ? <>«{q}»</> : "el filtro"}
-              {rel ? <> en la relación «{REL_LABELS[rel]}»</> : null}.{" "}
-              <a href="/dashboard/personas" className="text-ink underline">
-                Quitar filtros
-              </a>
-            </EmptyState>
+            <NoResults
+              query={q || undefined}
+              context={rel ? <>en la relación «{REL_LABELS[rel]}»</> : undefined}
+              clearHref="/dashboard/personas"
+            />
           ) : (
             <EmptyState icon="👥">
-              Todavía no agregaste a nadie. Crea la primera persona en la barra de abajo.
+              Tu gente: familia, amigos, contactos de trabajo. Todavía no has agregado a nadie —
+              crea la primera persona en la barra de abajo para tener sus fechas a mano.
             </EmptyState>
           )
         ) : (
@@ -182,7 +182,7 @@ export default async function PersonasPage({
                 const bday = birthdayByPersonId.get(p.id);
                 const days = bday ? daysUntil(bday.day, bday.month) : null;
                 return (
-                  <TableRow key={p.id} cols={COLS}>
+                  <TableRow key={p.id} cols={COLS} highlighted={editing?.id === p.id}>
                     <span className="flex min-w-0 flex-col">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-ink">{p.name}</span>
@@ -194,13 +194,13 @@ export default async function PersonasPage({
                       </span>
                       {p.notes && <span className="truncate text-[10.5px] text-ink-dim">{p.notes}</span>}
                     </span>
-                    <span className="text-[11.5px] text-ink-muted">
+                    <span className="text-meta text-ink-muted">
                       {REL_LABELS[p.relationship] ?? p.relationship}
                     </span>
-                    <span className="text-[11px] tabular-nums text-ink-dim">
+                    <span className="text-meta tabular-nums text-ink-dim">
                       {bday ? `${bday.day}/${bday.month}` : "—"}
                     </span>
-                    <span className="flex justify-end gap-2.5 text-[11px] text-ink-dim">
+                    <span className="flex justify-end gap-2.5 text-meta text-ink-dim">
                       <a href={qs({ edit: p.id })} className="hover:text-ink">
                         Editar
                       </a>
@@ -300,8 +300,9 @@ export default async function PersonasPage({
         </h2>
         <Card flush>
           {looseDates.length === 0 ? (
-            <p className="px-3.5 py-4 text-xs text-ink-muted">
-              No hay fechas sueltas guardadas. Agrega una abajo (cumpleaños, pagos, aniversarios…).
+            <p className="px-3.5 py-4 text-meta text-ink-muted">
+              Cumpleaños, pagos y aniversarios que no cuelgan de una persona. Todavía no has
+              guardado ninguno — agrega el primero abajo.
             </p>
           ) : (
             <div className="divide-y divide-line">
@@ -311,13 +312,13 @@ export default async function PersonasPage({
                   <div key={d.id} className="flex items-center gap-3 px-3.5 py-2.5 text-sm">
                     <span>{FECHA_TIPOS[d.type] ?? d.type}</span>
                     <span className="min-w-0 flex-1 truncate text-ink">{d.name}</span>
-                    <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">
+                    <span className="shrink-0 text-meta tabular-nums text-ink-dim">
                       {d.day}/{d.month}
                       {days <= 7 ? ` · ${nearLabel(days)}` : ""}
                     </span>
                     <form action={deleteImportantDate}>
                       <input type="hidden" name="id" value={d.id} />
-                      <button type="submit" className="text-[11px] text-ink-dim hover:text-danger">
+                      <button type="submit" className="text-meta text-ink-dim hover:text-danger">
                         Eliminar
                       </button>
                     </form>
