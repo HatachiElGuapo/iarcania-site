@@ -2,7 +2,17 @@ import { and, asc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { exercises, workoutLogs, bodyMetrics } from "@/lib/db/schema/cuerpo";
-import { Field } from "@/components/ui/field";
+import {
+  Card,
+  Table,
+  TableHead,
+  TableRow,
+  Button,
+  EmptyState,
+  Labeled,
+  Input,
+  Select,
+} from "@/components/ui";
 import { createExercise, logSet, upsertBodyMetrics } from "./actions";
 import { todayISO } from "@/lib/date/bogota";
 
@@ -11,6 +21,7 @@ const TYPE_LABEL: Record<string, string> = {
   cardio: "Cardio",
   peso_corporal: "Peso corporal",
 };
+const LOG_COLS = "minmax(0,1fr) 64px 64px 88px 96px 96px";
 
 export default async function CuerpoPage() {
   const session = await auth();
@@ -44,135 +55,82 @@ export default async function CuerpoPage() {
   ]);
 
   return (
-    <div className="space-y-10 p-8">
-      <div>
-        <h1 className="font-display text-2xl text-text-primary">Cuerpo</h1>
-        <p className="mt-1 text-sm text-text-muted">{date}</p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <p className="text-xs text-ink-dim">{date}</p>
 
-      {/* Registrado hoy */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
+        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           Registrado hoy
         </h2>
         {todayLogs.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            Todavía no hay series ni cardio registrado hoy.
-          </p>
+          <EmptyState icon="🏋️">Todavía no registraste ninguna serie ni cardio hoy.</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full text-left text-sm">
-              <thead className="text-text-muted">
-                <tr className="border-b border-border">
-                  <th className="px-3 py-2 font-medium">Ejercicio</th>
-                  <th className="px-3 py-2 font-medium">Serie</th>
-                  <th className="px-3 py-2 font-medium">Reps</th>
-                  <th className="px-3 py-2 font-medium">Peso (kg)</th>
-                  <th className="px-3 py-2 font-medium">Duración (min)</th>
-                  <th className="px-3 py-2 font-medium">Distancia (km)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todayLogs.map((log) => (
-                  <tr key={log.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 text-text-primary">
-                      {log.exerciseName}
-                    </td>
-                    <td className="px-3 py-2 text-text-muted">
-                      {log.setNumber ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-text-muted">
-                      {log.reps ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-text-muted">
-                      {log.weight ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-text-muted">
-                      {log.durationMin ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-text-muted">
-                      {log.distanceKm ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHead cols={LOG_COLS}>
+              <span>Ejercicio</span>
+              <span>Serie</span>
+              <span>Reps</span>
+              <span>Peso kg</span>
+              <span>Dur. min</span>
+              <span>Dist. km</span>
+            </TableHead>
+            {todayLogs.map((log) => (
+              <TableRow key={log.id} cols={LOG_COLS}>
+                <span className="truncate text-ink">{log.exerciseName}</span>
+                <span className="text-[11.5px] text-ink-muted">{log.setNumber ?? "—"}</span>
+                <span className="text-[11.5px] text-ink-muted">{log.reps ?? "—"}</span>
+                <span className="text-[11.5px] text-ink-muted">{log.weight ?? "—"}</span>
+                <span className="text-[11.5px] text-ink-muted">{log.durationMin ?? "—"}</span>
+                <span className="text-[11.5px] text-ink-muted">{log.distanceKm ?? "—"}</span>
+              </TableRow>
+            ))}
+          </Table>
         )}
       </section>
 
-      {/* Ejercicios + registrar serie */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
+        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           Ejercicios
         </h2>
-
         {userExercises.length === 0 ? (
-          <p className="mb-4 text-sm text-text-muted">
-            Todavía no tienes ejercicios. Agrega el primero abajo.
-          </p>
+          <EmptyState icon="🏋️">Todavía no tienes ejercicios. Agrega el primero abajo.</EmptyState>
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {userExercises.map((exercise) => (
               <form
                 key={exercise.id}
                 action={logSet}
-                className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-bg-card p-4"
+                className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-line bg-surface p-4"
               >
                 <input type="hidden" name="exerciseId" value={exercise.id} />
                 <input type="hidden" name="date" value={date} />
-
                 <div className="mr-auto">
-                  <p className="font-medium text-text-primary">
-                    {exercise.name}
-                  </p>
-                  <p className="text-xs text-text-muted">
+                  <p className="font-medium text-ink">{exercise.name}</p>
+                  <p className="text-xs text-ink-dim">
                     {TYPE_LABEL[exercise.type]}
                     {exercise.muscleGroup ? ` · ${exercise.muscleGroup}` : ""}
                   </p>
                 </div>
-
                 {exercise.type === "cardio" ? (
                   <>
-                    <Field label="Duración (min)">
-                      <input
-                        type="number"
-                        step="0.1"
-                        name="durationMin"
-                        className="input"
-                      />
-                    </Field>
-                    <Field label="Distancia (km)">
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="distanceKm"
-                        className="input"
-                      />
-                    </Field>
+                    <Labeled label="Duración (min)">
+                      <Input type="number" step="0.1" name="durationMin" className="w-28" />
+                    </Labeled>
+                    <Labeled label="Distancia (km)">
+                      <Input type="number" step="0.01" name="distanceKm" className="w-28" />
+                    </Labeled>
                   </>
                 ) : (
                   <>
-                    <Field label="Reps">
-                      <input type="number" name="reps" className="input" />
-                    </Field>
-                    <Field label="Peso (kg)">
-                      <input
-                        type="number"
-                        step="0.1"
-                        name="weight"
-                        className="input"
-                      />
-                    </Field>
+                    <Labeled label="Reps">
+                      <Input type="number" name="reps" className="w-20" />
+                    </Labeled>
+                    <Labeled label="Peso (kg)">
+                      <Input type="number" step="0.1" name="weight" className="w-24" />
+                    </Labeled>
                   </>
                 )}
-
-                <button
-                  type="submit"
-                  className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-                >
-                  Registrar
-                </button>
+                <Button type="submit">Registrar</Button>
               </form>
             ))}
           </div>
@@ -180,73 +138,46 @@ export default async function CuerpoPage() {
 
         <form
           action={createExercise}
-          className="mt-4 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+          className="mt-4 flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-4"
         >
-          <Field label="Nombre">
-            <input type="text" name="name" required className="input" />
-          </Field>
-          <Field label="Tipo">
-            <select name="type" required className="input">
+          <Labeled label="Nombre">
+            <Input name="name" required className="w-44" />
+          </Labeled>
+          <Labeled label="Tipo">
+            <Select name="type" required>
               <option value="fuerza">Fuerza</option>
               <option value="cardio">Cardio</option>
               <option value="peso_corporal">Peso corporal</option>
-            </select>
-          </Field>
-          <Field label="Grupo muscular">
-            <input type="text" name="muscleGroup" className="input" />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm border border-border px-4 py-2 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
-          >
+            </Select>
+          </Labeled>
+          <Labeled label="Grupo muscular">
+            <Input name="muscleGroup" className="w-40" />
+          </Labeled>
+          <Button type="submit" variant="secondary">
             + Nuevo ejercicio
-          </button>
+          </Button>
         </form>
       </section>
 
-      {/* Métricas corporales de hoy */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
+        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           Métricas de hoy
         </h2>
         <form
           action={upsertBodyMetrics}
-          className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-bg-card p-4"
+          className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-line bg-surface p-4"
         >
           <input type="hidden" name="date" value={date} />
-          <Field label="Peso (kg)">
-            <input
-              type="number"
-              step="0.1"
-              name="weightKg"
-              defaultValue={todayMetrics?.weightKg ?? ""}
-              className="input"
-            />
-          </Field>
-          <Field label="Horas de sueño">
-            <input
-              type="number"
-              step="0.1"
-              name="sleepHours"
-              defaultValue={todayMetrics?.sleepHours ?? ""}
-              className="input"
-            />
-          </Field>
-          <Field label="% Grasa corporal">
-            <input
-              type="number"
-              step="0.1"
-              name="bodyFatPct"
-              defaultValue={todayMetrics?.bodyFatPct ?? ""}
-              className="input"
-            />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-          >
-            Guardar
-          </button>
+          <Labeled label="Peso (kg)">
+            <Input type="number" step="0.1" name="weightKg" defaultValue={todayMetrics?.weightKg ?? ""} className="w-28" />
+          </Labeled>
+          <Labeled label="Horas de sueño">
+            <Input type="number" step="0.1" name="sleepHours" defaultValue={todayMetrics?.sleepHours ?? ""} className="w-28" />
+          </Labeled>
+          <Labeled label="% Grasa corporal">
+            <Input type="number" step="0.1" name="bodyFatPct" defaultValue={todayMetrics?.bodyFatPct ?? ""} className="w-28" />
+          </Labeled>
+          <Button type="submit">Guardar</Button>
         </form>
       </section>
     </div>
