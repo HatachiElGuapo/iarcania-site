@@ -133,6 +133,17 @@ importan de su archivo. Motivo: un barril que re-exporta módulos
 aunque no use esas piezas (se midió: +4 kB en cada ruta). El sistema es
 server-first.
 
+### Editor "branded" de Guiones — no se migró (registro antes de borrar `os.css`)
+El `os.css` original tenía `.sg-branded-editor`: el editor de un guión se
+teñía con el color de su canal — superficie más oscura (`#1a1a1a`), borde y
+foco en el morado de marca (`--sg-primario:#7C3AED`), un acento cian
+(`--sg-acento:#22D3EE`) y el logo del canal en marca de agua arriba a la
+derecha (`.sg-brand-logo`, opacidad .55). La migración de Guiones (Fase 05)
+lo dejó como editor plano del sistema nuevo, sin tinte por canal. Se anota
+aquí porque, al borrar `os.css`, este es el único sitio donde quedaba
+descrito. Si se quiere recuperar, es una mejora de producto, no de la
+migración.
+
 ---
 
 ## Estado por sección
@@ -189,38 +200,49 @@ viejo), que es el commit irreversible y se hace aparte, con revisión previa.
 
 ---
 
-## PASO 5 — limpieza final (solo cuando las 23 secciones estén migradas)
+## PASO 5 — limpieza final
 
-Nada de esto se toca antes.
+**Estado**: las 23 secciones + las 3 piezas vivas de fuera (`login`,
+`marketing`, `optimistic-toggle-row`) están migradas. Los 3 archivos
+muertos (`os.css`, `components/app/page-header.tsx`,
+`components/ui/field.tsx`) ya se borraron (0 importadores, verificado).
+`grep` en todo `app/` + `components/` no encuentra ningún uso de token
+viejo. Queda solo el borrado de los tokens del config/CSS de abajo — es el
+commit irreversible, se revisa antes.
 
-**`tailwind.config.ts`** — borrar el bloque "SISTEMA VIEJO":
-- `colors`: `bg.*`, `purple.*`, `gold.*`, `text.*`, `border.*`
-- `borderRadius`: `sm`/`md`/`lg` (8/12/16px) y **renombrar** `ui-sm`→`sm`,
-  `ui`→`md`, `ui-lg`→`lg`
-- `backgroundImage`: `gradient-cta`, `gradient-text` (0 usos reales fuera del
-  bloque neutralizado)
-- `boxShadow`: `glow-purple`, `glow-purple-hover` (ya `none`)
+**`tailwind.config.ts`** — borrar el bloque "SISTEMA VIEJO" de cada key:
+- `colors`: `bg.*`, `purple.*`, `gold.*`, `text.*`, `border.*` (el bloque
+  "SISTEMA NUEVO" de `colors` se queda entero)
+- `borderRadius`: borrar `sm`/`md`/`lg` (8/12/16px). **NO se renombra**
+  `ui-sm`/`ui`/`ui-lg` → serían 136 reemplazos en 48 archivos por cero
+  beneficio funcional, y `rounded-ui*` ya es el nombre propio del sistema
+  nuevo. Decidido: se quedan como están.
+- `backgroundImage`: borrar la key entera (`gradient-cta`, `gradient-text`
+  — 0 usos)
+- `boxShadow`: borrar la key entera (`glow-purple`, `glow-purple-hover` —
+  0 usos, ya eran `none`)
 
 **`app/globals.css`**:
 - `@layer components`: borrar `.input`, `.card-glow`, `.btn-primary`,
-  `.btn-secondary`, `.stat-num` (verificar 0 usos primero)
-- `@layer base` → `body`: `text-text-primary` → `text-ink`
-- revisar la regla `h1..h4 { @apply font-display font-bold }` (el sistema
-  nuevo usa Playfair solo en título de página y stats)
+  `.btn-secondary`, `.stat-num` (0 usos, verificado). Se quedan
+  `.focus-ring` y `.focus-ring-inset`.
+- `@layer base` → `body`: `@apply bg-canvas text-text-primary` →
+  `@apply bg-canvas text-ink`
+- `h1..h4 { @apply font-display font-bold }`: se queda. Ningún `<h1>`–`<h4>`
+  del sistema nuevo depende de ella (los títulos ponen `font-display`
+  explícito), pero tampoco molesta y quitarla es riesgo sin ganancia.
 
-**`app/layout.tsx`**: revisar si el peso `400` de Playfair sigue en uso.
+**`app/layout.tsx`**: quitar el peso `"400"` de Playfair Display (`weight:
+["600", "700"]`) — ninguna pieza nueva usa Playfair 400.
 
-**Archivos a borrar** (una vez sin referencias):
-- `os.css` en la raíz (no se importa; es solo referencia)
-- `components/app/page-header.tsx` (el viejo; sin usos desde Fase 04 —
-  verificar `grep` antes de borrar)
-- `components/ui/field.tsx` (el `Field` viejo; lo usan ~10 páginas sin
-  migrar; su reemplazo es `FormField`)
+**Archivos muertos** — ya borrados en el commit previo a PASO 5 (0
+importadores):
+- `os.css` (raíz) — su única intención de diseño no documentada (el editor
+  branded de Guiones) quedó registrada arriba antes de borrarlo
+- `components/app/page-header.tsx` — reemplazado por `components/ui/page-header.tsx`
+- `components/ui/field.tsx` — reemplazado por `Labeled` / `FormField`
 
-**Buscar y limpiar en todo `app/`**: `bg-bg-*`, `text-text-*`,
-`border-border`, `bg-purple-mid`, `text-gold`, `border-gold`,
-`bg-gradient-cta`, `shadow-glow-purple`, `rounded-[7px]`, hexadecimales
-hardcodeados que ya tengan token.
+**Verificación final tras aplicar**: `grep -rE "bg-bg-|text-text-|border-border|purple-(mid|light|deep)|text-gold|bg-gold|border-gold|rounded-(sm|md|lg)\b|gradient-(cta|text)|glow-purple|card-glow|btn-primary|btn-secondary|stat-num" app/ components/` debe dar 0, y `tsc` + `next build` limpios.
 
 ---
 

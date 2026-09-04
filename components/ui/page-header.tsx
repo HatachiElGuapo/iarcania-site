@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { cx } from "./cx";
 
-// 4b · 01 — PageHeader (evolución de components/app/page-header.tsx, que se
-// retira cuando Recursos y Clientes migren). Emoji de sección (el mismo que
-// en el sidebar) + título serif 21px + subtítulo de CONTEOS REALES, nunca
-// decorativo + máximo una acción primaria y dos secundarias. `tabs` es el
-// slot para <SubNav> (PASO 3), que se monta bajo el título sobre el borde.
+// 4b · 01 — PageHeader (reemplazó al viejo components/app/page-header.tsx,
+// ya borrado). Emoji de sección (el mismo que en el sidebar) + título serif
+// 21px + subtítulo de CONTEOS REALES, nunca decorativo + máximo una acción
+// primaria y dos secundarias. `tabs` es el slot para <SubNav>, que se monta
+// bajo el título sobre el borde.
 export function PageHeader({
   icon,
   title,

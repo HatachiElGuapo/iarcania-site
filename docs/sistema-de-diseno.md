@@ -37,8 +37,11 @@ nuevo para todas).
 - **`components/ui/`** → las 16 piezas nuevas + helpers (`cx`, `catInfo`).
 - **`app/dashboard/layout.tsx` + `components/app/nav-links.tsx`** → el shell
   (ya migrado).
-- **`os.css`** en la raíz del repo: **archivo muerto**, no se importa en
-  ningún lado. Es solo referencia histórica. Se borra en PASO 5.
+- **`os.css`**: era el CSS del dashboard original, ya **borrado** (no se
+  importaba). Los tokens que se portaron de él viven en el bloque "SISTEMA
+  VIEJO" de `tailwind.config.ts` hasta PASO 5. Su único detalle de diseño
+  no recogido en otro lado (el editor "branded" de Guiones) quedó anotado
+  en `docs/migracion-rebranding.md`.
 
 ---
 

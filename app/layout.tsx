@@ -8,9 +8,9 @@ const playfairDisplay = Playfair_Display({
   variable: "--font-display",
 });
 
-// os.css usa Outfit para el cuerpo, no Inter — ver NOTES.md "Sistema de
-// diseño" (os.css es el dashboard operativo real, colors_and_type.css es
-// el sitio de marketing público, sistemas distintos).
+// El cuerpo va en Outfit, no Inter — el dashboard original (os.css, ya
+// retirado) lo usaba y el sistema nuevo lo mantiene. Ver
+// docs/sistema-de-diseno.md · Tipografía.
 const outfit = Outfit({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],

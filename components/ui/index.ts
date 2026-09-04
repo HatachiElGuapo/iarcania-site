@@ -12,8 +12,10 @@
 //   import { ToastProvider, useToast } from "@/components/ui/toast";
 //   import { SubNav } from "@/components/ui/sub-nav";
 //
-// components/ui/field.tsx queda como estaba: lo usa el sistema VIEJO (10
-// páginas sin migrar). El equivalente nuevo es <FormField> de ./form.
+// Para formularios: <Labeled> (etiqueta + control apilados, aquí en
+// ./inputs) para `<form action={serverAction}>` planos, o <FormField> de
+// ./form cuando hace falta estado de validación. El viejo <Field>
+// (components/ui/field.tsx) se borró al terminar la migración.
 
 export { cx } from "./cx";
 export { catInfo } from "./category";
