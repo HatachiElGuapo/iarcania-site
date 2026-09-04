@@ -32,15 +32,19 @@ export function TableHead({ cols, children }: { cols: string; children: ReactNod
 export function TableRow({
   cols,
   category,
+  accentColor,
   href,
   children,
 }: {
   cols: string;
   category?: string | null;
+  /** Color del borde izquierdo si se necesita otro que el de la categoría
+   *  (p. ej. rojo para filas vencidas). Gana sobre `category`. */
+  accentColor?: string;
   href?: string;
   children: ReactNode;
 }) {
-  const accent = category ? catInfo(category).color : "transparent";
+  const accent = accentColor ?? (category ? catInfo(category).color : "transparent");
   const cls =
     "grid items-center gap-2.5 border-b border-white/[0.04] px-3.5 py-2.5 text-[12.5px] text-ink last:border-b-0";
   const style = { gridTemplateColumns: cols, borderLeft: `2px solid ${accent}` };
