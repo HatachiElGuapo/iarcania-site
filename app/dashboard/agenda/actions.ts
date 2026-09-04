@@ -6,25 +6,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { agendaItems } from "@/lib/db/schema/agenda";
 import { activities } from "@/lib/db/schema/habitos";
+import { normalizeTime, normalizeDuration } from "./time";
 
 async function requireUserId() {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
   return session.user.id;
-}
-
-// "HH:MM" 24 h, snap a 10 min, dentro del día.
-function normalizeTime(raw: string): string {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(raw.trim());
-  if (!m) throw new Error("Hora inválida");
-  const total = Math.min(23 * 60 + 50, Math.max(0, Number(m[1]) * 60 + Number(m[2])));
-  const snapped = Math.round(total / 10) * 10;
-  return `${String(Math.floor(snapped / 60)).padStart(2, "0")}:${String(snapped % 60).padStart(2, "0")}`;
-}
-
-function normalizeDuration(raw: number): number {
-  // Mínimo 20 min (mínimo de actividad de la app), múltiplos de 10, tope 24 h.
-  return Math.min(24 * 60, Math.max(20, Math.round((raw || 20) / 10) * 10));
 }
 
 export async function createBlock(formData: FormData) {

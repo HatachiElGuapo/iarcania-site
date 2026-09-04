@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { moveBlock, scheduleHabit, deleteBlock } from "./actions";
 
 // Vista de día: regla de horas con los eventos posicionados en absoluto
-// (top = minutos, alto = duración). Mantiene el lenguaje visual de la rejilla
-// pero permite arrastrar para mover, tirar del borde para redimensionar y
-// botones rápidos al seleccionar. Los solapes se reparten en carriles.
+// (top = minutos, alto = duración) dentro de un contenedor `relative` de
+// altura natural. El scroll es el de la PÁGINA — este componente no tiene
+// overflow propio. El encabezado es sticky para no perderse al bajar.
 //
 // Sin librería de drag: pointer events + setPointerCapture. React 18.3, así
 // que el patrón optimista es estado local + startTransition (igual que
@@ -16,8 +16,8 @@ const PX_PER_MIN = 1.6; // 10 min = 16 px, 1 h = 96 px
 const SNAP = 10;
 const GUTTER = 46; // ancho de la columna de horas
 const MIN_DUR = 20; // mínimo de actividad de la app
-const DAY_MIN = 6 * 60; // ventana diurna por defecto
-const DAY_MAX = 22 * 60;
+const MIN_SPAN = 8 * 60; // al menos 8 h de rejilla visibles
+const PAD = 60; // 1 h de aire arriba y abajo del contenido
 
 export type AgendaEvent = {
   key: string;
@@ -98,7 +98,7 @@ export function DayGrid({
   const [events, setEvents] = useState<AgendaEvent[]>(initial);
   useEffect(() => setEvents(initial), [sig]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [showNight, setShowNight] = useState(false);
+  const [showFull, setShowFull] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(null);
   const [isPending, startTransition] = useTransition();
@@ -109,28 +109,36 @@ export function DayGrid({
     { key: string; mode: "move" | "resize"; y: number; start: number; dur: number } | null
   >(null);
   const didDrag = useRef(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const display = events.map((e) =>
     draft && draft.key === e.key ? { ...e, start: draft.start, duration: draft.duration } : e,
   );
 
-  const early = display.some((e) => e.start < DAY_MIN);
-  const late = display.some((e) => e.start + e.duration > DAY_MAX);
-  const vStart = showNight || early ? 0 : DAY_MIN;
-  const vEnd = showNight || late ? 1440 : DAY_MAX;
+  // Ventana visible: por defecto recortada al contenido (± 1 h, mínimo 8 h);
+  // el toggle la abre a 24 h completas. Nunca recorta un evento: la ventana
+  // siempre contiene todo lo que hay en `display` (incluido el draft).
+  let vStart: number;
+  let vEnd: number;
+  if (showFull) {
+    vStart = 0;
+    vEnd = 1440;
+  } else if (display.length === 0) {
+    vStart = 8 * 60;
+    vEnd = 20 * 60;
+  } else {
+    const lo = Math.min(...display.map((e) => e.start));
+    const hi = Math.max(...display.map((e) => e.start + e.duration));
+    vStart = clamp(Math.floor((lo - PAD) / 60) * 60, 0, 1440);
+    vEnd = clamp(Math.ceil((hi + PAD) / 60) * 60, 0, 1440);
+    if (vEnd - vStart < MIN_SPAN) {
+      vStart = Math.max(0, Math.min(vStart, 1440 - MIN_SPAN));
+      vEnd = vStart + MIN_SPAN;
+    }
+  }
   const bodyH = (vEnd - vStart) * PX_PER_MIN;
 
   const laneSig = display.map((e) => `${e.key}:${e.start}:${e.duration}`).join("|");
   const lanes = useMemo(() => computeLanes(display), [laneSig]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Autoscroll a "ahora" (o al primer evento) una vez montado.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const anchor = isToday ? nowMinutes : events[0]?.start ?? 8 * 60;
-    el.scrollTop = Math.max(0, (anchor - vStart) * PX_PER_MIN - el.clientHeight / 3);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function commit(key: string, start: number, duration: number) {
     const ev = events.find((e) => e.key === key);
@@ -215,189 +223,188 @@ export function DayGrid({
   for (let m = Math.ceil(vStart / 60) * 60; m <= vEnd; m += 60) hourMarks.push(m);
 
   return (
-    <div className="overflow-hidden rounded-ui-lg border border-line bg-surface">
-      <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3.5 py-2.5">
+    <div className="rounded-ui-lg border border-line bg-surface">
+      <div className="sticky top-0 z-40 flex items-center gap-2 rounded-t-ui-lg border-b border-line bg-surface-2 px-3.5 py-2.5">
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           Rejilla del día
         </span>
-        <span className="text-[10.5px] text-ink-dim">arrastra para mover · tira del borde para durar</span>
+        <span className="hidden text-[10.5px] text-ink-dim sm:inline">
+          arrastra para mover · tira del borde para durar
+        </span>
         <button
           type="button"
-          onClick={() => setShowNight((v) => !v)}
+          onClick={() => setShowFull((v) => !v)}
           className="focus-ring ml-auto rounded-ui border border-line px-2 py-1 text-[10.5px] text-ink-muted transition-colors duration-120 hover:border-line-strong hover:text-ink"
         >
-          {showNight ? "Ocultar noche" : "24 h"}
+          {showFull ? "Ajustar al contenido" : "Ver 24 h"}
         </button>
       </div>
 
       <div
-        ref={scrollRef}
-        className={`relative overflow-y-auto ${drag.current ? "select-none" : ""}`}
-        style={{ maxHeight: "68vh" }}
+        className={`relative ${drag.current ? "select-none" : ""}`}
+        style={{ height: bodyH + 16, touchAction: "pan-y" }}
       >
-        <div className="relative" style={{ height: bodyH + 16, touchAction: "pan-y" }}>
-          {/* Regla de horas */}
-          {hourMarks.map((m) => (
-            <div key={`h-${m}`}>
+        {/* Regla de horas */}
+        {hourMarks.map((m) => (
+          <div key={`h-${m}`}>
+            <div
+              className="absolute text-right text-[10.5px] tabular-nums leading-none text-ink-muted"
+              style={{ top: (m - vStart) * PX_PER_MIN - 4, left: 0, width: GUTTER - 8 }}
+            >
+              {fmt(m)}
+            </div>
+            <div
+              className="absolute border-t border-line"
+              style={{ top: (m - vStart) * PX_PER_MIN, left: GUTTER, right: 8 }}
+            />
+            {m + 30 <= vEnd && (
               <div
-                className="absolute text-right text-[10.5px] tabular-nums leading-none text-ink-muted"
-                style={{ top: (m - vStart) * PX_PER_MIN - 4, left: 0, width: GUTTER - 8 }}
-              >
-                {fmt(m)}
-              </div>
-              <div
-                className="absolute border-t border-line"
-                style={{ top: (m - vStart) * PX_PER_MIN, left: GUTTER, right: 8 }}
+                className="absolute border-t border-dotted"
+                style={{
+                  top: (m + 30 - vStart) * PX_PER_MIN,
+                  left: GUTTER,
+                  right: 8,
+                  borderColor: "#1C1C21",
+                }}
               />
-              {m + 30 <= vEnd && (
+            )}
+          </div>
+        ))}
+
+        {/* Línea de "ahora" */}
+        {isToday && nowMinutes >= vStart && nowMinutes <= vEnd && (
+          <div
+            className="pointer-events-none absolute z-30"
+            style={{ top: (nowMinutes - vStart) * PX_PER_MIN, left: GUTTER - 4, right: 8 }}
+          >
+            <div className="border-t border-accent-warm" />
+            <span className="absolute -top-2 -left-1 rounded-[3px] bg-accent-warm px-1 text-[9px] font-semibold text-canvas">
+              {fmt(nowMinutes)}
+            </span>
+          </div>
+        )}
+
+        {display.length === 0 && (
+          <div
+            className="absolute inset-x-0 text-center text-xs text-ink-muted"
+            style={{ top: bodyH / 2 - 8 }}
+          >
+            Nada agendado este día.
+          </div>
+        )}
+
+        {/* Eventos */}
+        <div className="absolute" style={{ left: GUTTER, right: 8, top: 0, bottom: 0 }}>
+          {display.map((ev) => {
+            const li = lanes.get(ev.key) ?? { lane: 0, lanes: 1 };
+            const top = (ev.start - vStart) * PX_PER_MIN;
+            const h = Math.max(15, ev.duration * PX_PER_MIN - 2);
+            const selected = sel === ev.key;
+            const compact = h < 40;
+            const a = ev.accent;
+            return (
+              <div
+                key={ev.key}
+                onPointerDown={(e) => onPointerDown(e, ev, "move")}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onClick={(e) => onCardClick(e, ev.key)}
+                style={{
+                  position: "absolute",
+                  top,
+                  height: selected ? "auto" : h,
+                  minHeight: h,
+                  left: `${(li.lane / li.lanes) * 100}%`,
+                  width: `calc(${100 / li.lanes}% - 3px)`,
+                  borderColor: selected ? a : `${a}44`,
+                  background: `${a}14`,
+                  borderLeftColor: a,
+                  borderStyle: ev.autoTime ? "dashed" : "solid",
+                  zIndex: selected ? 25 : 10,
+                  cursor: "grab",
+                  touchAction: "none",
+                }}
+                className={`group overflow-hidden rounded-ui border border-l-[3px] px-2 py-1 ${
+                  ev.done ? "opacity-45" : ""
+                } ${isPending ? "opacity-70" : ""}`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="shrink-0 text-[11px]">{ev.icon}</span>
+                  <span
+                    className={`min-w-0 flex-1 truncate text-[12px] ${
+                      ev.done ? "text-ink-dim line-through" : "text-ink"
+                    }`}
+                  >
+                    {ev.title}
+                  </span>
+                  <span
+                    className="shrink-0 rounded-full px-1.5 text-[9px]"
+                    style={{ background: `${a}22`, color: a }}
+                  >
+                    {ev.badge}
+                  </span>
+                </div>
+                {!compact && (
+                  <div className="mt-0.5 text-[10px] tabular-nums text-ink-muted">
+                    {fmt(ev.start)} – {fmt(ev.start + ev.duration)} · {ev.duration} min
+                  </div>
+                )}
+
+                {selected && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1 border-t border-line pt-1.5">
+                    <span className="text-[9.5px] tabular-nums text-ink-dim">
+                      {fmt(ev.start)}–{fmt(ev.start + ev.duration)}
+                    </span>
+                    <button type="button" onClick={() => nudge(ev, -30, 0)} className={btn}>
+                      −30
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, -10, 0)} className={btn}>
+                      −10
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, 10, 0)} className={btn}>
+                      +10
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, 30, 0)} className={btn}>
+                      +30
+                    </button>
+                    <span className="ml-1 text-[9.5px] text-ink-dim">dur</span>
+                    <button type="button" onClick={() => nudge(ev, 0, -10)} className={btn}>
+                      −
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, 0, 10)} className={btn}>
+                      +
+                    </button>
+                    {ev.editHref && (
+                      <a href={ev.editHref} className={`${btn} no-underline`}>
+                        Editar
+                      </a>
+                    )}
+                    {ev.kind === "habit" ? (
+                      <a href="/dashboard/habitos" className={`${btn} no-underline`}>
+                        Hábito
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => remove(ev)}
+                        className="rounded border border-line px-1.5 text-[10px] text-ink-dim hover:border-danger/50 hover:text-danger"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div
-                  className="absolute border-t border-dotted"
-                  style={{
-                    top: (m + 30 - vStart) * PX_PER_MIN,
-                    left: GUTTER,
-                    right: 8,
-                    borderColor: "#1C1C21",
-                  }}
-                />
-              )}
-            </div>
-          ))}
-
-          {/* Línea de "ahora" */}
-          {isToday && nowMinutes >= vStart && nowMinutes <= vEnd && (
-            <div
-              className="pointer-events-none absolute z-30"
-              style={{ top: (nowMinutes - vStart) * PX_PER_MIN, left: GUTTER - 4, right: 8 }}
-            >
-              <div className="border-t border-accent-warm" />
-              <span className="absolute -top-2 -left-1 rounded-[3px] bg-accent-warm px-1 text-[9px] font-semibold text-canvas">
-                {fmt(nowMinutes)}
-              </span>
-            </div>
-          )}
-
-          {display.length === 0 && (
-            <div
-              className="absolute inset-x-0 text-center text-xs text-ink-muted"
-              style={{ top: bodyH / 2 - 8 }}
-            >
-              Nada agendado este día.
-            </div>
-          )}
-
-          {/* Eventos */}
-          <div className="absolute" style={{ left: GUTTER, right: 8, top: 0, bottom: 0 }}>
-            {display.map((ev) => {
-              const li = lanes.get(ev.key) ?? { lane: 0, lanes: 1 };
-              const top = (ev.start - vStart) * PX_PER_MIN;
-              const h = Math.max(15, ev.duration * PX_PER_MIN - 2);
-              const selected = sel === ev.key;
-              const compact = h < 40;
-              const a = ev.accent;
-              return (
-                <div
-                  key={ev.key}
-                  onPointerDown={(e) => onPointerDown(e, ev, "move")}
+                  onPointerDown={(e) => onPointerDown(e, ev, "resize")}
                   onPointerMove={onPointerMove}
                   onPointerUp={onPointerUp}
-                  onClick={(e) => onCardClick(e, ev.key)}
-                  style={{
-                    position: "absolute",
-                    top,
-                    height: selected ? "auto" : h,
-                    minHeight: h,
-                    left: `${(li.lane / li.lanes) * 100}%`,
-                    width: `calc(${100 / li.lanes}% - 3px)`,
-                    borderColor: selected ? a : `${a}44`,
-                    background: `${a}14`,
-                    borderLeftColor: a,
-                    borderStyle: ev.autoTime ? "dashed" : "solid",
-                    zIndex: selected ? 25 : 10,
-                    cursor: "grab",
-                    touchAction: "none",
-                  }}
-                  className={`group overflow-hidden rounded-ui border border-l-[3px] px-2 py-1 ${
-                    ev.done ? "opacity-45" : ""
-                  } ${isPending ? "opacity-70" : ""}`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span className="shrink-0 text-[11px]">{ev.icon}</span>
-                    <span
-                      className={`min-w-0 flex-1 truncate text-[12px] ${
-                        ev.done ? "text-ink-dim line-through" : "text-ink"
-                      }`}
-                    >
-                      {ev.title}
-                    </span>
-                    <span
-                      className="shrink-0 rounded-full px-1.5 text-[9px]"
-                      style={{ background: `${a}22`, color: a }}
-                    >
-                      {ev.badge}
-                    </span>
-                  </div>
-                  {!compact && (
-                    <div className="mt-0.5 text-[10px] tabular-nums text-ink-muted">
-                      {fmt(ev.start)} – {fmt(ev.start + ev.duration)} · {ev.duration} min
-                    </div>
-                  )}
-
-                  {selected && (
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1 border-t border-line pt-1.5">
-                      <span className="text-[9.5px] tabular-nums text-ink-dim">
-                        {fmt(ev.start)}–{fmt(ev.start + ev.duration)}
-                      </span>
-                      <button type="button" onClick={() => nudge(ev, -30, 0)} className={btn}>
-                        −30
-                      </button>
-                      <button type="button" onClick={() => nudge(ev, -10, 0)} className={btn}>
-                        −10
-                      </button>
-                      <button type="button" onClick={() => nudge(ev, 10, 0)} className={btn}>
-                        +10
-                      </button>
-                      <button type="button" onClick={() => nudge(ev, 30, 0)} className={btn}>
-                        +30
-                      </button>
-                      <span className="ml-1 text-[9.5px] text-ink-dim">dur</span>
-                      <button type="button" onClick={() => nudge(ev, 0, -10)} className={btn}>
-                        −
-                      </button>
-                      <button type="button" onClick={() => nudge(ev, 0, 10)} className={btn}>
-                        +
-                      </button>
-                      {ev.editHref && (
-                        <a href={ev.editHref} className={`${btn} no-underline`}>
-                          Editar
-                        </a>
-                      )}
-                      {ev.kind === "habit" ? (
-                        <a href="/dashboard/habitos" className={`${btn} no-underline`}>
-                          Hábito
-                        </a>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => remove(ev)}
-                          className="rounded border border-line px-1.5 text-[10px] text-ink-dim hover:border-danger/50 hover:text-danger"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  <div
-                    onPointerDown={(e) => onPointerDown(e, ev, "resize")}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
-                    style={{ touchAction: "none" }}
-                  />
-                </div>
-              );
-            })}
-          </div>
+                  className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
+                  style={{ touchAction: "none" }}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
