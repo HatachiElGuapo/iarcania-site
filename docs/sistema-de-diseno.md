@@ -68,6 +68,7 @@ Todos son claves de color de Tailwind: se usan como `bg-<token>`,
 |---|---|---|
 | `accent` | `#8B5CF6` | **acción primaria** (botón, foco, subrayado de pestaña activa) y item activo del sidebar. Un solo acento primario por pantalla. |
 | `accent-soft` | `rgba(139,92,246,.12)` | fondo hover de acción primaria |
+| `accent-text` | `#C4B5FD` | violeta más claro, para **texto pequeño** que necesita leerse sobre oscuro (chip tono `accent`, estado "enviando" del Form) |
 | `accent-warm` | `#E8A33D` | **uso restringido**: nav activo (texto+borde dorados), marcador de «ahora» en rejillas, borde izquierdo de bloque de hábito, y color de la categoría `infra`/`habitos`. **Nunca** en botones ni texto de cuerpo. |
 | `success` | `#4ADE80` | completado, racha viva |
 | `danger` | `#F87171` | vencido, eliminar. El botón peligroso **nunca es sólido**: borde + fondo al 10%. |
@@ -91,17 +92,31 @@ Prohibido: fondo de fila completa, texto de cuerpo, color de botón. **El
 color de categoría informa, no jerarquiza**: si compite con el violeta de
 acción, gana el violeta.
 
-### Radio, transiciones, foco
+### Radio, transiciones, foco, hover
 
 - Radio: `rounded-ui-sm` (5px, inputs chicos), `rounded-ui` (6px, botones/
   inputs/chips), `rounded-ui-lg` (10px, cards y paneles), `rounded-full`
   (píldoras). *(En PASO 5 estos `ui-*` se renombran a `sm/md/lg`.)*
 - Transición: **solo `colors` y `opacity`, 120 ms** (`transition-colors
   duration-120`). Nada de `transform`, nada de `translateY` en hover — es una
-  herramienta de uso diario, no una landing.
-- Foco: clase `.focus-ring` (`outline-none focus-visible:ring-2
-  focus-visible:ring-accent/[0.22]`). Sin el outline azul del navegador.
+  herramienta de uso diario, no una landing. Todo elemento interactivo lleva
+  `transition-colors duration-120`.
+- **Foco visible en TODO elemento interactivo** (no solo inputs): clase
+  `.focus-ring` (`focus-visible:ring-2 ring-accent/[0.22]`, sin outline azul).
+  Para elementos enfocables dentro de un contenedor `overflow-hidden` (filas
+  de `Table`, segmentos, paginación) usa `.focus-ring-inset` — el anillo va
+  hacia adentro para no recortarse.
+- **Hover**: cambio de fondo a `surface-2` **solo si el elemento entero es
+  clickeable** (una fila-enlace, un botón). Un hover que aclara el fondo sin
+  que un clic haga nada promete interacción que no existe — en tablas de puro
+  dato es ruido. Para marcar la fila que se está editando existe la prop
+  `highlighted` de `TableRow` (estado real, fondo fijo).
 - Sombras: **no hay**. La elevación es el borde y el cambio de superficie.
+- **Cifras**: toda columna de números, fechas, duraciones y contadores lleva
+  `tabular-nums` (alineación) y suele ir `text-right`.
+- **Texto largo de usuario**: siempre `truncate` + `title={textoCrudo}`
+  (tooltip nativo, cero JS). Nunca dejar un título cortado sin forma de
+  verlo completo.
 
 ### Tipografía
 
@@ -109,13 +124,17 @@ acción, gana el violeta.
   Outfit (300/400/500/600). Cargadas en `app/layout.tsx` vía `next/font`.
 - Escala del sistema:
 
+Escala **+1 de 5f** aplicada: cuerpo y metadatos suben un punto (`text-body`
+13.5, `text-meta` 11.5, tokens de `fontSize`). Labels, micro-badges y títulos
+se dejan como están.
+
 | Rol | Spec |
 |---|---|
 | Título de página | Playfair 21px / 700 (`font-display text-[21px] font-bold`) |
-| Número destacado (stat) | Playfair ~22px / 700, color por tono |
+| Número destacado (stat) | Playfair ~22px / 700 `tabular-nums`, color por tono |
 | Label de sección | Outfit 10.5px / 600, `tracking-[.12em]`, `uppercase`, `ink-muted` |
-| Cuerpo (fila, item) | Outfit 12.5px / 400, `ink` |
-| Metadato | Outfit 11px / 400, `ink-dim` |
+| Cuerpo (fila, item, input) | `text-body` = Outfit 13.5px / 400, `ink` |
+| Metadato (fecha, contador) | `text-meta` = Outfit 11.5px / 400, `ink-dim` |
 | Micro (badge) | Outfit 10px / 600, `uppercase` |
 
 ---
@@ -149,14 +168,16 @@ piezas con estado cliente se importan de su archivo:
 | **SubNav** | `sub-nav.tsx` | client | Pestañas = rutas hijas reales, derivadas de `NAV_GROUPS`. Devuelve `null` si la sección no tiene hijos. Se monta en el slot `tabs` del PageHeader o en el layout de la sección. Opcional `counts`. |
 | **Button** | `button.tsx` | server | `variant`: `primary` (accent plano), `secondary` (borde `line`), `ghost`, `danger` (borde+fondo 10%, nunca sólido). `size`: `sm`\|`md`. `href` lo hace `<a>`. Reemplaza `bg-gradient-cta`. |
 | **Card** | `card.tsx` | server | `title` (se pinta en mayúsculas), `count` (badge), `action` (JSX a la derecha), `footer`, `flush` (quita el padding del cuerpo, para tablas/listas). Sin sombra. |
-| **Table** (`Table`, `TableHead`, `TableRow`) | `table.tsx` | server | Filas de 33–38px, borde izquierdo de 2px con el color de categoría (`category` o `accentColor` para override, p. ej. rojo de vencidas). Acciones **siempre visibles**, no en hover. El mismo string `cols` (grid-template-columns) va a `TableHead` y a cada `TableRow`. |
+| **Table** (`Table`, `TableHead`, `TableRow`) | `table.tsx` | server | Filas de 33–38px, borde izquierdo de 2px (`category` o `accentColor` para override). Acciones **siempre visibles**. Prop `highlighted` = fila marcada de forma persistente (la que se edita via `?edit=id`). La variante `href` (fila-enlace) tiene hover a `surface-2` y `.focus-ring-inset`; la variante sin `href` NO tiene hover. El mismo string `cols` (grid-template-columns) va a `TableHead` y a cada `TableRow`. |
 | **ItemList** (`ItemList`, `ItemRow`) | `item-list.tsx` | server | Alternativa a la tabla cuando la fila necesita dos líneas. `ItemRow`: `href` (toda la fila es enlace), `category` (borde izq. 3px), `leading` (el checkbox va aquí como `<form>` aparte), `title`, `meta`, `trailing`. |
 | **Chip** / **Badge** / **CategoryDot** / **CategoryTag** | `chip.tsx` | server | `Chip`: píldora neutra con `tone`. `Badge`: estado, micro mayúsculas, `tone` (`danger`\|`warm`\|`success`\|`neutral`\|`accent`\|`info`). `CategoryDot`/`CategoryTag`: color desde `cats.ts` vía estilo inline. |
 | **Input** / **Select** / **Textarea** / **Labeled** | `inputs.tsx` | server | Controles con estilo del sistema (fondo `canvas`, borde `line`, radio 6px, `.focus-ring`). Sin `w-full` en la base (para que sirvan inline). `Labeled` = etiqueta en mayúsculas + control apilados, el reemplazo del `<Field>` viejo para `<form action={serverAction}>` planos; el ancho del control lo pone quien llama. |
 | **Segmented** / **Stepper** | `segmented.tsx` | server | `Segmented`: control de segmentos como enlaces (`options[{label,href,active}]`); el activo va sobre `surface-2`. `Stepper`: `‹ label ›` con `prevHref`/`nextHref` (flecha inerte si falta) y `current` para pintar el label en `accent-warm`. |
-| **Progress** / **MetricCard** | `progress.tsx` | server | `Progress`: label + barra + valor, `tone`. `MetricCard`: número Playfair + label mayúsculas + barra opcional, `tone` (`primary`\|`accent`\|`warm`\|`success`\|`danger`). |
-| **EmptyState** / **Skeleton** | `states.tsx` | server | `EmptyState`: **frase en prosa, segunda persona, + una acción**. Nunca «No hay datos». `Skeleton`: barras `animate-pulse`, para `<Suspense>` por card. |
-| **Pagination** | `pagination.tsx` | server | 5d — «N–M de T» + números de página. `page`/`pageSize`/`total` + `hrefFor(p)` que conserva el resto de filtros. Devuelve `null` si hay una sola página. (Añadida en Fase 02.) |
+| **Progress** / **MetricCard** | `progress.tsx` | server | `Progress`: label + barra + valor (`tabular-nums`), `tone`. `MetricCard`: número Playfair `tabular-nums` + label mayúsculas + barra opcional + prop `hint` (línea en minúsculas bajo la barra, para frases largas tipo "meta 2000 kcal" que no caben en el label), `tone` (`primary`\|`accent`\|`warm`\|`success`\|`danger`). |
+| **Section** | `section.tsx` | server | Bloque de sección dentro de una página: label en mayúsculas + slot de acción + contenido. Reemplaza el `<h2>` suelto repetido. **Ritmo vertical**: raíz de página `flex flex-col gap-8` (32px entre secciones), dentro de `Section` `gap-4` (16px). |
+| **EmptyState** / **Skeleton** | `states.tsx` | server | `EmptyState` = **sección vacía de verdad** (primera vez). Frase en prosa, segunda persona, que dice **qué va aquí y por qué está vacío**, + una acción. Nunca «No hay datos». `Skeleton`: barras `animate-pulse`, para `<Suspense>` por card. |
+| **NoResults** | `no-results.tsx` | server | 5d — **el filtro/búsqueda no devolvió nada, pero SÍ hay datos**. `query` + `context` (frase del filtro activo) + `clearHref` (+ `scopeHref` opcional para "Buscar en todo"). Distinto de `EmptyState`: no invita a crear, invita a deshacer el filtro. |
+| **Pagination** | `pagination.tsx` | server | 5d — «N–M de T» + números de página (`tabular-nums`). `page`/`pageSize`/`total` + `hrefFor(p)` que conserva el resto de filtros. Devuelve `null` si hay una sola página. (Añadida en Fase 02.) |
 | **QuickCapture** | `quick-capture.tsx` | server | Barra pegada al borde inferior del contenido. Un `<form action={serverAction}>` plano: `name` (campo obligatorio), `placeholder`, `hidden` (campos ocultos), `extras` (selects con default), `submitLabel`. La validación real vive en la Server Action. |
 | **Form** (`Form`, `FormField`, `FormActions`, `FormBanner`, `useFormCtx`) | `form.tsx` | **client** | Formulario con los 4 estados de 5b (vacío / enviando / error de campo / exitoso). React 18.3 no tiene `useActionState`/`useFormStatus`, así que el estado va **a mano** con `useState` + `useTransition` (igual que `ToggleRow`). La Server Action devuelve `FormResult` (`form-result.ts`: `formOk()` / `formErrors({campo: msg}, msgGeneral?)`). `FormField` clona su hijo (un control) para inyectarle `name`, `aria-invalid` y borde rojo en error. El valor escrito **nunca** se borra en error. |
 | **Modal** | `modal.tsx` | **client** | Shell para route-intercepting modal (`@modal/(.)…`). Cierra con Esc, clic en backdrop o ✕ → `router.back()` (o `onCloseHref`). Mismo `<Form>` adentro, sin variantes. |
