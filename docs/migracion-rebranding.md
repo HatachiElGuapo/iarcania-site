@@ -150,12 +150,12 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Hogar | `/dashboard/hogar` | 1 Lista | ✅ migrada | Fase 02. Sin búsqueda (lista corta) |
 | Recursos | `/dashboard/recursos` | 1 Lista + listas largas | ✅ migrada | Fase 02. `?q=&tipo=&page=`, alta/edición `?nuevo=1`/`?edit=id` |
 | Libros | `/dashboard/libros` | 1 Lista | ✅ migrada | Fase 02. Pestañas del libro con `Segmented` |
-| Hábitos | `/dashboard/habitos` (+ `gestion`, `rachas`) | 3 Métricas + pestañas | ⏳ Fase 03 | `SubNav` ya montado en layout viejo |
-| Cuerpo | `/dashboard/cuerpo` (+ `nutricion`) | 3 Métricas | ⏳ Fase 03 | `SubNav` ya montado. Nutrición es pestaña |
-| Dinero | `/dashboard/dinero/*` | 3 Métricas + 6 pestañas | ⏳ Fase 03 | ⚠️ datos reales. `SubNav` ya montado |
-| Citas | `/dashboard/citas` | 2 Temporal | ⏳ Fase 03 | ⚠️ offset `-05:00` al parsear `datetime-local` |
-| Eventos | `/dashboard/eventos` | 2 Temporal | ⏳ Fase 03 | vista de mes |
-| Reloj | `/dashboard/reloj` | 2 Temporal | ⏳ Fase 03 | 100% cliente, alarmas en `localStorage` |
+| Hábitos | `/dashboard/habitos` (+ `gestion`, `rachas`) | 3 Métricas + pestañas | ✅ migrada | Fase 03. Layout con `PageHeader` + `SubNav`. Gestión con `?edit=id` |
+| Cuerpo | `/dashboard/cuerpo` (+ `nutricion`) | 3 Métricas | ✅ migrada | Fase 03. Layout con `PageHeader` + `SubNav`. Nutrición con `MetricCard` |
+| Dinero | `/dashboard/dinero/*` | 3 Métricas + 6 pestañas | ⏳ **turno propio** | ⚠️ datos financieros reales, 6 sub-rutas, Cobros. Se avisa antes de tocar cualquier ruta de escritura |
+| Citas | `/dashboard/citas` | 2 Temporal | ✅ migrada | Fase 03. `actions.ts` (offset `-05:00`) sin tocar |
+| Eventos | `/dashboard/eventos` | 2 Temporal | ✅ migrada | Fase 03 |
+| Reloj | `/dashboard/reloj` | 2 Temporal | ✅ migrada | Fase 03. 100% cliente, alarmas en `localStorage` |
 | Trabajo | `/dashboard/trabajo` (+ `tareas`) | 4 Tablero | ⏳ Fase 04 | `SubNav` ya montado. Reutiliza acciones de Actividades |
 | Planner | `/dashboard/planner` | 4 Tablero | ⏳ Fase 04 | columnas = semanas. Reutiliza acciones de Guiones |
 | CRM | `/dashboard/crm` | 4 Tablero + pestañas | ⏳ Fase 04 | Presupuesto + Deudas como pestañas |
@@ -166,10 +166,11 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Brújula | `/dashboard/brujula` | 6 Panel | ⏳ Fase 05 | árbol con `<details>` nativo |
 | Workspace | `/dashboard/workspace` | 6 Panel | ⏳ Fase 05 | 100% estático, lista de links |
 
-**Sub-layouts en estado transicional**: `dinero/layout.tsx`,
-`habitos/layout.tsx`, `trabajo/layout.tsx` y `cuerpo/layout.tsx` ya montan
-`<SubNav>` (sistema nuevo) pero su shell (`<h1>`, `p-8`, `text-text-primary`)
-sigue en tokens viejos. Se terminan de migrar con su sección.
+**Sub-layouts en estado transicional**: `habitos/layout.tsx` y
+`cuerpo/layout.tsx` ya están migrados (Fase 03). Quedan `dinero/layout.tsx`
+y `trabajo/layout.tsx`: montan `<SubNav>` (sistema nuevo) pero su shell
+(`<h1>`, `p-8`, `text-text-primary`) sigue en tokens viejos; se terminan de
+migrar con su sección.
 
 ### Orden de fases (`4j`)
 
@@ -177,8 +178,8 @@ sigue en tokens viejos. Se terminan de migrar con su sección.
 |---|---|---|
 | 01 · Extraer el sistema | Rutinas, Actividades, Agenda + shell + librería | ✅ hecha |
 | 02 · Arquetipo 1 en volumen | Ideas, Personas, Hogar, Recursos, Libros | ✅ hecha |
-| 03 · Los que ya tienen datos | Hábitos, Dinero, Cuerpo (arq. 3) · Citas, Eventos, Reloj (arq. 2) | ⏳ siguiente |
-| 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | pendiente |
+| 03 · Los que ya tienen datos | Hábitos, Cuerpo (arq. 3) · Citas, Eventos, Reloj (arq. 2) | ✅ hecha — **falta Dinero** (turno propio) |
+| 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | ⏳ siguiente |
 | 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | pendiente |
 
 ---
