@@ -232,8 +232,11 @@ commit irreversible, se revisa antes.
   del sistema nuevo depende de ella (los títulos ponen `font-display`
   explícito), pero tampoco molesta y quitarla es riesgo sin ganancia.
 
-**`app/layout.tsx`**: quitar el peso `"400"` de Playfair Display (`weight:
-["600", "700"]`) — ninguna pieza nueva usa Playfair 400.
+**`app/layout.tsx`**: Playfair Display `weight: ["400", "600", "700"]` →
+`["400", "700"]`. El **400** se queda: lo usan el reloj/timer/contador de
+Reloj y la inicial del avatar en Clientes (`<div class="font-display">` sin
+`font-bold`). El **600** no lo usa nada (los títulos y stats van a 700 vía
+la regla base `h1..h4` y `font-bold` explícito).
 
 **Archivos muertos** — ya borrados en el commit previo a PASO 5 (0
 importadores):
