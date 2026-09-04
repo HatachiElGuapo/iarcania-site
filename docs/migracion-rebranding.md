@@ -15,9 +15,10 @@ documento de diseño "Sistema IArcanIA" (canvas `#0F0F11`, texto frío,
 violeta de acción, ámbar de nav, librería de componentes en
 `components/ui/`).
 
-La migración es **sección por sección, con la app funcionando en todo
-momento**. Los dos sistemas conviven en el repo hasta que no quede ninguna
-sección en el viejo; entonces se borra el viejo de una (PASO 5).
+La migración fue **sección por sección, con la app funcionando en todo
+momento** (fases 01–05, agosto–septiembre de 2026). Los dos sistemas
+convivieron en el repo hasta el PASO 5, que borró el viejo de una vez.
+Este documento se conserva como registro de qué se decidió y por qué.
 
 ### La fuente de verdad visual
 
@@ -41,21 +42,21 @@ se ignoran.
 ## Decisiones tomadas (y por qué)
 
 ### Nombres de token propios, no prefijo temporal
-Los tokens nuevos (`canvas`, `surface`, `line`, `ink`, `accent`…) tienen
-nombres definitivos que **no chocan** con los viejos (`bg-bg-*`,
-`text-text-*`, `border-border`). Alternativa descartada: prefijar los nuevos
-con `v2-` y renombrar en PASO 5. Con nombres propios, PASO 5 es solo
-*borrar* los viejos, sin renombrar nada nuevo. Los radios sí van
-namespaced (`rounded-ui*`) porque `rounded-{sm,md,lg}` sí colisiona; esos se
-renombran en PASO 5.
+Los tokens nuevos (`canvas`, `surface`, `line`, `ink`, `accent`…) se
+eligieron con nombres definitivos que **no chocan** con los viejos
+(`bg-bg-*`, `text-text-*`, `border-border`). Alternativa descartada:
+prefijar los nuevos con `v2-` y renombrar al final. Con nombres propios, el
+PASO 5 fue solo *borrar* los viejos. Los radios sí fueron namespaced
+(`rounded-ui*`) porque `rounded-{sm,md,lg}` sí colisionaba; al llegar el
+PASO 5 se decidió **dejarlos** así (136 usos, cero beneficio en renombrar).
 
-### El texto por defecto del `<body>` NO se migró todavía
-`app/globals.css` → `body` tiene el fondo migrado (`bg-canvas`) pero el
-color de texto sigue en el token viejo (`text-text-primary`, cream
-`#E8E0D0`). Motivo: las 20 secciones sin migrar heredan de ahí y asumen ese
-tono. El fondo sí se pudo mover porque `#080808 → #0F0F11` es un delta
-imperceptible y ninguna sección vieja pinta su propio fondo de página. El
-texto se migra en PASO 5.
+### El texto por defecto del `<body>` se migró en el PASO 5
+Durante la migración `app/globals.css` → `body` tenía el fondo ya nuevo
+(`bg-canvas`) pero el color de texto en el token viejo (`text-text-primary`,
+cream `#E8E0D0`), porque las secciones sin migrar heredaban de ahí. El
+fondo sí se pudo mover antes porque `#080808 → #0F0F11` es imperceptible y
+ninguna sección pintaba su propio fondo de página. En el PASO 5 pasó a
+`text-ink`.
 
 ### El shell se migró de una, no sección por sección
 El sidebar, el fondo y el item activo dorado son **marco**, no una sección.
@@ -195,57 +196,37 @@ y `trabajo/` (Fase 04) usan `PageHeader` + `SubNav` del sistema nuevo.
 | 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | ✅ hecha |
 | 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | ✅ hecha |
 
-**Las 23 secciones están migradas.** Falta el PASO 5 (limpieza del sistema
-viejo), que es el commit irreversible y se hace aparte, con revisión previa.
+**Las 23 secciones están migradas.** El PASO 5 (borrar el sistema viejo)
+también está hecho — detalle abajo.
 
 ---
 
-## PASO 5 — limpieza final
+## PASO 5 — limpieza final ✅ hecha
 
-**Estado**: las 23 secciones + las 3 piezas vivas de fuera (`login`,
-`marketing`, `optimistic-toggle-row`) están migradas. Los 3 archivos
-muertos (`os.css`, `components/app/page-header.tsx`,
-`components/ui/field.tsx`) ya se borraron (0 importadores, verificado).
-`grep` en todo `app/` + `components/` no encuentra ningún uso de token
-viejo. Queda solo el borrado de los tokens del config/CSS de abajo — es el
-commit irreversible, se revisa antes.
+El rebranding cerró con dos commits:
 
-**`tailwind.config.ts`** — borrar el bloque "SISTEMA VIEJO" de cada key:
-- `colors`: `bg.*`, `purple.*`, `gold.*`, `text.*`, `border.*` (el bloque
-  "SISTEMA NUEVO" de `colors` se queda entero)
-- `borderRadius`: borrar `sm`/`md`/`lg` (8/12/16px). **NO se renombra**
-  `ui-sm`/`ui`/`ui-lg` → serían 136 reemplazos en 48 archivos por cero
-  beneficio funcional, y `rounded-ui*` ya es el nombre propio del sistema
-  nuevo. Decidido: se quedan como están.
-- `backgroundImage`: borrar la key entera (`gradient-cta`, `gradient-text`
-  — 0 usos)
-- `boxShadow`: borrar la key entera (`glow-purple`, `glow-purple-hover` —
-  0 usos, ya eran `none`)
+1. **Borrar los archivos muertos** (0 importadores, verificado con `grep`):
+   `os.css` (raíz), `components/app/page-header.tsx` (→
+   `components/ui/page-header.tsx`), `components/ui/field.tsx` (→ `Labeled`
+   / `FormField`). El único detalle de diseño de `os.css` no recogido en
+   otro lado —el editor "branded" de Guiones— quedó anotado arriba antes de
+   borrarlo.
 
-**`app/globals.css`**:
-- `@layer components`: borrar `.input`, `.card-glow`, `.btn-primary`,
-  `.btn-secondary`, `.stat-num` (0 usos, verificado). Se quedan
-  `.focus-ring` y `.focus-ring-inset`.
-- `@layer base` → `body`: `@apply bg-canvas text-text-primary` →
-  `@apply bg-canvas text-ink`
-- `h1..h4 { @apply font-display font-bold }`: se queda. Ningún `<h1>`–`<h4>`
-  del sistema nuevo depende de ella (los títulos ponen `font-display`
-  explícito), pero tampoco molesta y quitarla es riesgo sin ganancia.
+2. **Borrar los tokens viejos del config/CSS**:
+   - `tailwind.config.ts` → fuera `colors.{bg,purple,gold,text,border}`,
+     `borderRadius.{sm,md,lg}` (8/12/16px), y las keys `backgroundImage` y
+     `boxShadow` enteras. Los `rounded-ui*` **no** se renombraron a
+     `sm/md/lg` (136 usos en 48 archivos, cero beneficio; `ui-*` es el
+     nombre propio).
+   - `app/globals.css` → `@layer components` queda solo con `.focus-ring` /
+     `.focus-ring-inset` (fuera `.input`, `.card-glow`, `.btn-primary`,
+     `.btn-secondary`, `.stat-num`). `body` pasa a `@apply bg-canvas
+     text-ink`. La regla `h1..h4 { font-display font-bold }` se conserva.
+   - `app/layout.tsx` → Playfair Display `weight: ["400", "700"]` (el 600
+     no lo usaba nada; el 400 lo usan el reloj/timer/contador de Reloj y la
+     inicial del avatar en Clientes).
 
-**`app/layout.tsx`**: Playfair Display `weight: ["400", "600", "700"]` →
-`["400", "700"]`. El **400** se queda: lo usan el reloj/timer/contador de
-Reloj y la inicial del avatar en Clientes (`<div class="font-display">` sin
-`font-bold`). El **600** no lo usa nada (los títulos y stats van a 700 vía
-la regla base `h1..h4` y `font-bold` explícito).
-
-**Archivos muertos** — ya borrados en el commit previo a PASO 5 (0
-importadores):
-- `os.css` (raíz) — su única intención de diseño no documentada (el editor
-  branded de Guiones) quedó registrada arriba antes de borrarlo
-- `components/app/page-header.tsx` — reemplazado por `components/ui/page-header.tsx`
-- `components/ui/field.tsx` — reemplazado por `Labeled` / `FormField`
-
-**Verificación final tras aplicar**: `grep -rE "bg-bg-|text-text-|border-border|purple-(mid|light|deep)|text-gold|bg-gold|border-gold|rounded-(sm|md|lg)\b|gradient-(cta|text)|glow-purple|card-glow|btn-primary|btn-secondary|stat-num" app/ components/` debe dar 0, y `tsc` + `next build` limpios.
+**Verificación tras aplicar**: `grep -rE "bg-bg-|text-text-|border-border|purple-(mid|light|deep)|text-gold|bg-gold|border-gold|rounded-(sm|md|lg)\b|gradient-(cta|text)|glow-purple|card-glow|btn-primary|btn-secondary|stat-num" app/ components/` → 0, con `tsc` + `next build` limpios.
 
 ---
 

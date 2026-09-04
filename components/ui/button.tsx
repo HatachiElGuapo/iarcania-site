@@ -1,9 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cx } from "./cx";
 
-// 4b · botón del sistema nuevo. Primario = accent PLANO (reemplaza el viejo
-// bg-gradient-cta/shadow-glow-purple). El peligroso nunca es sólido: borde y
-// fondo al 10% (5b). Transición solo de color/opacidad, 120 ms (4a).
+// 4b · botón del sistema. Primario = accent PLANO, sin gradiente ni sombra.
+// El peligroso nunca es sólido: borde y fondo al 10% (5b). Transición solo
+// de color/opacidad, 120 ms (4a).
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 

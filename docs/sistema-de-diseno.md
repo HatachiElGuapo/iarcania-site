@@ -5,43 +5,37 @@ contexto, lee esto antes de tocar una pantalla.
 
 ---
 
-## 1. Hay dos sistemas visuales conviviendo
+## 1. Un solo sistema visual
 
-El dashboard está a mitad de un **rebranding**. Cada token, clase helper y
-componente pertenece a uno de dos sistemas:
+Todo el dashboard (`/dashboard/*`), el login y la landing usan **"Sistema
+IArcanIA"** (documento de diseño, turnos 4 y 5). Fondo `canvas` `#0F0F11`,
+texto `ink` `#F1F0F7`, acento violeta `#8B5CF6` para la acción primaria y
+ámbar `#E8A33D` para el nav activo / «ahora» / hábitos. Las piezas viven en
+`components/ui/` (16). No hay tokens ni clases "de compatibilidad": si ves
+`bg-bg-*`, `text-text-*`, `border-border`, `.btn-primary`, `.input`,
+`rounded-sm/md/lg` o `bg-gradient-cta`, es un error — no existen.
 
-| | Sistema **viejo** (`os.css`) | Sistema **nuevo** (rebranding) |
-|---|---|---|
-| Origen | portado de `os.css`, el dashboard operativo original | documento de diseño "Sistema IArcanIA" (turnos 4 y 5) |
-| Fondo | `#080808` (negro casi puro), cream `#e8e0d0` | canvas `#0F0F11`, texto frío `#F1F0F7` |
-| Acento | morado plano `#9b72f0` + dorado `#c4a35a` | violeta `#8B5CF6` (acción) + ámbar `#E8A33D` (nav/hábitos) |
-| Piezas | clases sueltas + 5 helpers en `globals.css` | `components/ui/` (16 piezas) |
-| Estado | lo usan las secciones **sin migrar** | lo usan las secciones **migradas** |
-
-El plan es migrar sección por sección al sistema nuevo y, cuando no quede
-ninguna en el viejo, borrarlo entero (ver `migracion-rebranding.md`, PASO 5).
-**Mientras tanto los dos coexisten a propósito.** No mezcles: una sección
-está entera en uno o entera en el otro (el *shell* —sidebar, fondo— ya es
-nuevo para todas).
+**Historia** (para leer código o `git blame` viejo): hasta septiembre de
+2026 el dashboard corría sobre `os.css`, el CSS del sistema operativo
+original. La migración fue sección por sección (fases 01–05 en
+`migracion-rebranding.md`); el PASO 5 borró `os.css`, sus tokens portados
+en `tailwind.config.ts` y los 5 helpers de `globals.css`. El único detalle
+de diseño de `os.css` que no se trasladó —el editor "branded" de Guiones,
+teñido con el color de su canal— quedó anotado en `migracion-rebranding.md`
+como mejora de producto pendiente.
 
 ### Dónde vive cada cosa
 
-- **`tailwind.config.ts`** → tokens de color, radio, duración. El bloque
-  "SISTEMA VIEJO" y el bloque "SISTEMA NUEVO" están separados por comentarios.
-- **`app/globals.css` → `@layer components`** → helpers viejos (`.input`,
-  `.card-glow`, `.btn-primary`, `.btn-secondary`, `.stat-num`) y la única
-  utilidad nueva, `.focus-ring`.
-- **`app/globals.css` → `@layer base`** → `body` (fondo ya migrado a
-  `bg-canvas`; el color de texto por defecto sigue en el token viejo hasta
-  PASO 5) y la regla `h1..h4 { font-display font-bold }`.
-- **`components/ui/`** → las 16 piezas nuevas + helpers (`cx`, `catInfo`).
+- **`tailwind.config.ts`** → tokens de color (`canvas`/`surface`/`line`/
+  `ink`/`accent`/`category`…), radio (`rounded-ui`/`ui-sm`/`ui-lg`),
+  `duration-120`, `text-body`/`text-meta`.
+- **`app/globals.css` → `@layer base`** → `body` (`bg-canvas text-ink`) y la
+  regla `h1..h4 { font-display font-bold }`.
+- **`app/globals.css` → `@layer components`** → solo `.focus-ring` y
+  `.focus-ring-inset` (el anillo de foco `accent/22`).
+- **`components/ui/`** → las 16 piezas + helpers (`cx`, `catInfo`).
 - **`app/dashboard/layout.tsx` + `components/app/nav-links.tsx`** → el shell
-  (ya migrado).
-- **`os.css`**: era el CSS del dashboard original, ya **borrado** (no se
-  importaba). Los tokens que se portaron de él viven en el bloque "SISTEMA
-  VIEJO" de `tailwind.config.ts` hasta PASO 5. Su único detalle de diseño
-  no recogido en otro lado (el editor "branded" de Guiones) quedó anotado
-  en `docs/migracion-rebranding.md`.
+  (sidebar, sub-nav, fondo).
 
 ---
 
@@ -99,7 +93,8 @@ acción, gana el violeta.
 
 - Radio: `rounded-ui-sm` (5px, inputs chicos), `rounded-ui` (6px, botones/
   inputs/chips), `rounded-ui-lg` (10px, cards y paneles), `rounded-full`
-  (píldoras). *(En PASO 5 estos `ui-*` se renombran a `sm/md/lg`.)*
+  (píldoras). Los nombres `ui-*` son definitivos (no se renombran a
+  `sm/md/lg`).
 - Transición: **solo `colors` y `opacity`, 120 ms** (`transition-colors
   duration-120`). Nada de `transform`, nada de `translateY` en hover — es una
   herramienta de uso diario, no una landing. Todo elemento interactivo lleva
@@ -187,11 +182,10 @@ piezas con estado cliente se importan de su archivo:
 | **ConfirmDialog** | `confirm-dialog.tsx` | **client** | Confirmación destructiva. `trigger` (JSX), `action` (Server Action), `hidden`. Botón peligroso borde+fondo 10%; "Conservar" a la derecha con foco inicial; Esc = conservar. |
 | **Toast** (`ToastProvider`, `useToast`) | `toast.tsx` | **client** | Confirmación abajo a la derecha, 4 s, una línea. `useToast().show({message, tone?, undo?})`. `undo` es una Server Action inversa + campos; se omite el enlace si no existe la acción inversa. Requiere montar `<ToastProvider>` una vez (aún sin montar). |
 
-Piezas que **no** son del sistema nuevo pero viven en la carpeta:
-`field.tsx` (el `Field` viejo, lo usan ~10 páginas sin migrar; su reemplazo
-es `FormField`). Y `components/app/optimistic-toggle-row.tsx` (`ToggleRow`):
-fila con feedback optimista sin `useOptimistic`, **se conserva y se
-reestiliza, no se reescribe** — está verificado contra Postgres.
+Fuera de `components/ui/`: `components/app/optimistic-toggle-row.tsx`
+(`ToggleRow`) — fila con feedback optimista sin `useOptimistic` (React
+18.3), en tokens del sistema nuevo. La usa la home de Rutinas; está
+verificada contra Postgres, no se reescribe.
 
 ---
 
@@ -256,19 +250,20 @@ Por qué las piezas tienen la forma que tienen:
 
 ---
 
-## 7. Cómo migrar una sección
+## 7. Cómo construir una sección nueva
+
+(La migración de las 23 originales terminó en septiembre de 2026; esto
+aplica a pantallas nuevas.)
 
 1. Identifica su arquetipo (tabla de §5).
-2. Reescribe la UI **solo** con `components/ui/`. Si falta una pieza, se
+2. Construye la UI **solo** con `components/ui/`. Si falta una pieza, se
    agrega a `components/ui/` primero y después se usa — nunca estilos
    propios en la página.
-3. Reutiliza las **Server Actions existentes** de esa sección. Un solo lugar
-   de verdad por dominio: si otra sección ya tiene el CRUD, se importa, no se
-   duplica.
-4. Elimina de esa página **todo** el estilo viejo: `bg-bg-*`, `text-text-*`,
-   `border-border`, `rounded-{sm,md,lg}` viejos, `.btn-primary`,
-   `.btn-secondary`, `.card-glow`, `.stat-num`, `.input`, `bg-gradient-cta`,
-   `shadow-glow-purple`, hexadecimales hardcodeados, imports de `Field`.
+3. Reutiliza las **Server Actions existentes** del dominio. Un solo lugar
+   de verdad: si otra sección ya tiene el CRUD, se importa, no se duplica.
+4. Nada de tokens fuera del sistema: sin `bg-bg-*`, `text-text-*`,
+   `border-border`, `rounded-{sm,md,lg}`, `.btn-*`, `.card-glow`, `.input`,
+   `bg-gradient-cta`, ni hexadecimales que ya tengan token.
 5. Si la sección tiene sub-rutas, añádelas a `NAV_GROUPS.children` en
    `nav-links.tsx` y monta `<SubNav>` (el sidebar sigue mostrando solo el
    primer nivel).

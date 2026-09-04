@@ -4,7 +4,9 @@ import "./globals.css";
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  // 400 = reloj/timer/contador de Reloj + inicial de avatar en Clientes
+  // (font-display sin font-bold); 700 = títulos y stats. El 600 no se usa.
+  weight: ["400", "700"],
   variable: "--font-display",
 });
 
