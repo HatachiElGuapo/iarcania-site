@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { appointments } from "@/lib/db/schema/citas";
 import { eventTypes } from "@/lib/db/schema/eventos";
-import { Field } from "@/components/ui/field";
 import { EVENT_TYPE_CATS } from "@/lib/constants/event-type-cats";
+import { PageHeader, Badge, EmptyState, Button, Labeled, Input, Select, cx } from "@/components/ui";
 import {
   createAppointment,
   completeAppointment,
@@ -20,36 +20,24 @@ const CITA_ICONS: Record<string, string> = {
   reunion: "🤝",
   otro: "📋",
 };
-
-const CITA_STATUS_COLOR: Record<string, string> = {
-  pendiente: "text-gold",
-  completada: "text-green-400",
-  cancelada: "text-text-muted",
+const STATUS: Record<string, { label: string; tone: "warm" | "success" | "neutral" }> = {
+  pendiente: { label: "Pendiente", tone: "warm" },
+  completada: { label: "Completada", tone: "success" },
+  cancelada: { label: "Cancelada", tone: "neutral" },
 };
 
-const CITA_STATUS_LABEL: Record<string, string> = {
-  pendiente: "Pendiente",
-  completada: "Completada",
-  cancelada: "Cancelada",
-};
-
-function formatFecha(d: Date) {
-  const fecha = d.toLocaleDateString("es-CO", {
+function fmtFecha(d: Date) {
+  const s = d.toLocaleDateString("es-CO", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "America/Bogota",
   });
-  return fecha.charAt(0).toUpperCase() + fecha.slice(1);
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
-
-function formatHora(d: Date) {
-  return d.toLocaleTimeString("es-CO", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Bogota",
-  });
+function fmtHora(d: Date) {
+  return d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" });
 }
 
 export default async function CitasPage() {
@@ -58,92 +46,90 @@ export default async function CitasPage() {
   const now = new Date();
 
   const [allCitas, types] = await Promise.all([
-    db
-      .select()
-      .from(appointments)
-      .where(eq(appointments.userId, userId))
-      .orderBy(asc(appointments.datetime)),
-    db
-      .select()
-      .from(eventTypes)
-      .where(eq(eventTypes.userId, userId))
-      .orderBy(asc(eventTypes.name)),
+    db.select().from(appointments).where(eq(appointments.userId, userId)).orderBy(asc(appointments.datetime)),
+    db.select().from(eventTypes).where(eq(eventTypes.userId, userId)).orderBy(asc(eventTypes.name)),
   ]);
 
   const proximas = allCitas.filter((c) => c.status === "pendiente" && c.datetime >= now);
   const pasadas = allCitas.filter((c) => c.status !== "pendiente" || c.datetime < now);
 
   return (
-    <div className="space-y-6 p-8">
-      <h1 className="font-display text-2xl text-text-primary">Citas</h1>
+    <div className="p-8">
+      <PageHeader
+        icon="🏥"
+        title="Citas"
+        subtitle={`${proximas.length} próxima${proximas.length !== 1 ? "s" : ""} · ${allCitas.length} en total`}
+      />
 
       {allCitas.length === 0 ? (
-        <p className="text-sm text-text-muted">No hay citas registradas.</p>
+        <EmptyState icon="🏥">No hay citas registradas. Agenda la primera con el formulario de abajo.</EmptyState>
       ) : (
-        <>
+        <div className="flex flex-col gap-6">
           {proximas.length > 0 && (
             <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
+              <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                 Próximas
               </h2>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {proximas.map((c) => (
-                  <CitaCard key={c.id} cita={c} />
+                  <CitaCard key={c.id} cita={c} fmtFecha={fmtFecha} fmtHora={fmtHora} />
                 ))}
               </div>
             </section>
           )}
-
           {pasadas.length > 0 && (
             <details>
-              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-text-muted">
+              <summary className="cursor-pointer text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted hover:text-ink">
                 Pasadas / completadas ({pasadas.length})
               </summary>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 flex flex-col gap-2">
                 {pasadas.map((c) => (
-                  <CitaCard key={c.id} cita={c} />
+                  <CitaCard key={c.id} cita={c} fmtFecha={fmtFecha} fmtHora={fmtHora} />
                 ))}
               </div>
             </details>
           )}
-        </>
+        </div>
       )}
 
       <form
         action={createAppointment}
-        className="flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+        className="mt-6 flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-4"
       >
-        <Field label="Título">
-          <input type="text" name="title" required className="input" />
-        </Field>
-        <Field label="Tipo">
-          <select name="type" defaultValue="otro" className="input">
+        <span className="w-full text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-dim">
+          Nueva cita
+        </span>
+        <Labeled label="Título">
+          <Input name="title" required className="w-56" />
+        </Labeled>
+        <Labeled label="Tipo">
+          <Select name="type" defaultValue="otro">
             <option value="medica">🏥 Médica</option>
             <option value="odontologica">🦷 Odontológica</option>
             <option value="reunion">🤝 Reunión</option>
             <option value="otro">📋 Otro</option>
-          </select>
-        </Field>
-        <Field label="Fecha y hora">
-          <input type="datetime-local" name="datetime" step={600} required className="input" />
-        </Field>
-        <Field label="Duración (min)">
-          <input type="number" name="durationMinutes" defaultValue={60} min={10} step={10} className="input" />
-        </Field>
-        <Field label="Viaje antes (min)">
-          <input type="number" name="travelBeforeMinutes" min={0} className="input" />
-        </Field>
-        <Field label="Viaje después (min)">
-          <input type="number" name="travelAfterMinutes" min={0} className="input" />
-        </Field>
-        <Field label="Lugar">
-          <input type="text" name="location" className="input" />
-        </Field>
-        <Field label="Doctor/a (opcional)">
-          <input type="text" name="doctorName" className="input" />
-        </Field>
-        <Field label="Tipo de evento (opcional)">
-          <select name="eventTypeId" defaultValue="" className="input">
+          </Select>
+        </Labeled>
+        <Labeled label="Fecha y hora">
+          <Input type="datetime-local" name="datetime" step={600} required className="w-52" />
+        </Labeled>
+        <Labeled label="Duración (min)">
+          <Input type="number" name="durationMinutes" defaultValue={60} min={10} step={10} className="w-24" />
+        </Labeled>
+        <Labeled label="Viaje antes (min)">
+          <Input type="number" name="travelBeforeMinutes" min={0} className="w-24" />
+        </Labeled>
+        <Labeled label="Viaje después (min)">
+          <Input type="number" name="travelAfterMinutes" min={0} className="w-24" />
+        </Labeled>
+        <Labeled label="Lugar">
+          <Input name="location" className="w-44" />
+        </Labeled>
+        <Labeled label="Doctor/a (opcional)">
+          <Input name="doctorName" className="w-44" />
+        </Labeled>
+        <Labeled label="Tipo de evento (opcional)">
+          <Select name="eventTypeId" defaultValue="">
             <option value="">— Ninguno —</option>
             {Object.entries(EVENT_TYPE_CATS).map(([catKey, cat]) => {
               const catTypes = types.filter((t) => t.category === catKey);
@@ -158,48 +144,53 @@ export default async function CitasPage() {
                 </optgroup>
               );
             })}
-          </select>
-        </Field>
-        <Field label="Recordatorio 1 (horas antes)">
-          <input type="number" name="reminder1Hours" defaultValue={3} min={0} className="input" />
-        </Field>
-        <Field label="Recordatorio 2 (horas antes)">
-          <input type="number" name="reminder2Hours" defaultValue={1} min={0} className="input" />
-        </Field>
-        <button
-          type="submit"
-          className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-        >
-          + Nueva cita
-        </button>
+          </Select>
+        </Labeled>
+        <Labeled label="Recordatorio 1 (h antes)">
+          <Input type="number" name="reminder1Hours" defaultValue={3} min={0} className="w-24" />
+        </Labeled>
+        <Labeled label="Recordatorio 2 (h antes)">
+          <Input type="number" name="reminder2Hours" defaultValue={1} min={0} className="w-24" />
+        </Labeled>
+        <Button type="submit">+ Nueva cita</Button>
       </form>
     </div>
   );
 }
 
-function CitaCard({ cita }: { cita: Appointment }) {
+function CitaCard({
+  cita,
+  fmtFecha,
+  fmtHora,
+}: {
+  cita: Appointment;
+  fmtFecha: (d: Date) => string;
+  fmtHora: (d: Date) => string;
+}) {
   const isPendiente = cita.status === "pendiente";
+  const st = STATUS[cita.status] ?? { label: cita.status, tone: "neutral" as const };
 
   return (
     <div
-      className={`rounded-md border border-border bg-bg-card p-4 ${cita.status === "cancelada" ? "opacity-50" : ""}`}
+      className={cx(
+        "rounded-ui-lg border border-line bg-surface p-4",
+        cita.status === "cancelada" && "opacity-50",
+      )}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-text-primary">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-ink">
             {CITA_ICONS[cita.type] ?? "📋"} {cita.title}
           </div>
-          <div className="mt-1 flex flex-wrap gap-2 text-xs text-text-muted">
+          <div className="mt-1 flex flex-wrap gap-2 text-xs text-ink-dim">
             <span>
-              📅 {formatFecha(cita.datetime)}, {formatHora(cita.datetime)}
+              📅 {fmtFecha(cita.datetime)}, {fmtHora(cita.datetime)}
             </span>
             {cita.location && <span>📍 {cita.location}</span>}
             {cita.doctorName && <span>👨‍⚕️ {cita.doctorName}</span>}
           </div>
         </div>
-        <span className={`text-xs font-semibold ${CITA_STATUS_COLOR[cita.status] ?? ""}`}>
-          {CITA_STATUS_LABEL[cita.status] ?? cita.status}
-        </span>
+        <Badge tone={st.tone}>{st.label}</Badge>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -207,32 +198,23 @@ function CitaCard({ cita }: { cita: Appointment }) {
           <>
             <form action={completeAppointment}>
               <input type="hidden" name="id" value={cita.id} />
-              <button
-                type="submit"
-                className="rounded-sm border border-green-500/40 px-3 py-1 text-xs text-green-400 hover:border-green-400"
-              >
+              <Button type="submit" variant="secondary" size="sm" className="border-success/40 text-success hover:border-success">
                 ✓ Completar
-              </button>
+              </Button>
             </form>
             <form action={cancelAppointment}>
               <input type="hidden" name="id" value={cita.id} />
-              <button
-                type="submit"
-                className="rounded-sm border border-gold/40 px-3 py-1 text-xs text-gold hover:border-gold"
-              >
+              <Button type="submit" variant="secondary" size="sm" className="border-accent-warm/40 text-accent-warm hover:border-accent-warm">
                 ✗ Cancelar
-              </button>
+              </Button>
             </form>
           </>
         )}
         <form action={deleteAppointment}>
           <input type="hidden" name="id" value={cita.id} />
-          <button
-            type="submit"
-            className="rounded-sm border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:border-red-400"
-          >
+          <Button type="submit" variant="danger" size="sm">
             🗑️ Eliminar
-          </button>
+          </Button>
         </form>
       </div>
     </div>
