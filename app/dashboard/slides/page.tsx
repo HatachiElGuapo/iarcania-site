@@ -1,8 +1,13 @@
+import { PageHeader, EmptyState } from "@/components/ui";
+
 export default function Page() {
   return (
     <div className="p-8">
-      <h1 className="font-display text-2xl text-text-primary">Slides</h1>
-      <p className="mt-2 text-text-muted">Pendiente de migrar desde os.js.</p>
+      <PageHeader icon="🖼️" title="Slides" />
+      <EmptyState icon="🖼️">
+        Todavía no has migrado esta sección desde el sistema anterior. Cuando exista el editor de
+        slides, aparecerá aquí.
+      </EmptyState>
     </div>
   );
 }
