@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Input, Select, Textarea, Button, cx } from "@/components/ui";
 import { createScript } from "./actions";
 
 type Generated = { title: string; hook: string; body: string; cta: string; notes: string };
+
+const labelCls = "mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-dim";
 
 export function NewScriptForm() {
   const [mode, setMode] = useState<"closed" | "manual" | "ia">("closed");
@@ -94,21 +97,19 @@ export function NewScriptForm() {
 
   if (mode === "closed") {
     return (
-      <div className="flex gap-2 text-xs">
-        <button
-          type="button"
-          onClick={() => setMode("manual")}
-          className="rounded-sm border border-border px-3 py-1.5 text-text-muted hover:border-purple-mid hover:text-text-primary"
-        >
+      <div className="flex gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={() => setMode("manual")}>
           + Nuevo guión
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={() => setMode("ia")}
-          className="rounded-sm border border-gold/40 px-3 py-1.5 text-gold hover:border-gold"
+          className="border-accent-warm/40 text-accent-warm hover:border-accent-warm"
         >
           ✨ Generar con IA
-        </button>
+        </Button>
       </div>
     );
   }
@@ -117,195 +118,162 @@ export function NewScriptForm() {
     return (
       <form
         action={crear}
-        className="flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+        className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-4"
       >
         <div>
-          <label className="mb-1 block text-xs text-text-muted">Título</label>
-          <input type="text" name="title" required className="input" />
+          <label className={labelCls}>Título</label>
+          <Input type="text" name="title" required />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-text-muted">Canal</label>
-          <select name="canal" defaultValue="iarcania" className="input">
+          <label className={labelCls}>Canal</label>
+          <Select name="canal" defaultValue="iarcania">
             <option value="iarcania">IArcanIA</option>
             <option value="voidstoic">Void Stoic</option>
-          </select>
+          </Select>
         </div>
-        <button
-          type="submit"
-          className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-        >
-          Crear
-        </button>
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-sm border border-border px-3 py-2 text-sm text-text-muted"
-        >
+        <Button type="submit">Crear</Button>
+        <Button type="button" variant="ghost" onClick={reset}>
           Cancelar
-        </button>
+        </Button>
       </form>
     );
   }
 
   // mode === 'ia'
   return (
-    <div className="space-y-3 rounded-md border border-dashed border-gold/30 p-4">
+    <div className="flex flex-col gap-3 rounded-ui-lg border border-dashed border-accent-warm/30 p-4">
       {!generated ? (
         <>
-          <div className="flex gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => setIaSubMode("idea")}
-              className={`rounded-sm px-2 py-1 ${iaSubMode === "idea" ? "bg-bg-card text-text-primary" : "text-text-muted"}`}
-            >
-              Desde una idea
-            </button>
-            <button
-              type="button"
-              onClick={() => setIaSubMode("preguntas")}
-              className={`rounded-sm px-2 py-1 ${iaSubMode === "preguntas" ? "bg-bg-card text-text-primary" : "text-text-muted"}`}
-            >
-              3 preguntas guiadas
-            </button>
+          <div className="flex gap-1">
+            {(["idea", "preguntas"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setIaSubMode(m)}
+                className={cx(
+                  "focus-ring rounded-ui px-2 py-1 text-meta transition-colors duration-120",
+                  iaSubMode === m ? "bg-surface-2 text-ink" : "text-ink-muted hover:text-ink",
+                )}
+              >
+                {m === "idea" ? "Desde una idea" : "3 preguntas guiadas"}
+              </button>
+            ))}
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="mb-1 block text-xs text-text-muted">Canal</label>
-              <select
-                value={canal}
-                onChange={(e) => setCanal(e.target.value)}
-                className="input"
-              >
+              <label className={labelCls}>Canal</label>
+              <Select value={canal} onChange={(e) => setCanal(e.target.value)}>
                 <option value="iarcania">IArcanIA</option>
                 <option value="voidstoic">Void Stoic</option>
-              </select>
+              </Select>
             </div>
 
             {iaSubMode === "idea" ? (
               <>
                 <div className="flex-1">
-                  <label className="mb-1 block text-xs text-text-muted">Idea</label>
-                  <input
+                  <label className={labelCls}>Idea</label>
+                  <Input
                     type="text"
                     value={idea}
                     onChange={(e) => setIdea(e.target.value)}
-                    className="input w-full"
+                    className="w-full"
                     placeholder="De qué va el video"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Formato</label>
-                  <select
-                    value={formato}
-                    onChange={(e) => setFormato(e.target.value)}
-                    className="input"
-                  >
+                  <label className={labelCls}>Formato</label>
+                  <Select value={formato} onChange={(e) => setFormato(e.target.value)}>
                     <option value="Video largo">Video largo</option>
                     <option value="Video corto">Video corto</option>
-                  </select>
+                  </Select>
                 </div>
               </>
             ) : (
               <div>
-                <label className="mb-1 block text-xs text-text-muted">Modo</label>
-                <select
+                <label className={labelCls}>Modo</label>
+                <Select
                   value={modoPreguntas}
                   onChange={(e) => setModoPreguntas(e.target.value as "pantalla" | "camara")}
-                  className="input"
                 >
                   <option value="pantalla">Pantalla (IArcanIA)</option>
                   <option value="camara">Cámara (Void Stoic)</option>
-                </select>
+                </Select>
               </div>
             )}
           </div>
 
           {iaSubMode === "preguntas" && (
-            <div className="space-y-2">
-              <input
+            <div className="flex flex-col gap-2">
+              <Input
                 type="text"
                 value={q1}
                 onChange={(e) => setQ1(e.target.value)}
                 placeholder="1. ¿Qué muestra o cómo arranca?"
-                className="input w-full"
+                className="w-full"
               />
-              <input
+              <Input
                 type="text"
                 value={q2}
                 onChange={(e) => setQ2(e.target.value)}
                 placeholder="2. ¿Cuál es el problema o la tensión?"
-                className="input w-full"
+                className="w-full"
               />
-              <input
+              <Input
                 type="text"
                 value={q3}
                 onChange={(e) => setQ3(e.target.value)}
                 placeholder="3. ¿Qué aprendiste o qué cambiaste?"
-                className="input w-full"
+                className="w-full"
               />
             </div>
           )}
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
 
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               disabled={loading}
               onClick={iaSubMode === "idea" ? generarDesdeIdea : generarDesdePreguntas}
-              className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple disabled:opacity-50"
             >
               {loading ? "Generando…" : "Generar guión"}
-            </button>
-            <button
-              type="button"
-              onClick={reset}
-              className="rounded-sm border border-border px-3 py-2 text-sm text-text-muted"
-            >
+            </Button>
+            <Button type="button" variant="ghost" onClick={reset}>
               Cancelar
-            </button>
+            </Button>
           </div>
         </>
       ) : (
-        <form action={crear} className="space-y-2">
+        <form action={crear} className="flex flex-col gap-2">
           <input type="hidden" name="canal" value={canal} />
           <div>
-            <label className="mb-1 block text-xs text-text-muted">Título</label>
-            <input type="text" name="title" defaultValue={generated.title} required className="input w-full" />
+            <label className={labelCls}>Título</label>
+            <Input type="text" name="title" defaultValue={generated.title} required className="w-full" />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-text-muted">Hook</label>
-            <textarea name="hook" defaultValue={generated.hook} rows={2} className="input w-full" />
+            <label className={labelCls}>Hook</label>
+            <Textarea name="hook" defaultValue={generated.hook} rows={2} className="w-full" />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-text-muted">Desarrollo</label>
-            <textarea name="body" defaultValue={generated.body} rows={4} className="input w-full" />
+            <label className={labelCls}>Desarrollo</label>
+            <Textarea name="body" defaultValue={generated.body} rows={4} className="w-full" />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-text-muted">Cierre</label>
-            <textarea name="cta" defaultValue={generated.cta} rows={2} className="input w-full" />
+            <label className={labelCls}>Cierre</label>
+            <Textarea name="cta" defaultValue={generated.cta} rows={2} className="w-full" />
           </div>
           {generated.notes && (
             <div>
-              <label className="mb-1 block text-xs text-text-muted">Notas</label>
-              <textarea name="notes" defaultValue={generated.notes} rows={2} className="input w-full" />
+              <label className={labelCls}>Notas</label>
+              <Textarea name="notes" defaultValue={generated.notes} rows={2} className="w-full" />
             </div>
           )}
           <div className="flex gap-2">
-            <button
-              type="submit"
-              className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-            >
-              Crear guión
-            </button>
-            <button
-              type="button"
-              onClick={() => setGenerated(null)}
-              className="rounded-sm border border-border px-3 py-2 text-sm text-text-muted"
-            >
+            <Button type="submit">Crear guión</Button>
+            <Button type="button" variant="ghost" onClick={() => setGenerated(null)}>
               Volver
-            </button>
+            </Button>
           </div>
         </form>
       )}

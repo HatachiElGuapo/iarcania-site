@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Input, Select, Textarea, Button, cx } from "@/components/ui";
 import type { Script } from "./page";
 import {
   updateScript,
@@ -18,11 +19,11 @@ const STATUS_LABEL: Record<string, string> = {
   publicado: "Publicado",
 };
 const STATUS_COLOR: Record<string, string> = {
-  borrador: "text-text-muted",
-  en_progreso: "text-gold",
-  listo_grabar: "text-purple-light",
-  grabado: "text-blue-400",
-  publicado: "text-green-400",
+  borrador: "text-ink-dim",
+  en_progreso: "text-accent-warm",
+  listo_grabar: "text-accent",
+  grabado: "text-ink-muted",
+  publicado: "text-success",
 };
 const CHECKLIST_ITEMS = [
   { key: "guion", label: "Guión" },
@@ -32,6 +33,8 @@ const CHECKLIST_ITEMS = [
   { key: "thumbnail", label: "Thumbnail" },
   { key: "publicado", label: "Publicado" },
 ];
+
+const labelCls = "mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-dim";
 
 type PresView = { html: string; filename: string };
 type PresData = { presentador?: PresView; audiencia?: PresView; generado_en?: string };
@@ -176,34 +179,37 @@ export function ScriptCard({ script }: { script: Script }) {
 
   const doneCount = CHECKLIST_ITEMS.filter((i) => checklist[i.key]).length;
   const canalLabel = script.canal === "voidstoic" ? "Void Stoic" : "IArcanIA";
-  const canalColor = script.canal === "voidstoic" ? "text-purple-light" : "text-red-400";
+  const canalColor = script.canal === "voidstoic" ? "text-ink-muted" : "text-accent";
 
   return (
-    <div className="rounded-md border border-border bg-bg-card p-4">
+    <div className="rounded-ui-lg border border-line bg-surface p-4">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-3 text-left"
+        className="focus-ring flex w-full items-center gap-3 text-left"
       >
         <div className="flex-1">
-          <div className="text-sm font-semibold text-text-primary">{script.title}</div>
-          <div className="mt-1 flex flex-wrap gap-2 text-xs">
-            <span className={`font-semibold ${canalColor}`}>{canalLabel}</span>
+          <div className="text-sm font-semibold text-ink">{script.title}</div>
+          <div className="mt-1 flex flex-wrap gap-2 text-meta">
+            <span className={cx("font-semibold", canalColor)}>{canalLabel}</span>
             <span className={STATUS_COLOR[script.status]}>{STATUS_LABEL[script.status]}</span>
-            <span className="text-text-muted">{doneCount}/6</span>
+            <span className="tabular-nums text-ink-muted">{doneCount}/6</span>
           </div>
         </div>
       </button>
 
       {expanded && (
-        <div className="mt-4 space-y-4 border-t border-border pt-4">
-          <div className="flex gap-2 text-xs">
+        <div className="mt-4 flex flex-col gap-4 border-t border-line pt-4">
+          <div className="flex gap-1">
             {(["editar", "publicar", "presentacion"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
-                className={`rounded-sm px-2 py-1 ${tab === t ? "bg-bg-deep text-text-primary" : "text-text-muted"}`}
+                className={cx(
+                  "focus-ring rounded-ui px-2 py-1 text-meta transition-colors duration-120",
+                  tab === t ? "bg-surface-2 text-ink" : "text-ink-muted hover:text-ink",
+                )}
               >
                 {t === "editar" ? "Editar" : t === "publicar" ? "Publicar" : "Presentación"}
               </button>
@@ -211,114 +217,114 @@ export function ScriptCard({ script }: { script: Script }) {
           </div>
 
           {tab === "editar" && (
-            <div className="space-y-3">
-              <div className="rounded-md border border-dashed border-border p-3">
-                <label className="mb-1 block text-xs text-text-muted">
-                  Pegar texto libre → estructurar con IA
-                </label>
-                <textarea
+            <div className="flex flex-col gap-3">
+              <div className="rounded-ui-lg border border-dashed border-line p-3">
+                <label className={labelCls}>Pegar texto libre → estructurar con IA</label>
+                <Textarea
                   value={libreText}
                   onChange={(e) => setLibreText(e.target.value)}
                   rows={3}
-                  className="input w-full"
+                  className="w-full"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   disabled={estructurando}
                   onClick={estructurarConIA}
-                  className="mt-2 rounded-sm border border-gold/40 px-3 py-1.5 text-xs text-gold hover:border-gold disabled:opacity-50"
+                  className="mt-2 border-accent-warm/40 text-accent-warm hover:border-accent-warm"
                 >
                   {estructurando ? "Estructurando…" : "✨ Estructurar con IA"}
-                </button>
+                </Button>
               </div>
 
               {/* El canal se fija al crear el guión — el original tampoco lo permitía editar después */}
-              <form action={updateScript} className="space-y-2">
+              <form action={updateScript} className="flex flex-col gap-2">
                 <input type="hidden" name="id" value={script.id} />
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Título</label>
-                  <input
+                  <label className={labelCls}>Título</label>
+                  <Input
                     type="text"
                     name="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
-                    className="input w-full"
+                    className="w-full"
                   />
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <label className="mb-1 block text-xs text-text-muted">Estado</label>
-                    <select
+                    <label className={labelCls}>Estado</label>
+                    <Select
                       name="status"
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="input w-full"
+                      className="w-full"
                     >
                       <option value="borrador">Borrador</option>
                       <option value="en_progreso">En progreso</option>
                       <option value="listo_grabar">Listo para grabar</option>
                       <option value="grabado">Grabado</option>
                       <option value="publicado">Publicado</option>
-                    </select>
+                    </Select>
                   </div>
                   <div className="flex-1">
-                    <label className="mb-1 block text-xs text-text-muted">Fecha grabación</label>
-                    <input
+                    <label className={labelCls}>Fecha grabación</label>
+                    <Input
                       type="date"
                       name="fechaGrabacion"
                       value={fechaGrabacion}
                       onChange={(e) => setFechaGrabacion(e.target.value)}
-                      className="input w-full"
+                      className="w-full"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Hook</label>
-                  <textarea
+                  <label className={labelCls}>Hook</label>
+                  <Textarea
                     name="hook"
                     value={hook}
                     onChange={(e) => setHook(e.target.value)}
                     rows={2}
-                    className="input w-full"
+                    className="w-full"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Desarrollo</label>
-                  <textarea
+                  <label className={labelCls}>Desarrollo</label>
+                  <Textarea
                     name="body"
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     rows={5}
-                    className="input w-full"
+                    className="w-full"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Cierre</label>
-                  <textarea
+                  <label className={labelCls}>Cierre</label>
+                  <Textarea
                     name="cta"
                     value={cta}
                     onChange={(e) => setCta(e.target.value)}
                     rows={2}
-                    className="input w-full"
+                    className="w-full"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Notas de producción</label>
-                  <textarea
+                  <label className={labelCls}>Notas de producción</label>
+                  <Textarea
                     name="notes"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={2}
-                    className="input w-full"
+                    className="w-full"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Checklist</label>
+                  <label className={labelCls}>Checklist</label>
                   <div className="flex flex-wrap gap-3">
                     {CHECKLIST_ITEMS.map((item) => (
-                      <label key={item.key} className="flex items-center gap-1 text-xs text-text-muted">
+                      <label key={item.key} className="flex items-center gap-1 text-meta text-ink-muted">
                         <input
                           type="checkbox"
                           checked={!!checklist[item.key]}
@@ -331,38 +337,29 @@ export function ScriptCard({ script }: { script: Script }) {
                 </div>
 
                 <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-                  >
-                    Guardar
-                  </button>
-                  <button
-                    type="submit"
-                    formAction={deleteScript}
-                    className="rounded-sm border border-red-500/30 px-3 py-2 text-sm text-red-400 hover:border-red-400"
-                  >
+                  <Button type="submit">Guardar</Button>
+                  <Button type="submit" formAction={deleteScript} variant="danger" size="sm">
                     Eliminar
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
           )}
 
           {tab === "publicar" && (
-            <form action={savePublicacion} className="space-y-2">
+            <form action={savePublicacion} className="flex flex-col gap-2">
               <input type="hidden" name="id" value={script.id} />
               <div>
-                <label className="mb-1 block text-xs text-text-muted">Link del video (Drive)</label>
-                <input
+                <label className={labelCls}>Link del video (Drive)</label>
+                <Input
                   type="url"
                   name="videoUrl"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
-                  className="input w-full"
+                  className="w-full"
                 />
               </div>
-              <div className="flex gap-4 text-xs text-text-muted">
+              <div className="flex gap-4 text-meta text-ink-muted">
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
@@ -392,79 +389,69 @@ export function ScriptCard({ script }: { script: Script }) {
                   Instagram
                 </label>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 disabled={generandoCopy}
                 onClick={generarCopy}
-                className="rounded-sm border border-gold/40 px-3 py-1.5 text-xs text-gold hover:border-gold disabled:opacity-50"
+                className="w-fit border-accent-warm/40 text-accent-warm hover:border-accent-warm"
               >
                 {generandoCopy ? "Generando…" : "✨ Generar copy con IA"}
-              </button>
+              </Button>
               <div>
-                <label className="mb-1 block text-xs text-text-muted">Título YouTube</label>
-                <input
+                <label className={labelCls}>Título YouTube</label>
+                <Input
                   type="text"
                   name="copyYtTitulo"
                   value={copyYtTitulo}
                   onChange={(e) => setCopyYtTitulo(e.target.value)}
-                  className="input w-full"
+                  className="w-full"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-text-muted">Descripción YouTube</label>
-                <textarea
+                <label className={labelCls}>Descripción YouTube</label>
+                <Textarea
                   name="copyYtDescripcion"
                   value={copyYtDescripcion}
                   onChange={(e) => setCopyYtDescripcion(e.target.value)}
                   rows={4}
-                  className="input w-full"
+                  className="w-full"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-text-muted">Caption Instagram</label>
-                <textarea
+                <label className={labelCls}>Caption Instagram</label>
+                <Textarea
                   name="copyIgCaption"
                   value={copyIgCaption}
                   onChange={(e) => setCopyIgCaption(e.target.value)}
                   rows={3}
-                  className="input w-full"
+                  className="w-full"
                 />
               </div>
-              <button
-                type="submit"
-                className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-              >
+              <Button type="submit" className="w-fit">
                 Guardar publicación
-              </button>
+              </Button>
             </form>
           )}
 
           {tab === "presentacion" && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-end gap-3">
                 <div>
-                  <label className="mb-1 block text-xs text-text-muted">Formato</label>
-                  <select
-                    value={formatoPres}
-                    onChange={(e) => setFormatoPres(e.target.value)}
-                    className="input"
-                  >
+                  <label className={labelCls}>Formato</label>
+                  <Select value={formatoPres} onChange={(e) => setFormatoPres(e.target.value)}>
                     <option value="largo">Largo</option>
                     <option value="corto">Corto</option>
-                  </select>
+                  </Select>
                 </div>
-                <button
-                  type="button"
-                  disabled={generandoPres}
-                  onClick={generarPresentaciones}
-                  className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple disabled:opacity-50"
-                >
+                <Button type="button" disabled={generandoPres} onClick={generarPresentaciones}>
                   {generandoPres ? "Generando…" : "🎨 Generar presentaciones"}
-                </button>
+                </Button>
               </div>
-              {errorPres && <p className="text-sm text-red-400">{errorPres}</p>}
+              {errorPres && <p className="text-sm text-danger">{errorPres}</p>}
               {presData.generado_en && (
-                <p className="text-xs text-text-muted">
+                <p className="text-meta text-ink-muted">
                   Generado{" "}
                   {new Date(presData.generado_en).toLocaleString("es-CO", {
                     timeZone: "America/Bogota",
@@ -473,30 +460,30 @@ export function ScriptCard({ script }: { script: Script }) {
               )}
               <div className="flex flex-wrap gap-2">
                 {presData.presentador && (
-                  <div className="flex items-center gap-2 rounded-md border border-border p-2 text-xs">
-                    <span className="text-text-muted">Presentador</span>
-                    <button type="button" onClick={() => ver(presData.presentador!)} className="text-purple-light">
+                  <div className="flex items-center gap-2 rounded-ui-lg border border-line p-2 text-meta">
+                    <span className="text-ink-muted">Presentador</span>
+                    <button type="button" onClick={() => ver(presData.presentador!)} className="focus-ring text-accent">
                       Ver
                     </button>
                     <button
                       type="button"
                       onClick={() => descargar(presData.presentador!)}
-                      className="text-purple-light"
+                      className="focus-ring text-accent"
                     >
                       Descargar
                     </button>
                   </div>
                 )}
                 {presData.audiencia && (
-                  <div className="flex items-center gap-2 rounded-md border border-border p-2 text-xs">
-                    <span className="text-text-muted">Audiencia</span>
-                    <button type="button" onClick={() => ver(presData.audiencia!)} className="text-purple-light">
+                  <div className="flex items-center gap-2 rounded-ui-lg border border-line p-2 text-meta">
+                    <span className="text-ink-muted">Audiencia</span>
+                    <button type="button" onClick={() => ver(presData.audiencia!)} className="focus-ring text-accent">
                       Ver
                     </button>
                     <button
                       type="button"
                       onClick={() => descargar(presData.audiencia!)}
-                      className="text-purple-light"
+                      className="focus-ring text-accent"
                     >
                       Descargar
                     </button>

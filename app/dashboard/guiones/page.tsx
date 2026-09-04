@@ -2,6 +2,7 @@ import { and, desc, eq, type InferSelectModel } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { scripts } from "@/lib/db/schema/guiones";
+import { PageHeader, Segmented, EmptyState } from "@/components/ui";
 import { NewScriptForm } from "./new-script-form";
 import { ScriptCard } from "./script-card";
 
@@ -34,36 +35,37 @@ export default async function GuionesPage({
     .orderBy(desc(scripts.createdAt));
 
   return (
-    <div className="space-y-6 p-8">
-      <h1 className="font-display text-2xl text-text-primary">🎬 Guiones</h1>
+    <div className="p-8">
+      <PageHeader
+        icon="🎬"
+        title="Guiones"
+        tabs={
+          <Segmented
+            className="border-0"
+            options={CANAL_FILTERS.map((c) => ({
+              label: c.label,
+              href: c.id === "all" ? "/dashboard/guiones" : `/dashboard/guiones?canal=${c.id}`,
+              active: filter === c.id,
+            }))}
+          />
+        }
+      />
 
-      <div className="flex gap-2 text-sm">
-        {CANAL_FILTERS.map((c) => (
-          <a
-            key={c.id}
-            href={c.id === "all" ? "/dashboard/guiones" : `/dashboard/guiones?canal=${c.id}`}
-            className={`rounded-sm px-3 py-1.5 ${
-              filter === c.id
-                ? "bg-bg-card text-text-primary"
-                : "text-text-muted hover:text-text-primary"
-            }`}
-          >
-            {c.label}
-          </a>
-        ))}
+      <div className="flex flex-col gap-6">
+        <NewScriptForm />
+
+        {rows.length === 0 ? (
+          <EmptyState icon="🎬">
+            Todavía no has escrito ningún guión. Crea el primero, a mano o con la IA.
+          </EmptyState>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {rows.map((s) => (
+              <ScriptCard key={s.id} script={s} />
+            ))}
+          </div>
+        )}
       </div>
-
-      <NewScriptForm />
-
-      {rows.length === 0 ? (
-        <p className="text-sm text-text-muted">Sin guiones todavía — crea el primero</p>
-      ) : (
-        <div className="space-y-2">
-          {rows.map((s) => (
-            <ScriptCard key={s.id} script={s} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
