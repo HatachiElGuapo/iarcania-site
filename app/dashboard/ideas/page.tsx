@@ -29,7 +29,7 @@ const STATUS_TABS = [
   { id: "nueva", label: "Nuevas" },
   { id: "procesada", label: "Procesadas" },
 ];
-const STATUS_TONE = { nueva: "info", procesada: "success" } as const;
+const STATUS_TONE = { nueva: "accent", procesada: "success" } as const;
 const COLS = "minmax(0,1fr) 128px 104px 92px 132px";
 
 export default async function IdeasPage({

@@ -33,12 +33,12 @@ export function Card({
               {count}
             </span>
           )}
-          {action && <span className="ml-auto text-[11px] text-ink-dim">{action}</span>}
+          {action && <span className="ml-auto text-meta text-ink-dim">{action}</span>}
         </div>
       )}
       <div className={flush ? "" : "p-3.5"}>{children}</div>
       {footer && (
-        <div className="border-t border-line bg-surface-sunken px-3.5 py-2.5 text-[11px] text-ink-dim">
+        <div className="border-t border-line bg-surface-sunken px-3.5 py-2.5 text-meta text-ink-dim">
           {footer}
         </div>
       )}

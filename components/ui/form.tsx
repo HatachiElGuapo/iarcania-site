@@ -87,7 +87,7 @@ export function FormBanner() {
   const { formError } = useFormCtx();
   if (!formError) return null;
   return (
-    <div className="flex items-start gap-2 rounded-ui border border-danger/28 bg-danger/[0.08] px-3 py-2 text-[11.5px] leading-snug text-danger">
+    <div className="flex items-start gap-2 rounded-ui border border-danger/28 bg-danger/[0.08] px-3 py-2 text-meta leading-snug text-danger">
       <span aria-hidden>⚠</span>
       <span>{formError}</span>
     </div>
@@ -125,9 +125,9 @@ export function FormField({
         ),
       })}
       {error ? (
-        <span className="text-[11px] text-danger">{error}</span>
+        <span className="text-meta text-danger">{error}</span>
       ) : hint ? (
-        <span className="text-[11px] text-ink-dim">{hint}</span>
+        <span className="text-meta text-ink-dim">{hint}</span>
       ) : null}
     </div>
   );
@@ -152,7 +152,7 @@ export function FormActions({
       <button
         type="submit"
         disabled={pending}
-        className="focus-ring inline-flex min-w-[7.5rem] items-center justify-center gap-2 rounded-ui bg-accent px-3.5 py-2 text-xs font-medium text-white transition-[background-color,opacity] duration-120 hover:bg-accent/90 disabled:opacity-70"
+        className="focus-ring inline-flex min-w-[7.5rem] items-center justify-center gap-2 rounded-ui bg-accent px-3.5 py-2 text-body font-medium text-white transition-[background-color,opacity] duration-120 hover:bg-accent/90 disabled:opacity-70"
       >
         {pending && (
           <span
@@ -165,14 +165,14 @@ export function FormActions({
       {cancelHref ? (
         <a
           href={cancelHref}
-          className="focus-ring rounded-ui border border-line px-3 py-2 text-xs text-ink-muted"
+          className="focus-ring rounded-ui border border-line px-3 py-2 text-body text-ink-muted"
         >
           {cancelLabel}
         </a>
       ) : (
         <button
           type="reset"
-          className="focus-ring rounded-ui border border-line px-3 py-2 text-xs text-ink-muted"
+          className="focus-ring rounded-ui border border-line px-3 py-2 text-body text-ink-muted"
         >
           {cancelLabel}
         </button>

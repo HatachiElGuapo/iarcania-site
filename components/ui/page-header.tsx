@@ -29,7 +29,7 @@ export function PageHeader({
             {icon != null && <span className="text-[19px] leading-none">{icon}</span>}
             {title}
           </h1>
-          {subtitle != null && <p className="mt-1 text-xs text-ink-muted">{subtitle}</p>}
+          {subtitle != null && <p className="mt-1 text-meta text-ink-muted">{subtitle}</p>}
         </div>
         {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

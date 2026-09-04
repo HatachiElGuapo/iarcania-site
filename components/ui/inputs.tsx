@@ -27,7 +27,7 @@ export function Labeled({
 // base (para que sirvan inline en QuickCapture); <FormField> lo añade cuando
 // el control va apilado.
 const base =
-  "focus-ring rounded-ui border border-line bg-canvas px-3 py-2 text-xs text-ink " +
+  "focus-ring rounded-ui border border-line bg-canvas px-3 py-2 text-body text-ink " +
   "placeholder:text-ink-dim transition-colors duration-120 disabled:opacity-60";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {

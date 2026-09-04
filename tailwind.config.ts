@@ -72,6 +72,7 @@ const config: Config = {
         "ink-dim": "#5A5870", //        metadatos y labels
         accent: "#8B5CF6", //           acción primaria, item activo
         "accent-soft": "rgba(139,92,246,0.12)", // fondo hover de acción primaria
+        "accent-text": "#C4B5FD", //    violeta legible para texto pequeño sobre oscuro (chip accent, estado "enviando")
         "accent-warm": "#E8A33D", //    nav activo, «ahora», hábitos, categoría infra
         success: "#4ADE80", //          completado, racha viva
         danger: "#F87171", //           vencido, eliminar
@@ -105,6 +106,13 @@ const config: Config = {
       // Transición del sistema nuevo: solo colors y opacity, 120 ms (ver 4a).
       transitionDuration: {
         "120": "120ms",
+      },
+      // Escala +1 de 5f, aplicada a cuerpo y metadatos (labels, badges y
+      // títulos se dejan como están). Un solo lugar para el ajuste de
+      // densidad (5f · densidadFilas).
+      fontSize: {
+        body: "13.5px", // fila de tabla, item de lista, valor de campo, input
+        meta: "11.5px", // fechas, contadores, anotaciones secundarias
       },
       // "Gradientes" planos (mismo color repetido) y sombras neutralizadas a
       // propósito — muchas páginas ya escritas usan bg-gradient-cta/

@@ -36,7 +36,7 @@ export function SubNav({ counts }: { counts?: Record<string, ReactNode> }) {
             href={t.href}
             aria-current={active ? "page" : undefined}
             className={cx(
-              "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] transition-colors duration-120",
+              "focus-ring inline-flex items-center gap-1.5 rounded-t-ui border-b-2 px-3 py-2 text-body transition-colors duration-120",
               active
                 ? "border-accent text-ink"
                 : "border-transparent text-ink-muted hover:text-ink",

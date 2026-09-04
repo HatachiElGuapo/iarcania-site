@@ -14,6 +14,7 @@ export function ItemRow({
   category,
   leading,
   title,
+  titleText,
   meta,
   trailing,
 }: {
@@ -21,6 +22,8 @@ export function ItemRow({
   category?: string | null;
   leading?: ReactNode;
   title: ReactNode;
+  /** Texto plano para el tooltip nativo cuando `title` puede truncarse. */
+  titleText?: string;
   meta?: ReactNode;
   trailing?: ReactNode;
 }) {
@@ -32,14 +35,16 @@ export function ItemRow({
     <>
       {leading}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] text-ink">{title}</span>
+        <span className="block truncate text-body text-ink" title={titleText}>
+          {title}
+        </span>
         {meta && <span className="mt-0.5 block truncate text-[10.5px] text-ink-dim">{meta}</span>}
       </span>
       {trailing}
     </>
   );
   return href ? (
-    <a href={href} className={cx(cls, "hover:border-line-strong")} style={style}>
+    <a href={href} className={cx(cls, "focus-ring hover:border-line-strong")} style={style}>
       {body}
     </a>
   ) : (

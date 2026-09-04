@@ -36,12 +36,12 @@ export function QuickCapture({
         name={name}
         required
         placeholder={placeholder}
-        className="focus-ring min-w-[10rem] flex-1 rounded-ui border border-line bg-canvas px-3 py-2 text-xs text-ink placeholder:text-ink-dim"
+        className="focus-ring min-w-[10rem] flex-1 rounded-ui border border-line bg-canvas px-3 py-2 text-body text-ink placeholder:text-ink-dim"
       />
       {extras}
       <button
         type="submit"
-        className="focus-ring shrink-0 rounded-ui bg-accent px-3.5 py-2 text-xs font-medium text-white transition-colors duration-120 hover:bg-accent/90"
+        className="focus-ring shrink-0 rounded-ui bg-accent px-3.5 py-2 text-body font-medium text-white transition-colors duration-120 hover:bg-accent/90"
       >
         {submitLabel}
       </button>

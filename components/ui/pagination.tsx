@@ -25,14 +25,14 @@ export function Pagination({
   const nums: number[] = [];
   for (let p = lo; p <= hi; p++) nums.push(p);
 
-  const cell = "border-l border-line px-2.5 py-1 transition-colors duration-120";
+  const cell = "focus-ring-inset border-l border-line px-2.5 py-1 transition-colors duration-120";
 
   return (
-    <div className="flex items-center gap-2.5 border border-t-0 border-line bg-surface-sunken px-3.5 py-2.5 text-[11px] text-ink-dim">
-      <span>
+    <div className="flex items-center gap-2.5 border border-t-0 border-line bg-surface-sunken px-3.5 py-2.5 text-meta text-ink-dim">
+      <span className="tabular-nums">
         {from}–{to} de {total}
       </span>
-      <nav className="ml-auto flex items-stretch overflow-hidden rounded-ui border border-line text-[11.5px]">
+      <nav className="ml-auto flex items-stretch overflow-hidden rounded-ui border border-line text-meta tabular-nums">
         {page > 1 ? (
           <a href={hrefFor(page - 1)} className={cx(cell, "border-l-0 text-ink-muted hover:text-ink")}>
             ‹

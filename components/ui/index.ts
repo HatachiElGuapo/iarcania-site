@@ -19,6 +19,7 @@ export { cx } from "./cx";
 export { catInfo } from "./category";
 
 export { PageHeader } from "./page-header";
+export { Section } from "./section";
 export { Button } from "./button";
 export { Card } from "./card";
 export { Table, TableHead, TableRow } from "./table";
@@ -28,6 +29,7 @@ export { Input, Select, Textarea, Labeled } from "./inputs";
 export { Segmented, Stepper } from "./segmented";
 export { Progress, MetricCard } from "./progress";
 export { EmptyState, Skeleton } from "./states";
+export { NoResults } from "./no-results";
 export { Pagination } from "./pagination";
 export { QuickCapture } from "./quick-capture";
 

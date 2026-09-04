@@ -14,7 +14,7 @@ export function Segmented({
   return (
     <div
       className={cx(
-        "inline-flex items-stretch overflow-hidden rounded-ui border border-line bg-canvas text-[11.5px]",
+        "inline-flex items-stretch overflow-hidden rounded-ui border border-line bg-canvas text-meta",
         className,
       )}
     >
@@ -25,7 +25,7 @@ export function Segmented({
           o.active ? "bg-surface-2 text-ink" : "text-ink-muted hover:text-ink",
         );
         return o.href ? (
-          <a key={i} href={o.href} className={cls}>
+          <a key={i} href={o.href} className={cx(cls, "focus-ring-inset")}>
             {o.label}
           </a>
         ) : (
@@ -51,7 +51,8 @@ export function Stepper({
   current?: boolean; // pinta el label en accent-warm (p. ej. "Hoy")
   className?: string;
 }) {
-  const arrow = "flex items-center px-2.5 text-sm leading-none transition-colors duration-120";
+  const arrow =
+    "focus-ring-inset flex items-center px-2.5 text-sm leading-none transition-colors duration-120";
   return (
     <div
       className={cx(
@@ -66,7 +67,7 @@ export function Stepper({
       ) : (
         <span className={cx(arrow, "border-r border-line text-ink-dim/40")}>‹</span>
       )}
-      <span className={cx("px-3 py-1.5 text-[11.5px]", current ? "text-accent-warm" : "text-ink-muted")}>
+      <span className={cx("px-3 py-1.5 text-meta", current ? "text-accent-warm" : "text-ink-muted")}>
         {label}
       </span>
       {nextHref ? (

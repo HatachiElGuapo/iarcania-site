@@ -58,7 +58,7 @@ export function ConfirmDialog({
           >
             <div className="px-3.5 py-3">
               <div className="text-[13px] font-medium text-ink">{title}</div>
-              {body && <p className="mt-1.5 text-[11.5px] leading-snug text-ink-muted">{body}</p>}
+              {body && <p className="mt-1.5 text-meta leading-snug text-ink-muted">{body}</p>}
             </div>
             <div className="flex items-center gap-2 border-t border-line bg-surface px-3.5 py-3">
               <form action={action}>
@@ -68,7 +68,7 @@ export function ConfirmDialog({
                   ))}
                 <button
                   type="submit"
-                  className="focus-ring rounded-ui border border-danger/30 bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger transition-colors duration-120 hover:border-danger/50"
+                  className="focus-ring rounded-ui border border-danger/30 bg-danger/10 px-3 py-1.5 text-meta font-medium text-danger transition-colors duration-120 hover:border-danger/50"
                 >
                   {confirmLabel}
                 </button>
@@ -77,7 +77,7 @@ export function ConfirmDialog({
                 ref={keepRef}
                 type="button"
                 onClick={() => setOpen(false)}
-                className="focus-ring rounded-ui border border-line px-3 py-1.5 text-xs text-ink-muted"
+                className="focus-ring rounded-ui border border-line px-3 py-1.5 text-meta text-ink-muted"
               >
                 Conservar
               </button>

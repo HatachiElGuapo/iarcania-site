@@ -55,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   Object.entries(t.undo.fields).map(([k, v]) => (
                     <input key={k} type="hidden" name={k} value={v} />
                   ))}
-                <button type="submit" className="text-[11px] text-ink-muted hover:text-ink">
+                <button type="submit" className="focus-ring rounded-ui px-1 text-meta text-ink-muted hover:text-ink">
                   {t.undo.label ?? "Deshacer"}
                 </button>
               </form>

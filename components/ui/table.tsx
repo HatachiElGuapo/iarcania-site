@@ -34,6 +34,7 @@ export function TableRow({
   category,
   accentColor,
   href,
+  highlighted = false,
   children,
 }: {
   cols: string;
@@ -42,14 +43,25 @@ export function TableRow({
    *  (p. ej. rojo para filas vencidas). Gana sobre `category`. */
   accentColor?: string;
   href?: string;
+  /** Fila marcada de forma persistente (p. ej. la que se está editando via
+   *  ?edit=id). Aquí sí hay estado real, no solo hover. */
+  highlighted?: boolean;
   children: ReactNode;
 }) {
   const accent = accentColor ?? (category ? catInfo(category).color : "transparent");
-  const cls =
-    "grid items-center gap-2.5 border-b border-white/[0.04] px-3.5 py-2.5 text-[12.5px] text-ink last:border-b-0";
+  const cls = cx(
+    "grid items-center gap-2.5 border-b border-white/[0.04] px-3.5 py-2.5 text-body text-ink last:border-b-0",
+    highlighted && "bg-surface-2",
+  );
   const style = { gridTemplateColumns: cols, borderLeft: `2px solid ${accent}` };
+  // Hover solo si la fila entera es clickeable — un cambio de fondo sin
+  // clic prometería interacción que no existe.
   return href ? (
-    <a href={href} className={cx(cls, "transition-colors duration-120 hover:bg-surface-2")} style={style}>
+    <a
+      href={href}
+      className={cx(cls, "focus-ring-inset transition-colors duration-120 hover:bg-surface-2")}
+      style={style}
+    >
       {children}
     </a>
   ) : (

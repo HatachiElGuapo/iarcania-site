@@ -86,4 +86,10 @@
   .focus-ring {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-accent/[0.22];
   }
+  /* Igual que .focus-ring pero hacia adentro — para elementos enfocables
+     dentro de un contenedor overflow-hidden (filas de Table), donde el
+     anillo exterior de 2px se recorta. */
+  .focus-ring-inset {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/[0.22];
+  }
 }

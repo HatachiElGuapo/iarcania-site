@@ -6,15 +6,16 @@ import { catInfo } from "./category";
 // categoría. El color de categoría informa, no jerarquiza (5a): si compite
 // con el violeta de acción, gana el violeta.
 
-type Tone = "neutral" | "accent" | "warm" | "success" | "danger" | "info";
+type Tone = "neutral" | "accent" | "warm" | "success" | "danger";
 
+// Todos los tonos: relleno al 12%, borde al 28% (5a). El texto va a color
+// pleno — sobre `surface` el 12% se lee como tinte y el borde lo cierra.
 const TONE: Record<Tone, string> = {
   neutral: "border-line bg-surface-2 text-ink-muted",
-  accent: "border-accent/30 bg-accent/12 text-[#C4B5FD]",
-  warm: "border-accent-warm/25 bg-accent-warm/10 text-accent-warm",
-  success: "border-success/26 bg-success/12 text-success",
-  danger: "border-danger/26 bg-danger/12 text-danger",
-  info: "border-[#378ADD]/28 bg-[#378ADD]/12 text-[#378ADD]",
+  accent: "border-accent/28 bg-accent/12 text-accent-text",
+  warm: "border-accent-warm/28 bg-accent-warm/12 text-accent-warm",
+  success: "border-success/28 bg-success/12 text-success",
+  danger: "border-danger/28 bg-danger/12 text-danger",
 };
 
 export function Chip({

@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { cx } from "./cx";
 
-// 4b · 12 — Estados. El estado vacío SIEMPRE es una frase en prosa, en
-// segunda persona, más una acción. Nunca «No hay datos».
+// 4b · 12 — Estado vacío de SECCIÓN (primera vez, no hay datos). Siempre una
+// frase en prosa, en segunda persona, que dice qué va aquí, más la acción
+// primaria. Nunca «No hay datos». Para "el filtro no devolvió nada" usa
+// <NoResults> — es otro caso.
 export function EmptyState({
   icon = "🗒️",
   children,
@@ -22,9 +24,7 @@ export function EmptyState({
       )}
     >
       <div className="text-[17px]">{icon}</div>
-      <div className="mx-auto mt-2 max-w-[38ch] text-[12.5px] leading-relaxed text-ink-muted">
-        {children}
-      </div>
+      <div className="mx-auto mt-2 max-w-[42ch] text-body leading-relaxed text-ink-muted">{children}</div>
       {action && <div className="mt-3 inline-flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   );
