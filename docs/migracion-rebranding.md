@@ -145,11 +145,11 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Actividades | `/dashboard/actividades` | 1 Lista (var. 2a) | ✅ migrada | Fase 01. Tabla agrupada, sin detalle |
 | Agenda | `/dashboard/agenda` | 2 Temporal | ✅ migrada | Fase 01. Integra WIP de rejilla + arrastre |
 | **Shell** | layout + sidebar | — | ✅ migrado | fondo `canvas`, item activo dorado |
-| Ideas | `/dashboard/ideas` | 1 Lista + listas largas | ⏳ Fase 02 | búsqueda + paginación |
-| Personas | `/dashboard/personas` | 1 Lista + listas largas | ⏳ Fase 02 | búsqueda + paginación. ⚠️ datos reales |
-| Hogar | `/dashboard/hogar` | 1 Lista | ⏳ Fase 02 | recurrencia + responsable |
-| Recursos | `/dashboard/recursos` | 1 Lista + listas largas | ⏳ Fase 02 | búsqueda + paginación. Usa `PageHeader` viejo |
-| Libros | `/dashboard/libros` | 1 Lista | ⏳ Fase 02 | progreso de páginas |
+| Ideas | `/dashboard/ideas` | 1 Lista + listas largas | ✅ migrada | Fase 02. `?q=&estado=&cat=&page=` |
+| Personas | `/dashboard/personas` | 1 Lista + listas largas | ✅ migrada | Fase 02. `?q=&rel=&page=`, edición `?edit=id` |
+| Hogar | `/dashboard/hogar` | 1 Lista | ✅ migrada | Fase 02. Sin búsqueda (lista corta) |
+| Recursos | `/dashboard/recursos` | 1 Lista + listas largas | ✅ migrada | Fase 02. `?q=&tipo=&page=`, alta/edición `?nuevo=1`/`?edit=id` |
+| Libros | `/dashboard/libros` | 1 Lista | ✅ migrada | Fase 02. Pestañas del libro con `Segmented` |
 | Hábitos | `/dashboard/habitos` (+ `gestion`, `rachas`) | 3 Métricas + pestañas | ⏳ Fase 03 | `SubNav` ya montado en layout viejo |
 | Cuerpo | `/dashboard/cuerpo` (+ `nutricion`) | 3 Métricas | ⏳ Fase 03 | `SubNav` ya montado. Nutrición es pestaña |
 | Dinero | `/dashboard/dinero/*` | 3 Métricas + 6 pestañas | ⏳ Fase 03 | ⚠️ datos reales. `SubNav` ya montado |
@@ -176,8 +176,8 @@ sigue en tokens viejos. Se terminan de migrar con su sección.
 | Fase | Qué | Estado |
 |---|---|---|
 | 01 · Extraer el sistema | Rutinas, Actividades, Agenda + shell + librería | ✅ hecha |
-| 02 · Arquetipo 1 en volumen | Ideas, Personas, Hogar, Recursos, Libros | ⏳ en curso |
-| 03 · Los que ya tienen datos | Hábitos, Dinero, Cuerpo (arq. 3) · Citas, Eventos, Reloj (arq. 2) | pendiente |
+| 02 · Arquetipo 1 en volumen | Ideas, Personas, Hogar, Recursos, Libros | ✅ hecha |
+| 03 · Los que ya tienen datos | Hábitos, Dinero, Cuerpo (arq. 3) · Citas, Eventos, Reloj (arq. 2) | ⏳ siguiente |
 | 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | pendiente |
 | 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | pendiente |
 
@@ -206,8 +206,8 @@ Nada de esto se toca antes.
 
 **Archivos a borrar** (una vez sin referencias):
 - `os.css` en la raíz (no se importa; es solo referencia)
-- `components/app/page-header.tsx` (el viejo; lo usan Recursos → Fase 02 y
-  Clientes → Fase 04)
+- `components/app/page-header.tsx` (el viejo; ya solo lo usa Clientes →
+  Fase 04)
 - `components/ui/field.tsx` (el `Field` viejo; lo usan ~10 páginas sin
   migrar; su reemplazo es `FormField`)
 
