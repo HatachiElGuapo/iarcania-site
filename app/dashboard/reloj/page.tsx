@@ -55,7 +55,7 @@ export default function RelojPage() {
     <div className="p-8">
       <PageHeader icon="⏱️" title="Reloj" />
 
-      <div className="mb-6 inline-flex items-stretch overflow-hidden rounded-ui border border-line bg-canvas text-[11.5px]">
+      <div className="mb-6 inline-flex items-stretch overflow-hidden rounded-ui border border-line bg-canvas text-meta">
         {TABS.map((t, i) => (
           <button
             key={t.id}
@@ -316,10 +316,10 @@ function Alarmas() {
   return (
     <div className={cx(card, "space-y-4")}>
       <p className="text-xs text-ink-dim">
-        Suena solo mientras esta pestaña esté abierta — no es una alarma del sistema.
+        Solo suena con la pestaña Alarmas abierta y si el navegador permite el audio — no es una alarma del sistema.
       </p>
       {alarmas.length === 0 ? (
-        <p className="text-sm text-ink-muted">Sin alarmas todavía.</p>
+        <p className="text-sm text-ink-muted">Sin alarmas. Pon una hora y una etiqueta abajo.</p>
       ) : (
         <div className="space-y-2">
           {alarmas.map((a) => (

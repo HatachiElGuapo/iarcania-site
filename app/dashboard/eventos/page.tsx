@@ -145,7 +145,7 @@ function EventTypeCard({
 
       <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
         {occurrences.length === 0 ? (
-          <p className="text-xs text-ink-muted">Sin registros todavía.</p>
+          <p className="text-meta text-ink-muted">Sin registros de este tipo todavía. Anota la primera vez abajo.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {occurrences.map((o) => (

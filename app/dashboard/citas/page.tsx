@@ -62,7 +62,7 @@ export default async function CitasPage() {
       />
 
       {allCitas.length === 0 ? (
-        <EmptyState icon="🏥">No hay citas registradas. Agenda la primera con el formulario de abajo.</EmptyState>
+        <EmptyState icon="🏥">Turnos médicos, reuniones, lo que tenga fecha y hora fija. Todavía no has registrado ninguna cita — agenda la primera abajo.</EmptyState>
       ) : (
         <div className="flex flex-col gap-6">
           {proximas.length > 0 && (
