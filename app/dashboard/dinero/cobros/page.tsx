@@ -2,7 +2,8 @@ import { desc, eq, type InferSelectModel } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { agencyClients, agencyPayments } from "@/lib/db/schema/agencia";
-import { Field } from "@/components/ui/field";
+import { Badge, EmptyState, Labeled, Input, Select, Button } from "@/components/ui";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { todayISO } from "@/lib/date/bogota";
 import {
   createAgencyClient,
@@ -16,21 +17,25 @@ import {
 type Client = InferSelectModel<typeof agencyClients>;
 type Payment = InferSelectModel<typeof agencyPayments>;
 
-const STATUS_COLOR: Record<string, string> = {
-  activo: "text-green-400",
-  inactivo: "text-text-muted",
-  pausado: "text-gold",
+const CLIENT_STATUS: Record<string, "success" | "neutral" | "warm"> = {
+  activo: "success",
+  inactivo: "neutral",
+  pausado: "warm",
 };
-
-const PAYMENT_BADGE: Record<string, string> = {
-  pagado: "text-green-400",
-  pendiente: "text-gold",
-  vencido: "text-red-400",
+const PAYMENT_STATUS: Record<string, "success" | "warm" | "danger"> = {
+  pagado: "success",
+  pendiente: "warm",
+  vencido: "danger",
 };
 
 // Cobros vive en el dominio de agencia (crm_clients/crm_payments — SB_I del
-// original), distinto del dominio personal/freelance de la sección
-// Clientes (clients/payments/projects/invoices — SB_P). Ver NOTES.md.
+// original), distinto del dominio personal/freelance de la sección Clientes
+// (clients/payments/projects/invoices — SB_P). Ver NOTES.md.
+//
+// El status de un cobro NO se computa (no hay lógica dueDate<hoy → vencido),
+// y el banner suma solo 'pendiente' mientras el total por cliente suma
+// 'pendiente'|'vencido' — deuda de lógica documentada en
+// docs/migracion-rebranding.md, NO se toca en la migración de estilo.
 export default async function CobrosPage() {
   const session = await auth();
   const userId = session!.user.id;
@@ -41,23 +46,26 @@ export default async function CobrosPage() {
     db.select().from(agencyPayments).where(eq(agencyPayments.userId, userId)).orderBy(desc(agencyPayments.dueDate)),
   ]);
 
-  const pendingTotal = payments
-    .filter((p) => p.status === "pendiente")
-    .reduce((s, p) => s + p.amount, 0);
+  const pendingTotal = payments.filter((p) => p.status === "pendiente").reduce((s, p) => s + p.amount, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {pendingTotal > 0 && (
-        <div className="rounded-md border border-gold/30 bg-bg-card px-4 py-3">
-          <span className="text-lg font-bold text-gold">${pendingTotal.toLocaleString("es-CO")}</span>
-          <span className="ml-2 text-xs text-text-muted">por cobrar</span>
+        <div className="rounded-ui-lg border border-accent-warm/25 bg-accent-warm/[0.06] px-4 py-3">
+          <span className="text-lg font-bold tabular-nums text-accent-warm">
+            ${pendingTotal.toLocaleString("es-CO")}
+          </span>
+          <span className="ml-2 text-meta text-ink-dim">por cobrar</span>
         </div>
       )}
 
       {clients.length === 0 ? (
-        <p className="text-sm text-text-muted">Sin clientes de agencia todavía.</p>
+        <EmptyState icon="🤝">
+          Los clientes de tu agencia y sus cobros mensuales. Todavía no has registrado ninguno —
+          crea el primero abajo.
+        </EmptyState>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {clients.map((c) => (
             <ClientCard
               key={c.id}
@@ -70,35 +78,32 @@ export default async function CobrosPage() {
       )}
 
       <details>
-        <summary className="cursor-pointer text-xs text-text-muted">+ Nuevo cliente de agencia</summary>
+        <summary className="cursor-pointer text-xs text-ink-muted hover:text-ink">
+          + Nuevo cliente de agencia
+        </summary>
         <form
           action={createAgencyClient}
-          className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+          className="mt-2 flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-4"
         >
-          <Field label="Nombre">
-            <input type="text" name="name" required className="input" />
-          </Field>
-          <Field label="Negocio">
-            <input type="text" name="business" className="input" />
-          </Field>
-          <Field label="WhatsApp">
-            <input type="text" name="whatsapp" className="input" />
-          </Field>
-          <Field label="Email">
-            <input type="email" name="email" className="input" />
-          </Field>
-          <Field label="Servicio">
-            <input type="text" name="service" className="input" />
-          </Field>
-          <Field label="Monto mensual">
-            <input type="number" step="0.01" name="monthlyAmount" className="input w-28" />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-          >
-            Crear
-          </button>
+          <Labeled label="Nombre">
+            <Input name="name" required className="w-44" />
+          </Labeled>
+          <Labeled label="Negocio">
+            <Input name="business" className="w-44" />
+          </Labeled>
+          <Labeled label="WhatsApp">
+            <Input name="whatsapp" className="w-36" />
+          </Labeled>
+          <Labeled label="Email">
+            <Input type="email" name="email" className="w-48" />
+          </Labeled>
+          <Labeled label="Servicio">
+            <Input name="service" className="w-44" />
+          </Labeled>
+          <Labeled label="Monto mensual">
+            <Input type="number" step="0.01" name="monthlyAmount" className="w-28" />
+          </Labeled>
+          <Button type="submit">Crear</Button>
         </form>
       </details>
     </div>
@@ -118,82 +123,91 @@ function ClientCard({
   const totalPendiente = clientPayments
     .filter((p) => p.status === "pendiente" || p.status === "vencido")
     .reduce((a, p) => a + p.amount, 0);
+  const n = clientPayments.length;
 
   return (
-    <details className="rounded-md border border-border bg-bg-card p-4">
+    <details className="rounded-ui-lg border border-line bg-surface p-4">
       <summary className="flex cursor-pointer items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-mid/20 text-sm">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm">
           {client.name.charAt(0).toUpperCase()}
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-text-primary">{client.name}</span>
-            <span className={`text-xs font-semibold ${STATUS_COLOR[client.status]}`}>{client.status}</span>
+            <span className="truncate text-sm font-semibold text-ink">{client.name}</span>
+            <Badge tone={CLIENT_STATUS[client.status] ?? "neutral"}>{client.status}</Badge>
           </div>
-          <div className="text-xs text-text-muted">
+          <div className="truncate text-meta text-ink-dim">
             {[client.business, client.service].filter(Boolean).join(" · ") || "—"}
             {client.monthlyAmount > 0 && ` · $${client.monthlyAmount.toLocaleString("es-CO")}/mes`}
           </div>
-          <div className="mt-1 flex gap-3 text-xs">
-            <span className="text-green-400">✅ ${totalPagado.toLocaleString("es-CO")} pagado</span>
+          <div className="mt-1 flex gap-3 text-meta tabular-nums">
+            <span className="text-success">✅ ${totalPagado.toLocaleString("es-CO")} pagado</span>
             {totalPendiente > 0 && (
-              <span className="text-gold">⏳ ${totalPendiente.toLocaleString("es-CO")} pendiente</span>
+              <span className="text-accent-warm">⏳ ${totalPendiente.toLocaleString("es-CO")} pendiente</span>
             )}
           </div>
         </div>
       </summary>
 
-      <div className="mt-4 space-y-4 border-t border-border pt-4">
-        <div className="flex items-center gap-2">
+      <div className="mt-4 flex flex-col gap-4 border-t border-line pt-4">
+        <div className="flex flex-wrap items-center gap-2">
           <form action={updateAgencyClientStatus} className="flex items-center gap-2">
             <input type="hidden" name="id" value={client.id} />
-            <select name="status" defaultValue={client.status} className="input">
+            <Select name="status" defaultValue={client.status}>
               <option value="activo">Activo</option>
               <option value="inactivo">Inactivo</option>
               <option value="pausado">Pausado</option>
-            </select>
-            <button
-              type="submit"
-              className="rounded-sm border border-border px-3 py-1.5 text-xs text-text-muted hover:border-purple-mid hover:text-text-primary"
-            >
+            </Select>
+            <Button type="submit" variant="secondary" size="sm">
               Actualizar estado
-            </button>
+            </Button>
           </form>
-          <form action={deleteAgencyClient}>
-            <input type="hidden" name="id" value={client.id} />
-            <button
-              type="submit"
-              className="rounded-sm border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:border-red-400"
-            >
-              Eliminar cliente
-            </button>
-          </form>
+          <ConfirmDialog
+            trigger={
+              <Button variant="danger" size="sm">
+                Eliminar cliente
+              </Button>
+            }
+            title={`¿Eliminar a «${client.name}»?`}
+            body={
+              n > 0
+                ? `Se borran también sus ${n} cobro${n !== 1 ? "s" : ""} (incluidos los pagados). No se puede deshacer.`
+                : "No tiene cobros registrados. No se puede deshacer."
+            }
+            confirmLabel="Eliminar cliente"
+            action={deleteAgencyClient}
+            hidden={{ id: client.id }}
+          />
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Cobros</h3>
+          <h3 className="mb-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            Cobros
+          </h3>
           {clientPayments.length === 0 ? (
-            <p className="text-xs text-text-muted">Sin cobros registrados</p>
+            <p className="text-meta text-ink-muted">Sin cobros registrados.</p>
           ) : (
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               {clientPayments.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 text-xs">
-                  <span className="text-text-muted">{p.dueDate ?? "—"}</span>
-                  <span className="flex-1 text-text-primary">{p.notes ?? "—"}</span>
-                  <span className="text-text-primary">${p.amount.toLocaleString("es-CO")}</span>
-                  <span className={PAYMENT_BADGE[p.status]}>{p.status}</span>
+                <div key={p.id} className="flex items-center gap-2 text-meta">
+                  <span className="tabular-nums text-ink-dim">{p.dueDate ?? "—"}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink" title={p.notes ?? undefined}>
+                    {p.notes ?? "—"}
+                  </span>
+                  <span className="tabular-nums text-ink">${p.amount.toLocaleString("es-CO")}</span>
+                  <Badge tone={PAYMENT_STATUS[p.status] ?? "neutral"}>{p.status}</Badge>
                   {p.status !== "pagado" && (
                     <form action={markAgencyPaymentPaid}>
                       <input type="hidden" name="id" value={p.id} />
                       <input type="hidden" name="paidDate" value={today} />
-                      <button type="submit" className="text-green-400 hover:underline">
+                      <button type="submit" className="text-success hover:underline">
                         Marcar pagado
                       </button>
                     </form>
                   )}
                   <form action={deleteAgencyPayment}>
                     <input type="hidden" name="id" value={p.id} />
-                    <button type="submit" className="text-text-muted hover:text-red-400">
+                    <button type="submit" className="text-ink-dim hover:text-danger">
                       ×
                     </button>
                   </form>
@@ -201,33 +215,31 @@ function ClientCard({
               ))}
             </div>
           )}
+
           <form action={createAgencyPayment} className="mt-2 flex flex-wrap items-end gap-2">
             <input type="hidden" name="clientId" value={client.id} />
-            <Field label="Monto">
-              <input type="number" step="0.01" name="amount" required className="input w-28" />
-            </Field>
-            <Field label="Estado">
-              <select name="status" defaultValue="pendiente" className="input">
+            <Labeled label="Monto">
+              <Input type="number" step="0.01" name="amount" required className="w-28" />
+            </Labeled>
+            <Labeled label="Estado">
+              <Select name="status" defaultValue="pendiente">
                 <option value="pendiente">Pendiente</option>
                 <option value="pagado">Pagado</option>
                 <option value="vencido">Vencido</option>
-              </select>
-            </Field>
-            <Field label="Vence">
-              <input type="date" name="dueDate" className="input" />
-            </Field>
-            <Field label="Pagado el">
-              <input type="date" name="paidDate" defaultValue={today} className="input" />
-            </Field>
-            <Field label="Nota">
-              <input type="text" name="notes" className="input w-32" />
-            </Field>
-            <button
-              type="submit"
-              className="rounded-sm border border-border px-3 py-1.5 text-xs text-text-muted hover:border-purple-mid hover:text-text-primary"
-            >
+              </Select>
+            </Labeled>
+            <Labeled label="Vence">
+              <Input type="date" name="dueDate" className="w-40" />
+            </Labeled>
+            <Labeled label="Pagado el">
+              <Input type="date" name="paidDate" defaultValue={today} className="w-40" />
+            </Labeled>
+            <Labeled label="Nota">
+              <Input name="notes" className="w-32" />
+            </Labeled>
+            <Button type="submit" variant="secondary">
               + Cobro
-            </button>
+            </Button>
           </form>
         </div>
       </div>

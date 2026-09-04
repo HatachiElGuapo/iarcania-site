@@ -157,7 +157,7 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Dinero · Facturas | `/dashboard/dinero/facturas` | 1 Lista + estado de pago | ✅ migrada | `payBill` (transacción bill_payments+expenses+balance, sin cambios) |
 | Dinero · Metas | `/dashboard/dinero/metas` | 1 Lista priorizada | ✅ migrada | 5g decía arquetipo 3, pero sin campo "ahorrado" una barra sería decorativa → lista simple |
 | Dinero · Escanear | `/dashboard/dinero/escanear` | acción de captura | ✅ migrada | **No funciona sin `ANTHROPIC_API_KEY`** (vacía hoy). `/api/scan-receipt` ahora devuelve 503 con mensaje claro en vez del 401 críptico de Anthropic |
-| Dinero · Cobros | `/dashboard/dinero/cobros` | 1 Lista | ⏳ **turno propio** | ⚠️ dinero de negocio real. Ver "Deuda de lógica de negocio" abajo |
+| Dinero · Cobros | `/dashboard/dinero/cobros` | 1 Lista | ✅ migrada | Solo markup: cero cambios en actions.ts, cero cambios en lectura/escritura del status. El botón "Eliminar cliente" ahora usa <ConfirmDialog> que dice cuántos cobros borrará el CASCADE (no cambia comportamiento, lo hace visible). Deudas 1-3 abajo, abiertas |
 | Citas | `/dashboard/citas` | 2 Temporal | ✅ migrada | Fase 03. `actions.ts` (offset `-05:00`) sin tocar |
 | Eventos | `/dashboard/eventos` | 2 Temporal | ✅ migrada | Fase 03 |
 | Reloj | `/dashboard/reloj` | 2 Temporal | ✅ migrada | Fase 03. 100% cliente, alarmas en `localStorage` |
@@ -183,7 +183,7 @@ migrar con su sección.
 |---|---|---|
 | 01 · Extraer el sistema | Rutinas, Actividades, Agenda + shell + librería | ✅ hecha |
 | 02 · Arquetipo 1 en volumen | Ideas, Personas, Hogar, Recursos, Libros | ✅ hecha |
-| 03 · Los que ya tienen datos | Hábitos, Cuerpo, Dinero (arq. 3) · Citas, Eventos, Reloj (arq. 2) | ✅ hecha — **falta Cobros** (turno propio) |
+| 03 · Los que ya tienen datos | Hábitos, Cuerpo, Dinero (6 pestañas) · Citas, Eventos, Reloj | ✅ hecha |
 | 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | ⏳ siguiente |
 | 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | pendiente |
 
@@ -244,10 +244,11 @@ commits de migración NO los tocan.
    decidir cuál de los dos criterios es el correcto.
 3. **`crm_payments.client_id` tiene `ON DELETE CASCADE` hacia
    `crm_clients.id`** (verificado en `lib/db/schema/agencia.ts`). Borrar un
-   cliente de agencia con `deleteAgencyClient` **borra en silencio todo su
-   historial de cobros** (pagados incluidos). El original tampoco avisaba.
-   Decidir: ¿confirmación explícita ("esto borra N cobros"), o soft-delete
-   del cliente en vez de `DELETE`?
+   cliente de agencia con `deleteAgencyClient` borra todo su historial de
+   cobros, pagados incluidos. Desde la migración el `<ConfirmDialog>` lo
+   **dice** antes de ejecutar ("se borran N cobros"), pero el comportamiento
+   del CASCADE no cambió. Abierto: ¿soft-delete del cliente en vez de
+   `DELETE` duro?
 
 ### Gastos (`/dashboard/dinero/gastos`)
 
