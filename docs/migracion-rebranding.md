@@ -165,11 +165,11 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Planner | `/dashboard/planner` | 4 Tablero + pestañas | ✅ migrada | Fase 04. `?tab=` (Contenido/Producción/Semanal) + `?canal=` re-estilados como `Segmented`, NO convertidos a rutas. `toggleChecklist` (de Guiones) conservado como botón-por-paso, solo re-skin |
 | CRM | `/dashboard/crm` | 4 Tablero + pestañas | ✅ migrada | Fase 04. `?tab=` (Presupuesto/Pipeline/Clientes/Deudas) → `Segmented`, una sola página. `moveDealStage` conservado como botón-por-etapa (el "select Mover ▾" del arquetipo no aplica: el mecanismo actual ya funciona). Cero cambios en actions.ts |
 | Clientes | `/dashboard/clientes` | 1 Lista | ✅ migrada | Fase 04. ⚠️ datos reales — solo markup, cero cambios en actions.ts. Migrado del `PageHeader` viejo (`@/components/app/page-header`) al nuevo. `deleteClient` ahora usa `<ConfirmDialog>` que dice qué borra el CASCADE (proyectos/pagos/invoices). Deuda #5 abajo |
-| Guiones | `/dashboard/guiones` | 5 Documento | ⏳ Fase 05 | |
-| Slides | `/dashboard/slides` | 5 Documento | ⏳ Fase 05 | miniaturas 16:9 |
-| Escuela | `/dashboard/escuela` (+ `cursos/[id]`) | 5 Documento | ⏳ Fase 05 | pestañas `?tab=`, **sin** `SubNav` |
-| Brújula | `/dashboard/brujula` | 6 Panel | ⏳ Fase 05 | árbol con `<details>` nativo |
-| Workspace | `/dashboard/workspace` | 6 Panel | ⏳ Fase 05 | 100% estático, lista de links |
+| Guiones | `/dashboard/guiones` | 5 Documento | ✅ migrada | Fase 05. `PageHeader` + `Segmented` de canal. `new-script-form` y `script-card` (client) re-skineados; llamadas a `/api/scripts/*` y descarga por Blob intactas. Cero cambios en actions.ts |
+| Slides | `/dashboard/slides` | 5 Documento | ✅ migrada | Fase 05. Sigue siendo stub (no hay editor); `PageHeader` + `EmptyState` |
+| Escuela | `/dashboard/escuela` (+ `cursos/[id]`) | 5 Documento | ✅ migrada | Fase 05. `?tab=` (Cursos/Estudiantes) → `Segmented`, **sin** `SubNav`, no convertido a rutas. `cursos/[id]` sigue stub. Tier→`MetricCard`/`Badge`, Field→Labeled. Cero cambios en actions.ts |
+| Brújula | `/dashboard/brujula` | 6 Panel | ✅ migrada | Fase 05. Árbol con `<details>` nativo; bloque "Mañana" → `Card`. Colores por área siguen inline (los elige el usuario). Cero cambios en actions.ts |
+| Workspace | `/dashboard/workspace` | 6 Panel | ✅ migrada | Fase 05. 100% estático; grupos → `Card`, enlaces externos con hover |
 
 **Sub-layouts**: todos migrados — `habitos/`, `cuerpo/`, `dinero/` (Fase 03)
 y `trabajo/` (Fase 04) usan `PageHeader` + `SubNav` del sistema nuevo.
@@ -182,7 +182,10 @@ y `trabajo/` (Fase 04) usan `PageHeader` + `SubNav` del sistema nuevo.
 | 02 · Arquetipo 1 en volumen | Ideas, Personas, Hogar, Recursos, Libros | ✅ hecha |
 | 03 · Los que ya tienen datos | Hábitos, Cuerpo, Dinero (6 pestañas) · Citas, Eventos, Reloj | ✅ hecha |
 | 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | ✅ hecha |
-| 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | ⏳ siguiente |
+| 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | ✅ hecha |
+
+**Las 23 secciones están migradas.** Falta el PASO 5 (limpieza del sistema
+viejo), que es el commit irreversible y se hace aparte, con revisión previa.
 
 ---
 
