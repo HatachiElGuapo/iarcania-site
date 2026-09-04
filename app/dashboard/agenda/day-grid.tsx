@@ -3,21 +3,23 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { moveBlock, scheduleHabit, deleteBlock } from "./actions";
 
-// Vista de día: regla de horas con los eventos posicionados en absoluto
-// (top = minutos, alto = duración) dentro de un contenedor `relative` de
-// altura natural. El scroll es el de la PÁGINA — este componente no tiene
-// overflow propio. El encabezado es sticky para no perderse al bajar.
+// Vista de día: rejilla FIJA de 00:00 a 24:00 con marcas cada 20 min (72),
+// eventos posicionados en absoluto (top = minutos, alto = duración) dentro
+// de un contenedor `relative` de altura natural (~2300 px). El scroll es el
+// de la PÁGINA — este componente no tiene overflow propio. El encabezado es
+// sticky para no perderse al bajar.
 //
 // Sin librería de drag: pointer events + setPointerCapture. React 18.3, así
 // que el patrón optimista es estado local + startTransition (igual que
 // components/app/optimistic-toggle-row.tsx), no useOptimistic.
 
-const PX_PER_MIN = 1.6; // 10 min = 16 px, 1 h = 96 px
-const SNAP = 10;
+const PX_PER_MIN = 1.6; // 10 min = 16 px, 1 h = 96 px, día completo = 2304 px
+const SNAP = 10; // el arrastre ajusta a 10 min aunque las marcas sean de 20
 const GUTTER = 46; // ancho de la columna de horas
 const MIN_DUR = 20; // mínimo de actividad de la app
-const MIN_SPAN = 8 * 60; // al menos 8 h de rejilla visibles
-const PAD = 60; // 1 h de aire arriba y abajo del contenido
+const MARK_STEP = 20; // una etiqueta cada 20 min
+const V_START = 0;
+const V_END = 24 * 60;
 
 export type AgendaEvent = {
   key: string;
@@ -98,7 +100,6 @@ export function DayGrid({
   const [events, setEvents] = useState<AgendaEvent[]>(initial);
   useEffect(() => setEvents(initial), [sig]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [showFull, setShowFull] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(null);
   const [isPending, startTransition] = useTransition();
@@ -114,27 +115,9 @@ export function DayGrid({
     draft && draft.key === e.key ? { ...e, start: draft.start, duration: draft.duration } : e,
   );
 
-  // Ventana visible: por defecto recortada al contenido (± 1 h, mínimo 8 h);
-  // el toggle la abre a 24 h completas. Nunca recorta un evento: la ventana
-  // siempre contiene todo lo que hay en `display` (incluido el draft).
-  let vStart: number;
-  let vEnd: number;
-  if (showFull) {
-    vStart = 0;
-    vEnd = 1440;
-  } else if (display.length === 0) {
-    vStart = 8 * 60;
-    vEnd = 20 * 60;
-  } else {
-    const lo = Math.min(...display.map((e) => e.start));
-    const hi = Math.max(...display.map((e) => e.start + e.duration));
-    vStart = clamp(Math.floor((lo - PAD) / 60) * 60, 0, 1440);
-    vEnd = clamp(Math.ceil((hi + PAD) / 60) * 60, 0, 1440);
-    if (vEnd - vStart < MIN_SPAN) {
-      vStart = Math.max(0, Math.min(vStart, 1440 - MIN_SPAN));
-      vEnd = vStart + MIN_SPAN;
-    }
-  }
+  // Ventana fija de día completo.
+  const vStart = V_START;
+  const vEnd = V_END;
   const bodyH = (vEnd - vStart) * PX_PER_MIN;
 
   const laneSig = display.map((e) => `${e.key}:${e.start}:${e.duration}`).join("|");
@@ -219,8 +202,9 @@ export function DayGrid({
     });
   }
 
-  const hourMarks: number[] = [];
-  for (let m = Math.ceil(vStart / 60) * 60; m <= vEnd; m += 60) hourMarks.push(m);
+  // 72 marcas: 00:00, 00:20, 00:40 … 23:20, 23:40.
+  const marks: number[] = [];
+  for (let m = vStart; m < vEnd; m += MARK_STEP) marks.push(m);
 
   return (
     <div className="rounded-ui-lg border border-line bg-surface">
@@ -229,47 +213,37 @@ export function DayGrid({
           Rejilla del día
         </span>
         <span className="hidden text-[10.5px] text-ink-dim sm:inline">
-          arrastra para mover · tira del borde para durar
+          00:00–24:00 · arrastra para mover · tira del borde para durar
         </span>
-        <button
-          type="button"
-          onClick={() => setShowFull((v) => !v)}
-          className="focus-ring ml-auto rounded-ui border border-line px-2 py-1 text-[10.5px] text-ink-muted transition-colors duration-120 hover:border-line-strong hover:text-ink"
-        >
-          {showFull ? "Ajustar al contenido" : "Ver 24 h"}
-        </button>
       </div>
 
       <div
         className={`relative ${drag.current ? "select-none" : ""}`}
         style={{ height: bodyH + 16, touchAction: "pan-y" }}
       >
-        {/* Regla de horas */}
-        {hourMarks.map((m) => (
-          <div key={`h-${m}`}>
-            <div
-              className="absolute text-right text-[10.5px] tabular-nums leading-none text-ink-muted"
-              style={{ top: (m - vStart) * PX_PER_MIN - 4, left: 0, width: GUTTER - 8 }}
-            >
-              {fmt(m)}
-            </div>
-            <div
-              className="absolute border-t border-line"
-              style={{ top: (m - vStart) * PX_PER_MIN, left: GUTTER, right: 8 }}
-            />
-            {m + 30 <= vEnd && (
+        {/* Regla: marca cada 20 min. La hora en punto pesa más (texto más
+            claro y grande, línea sólida); :20 y :40 quedan tenues para no
+            competir. */}
+        {marks.map((m) => {
+          const onHour = m % 60 === 0;
+          const y = (m - vStart) * PX_PER_MIN;
+          return (
+            <div key={`m-${m}`}>
               <div
-                className="absolute border-t border-dotted"
-                style={{
-                  top: (m + 30 - vStart) * PX_PER_MIN,
-                  left: GUTTER,
-                  right: 8,
-                  borderColor: "#1C1C21",
-                }}
+                className={`absolute text-right tabular-nums leading-none ${
+                  onHour ? "text-[10.5px] text-ink-muted" : "text-[9px] text-ink-dim"
+                }`}
+                style={{ top: y - (onHour ? 5 : 4), left: 0, width: GUTTER - 8 }}
+              >
+                {fmt(m)}
+              </div>
+              <div
+                className={`absolute ${onHour ? "border-t border-line" : "border-t border-dotted"}`}
+                style={{ top: y, left: GUTTER, right: 8, ...(onHour ? null : { borderColor: "#1C1C21" }) }}
               />
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
 
         {/* Línea de "ahora" */}
         {isToday && nowMinutes >= vStart && nowMinutes <= vEnd && (
