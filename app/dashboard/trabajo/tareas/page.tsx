@@ -2,6 +2,7 @@ import { and, asc, eq, gte, lte, ne } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { tasks } from "@/lib/db/schema/trabajo";
+import { Segmented, Table, TableHead, TableRow, EmptyState, cx } from "@/components/ui";
 import { toggleTaskStatus } from "../../actividades/actions";
 import { todayISO, addDaysISO } from "@/lib/date/bogota";
 
@@ -12,6 +13,8 @@ const RANGES: { id: string; label: string; days: number }[] = [
   { id: "mes", label: "Mes", days: 30 },
   { id: "3m", label: "3 meses", days: 90 },
 ];
+
+const COLS = "28px minmax(0,1fr) 120px 96px 72px";
 
 export default async function TrabajoTareasPage({
   searchParams,
@@ -40,80 +43,56 @@ export default async function TrabajoTareasPage({
     .orderBy(asc(tasks.status), asc(tasks.dueDate), asc(tasks.timeDue));
 
   return (
-    <div>
-      <div className="mb-4 flex gap-2 text-sm">
-        {RANGES.map((r) => (
-          <a
-            key={r.id}
-            href={`/dashboard/trabajo/tareas?rango=${r.id}`}
-            className={`rounded-sm px-2 py-1 ${
-              range.id === r.id
-                ? "bg-bg-card text-text-primary"
-                : "text-text-muted hover:text-text-primary"
-            }`}
-          >
-            {r.label}
-          </a>
-        ))}
-      </div>
+    <div className="flex flex-col gap-4">
+      <Segmented
+        options={RANGES.map((r) => ({
+          label: r.label,
+          href: `/dashboard/trabajo/tareas?rango=${r.id}`,
+          active: range.id === r.id,
+        }))}
+      />
 
       {rows.length === 0 ? (
-        <p className="text-sm text-text-muted">
-          No hay tareas con vencimiento en este rango.
-        </p>
+        <EmptyState icon="✅">No tienes tareas con vencimiento en este rango.</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-left text-sm">
-            <thead className="text-text-muted">
-              <tr className="border-b border-border">
-                <th className="px-3 py-2 font-medium"></th>
-                <th className="px-3 py-2 font-medium">Tarea</th>
-                <th className="px-3 py-2 font-medium">Categoría</th>
-                <th className="px-3 py-2 font-medium">Vence</th>
-                <th className="px-3 py-2 font-medium">Hora</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((task) => (
-                <tr key={task.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2">
-                    <form action={toggleTaskStatus}>
-                      <input type="hidden" name="id" value={task.id} />
-                      <input
-                        type="hidden"
-                        name="nextStatus"
-                        value={
-                          task.status === "completada"
-                            ? "pendiente"
-                            : "completada"
-                        }
-                      />
-                      <button
-                        type="submit"
-                        className={`h-4 w-4 rounded border ${task.status === "completada" ? "border-purple-mid bg-purple-mid" : "border-border"}`}
-                        aria-label="Cambiar estado"
-                      />
-                    </form>
-                  </td>
-                  <td
-                    className={`px-3 py-2 ${task.status === "completada" ? "text-text-dim line-through" : "text-text-primary"}`}
-                  >
-                    {task.title}
-                  </td>
-                  <td className="px-3 py-2 text-text-muted">
-                    {task.category ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-text-muted">
-                    {task.dueDate ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-text-muted">
-                    {task.timeDue ?? "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHead cols={COLS}>
+            <span />
+            <span>Tarea</span>
+            <span>Categoría</span>
+            <span>Vence</span>
+            <span>Hora</span>
+          </TableHead>
+          {rows.map((task) => {
+            const done = task.status === "completada";
+            return (
+              <TableRow key={task.id} cols={COLS} category={task.category}>
+                <form action={toggleTaskStatus} className="flex">
+                  <input type="hidden" name="id" value={task.id} />
+                  <input
+                    type="hidden"
+                    name="nextStatus"
+                    value={done ? "pendiente" : "completada"}
+                  />
+                  <button
+                    type="submit"
+                    className={cx(
+                      "focus-ring h-4 w-4 rounded-ui-sm border transition-colors duration-120",
+                      done ? "border-accent bg-accent" : "border-line-strong hover:border-ink-dim",
+                    )}
+                    aria-label="Cambiar estado"
+                  />
+                </form>
+                <span className={cx("truncate", done ? "text-ink-dim line-through" : "text-ink")}>
+                  {task.title}
+                </span>
+                <span className="truncate text-ink-muted">{task.category ?? "—"}</span>
+                <span className="tabular-nums text-ink-muted">{task.dueDate ?? "—"}</span>
+                <span className="tabular-nums text-ink-muted">{task.timeDue ?? "—"}</span>
+              </TableRow>
+            );
+          })}
+        </Table>
       )}
     </div>
   );

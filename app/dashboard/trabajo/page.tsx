@@ -2,7 +2,7 @@ import { and, asc, desc, eq, notInArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { tasks, dailyFocus, workNotes } from "@/lib/db/schema/trabajo";
-import { Field } from "@/components/ui/field";
+import { Section, Segmented, Labeled, Input, Select, Button, EmptyState, cx } from "@/components/ui";
 import {
   addToWorkFocus,
   toggleFocusComplete,
@@ -81,39 +81,37 @@ export default async function TrabajoHoyPage({
   const doneCount = focusItems.filter((i) => i.completed).length;
 
   return (
-    <div className="space-y-10">
-      {/* Foco de hoy */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
-          Hoy en trabajo · {doneCount}/{focusItems.length}
-        </h2>
-
+    <div className="flex flex-col gap-8">
+      <Section title={`Hoy en trabajo · ${doneCount}/${focusItems.length}`}>
         {focusItems.length === 0 ? (
-          <p className="mb-3 text-sm text-text-muted">
-            Todavía no agregaste nada al foco de hoy.
-          </p>
+          <EmptyState icon="🎯">
+            Todavía no has agregado nada al foco de hoy. Trae una tarea pendiente o crea una nueva
+            abajo.
+          </EmptyState>
         ) : (
-          <div className="mb-3 space-y-2">
+          <div className="flex flex-col gap-2">
             {focusItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-3 rounded-md border border-border bg-bg-card px-4 py-2"
+                className="flex items-center gap-3 rounded-ui-lg border border-line bg-surface px-4 py-2"
               >
-                <form action={toggleFocusComplete}>
+                <form action={toggleFocusComplete} className="flex">
                   <input type="hidden" name="id" value={item.id} />
-                  <input
-                    type="hidden"
-                    name="nextCompleted"
-                    value={String(!item.completed)}
-                  />
+                  <input type="hidden" name="nextCompleted" value={String(!item.completed)} />
                   <button
                     type="submit"
-                    className={`h-4 w-4 rounded border ${item.completed ? "border-purple-mid bg-purple-mid" : "border-border"}`}
+                    className={cx(
+                      "focus-ring h-4 w-4 rounded-ui-sm border transition-colors duration-120",
+                      item.completed ? "border-accent bg-accent" : "border-line-strong hover:border-ink-dim",
+                    )}
                     aria-label="Marcar completada"
                   />
                 </form>
                 <span
-                  className={`flex-1 text-sm ${item.completed ? "text-text-dim line-through" : "text-text-primary"}`}
+                  className={cx(
+                    "flex-1 text-body",
+                    item.completed ? "text-ink-dim line-through" : "text-ink",
+                  )}
                 >
                   {item.title}
                 </span>
@@ -121,7 +119,7 @@ export default async function TrabajoHoyPage({
                   <input type="hidden" name="id" value={item.id} />
                   <button
                     type="submit"
-                    className="text-xs text-text-muted hover:text-red-400"
+                    className="focus-ring text-meta text-ink-muted transition-colors duration-120 hover:text-danger"
                   >
                     Quitar
                   </button>
@@ -134,87 +132,67 @@ export default async function TrabajoHoyPage({
         {pendingTasks.length > 0 && (
           <form
             action={addToWorkFocus}
-            className="flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-3"
+            className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-3"
           >
             <input type="hidden" name="date" value={date} />
-            <Field label="Agregar tarea existente">
-              <select name="taskId" required className="input">
+            <Labeled label="Agregar tarea existente">
+              <Select name="taskId" required className="w-64">
                 {pendingTasks.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.title}
                   </option>
                 ))}
-              </select>
-            </Field>
-            <button
-              type="submit"
-              className="rounded-sm border border-border px-3 py-1.5 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
-            >
+              </Select>
+            </Labeled>
+            <Button type="submit" variant="secondary">
               + Agregar a hoy
-            </button>
+            </Button>
           </form>
         )}
 
         <form
           action={createTask}
-          className="mt-3 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-3"
+          className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-3"
         >
-          <Field label="Nueva tarea">
-            <input type="text" name="title" required className="input" />
-          </Field>
-          <Field label="Vence">
-            <input type="date" name="dueDate" className="input" />
-          </Field>
-          <Field label="Categoría">
-            <input type="text" name="category" className="input" />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm border border-border px-3 py-1.5 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
-          >
+          <Labeled label="Nueva tarea">
+            <Input name="title" required className="w-64" />
+          </Labeled>
+          <Labeled label="Vence">
+            <Input type="date" name="dueDate" className="w-40" />
+          </Labeled>
+          <Labeled label="Categoría">
+            <Input name="category" className="w-40" />
+          </Labeled>
+          <Button type="submit" variant="secondary">
             + Crear tarea
-          </button>
+          </Button>
         </form>
-      </section>
+      </Section>
 
-      {/* Notas de trabajo */}
-      <section>
-        <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gold">
-            Notas
-          </h2>
-          <div className="ml-auto flex gap-1">
-            {CHANNELS.map((c) => (
-              <a
-                key={c.id}
-                href={`/dashboard/trabajo?canal=${c.id}`}
-                className={`rounded-sm px-2 py-1 text-xs ${
-                  channel === c.id
-                    ? "bg-bg-card text-text-primary"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
-              >
-                {c.label}
-              </a>
-            ))}
-          </div>
-        </div>
-
+      <Section
+        title="Notas"
+        action={
+          <Segmented
+            className="border-0"
+            options={CHANNELS.map((c) => ({
+              label: c.label,
+              href: `/dashboard/trabajo?canal=${c.id}`,
+              active: channel === c.id,
+            }))}
+          />
+        }
+      >
         {notes.length === 0 ? (
-          <p className="mb-3 text-sm text-text-muted">
-            Sin notas todavía para este canal.
-          </p>
+          <EmptyState icon="🗒️">Aún no has escrito notas en este canal.</EmptyState>
         ) : (
-          <div className="mb-3 space-y-2">
+          <div className="flex flex-col gap-2">
             {notes.map((note) => (
               <div
                 key={note.id}
-                className="rounded-md border border-border bg-bg-card px-4 py-2 text-sm text-text-primary"
+                className="rounded-ui-lg border border-line bg-surface px-4 py-2 text-body text-ink"
               >
                 {note.content}
-                <div className="mt-1 text-xs text-text-muted">
-                  {note.date}
-                </div>
+                <div className="mt-1 text-meta tabular-nums text-ink-dim">{note.date}</div>
               </div>
             ))}
           </div>
@@ -222,21 +200,18 @@ export default async function TrabajoHoyPage({
 
         <form
           action={createWorkNote}
-          className="flex items-end gap-3 rounded-md border border-dashed border-border p-3"
+          className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-3"
         >
           <input type="hidden" name="channel" value={channel} />
           <input type="hidden" name="date" value={date} />
-          <Field label="Nueva nota">
-            <input type="text" name="content" required className="input w-80" />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm border border-border px-3 py-1.5 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
-          >
+          <Labeled label="Nueva nota">
+            <Input name="content" required className="w-80" />
+          </Labeled>
+          <Button type="submit" variant="secondary">
             + Agregar
-          </button>
+          </Button>
         </form>
-      </section>
+      </Section>
     </div>
   );
 }
