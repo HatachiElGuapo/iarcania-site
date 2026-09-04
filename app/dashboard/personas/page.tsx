@@ -1,8 +1,21 @@
-import { asc, eq, type InferSelectModel } from "drizzle-orm";
+import { and, asc, count, eq, ilike, or, type InferSelectModel, type SQL } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { people, importantDates } from "@/lib/db/schema/personas";
-import { Field } from "@/components/ui/field";
+import {
+  PageHeader,
+  Card,
+  Table,
+  TableHead,
+  TableRow,
+  Button,
+  EmptyState,
+  QuickCapture,
+  Input,
+  Select,
+  Pagination,
+  cx,
+} from "@/components/ui";
 import {
   createPersona,
   updatePersona,
@@ -12,7 +25,6 @@ import {
 } from "./actions";
 import { todayISO, BOGOTA_OFFSET } from "@/lib/date/bogota";
 
-type Person = InferSelectModel<typeof people>;
 type ImportantDate = InferSelectModel<typeof importantDates>;
 
 const REL_LABELS: Record<string, string> = {
@@ -32,31 +44,57 @@ const FECHA_TIPOS: Record<string, string> = {
   evento: "🎉 Evento",
 };
 
+const PAGE_SIZE = 50;
+const COLS = "minmax(0,1fr) 150px 116px 120px";
+
 function daysUntil(day: number, month: number) {
   const [y] = todayISO().split("-").map(Number);
   const today = new Date(`${todayISO()}T00:00:00${BOGOTA_OFFSET}`);
-  let next = new Date(`${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00${BOGOTA_OFFSET}`);
-  if (next < today)
-    next = new Date(`${y + 1}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00${BOGOTA_OFFSET}`);
+  const mm = String(month).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  let next = new Date(`${y}-${mm}-${dd}T00:00:00${BOGOTA_OFFSET}`);
+  if (next < today) next = new Date(`${y + 1}-${mm}-${dd}T00:00:00${BOGOTA_OFFSET}`);
   return Math.round((next.getTime() - today.getTime()) / 86400000);
 }
 
-export default async function PersonasPage() {
+function nearLabel(days: number) {
+  return days === 0 ? "¡Hoy!" : days === 1 ? "Mañana" : `${days} días`;
+}
+
+export default async function PersonasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; rel?: string; page?: string; edit?: string }>;
+}) {
   const session = await auth();
   const userId = session!.user.id;
+  const sp = await searchParams;
+  const q = (sp.q ?? "").trim();
+  const rel = sp.rel && REL_LABELS[sp.rel] ? sp.rel : "";
+  const page = Math.max(1, Number(sp.page) || 1);
 
-  const [allPeople, allDates] = await Promise.all([
+  const search: SQL | undefined = q
+    ? or(ilike(people.name, `%${q}%`), ilike(people.notes, `%${q}%`))
+    : undefined;
+  const where = and(
+    eq(people.userId, userId),
+    ...(rel ? [eq(people.relationship, rel)] : []),
+    ...(search ? [search] : []),
+  );
+
+  const [totalRows, rows, allDates] = await Promise.all([
+    db.select({ total: count() }).from(people).where(where),
     db
       .select()
       .from(people)
-      .where(eq(people.userId, userId))
-      .orderBy(asc(people.name)),
-    db
-      .select()
-      .from(importantDates)
-      .where(eq(importantDates.userId, userId)),
+      .where(where)
+      .orderBy(asc(people.name))
+      .limit(PAGE_SIZE)
+      .offset((page - 1) * PAGE_SIZE),
+    db.select().from(importantDates).where(eq(importantDates.userId, userId)),
   ]);
 
+  const total = totalRows[0]?.total ?? 0;
   const birthdayByPersonId = new Map(
     allDates.filter((d) => d.personId).map((d) => [d.personId as string, d]),
   );
@@ -64,215 +102,253 @@ export default async function PersonasPage() {
     .filter((d) => !d.personId)
     .sort((a, b) => daysUntil(a.day, a.month) - daysUntil(b.day, b.month));
 
+  const editing = sp.edit ? rows.find((p) => p.id === sp.edit) : undefined;
+  const editingBday = editing ? birthdayByPersonId.get(editing.id) : undefined;
+
+  const qs = (extra: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (rel) params.set("rel", rel);
+    for (const [k, v] of Object.entries(extra)) {
+      if (v) params.set(k, v);
+      else params.delete(k);
+    }
+    const s = params.toString();
+    return s ? `/dashboard/personas?${s}` : "/dashboard/personas";
+  };
+
+  const filtering = !!(q || rel);
+
   return (
-    <div className="space-y-8 p-8">
-      <h1 className="font-display text-2xl text-text-primary">Personas</h1>
+    <div className="p-8">
+      <PageHeader
+        icon="👥"
+        title="Personas"
+        subtitle={`${total} registro${total !== 1 ? "s" : ""}${q || rel ? " (filtrado)" : ""}`}
+      />
 
-      <section>
-        {allPeople.length === 0 ? (
-          <p className="text-sm text-text-muted">No hay personas todavía.</p>
+      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3.5">
+        {Object.entries(REL_LABELS).map(([key, label]) => {
+          const active = rel === key;
+          return (
+            <a
+              key={key}
+              href={qs({ rel: active ? undefined : key, page: undefined })}
+              className={cx(
+                "rounded-ui border px-3 py-1.5 text-xs transition-colors duration-120",
+                active
+                  ? "border-line-strong bg-surface-2 text-ink"
+                  : "border-line bg-surface text-ink-muted hover:text-ink",
+              )}
+            >
+              {label}
+            </a>
+          );
+        })}
+        <form method="get" action="/dashboard/personas" className="ml-auto flex items-center gap-2">
+          {rel && <input type="hidden" name="rel" value={rel} />}
+          <Input type="search" name="q" defaultValue={q} placeholder="Buscar por nombre…" className="w-56" />
+          <button type="submit" className="sr-only">
+            Buscar
+          </button>
+        </form>
+      </div>
+
+      <div className="mt-4">
+        {rows.length === 0 ? (
+          filtering ? (
+            <EmptyState icon="⌕">
+              Ninguna persona coincide con {q ? <>«{q}»</> : "el filtro"}
+              {rel ? <> en la relación «{REL_LABELS[rel]}»</> : null}.{" "}
+              <a href="/dashboard/personas" className="text-ink underline">
+                Quitar filtros
+              </a>
+            </EmptyState>
+          ) : (
+            <EmptyState icon="👥">
+              Todavía no agregaste a nadie. Crea la primera persona en la barra de abajo.
+            </EmptyState>
+          )
         ) : (
-          <div className="space-y-2">
-            {allPeople.map((p) => (
-              <PersonRow key={p.id} person={p} birthday={birthdayByPersonId.get(p.id)} />
-            ))}
-          </div>
+          <>
+            <Table>
+              <TableHead cols={COLS}>
+                <span>Persona</span>
+                <span>Relación</span>
+                <span>Cumpleaños</span>
+                <span className="text-right">Acciones</span>
+              </TableHead>
+              {rows.map((p) => {
+                const bday = birthdayByPersonId.get(p.id);
+                const days = bday ? daysUntil(bday.day, bday.month) : null;
+                return (
+                  <TableRow key={p.id} cols={COLS}>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-ink">{p.name}</span>
+                        {days !== null && days <= 7 && (
+                          <span className="shrink-0 rounded-full bg-accent-warm/15 px-1.5 text-[10px] text-accent-warm">
+                            {nearLabel(days)}
+                          </span>
+                        )}
+                      </span>
+                      {p.notes && <span className="truncate text-[10.5px] text-ink-dim">{p.notes}</span>}
+                    </span>
+                    <span className="text-[11.5px] text-ink-muted">
+                      {REL_LABELS[p.relationship] ?? p.relationship}
+                    </span>
+                    <span className="text-[11px] tabular-nums text-ink-dim">
+                      {bday ? `${bday.day}/${bday.month}` : "—"}
+                    </span>
+                    <span className="flex justify-end gap-2.5 text-[11px] text-ink-dim">
+                      <a href={qs({ edit: p.id })} className="hover:text-ink">
+                        Editar
+                      </a>
+                      <form action={deletePersona}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <button type="submit" className="hover:text-danger">
+                          Eliminar
+                        </button>
+                      </form>
+                    </span>
+                  </TableRow>
+                );
+              })}
+            </Table>
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} hrefFor={(p) => qs({ page: String(p) })} />
+          </>
         )}
+      </div>
 
-        <details className="mt-3">
-          <summary className="cursor-pointer text-xs text-text-muted">
-            + Nueva persona
-          </summary>
-          <form
-            action={createPersona}
-            className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
-          >
-            <Field label="Nombre">
-              <input type="text" name="name" required className="input" />
-            </Field>
-            <Field label="Relación">
-              <select name="relationship" defaultValue="amigo" className="input">
+      {editing && (
+        <form
+          action={updatePersona}
+          className="mt-4 flex flex-wrap items-end gap-3 rounded-ui-lg border border-line bg-surface p-4"
+        >
+          <input type="hidden" name="id" value={editing.id} />
+          <span className="w-full text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-dim">
+            Editar · {editing.name}
+          </span>
+          <Input name="name" defaultValue={editing.name} required aria-label="Nombre" className="w-48" />
+          <Select name="relationship" defaultValue={editing.relationship} aria-label="Relación">
+            {Object.entries(REL_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </Select>
+          <Input
+            type="number"
+            name="bdayDay"
+            min={1}
+            max={31}
+            defaultValue={editingBday?.day ?? ""}
+            placeholder="Día"
+            aria-label="Cumpleaños · día"
+            className="w-20"
+          />
+          <Input
+            type="number"
+            name="bdayMonth"
+            min={1}
+            max={12}
+            defaultValue={editingBday?.month ?? ""}
+            placeholder="Mes"
+            aria-label="Cumpleaños · mes"
+            className="w-20"
+          />
+          <Input
+            name="notes"
+            defaultValue={editing.notes ?? ""}
+            placeholder="Notas"
+            aria-label="Notas"
+            className="w-48"
+          />
+          <Button type="submit">Guardar</Button>
+          <Button variant="secondary" href={qs({ edit: undefined })}>
+            Cancelar
+          </Button>
+        </form>
+      )}
+
+      <div className="mt-4">
+        <QuickCapture
+          action={createPersona}
+          name="name"
+          placeholder="Nombre de la persona…"
+          submitLabel="+ Persona"
+          extras={
+            <>
+              <Select name="relationship" defaultValue="amigo" aria-label="Relación">
                 {Object.entries(REL_LABELS).map(([key, label]) => (
                   <option key={key} value={key}>
                     {label}
                   </option>
                 ))}
-              </select>
-            </Field>
-            <Field label="Cumpleaños (día)">
-              <input type="number" name="bdayDay" min={1} max={31} className="input w-20" />
-            </Field>
-            <Field label="Mes">
-              <input type="number" name="bdayMonth" min={1} max={12} className="input w-20" />
-            </Field>
-            <Field label="Notas">
-              <input type="text" name="notes" className="input w-48" />
-            </Field>
-            <button
-              type="submit"
-              className="rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple"
-            >
-              Crear
-            </button>
-          </form>
-        </details>
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
-          Fechas importantes
-        </h2>
-        {looseDates.length === 0 ? (
-          <p className="text-sm text-text-muted">No hay fechas guardadas.</p>
-        ) : (
-          <div className="space-y-2">
-            {looseDates.map((d) => {
-              const days = daysUntil(d.day, d.month);
-              return (
-                <div
-                  key={d.id}
-                  className="flex items-center gap-3 rounded-md border border-border bg-bg-card px-4 py-2 text-sm"
-                >
-                  <span>{FECHA_TIPOS[d.type] ?? d.type}</span>
-                  <span className="flex-1 text-text-primary">{d.name}</span>
-                  <span className="text-xs text-text-muted">
-                    {d.day}/{d.month}
-                    {days <= 7 ? ` · ${days === 0 ? "¡Hoy!" : days === 1 ? "Mañana" : `${days} días`}` : ""}
-                  </span>
-                  <form action={deleteImportantDate}>
-                    <input type="hidden" name="id" value={d.id} />
-                    <button type="submit" className="text-xs text-text-muted hover:text-red-400">
-                      Eliminar
-                    </button>
-                  </form>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <form
-          action={createImportantDate}
-          className="mt-3 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
-        >
-          <Field label="Nombre">
-            <input type="text" name="name" required className="input" />
-          </Field>
-          <Field label="Tipo">
-            <select name="type" defaultValue="evento" className="input">
-              {Object.entries(FECHA_TIPOS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Día">
-            <input type="number" name="day" min={1} max={31} required className="input w-20" />
-          </Field>
-          <Field label="Mes">
-            <input type="number" name="month" min={1} max={12} required className="input w-20" />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm border border-border px-4 py-2 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
-          >
-            + Agregar
-          </button>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function PersonRow({
-  person,
-  birthday,
-}: {
-  person: Person;
-  birthday?: ImportantDate;
-}) {
-  const days = birthday ? daysUntil(birthday.day, birthday.month) : null;
-
-  return (
-    <div className="rounded-md border border-border bg-bg-card p-3">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-mid/20 text-sm">
-          {person.name.charAt(0).toUpperCase()}
-        </div>
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-text-primary">
-            {person.name}
-            {days !== null && days <= 7 && (
-              <span className="ml-2 rounded-full bg-gold/20 px-2 py-0.5 text-xs text-gold">
-                {days === 0 ? "¡Hoy!" : days === 1 ? "Mañana" : `${days} días`}
-              </span>
-            )}
-          </div>
-          <div className="text-xs text-text-muted">
-            {REL_LABELS[person.relationship] ?? person.relationship}
-            {birthday ? ` · 🎂 ${birthday.day}/${birthday.month}` : ""}
-            {person.notes ? ` · ${person.notes}` : ""}
-          </div>
-        </div>
-        <form action={deletePersona}>
-          <input type="hidden" name="id" value={person.id} />
-          <button type="submit" className="text-xs text-text-muted hover:text-red-400">
-            Eliminar
-          </button>
-        </form>
+              </Select>
+              <Input type="number" name="bdayDay" min={1} max={31} placeholder="Día" aria-label="Cumpleaños · día" className="w-16" />
+              <Input type="number" name="bdayMonth" min={1} max={12} placeholder="Mes" aria-label="Cumpleaños · mes" className="w-16" />
+              <Input name="notes" placeholder="Notas" aria-label="Notas" className="w-40" />
+            </>
+          }
+        />
       </div>
 
-      <details className="mt-2">
-        <summary className="cursor-pointer text-xs text-text-muted">Editar</summary>
-        <form
-          action={updatePersona}
-          className="mt-2 flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-3"
-        >
-          <input type="hidden" name="id" value={person.id} />
-          <Field label="Nombre">
-            <input type="text" name="name" defaultValue={person.name} required className="input" />
-          </Field>
-          <Field label="Relación">
-            <select name="relationship" defaultValue={person.relationship} className="input">
-              {Object.entries(REL_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Cumpleaños (día)">
-            <input
-              type="number"
-              name="bdayDay"
-              min={1}
-              max={31}
-              defaultValue={birthday?.day}
-              className="input w-20"
-            />
-          </Field>
-          <Field label="Mes">
-            <input
-              type="number"
-              name="bdayMonth"
-              min={1}
-              max={12}
-              defaultValue={birthday?.month}
-              className="input w-20"
-            />
-          </Field>
-          <Field label="Notas">
-            <input type="text" name="notes" defaultValue={person.notes ?? ""} className="input w-48" />
-          </Field>
-          <button
-            type="submit"
-            className="rounded-sm bg-gradient-cta px-3 py-1.5 text-sm font-semibold text-white shadow-glow-purple"
-          >
-            Guardar
-          </button>
-        </form>
-      </details>
+      <section className="mt-8">
+        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Fechas importantes
+        </h2>
+        <Card flush>
+          {looseDates.length === 0 ? (
+            <p className="px-3.5 py-4 text-xs text-ink-muted">
+              No hay fechas sueltas guardadas. Agrega una abajo (cumpleaños, pagos, aniversarios…).
+            </p>
+          ) : (
+            <div className="divide-y divide-line">
+              {looseDates.map((d) => {
+                const days = daysUntil(d.day, d.month);
+                return (
+                  <div key={d.id} className="flex items-center gap-3 px-3.5 py-2.5 text-sm">
+                    <span>{FECHA_TIPOS[d.type] ?? d.type}</span>
+                    <span className="min-w-0 flex-1 truncate text-ink">{d.name}</span>
+                    <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">
+                      {d.day}/{d.month}
+                      {days <= 7 ? ` · ${nearLabel(days)}` : ""}
+                    </span>
+                    <form action={deleteImportantDate}>
+                      <input type="hidden" name="id" value={d.id} />
+                      <button type="submit" className="text-[11px] text-ink-dim hover:text-danger">
+                        Eliminar
+                      </button>
+                    </form>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+        <div className="mt-3">
+          <QuickCapture
+            action={createImportantDate}
+            name="name"
+            placeholder="Nombre de la fecha…"
+            submitLabel="+ Fecha"
+            extras={
+              <>
+                <Select name="type" defaultValue="evento" aria-label="Tipo">
+                  {Object.entries(FECHA_TIPOS).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+                <Input type="number" name="day" min={1} max={31} required placeholder="Día" aria-label="Día" className="w-16" />
+                <Input type="number" name="month" min={1} max={12} required placeholder="Mes" aria-label="Mes" className="w-16" />
+              </>
+            }
+          />
+        </div>
+      </section>
     </div>
   );
 }
