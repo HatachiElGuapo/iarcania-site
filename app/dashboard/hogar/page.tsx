@@ -10,6 +10,7 @@ import {
   TableRow,
   Button,
   Input,
+  Section,
 } from "@/components/ui";
 import {
   createChoreType,
@@ -140,10 +141,7 @@ export default async function HogarPage() {
         </form>
       </details>
 
-      <section className="mt-8">
-        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Últimos 7 días
-        </h2>
+      <Section title="Últimos 7 días" className="mt-8">
         <Table>
           <TableHead cols={gridCols}>
             <span>Quehacer</span>
@@ -170,7 +168,7 @@ export default async function HogarPage() {
             </TableRow>
           ))}
         </Table>
-      </section>
+      </Section>
     </div>
   );
 }

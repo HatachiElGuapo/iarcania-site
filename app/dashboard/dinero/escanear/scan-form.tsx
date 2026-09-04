@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
+import { Input, Select, Button, cx } from "@/components/ui";
 import { registerScan } from "./actions";
 
 type ScanResult = {
@@ -25,15 +26,12 @@ const CATEGORIAS = [
   "otros",
 ];
 
-export function ScanForm({
-  accounts,
-}: {
-  accounts: { id: string; name: string }[];
-}) {
+export function ScanForm({ accounts }: { accounts: { id: string; name: string }[] }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unconfigured, setUnconfigured] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [clarification, setClarification] = useState("");
 
@@ -55,6 +53,7 @@ export function ScanForm({
     if (!file || !preview) return;
     setLoading(true);
     setError(null);
+    setUnconfigured(false);
     try {
       const base64 = preview.split(",")[1];
       const res = await fetch("/api/scan-receipt", {
@@ -64,6 +63,7 @@ export function ScanForm({
       });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 503) setUnconfigured(true);
         setError(data.error || "Error al analizar la imagen");
         return;
       }
@@ -76,134 +76,102 @@ export function ScanForm({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md border border-dashed border-border p-4">
-        <input type="file" accept="image/*" onChange={handleFile} className="text-sm text-text-muted" />
+    <div className="flex flex-col gap-4">
+      <div className="rounded-ui-lg border border-dashed border-line p-4">
+        <input type="file" accept="image/*" onChange={handleFile} className="text-meta text-ink-muted" />
         {preview && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={preview}
             alt="Vista previa del recibo"
-            className="mt-3 max-h-64 rounded-md border border-border"
+            className="mt-3 max-h-64 rounded-ui border border-line"
           />
         )}
-        <button
-          type="button"
-          disabled={!file || loading}
-          onClick={() => analyze()}
-          className="mt-3 rounded-sm bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-glow-purple disabled:opacity-50"
-        >
+        <Button type="button" disabled={!file || loading} onClick={() => analyze()} className="mt-3">
           {loading ? "Analizando…" : "Analizar recibo"}
-        </button>
-        {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+        </Button>
+        {error && (
+          <p className={cx("mt-2 text-sm", unconfigured ? "text-accent-warm" : "text-danger")}>
+            {error}
+          </p>
+        )}
       </div>
 
       {result?.pregunta && (
-        <div className="rounded-md border border-gold/40 bg-gold/5 p-3 text-sm">
-          <p className="text-text-primary">{result.pregunta}</p>
+        <div className="rounded-ui-lg border border-accent-warm/40 bg-accent-warm/[0.05] p-3 text-sm">
+          <p className="text-ink">{result.pregunta}</p>
           <div className="mt-2 flex gap-2">
-            <input
-              type="text"
+            <Input
               value={clarification}
               onChange={(e) => setClarification(e.target.value)}
               placeholder="Tu respuesta"
-              className="input flex-1"
+              className="flex-1"
             />
-            <button
-              type="button"
-              onClick={() => analyze(clarification)}
-              className="rounded-sm border border-border px-3 py-1.5 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
-            >
+            <Button type="button" variant="secondary" onClick={() => analyze(clarification)}>
               Reintentar
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {result && (
-        <form
-          action={registerScan}
-          className="space-y-2 rounded-md border border-border bg-bg-card p-4"
-        >
+        <form action={registerScan} className="flex flex-col gap-2 rounded-ui-lg border border-line bg-surface p-4">
           <div className="flex items-center gap-2">
             <span
-              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+              className={cx(
+                "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em]",
                 result.tipo === "factura_recurrente"
-                  ? "bg-purple-mid/10 text-purple-light"
-                  : "bg-gold/10 text-gold"
-              }`}
+                  ? "border-accent/28 bg-accent/12 text-accent-text"
+                  : "border-accent-warm/28 bg-accent-warm/12 text-accent-warm",
+              )}
             >
               {result.tipo === "factura_recurrente" ? "🔄 Factura recurrente" : "💸 Gasto puntual"}
             </span>
-            <span className="text-xs text-text-muted">
-              Confianza: {result.confianza}
-            </span>
+            <span className="text-meta text-ink-dim">Confianza: {result.confianza}</span>
           </div>
 
           <input type="hidden" name="tipo" value={result.tipo} />
 
-          <input
-            type="text"
-            name="descripcion"
-            defaultValue={result.descripcion}
-            placeholder="Descripción"
-            className="input w-full"
-          />
+          <Input name="descripcion" defaultValue={result.descripcion} placeholder="Descripción" className="w-full" />
 
           <div className="flex gap-2">
-            <input
-              type="number"
-              step="0.01"
-              name="monto"
-              defaultValue={result.monto}
-              required
-              className="input flex-1"
-            />
-            <input
-              type="date"
-              name="fecha"
-              defaultValue={result.fecha}
-              required
-              className="input flex-1"
-            />
+            <Input type="number" step="0.01" name="monto" defaultValue={result.monto} required className="flex-1" />
+            <Input type="date" name="fecha" defaultValue={result.fecha} required className="flex-1" />
           </div>
 
           <div className="flex gap-2">
-            <select name="categoria" defaultValue={result.categoria} className="input flex-1">
+            <Select name="categoria" defaultValue={result.categoria} className="flex-1">
               {CATEGORIAS.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
-            </select>
-            <select name="accountId" className="input flex-1">
+            </Select>
+            <Select name="accountId" className="flex-1">
               <option value="">Sin cuenta</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {result.tipo === "factura_recurrente" && (
-            <input
+            <Input
               type="number"
               name="dueDay"
               min={1}
               max={28}
               placeholder="Día de vencimiento mensual (1-28)"
               defaultValue={Number(result.fecha.slice(8, 10))}
-              className="input w-full"
+              className="w-full"
             />
           )}
 
-          <button
-            type="submit"
-            className="w-full rounded-sm bg-gradient-cta px-3 py-1.5 text-sm font-semibold text-white shadow-glow-purple"
-          >
+          <Button type="submit" className="w-full">
             Registrar
-          </button>
+          </Button>
         </form>
       )}
     </div>

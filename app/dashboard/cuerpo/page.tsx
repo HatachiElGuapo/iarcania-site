@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { exercises, workoutLogs, bodyMetrics } from "@/lib/db/schema/cuerpo";
 import {
   Card,
+  Section,
   Table,
   TableHead,
   TableRow,
@@ -58,10 +59,7 @@ export default async function CuerpoPage() {
     <div className="flex flex-col gap-8">
       <p className="text-xs text-ink-dim">{date}</p>
 
-      <section>
-        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Registrado hoy
-        </h2>
+      <Section title="Registrado hoy">
         {todayLogs.length === 0 ? (
           <EmptyState icon="🏋️">Todavía no has registrado nada hoy. Anota una serie o un cardio desde la lista de ejercicios de abajo.</EmptyState>
         ) : (
@@ -86,12 +84,9 @@ export default async function CuerpoPage() {
             ))}
           </Table>
         )}
-      </section>
+      </Section>
 
-      <section>
-        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Ejercicios
-        </h2>
+      <Section title="Ejercicios">
         {userExercises.length === 0 ? (
           <EmptyState icon="🏋️">Sin ejercicios. Agrega el primero abajo para empezar a registrar series.</EmptyState>
         ) : (
@@ -157,12 +152,9 @@ export default async function CuerpoPage() {
             + Nuevo ejercicio
           </Button>
         </form>
-      </section>
+      </Section>
 
-      <section>
-        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Métricas de hoy
-        </h2>
+      <Section title="Métricas de hoy">
         <form
           action={upsertBodyMetrics}
           className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-line bg-surface p-4"
@@ -179,7 +171,7 @@ export default async function CuerpoPage() {
           </Labeled>
           <Button type="submit">Guardar</Button>
         </form>
-      </section>
+      </Section>
     </div>
   );
 }

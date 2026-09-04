@@ -15,6 +15,7 @@ import {
   Input,
   Select,
   Pagination,
+  Section,
   cx,
 } from "@/components/ui";
 import {
@@ -294,10 +295,7 @@ export default async function PersonasPage({
         />
       </div>
 
-      <section className="mt-8">
-        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Fechas importantes
-        </h2>
+      <Section title="Fechas importantes" className="mt-8">
         <Card flush>
           {looseDates.length === 0 ? (
             <p className="px-3.5 py-4 text-meta text-ink-muted">
@@ -349,7 +347,7 @@ export default async function PersonasPage({
             }
           />
         </div>
-      </section>
+      </Section>
     </div>
   );
 }

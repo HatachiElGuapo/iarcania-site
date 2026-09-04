@@ -11,6 +11,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
+  // Sin la key, la llamada a Anthropic devuelve un 401 críptico. Mejor decir
+  // qué falta: la pantalla parece rota en vez de decir "no configurado".
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json(
+      { error: "Escanear no está configurado: falta ANTHROPIC_API_KEY en el entorno." },
+      { status: 503 },
+    );
+  }
+
   const { imageBase64, mediaType, extraContext } = await req.json();
   if (!imageBase64 || !mediaType) {
     return NextResponse.json(

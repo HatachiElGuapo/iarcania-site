@@ -152,7 +152,12 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Libros | `/dashboard/libros` | 1 Lista | ✅ migrada | Fase 02. Pestañas del libro con `Segmented` |
 | Hábitos | `/dashboard/habitos` (+ `gestion`, `rachas`) | 3 Métricas + pestañas | ✅ migrada | Fase 03. Layout con `PageHeader` + `SubNav`. Gestión con `?edit=id` |
 | Cuerpo | `/dashboard/cuerpo` (+ `nutricion`) | 3 Métricas | ✅ migrada | Fase 03. Layout con `PageHeader` + `SubNav`. Nutrición con `MetricCard` |
-| Dinero | `/dashboard/dinero/*` | 3 Métricas + 6 pestañas | ⏳ **turno propio** | ⚠️ datos financieros reales, 6 sub-rutas, Cobros. Se avisa antes de tocar cualquier ruta de escritura |
+| Dinero · Cuentas | `/dashboard/dinero/cuentas` | 3 Métricas | ✅ migrada | Total de saldos + tarjeta/cuenta con quick-form `recordMovement` (transacción con dinero, sin cambios) |
+| Dinero · Gastos | `/dashboard/dinero/gastos` | 1 Lista | ✅ migrada | `MetricCard` de totales + 2 forms + ledger unificado (expenses∪income ordenado en JS, sin cambio de query) |
+| Dinero · Facturas | `/dashboard/dinero/facturas` | 1 Lista + estado de pago | ✅ migrada | `payBill` (transacción bill_payments+expenses+balance, sin cambios) |
+| Dinero · Metas | `/dashboard/dinero/metas` | 1 Lista priorizada | ✅ migrada | 5g decía arquetipo 3, pero sin campo "ahorrado" una barra sería decorativa → lista simple |
+| Dinero · Escanear | `/dashboard/dinero/escanear` | acción de captura | ✅ migrada | **No funciona sin `ANTHROPIC_API_KEY`** (vacía hoy). `/api/scan-receipt` ahora devuelve 503 con mensaje claro en vez del 401 críptico de Anthropic |
+| Dinero · Cobros | `/dashboard/dinero/cobros` | 1 Lista | ⏳ **turno propio** | ⚠️ dinero de negocio real. Ver "Deuda de lógica de negocio" abajo |
 | Citas | `/dashboard/citas` | 2 Temporal | ✅ migrada | Fase 03. `actions.ts` (offset `-05:00`) sin tocar |
 | Eventos | `/dashboard/eventos` | 2 Temporal | ✅ migrada | Fase 03 |
 | Reloj | `/dashboard/reloj` | 2 Temporal | ✅ migrada | Fase 03. 100% cliente, alarmas en `localStorage` |
@@ -178,7 +183,7 @@ migrar con su sección.
 |---|---|---|
 | 01 · Extraer el sistema | Rutinas, Actividades, Agenda + shell + librería | ✅ hecha |
 | 02 · Arquetipo 1 en volumen | Ideas, Personas, Hogar, Recursos, Libros | ✅ hecha |
-| 03 · Los que ya tienen datos | Hábitos, Cuerpo (arq. 3) · Citas, Eventos, Reloj (arq. 2) | ✅ hecha — **falta Dinero** (turno propio) |
+| 03 · Los que ya tienen datos | Hábitos, Cuerpo, Dinero (arq. 3) · Citas, Eventos, Reloj (arq. 2) | ✅ hecha — **falta Cobros** (turno propio) |
 | 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | ⏳ siguiente |
 | 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | pendiente |
 
@@ -216,3 +221,37 @@ Nada de esto se toca antes.
 `border-border`, `bg-purple-mid`, `text-gold`, `border-gold`,
 `bg-gradient-cta`, `shadow-glow-purple`, `rounded-[7px]`, hexadecimales
 hardcodeados que ya tengan token.
+
+---
+
+## Deuda de lógica de negocio (NO tocar durante el rebranding)
+
+Hallazgos que salieron al leer el código para migrar. **Son de lógica, no de
+estilo** — se deciden aparte, con calma, cuando termine el rebranding. Los
+commits de migración NO los tocan.
+
+### Cobros (`/dashboard/dinero/cobros`)
+
+1. **El `status` de un cobro no se calcula, se almacena.** No hay ninguna
+   lógica que pase `pendiente` → `vencido` cuando `due_date < hoy`. El badge
+   "Vencido" solo aparece si alguien lo puso a mano en el select. Decidir:
+   ¿se computa `vencido` en la lectura (comparando `due_date` con hoy), o se
+   deja como campo manual?
+2. **El banner y la tarjeta suman distinto.** El banner "$X por cobrar"
+   (`cobros/page.tsx`) suma solo `status === 'pendiente'`. El total
+   por-cliente (`ClientCard`) suma `pendiente` **o** `vencido`. Si (1) se
+   resuelve computando `vencido`, esto se arregla solo; si no, hay que
+   decidir cuál de los dos criterios es el correcto.
+3. **`crm_payments.client_id` tiene `ON DELETE CASCADE` hacia
+   `crm_clients.id`** (verificado en `lib/db/schema/agencia.ts`). Borrar un
+   cliente de agencia con `deleteAgencyClient` **borra en silencio todo su
+   historial de cobros** (pagados incluidos). El original tampoco avisaba.
+   Decidir: ¿confirmación explícita ("esto borra N cobros"), o soft-delete
+   del cliente en vez de `DELETE`?
+
+### Gastos (`/dashboard/dinero/gastos`)
+
+4. **Mejora pendiente, no bug**: el diseño 4f muestra "barras por categoría
+   de gasto" (un `GROUP BY category, SUM(amount)` del mes). La página no lo
+   tiene. Es funcionalidad nueva; se pospuso para no mezclarla con la
+   migración.

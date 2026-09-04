@@ -2,7 +2,19 @@ import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { financialAccounts, expenses, income } from "@/lib/db/schema/dinero";
-import { Field } from "@/components/ui/field";
+import {
+  MetricCard,
+  Section,
+  Table,
+  TableHead,
+  TableRow,
+  Badge,
+  EmptyState,
+  Labeled,
+  Input,
+  Select,
+  Button,
+} from "@/components/ui";
 import { recordMovement, deleteExpense, deleteIncome } from "../actions";
 import { todayISO, currentMonthRangeISO as monthRange } from "@/lib/date/bogota";
 
@@ -16,6 +28,7 @@ const GASTO_CATS = [
   "hogar",
   "otros",
 ];
+const COLS = "88px 72px 120px minmax(0,1fr) 110px 80px";
 
 export default async function GastosPage() {
   const session = await auth();
@@ -27,24 +40,12 @@ export default async function GastosPage() {
     db
       .select()
       .from(expenses)
-      .where(
-        and(
-          eq(expenses.userId, userId),
-          gte(expenses.date, from),
-          lte(expenses.date, to),
-        ),
-      )
+      .where(and(eq(expenses.userId, userId), gte(expenses.date, from), lte(expenses.date, to)))
       .orderBy(desc(expenses.date), desc(expenses.createdAt)),
     db
       .select()
       .from(income)
-      .where(
-        and(
-          eq(income.userId, userId),
-          gte(income.date, from),
-          lte(income.date, to),
-        ),
-      )
+      .where(and(eq(income.userId, userId), gte(income.date, from), lte(income.date, to)))
       .orderBy(desc(income.date), desc(income.createdAt)),
     db
       .select({ id: financialAccounts.id, name: financialAccounts.name })
@@ -53,203 +54,134 @@ export default async function GastosPage() {
       .orderBy(asc(financialAccounts.name)),
   ]);
 
-  const totalExpenses = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const totalIncome = monthIncome.reduce((sum, i) => sum + i.amount, 0);
+  const totalExpenses = monthExpenses.reduce((s, e) => s + e.amount, 0);
+  const totalIncome = monthIncome.reduce((s, i) => s + i.amount, 0);
+
+  type Row =
+    | { id: string; kind: "gasto"; date: string; label: string; description: string | null; amount: number }
+    | { id: string; kind: "ingreso"; date: string; label: string; description: string | null; amount: number };
+  const rows: Row[] = [
+    ...monthExpenses.map((e) => ({ id: e.id, kind: "gasto" as const, date: e.date, label: e.category, description: e.description, amount: e.amount })),
+    ...monthIncome.map((i) => ({ id: i.id, kind: "ingreso" as const, date: i.date, label: i.source, description: i.description, amount: i.amount })),
+  ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap gap-3">
-        <div className="min-w-[160px] flex-1 rounded-md border border-border bg-bg-card px-4 py-3">
-          <div className="text-lg font-bold text-red-400">
-            ${totalExpenses.toLocaleString("es-CO")}
-          </div>
-          <div className="text-xs text-text-muted">Gastos del mes</div>
-        </div>
-        <div className="min-w-[160px] flex-1 rounded-md border border-border bg-bg-card px-4 py-3">
-          <div className="text-lg font-bold text-green-400">
-            ${totalIncome.toLocaleString("es-CO")}
-          </div>
-          <div className="text-xs text-text-muted">Ingresos del mes</div>
-        </div>
+    <div className="flex flex-col gap-8">
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <MetricCard value={`$${totalExpenses.toLocaleString("es-CO")}`} label="Gastos del mes" tone="danger" />
+        <MetricCard value={`$${totalIncome.toLocaleString("es-CO")}`} label="Ingresos del mes" tone="success" />
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <form
-          action={recordMovement}
-          className="space-y-2 rounded-md border border-border bg-bg-card p-4"
-        >
+      <div className="grid gap-4 md:grid-cols-2">
+        <form action={recordMovement} className="flex flex-col gap-2 rounded-ui-lg border border-line bg-surface p-4">
           <input type="hidden" name="kind" value="gasto" />
           <input type="hidden" name="date" value={date} />
-          <h2 className="text-sm font-semibold text-text-primary">
-            + Nuevo gasto
-          </h2>
-          <div className="flex gap-2">
-            <Field label="Monto">
-              <input
-                type="number"
-                step="0.01"
-                name="amount"
-                required
-                className="input"
-              />
-            </Field>
-            <Field label="Categoría">
-              <select name="category" className="input">
+          <h2 className="text-sm font-semibold text-ink">+ Nuevo gasto</h2>
+          <div className="flex flex-wrap gap-2">
+            <Labeled label="Monto">
+              <Input type="number" step="0.01" name="amount" required className="w-32" />
+            </Labeled>
+            <Labeled label="Categoría">
+              <Select name="category">
                 {GASTO_CATS.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </Field>
+              </Select>
+            </Labeled>
           </div>
-          <input
-            type="text"
-            name="description"
-            placeholder="Descripción"
-            className="input w-full"
-          />
-          <Field label="Cuenta (opcional)">
-            <select name="accountId" className="input w-full">
+          <Input name="description" placeholder="Descripción" className="w-full" />
+          <Labeled label="Cuenta (opcional)">
+            <Select name="accountId" className="w-full">
               <option value="">Sin cuenta</option>
               {userAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
-            </select>
-          </Field>
-          <button
-            type="submit"
-            className="w-full rounded-sm bg-gradient-cta px-3 py-1.5 text-sm font-semibold text-white shadow-glow-purple"
-          >
+            </Select>
+          </Labeled>
+          <Button type="submit" className="w-full">
             Registrar gasto
-          </button>
+          </Button>
         </form>
 
-        <form
-          action={recordMovement}
-          className="space-y-2 rounded-md border border-border bg-bg-card p-4"
-        >
+        <form action={recordMovement} className="flex flex-col gap-2 rounded-ui-lg border border-line bg-surface p-4">
           <input type="hidden" name="kind" value="ingreso" />
           <input type="hidden" name="date" value={date} />
-          <h2 className="text-sm font-semibold text-text-primary">
-            + Nuevo ingreso
-          </h2>
-          <div className="flex gap-2">
-            <Field label="Monto">
-              <input
-                type="number"
-                step="0.01"
-                name="amount"
-                required
-                className="input"
-              />
-            </Field>
-            <Field label="Fuente">
-              <input type="text" name="source" placeholder="salario, freelance…" className="input" />
-            </Field>
+          <h2 className="text-sm font-semibold text-ink">+ Nuevo ingreso</h2>
+          <div className="flex flex-wrap gap-2">
+            <Labeled label="Monto">
+              <Input type="number" step="0.01" name="amount" required className="w-32" />
+            </Labeled>
+            <Labeled label="Fuente">
+              <Input name="source" placeholder="salario, freelance…" className="w-40" />
+            </Labeled>
           </div>
-          <input
-            type="text"
-            name="description"
-            placeholder="Descripción"
-            className="input w-full"
-          />
-          <Field label="Cuenta (opcional)">
-            <select name="accountId" className="input w-full">
+          <Input name="description" placeholder="Descripción" className="w-full" />
+          <Labeled label="Cuenta (opcional)">
+            <Select name="accountId" className="w-full">
               <option value="">Sin cuenta</option>
               {userAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
-            </select>
-          </Field>
-          <button
-            type="submit"
-            className="w-full rounded-sm bg-gradient-cta px-3 py-1.5 text-sm font-semibold text-white shadow-glow-purple"
-          >
+            </Select>
+          </Labeled>
+          <Button type="submit" className="w-full">
             Registrar ingreso
-          </button>
+          </Button>
         </form>
-      </section>
+      </div>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
-          Movimientos del mes
-        </h2>
-        {monthExpenses.length === 0 && monthIncome.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            Sin movimientos este mes todavía.
-          </p>
+      <Section title="Movimientos del mes">
+        {rows.length === 0 ? (
+          <EmptyState icon="💸">
+            El registro de gastos e ingresos del mes. Todavía no has movido nada — usa los
+            formularios de arriba.
+          </EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full text-left text-sm">
-              <thead className="text-text-muted">
-                <tr className="border-b border-border">
-                  <th className="px-3 py-2 font-medium">Fecha</th>
-                  <th className="px-3 py-2 font-medium">Tipo</th>
-                  <th className="px-3 py-2 font-medium">Categoría / Fuente</th>
-                  <th className="px-3 py-2 font-medium">Descripción</th>
-                  <th className="px-3 py-2 font-medium">Monto</th>
-                  <th className="px-3 py-2 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {monthExpenses.map((e) => (
-                  <tr key={`exp-${e.id}`} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 text-text-muted">{e.date}</td>
-                    <td className="px-3 py-2 text-red-400">Gasto</td>
-                    <td className="px-3 py-2 text-text-muted">{e.category}</td>
-                    <td className="px-3 py-2 text-text-primary">
-                      {e.description ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-red-400">
-                      -${e.amount.toLocaleString("es-CO")}
-                    </td>
-                    <td className="px-3 py-2">
-                      <form action={deleteExpense}>
-                        <input type="hidden" name="id" value={e.id} />
-                        <button
-                          type="submit"
-                          className="text-xs text-text-muted hover:text-red-400"
-                        >
-                          Eliminar
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-                {monthIncome.map((i) => (
-                  <tr key={`inc-${i.id}`} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 text-text-muted">{i.date}</td>
-                    <td className="px-3 py-2 text-green-400">Ingreso</td>
-                    <td className="px-3 py-2 text-text-muted">{i.source}</td>
-                    <td className="px-3 py-2 text-text-primary">
-                      {i.description ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-green-400">
-                      +${i.amount.toLocaleString("es-CO")}
-                    </td>
-                    <td className="px-3 py-2">
-                      <form action={deleteIncome}>
-                        <input type="hidden" name="id" value={i.id} />
-                        <button
-                          type="submit"
-                          className="text-xs text-text-muted hover:text-red-400"
-                        >
-                          Eliminar
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHead cols={COLS}>
+              <span>Fecha</span>
+              <span>Tipo</span>
+              <span>Categoría / Fuente</span>
+              <span>Descripción</span>
+              <span className="text-right">Monto</span>
+              <span className="text-right">Acción</span>
+            </TableHead>
+            {rows.map((r) => (
+              <TableRow key={`${r.kind}-${r.id}`} cols={COLS}>
+                <span className="text-meta tabular-nums text-ink-dim">{r.date.slice(5)}</span>
+                <span>
+                  <Badge tone={r.kind === "gasto" ? "danger" : "success"}>
+                    {r.kind === "gasto" ? "Gasto" : "Ingreso"}
+                  </Badge>
+                </span>
+                <span className="text-meta text-ink-muted">{r.label}</span>
+                <span className="truncate text-ink" title={r.description ?? undefined}>
+                  {r.description ?? "—"}
+                </span>
+                <span
+                  className={`text-right tabular-nums ${r.kind === "gasto" ? "text-danger" : "text-success"}`}
+                >
+                  {r.kind === "gasto" ? "−" : "+"}${r.amount.toLocaleString("es-CO")}
+                </span>
+                <span className="flex justify-end text-meta text-ink-dim">
+                  <form action={r.kind === "gasto" ? deleteExpense : deleteIncome}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button type="submit" className="hover:text-danger">
+                      Eliminar
+                    </button>
+                  </form>
+                </span>
+              </TableRow>
+            ))}
+          </Table>
         )}
-      </section>
+      </Section>
     </div>
   );
 }

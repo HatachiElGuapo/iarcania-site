@@ -2,7 +2,7 @@ import { and, asc, eq, type InferSelectModel } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { meals, nutritionTargets } from "@/lib/db/schema/nutricion";
-import { MetricCard, Button, Labeled, Input, Select, cx } from "@/components/ui";
+import { MetricCard, Section, Button, Labeled, Input, Select, cx } from "@/components/ui";
 import { saveMeal, deleteMeal, saveTargets } from "./actions";
 import { todayISO } from "@/lib/date/bogota";
 
@@ -68,26 +68,21 @@ export default async function NutricionPage() {
         ))}
       </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Comidas</h2>
+      <Section title="Comidas">
         {MEAL_TYPES.map((type) => (
           <MealForm key={type.id} type={type} date={date} meal={dayMeals.find((m) => m.mealType === type.id)} />
         ))}
-      </section>
+      </Section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Snacks</h2>
+      <Section title="Snacks">
         {snacks.length === 0 && <p className="text-sm text-ink-muted">Todavía no hay snacks hoy.</p>}
         {snacks.map((meal) => (
           <MealForm key={meal.id} type={SNACK_TYPE} date={date} meal={meal} />
         ))}
         <MealForm type={SNACK_TYPE} date={date} />
-      </section>
+      </Section>
 
-      <section>
-        <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-          Metas diarias
-        </h2>
+      <Section title="Metas diarias">
         <form
           action={saveTargets}
           className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-line bg-surface p-4"
@@ -106,7 +101,7 @@ export default async function NutricionPage() {
           </Labeled>
           <Button type="submit">Guardar metas</Button>
         </form>
-      </section>
+      </Section>
     </div>
   );
 }

@@ -11,19 +11,14 @@ export default async function EscanearPage() {
   const userAccounts = await db
     .select({ id: financialAccounts.id, name: financialAccounts.name })
     .from(financialAccounts)
-    .where(
-      and(
-        eq(financialAccounts.userId, userId),
-        eq(financialAccounts.isActive, true),
-      ),
-    )
+    .where(and(eq(financialAccounts.userId, userId), eq(financialAccounts.isActive, true)))
     .orderBy(asc(financialAccounts.name));
 
   return (
-    <div>
-      <p className="mb-4 text-sm text-text-muted">
-        Sube o toma foto de una factura o recibo — la IA extrae los datos y
-        los pre-llena para que confirmes.
+    <div className="flex flex-col gap-4">
+      <p className="text-meta text-ink-muted">
+        Sube o toma foto de una factura o recibo — la IA extrae los datos y los pre-llena para que
+        confirmes antes de registrar el gasto.
       </p>
       <ScanForm accounts={userAccounts} />
     </div>

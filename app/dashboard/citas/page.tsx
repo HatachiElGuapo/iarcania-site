@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { appointments } from "@/lib/db/schema/citas";
 import { eventTypes } from "@/lib/db/schema/eventos";
 import { EVENT_TYPE_CATS } from "@/lib/constants/event-type-cats";
-import { PageHeader, Badge, EmptyState, Button, Labeled, Input, Select, cx } from "@/components/ui";
+import { PageHeader, Section, Badge, EmptyState, Button, Labeled, Input, Select, cx } from "@/components/ui";
 import {
   createAppointment,
   completeAppointment,
@@ -66,16 +66,13 @@ export default async function CitasPage() {
       ) : (
         <div className="flex flex-col gap-6">
           {proximas.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                Próximas
-              </h2>
+            <Section title="Próximas">
               <div className="flex flex-col gap-2">
                 {proximas.map((c) => (
                   <CitaCard key={c.id} cita={c} fmtFecha={fmtFecha} fmtHora={fmtHora} />
                 ))}
               </div>
-            </section>
+            </Section>
           )}
           {pasadas.length > 0 && (
             <details>

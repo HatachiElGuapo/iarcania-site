@@ -2,13 +2,13 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { purchaseGoals } from "@/lib/db/schema/metas";
-import { Field } from "@/components/ui/field";
+import { Section, Badge, EmptyState, Labeled, Input, Select, Button, cx } from "@/components/ui";
 import { createGoal, toggleGoalDone, deleteGoal } from "./actions";
 
-const PRIORITY_LABEL: Record<string, { label: string; color: string }> = {
-  alta: { label: "Alta", color: "text-red-400" },
-  media: { label: "Media", color: "text-gold" },
-  baja: { label: "Baja", color: "text-text-muted" },
+const PRIORITY: Record<string, { label: string; tone: "danger" | "warm" | "neutral" }> = {
+  alta: { label: "Alta", tone: "danger" },
+  media: { label: "Media", tone: "warm" },
+  baja: { label: "Baja", tone: "neutral" },
 };
 
 export default async function MetasPage() {
@@ -31,105 +31,94 @@ export default async function MetasPage() {
   ]);
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
-          Pendientes
-        </h2>
+    <div className="flex flex-col gap-8">
+      <Section title="Pendientes">
         {pending.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            Sin metas de compra pendientes.
-          </p>
+          <EmptyState icon="🎯">
+            Tu lista de deseos priorizada: lo que quieres comprar cuando haya con qué. Todavía no
+            has anotado nada — agrega la primera meta abajo.
+          </EmptyState>
         ) : (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-1.5">
             {pending.map((goal) => (
               <GoalRow key={goal.id} goal={goal} />
             ))}
           </div>
         )}
-      </section>
+      </Section>
 
       <form
         action={createGoal}
-        className="flex flex-wrap items-end gap-3 rounded-md border border-dashed border-border p-4"
+        className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-4"
       >
-        <Field label="Nombre">
-          <input type="text" name="name" required className="input" />
-        </Field>
-        <Field label="Precio">
-          <input type="number" step="0.01" name="price" required className="input" />
-        </Field>
-        <Field label="Prioridad">
-          <select name="priority" defaultValue="media" className="input">
+        <Labeled label="Nombre">
+          <Input name="name" required className="w-48" />
+        </Labeled>
+        <Labeled label="Precio">
+          <Input type="number" step="0.01" name="price" required className="w-32" />
+        </Labeled>
+        <Labeled label="Prioridad">
+          <Select name="priority" defaultValue="media">
             <option value="alta">Alta</option>
             <option value="media">Media</option>
             <option value="baja">Baja</option>
-          </select>
-        </Field>
-        <Field label="Fecha estimada (opcional)">
-          <input type="date" name="targetDate" className="input" />
-        </Field>
-        <button
-          type="submit"
-          className="rounded-sm border border-border px-4 py-2 text-sm text-text-muted hover:border-purple-mid hover:text-text-primary"
-        >
+          </Select>
+        </Labeled>
+        <Labeled label="Fecha estimada (opcional)">
+          <Input type="date" name="targetDate" className="w-40" />
+        </Labeled>
+        <Button type="submit" variant="secondary">
           + Nueva meta
-        </button>
+        </Button>
       </form>
 
       {done.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gold">
-            Compradas
-          </h2>
-          <div className="space-y-2">
+        <Section title="Compradas">
+          <div className="flex flex-col gap-1.5">
             {done.map((goal) => (
               <GoalRow key={goal.id} goal={goal} />
             ))}
           </div>
-        </section>
+        </Section>
       )}
     </div>
   );
 }
 
-function GoalRow({
-  goal,
-}: {
-  goal: typeof purchaseGoals.$inferSelect;
-}) {
-  const priority = PRIORITY_LABEL[goal.priority] ?? PRIORITY_LABEL.media;
+function GoalRow({ goal }: { goal: typeof purchaseGoals.$inferSelect }) {
+  const p = PRIORITY[goal.priority] ?? PRIORITY.media;
   return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-bg-card px-4 py-2">
+    <div className="flex items-center gap-3 rounded-ui border border-line bg-surface px-3.5 py-2">
       <form action={toggleGoalDone}>
         <input type="hidden" name="id" value={goal.id} />
         <input type="hidden" name="nextDone" value={String(!goal.done)} />
         <button
           type="submit"
-          className={`h-4 w-4 rounded border ${goal.done ? "border-purple-mid bg-purple-mid" : "border-border"}`}
           aria-label="Marcar comprada"
-        />
+          className={cx(
+            "flex h-4 w-4 items-center justify-center rounded border text-[9px] text-white",
+            goal.done ? "border-accent bg-accent" : "border-line-strong",
+          )}
+        >
+          {goal.done ? "✓" : ""}
+        </button>
       </form>
 
-      <div className="flex-1">
-        <span
-          className={`text-sm ${goal.done ? "text-text-dim line-through" : "text-text-primary"}`}
-        >
+      <span className="min-w-0 flex-1">
+        <span className={cx("text-body", goal.done ? "text-ink-dim line-through" : "text-ink")}>
           {goal.name}
         </span>
-        <span className="ml-2 text-xs text-text-muted">
+        <span className="ml-2 text-meta tabular-nums text-ink-dim">
           ${goal.price.toLocaleString("es-CO")}
           {goal.targetDate ? ` · ${goal.targetDate}` : ""}
         </span>
-      </div>
-
-      <span className={`text-xs font-semibold ${priority.color}`}>
-        {priority.label}
       </span>
+
+      <Badge tone={p.tone}>{p.label}</Badge>
 
       <form action={deleteGoal}>
         <input type="hidden" name="id" value={goal.id} />
-        <button type="submit" className="text-xs text-text-muted hover:text-red-400">
+        <button type="submit" className="text-meta text-ink-dim hover:text-danger">
           Eliminar
         </button>
       </form>
