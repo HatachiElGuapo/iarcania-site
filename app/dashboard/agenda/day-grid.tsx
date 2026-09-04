@@ -120,6 +120,27 @@ export function DayGrid({
   const vEnd = V_END;
   const bodyH = (vEnd - vStart) * PX_PER_MIN;
 
+  // Ancla de arranque: "ahora" si es hoy, si no el primer evento del día
+  // (o media mañana si no hay ninguno). `nowMinutes` viene del render del
+  // servidor, así que el ancla es estable durante la sesión.
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const anchoredRef = useRef(false);
+  const anchorMin = isToday
+    ? nowMinutes
+    : initial.length
+      ? Math.min(...initial.map((e) => e.start))
+      : 9 * 60;
+
+  // Solo al MONTAR: centra la vista en el ancla, instantáneo (sin animación,
+  // aunque el <html> tenga scroll-behavior: smooth). Dep vacía → no se
+  // vuelve a disparar en las revalidaciones de Server Action (arrastrar un
+  // bloque no salta la vista); una navegación real sí remonta y reposiciona.
+  useEffect(() => {
+    if (anchoredRef.current) return;
+    anchoredRef.current = true;
+    anchorRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+  }, []);
+
   const laneSig = display.map((e) => `${e.key}:${e.start}:${e.duration}`).join("|");
   const lanes = useMemo(() => computeLanes(display), [laneSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -212,15 +233,33 @@ export function DayGrid({
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
           Rejilla del día
         </span>
-        <span className="hidden text-[10.5px] text-ink-dim sm:inline">
+        <span className="hidden text-[10.5px] text-ink-dim md:inline">
           00:00–24:00 · arrastra para mover · tira del borde para durar
         </span>
+        {isToday && (
+          <button
+            type="button"
+            onClick={() =>
+              anchorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" })
+            }
+            className="focus-ring ml-auto rounded-ui border border-line px-2 py-1 text-[10.5px] text-ink-muted transition-colors duration-120 hover:border-line-strong hover:text-ink"
+          >
+            Ir a ahora
+          </button>
+        )}
       </div>
 
       <div
         className={`relative ${drag.current ? "select-none" : ""}`}
         style={{ height: bodyH + 16, touchAction: "pan-y" }}
       >
+        <div
+          ref={anchorRef}
+          aria-hidden
+          className="pointer-events-none absolute"
+          style={{ top: anchorMin * PX_PER_MIN, left: 0, height: 1, width: 1 }}
+        />
+
         {/* Regla: marca cada 20 min. La hora en punto pesa más (texto más
             claro y grande, línea sólida); :20 y :40 quedan tenues para no
             competir. */}
