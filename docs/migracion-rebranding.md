@@ -161,21 +161,18 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Citas | `/dashboard/citas` | 2 Temporal | ✅ migrada | Fase 03. `actions.ts` (offset `-05:00`) sin tocar |
 | Eventos | `/dashboard/eventos` | 2 Temporal | ✅ migrada | Fase 03 |
 | Reloj | `/dashboard/reloj` | 2 Temporal | ✅ migrada | Fase 03. 100% cliente, alarmas en `localStorage` |
-| Trabajo | `/dashboard/trabajo` (+ `tareas`) | 4 Tablero | ⏳ Fase 04 | `SubNav` ya montado. Reutiliza acciones de Actividades |
-| Planner | `/dashboard/planner` | 4 Tablero | ⏳ Fase 04 | columnas = semanas. Reutiliza acciones de Guiones |
-| CRM | `/dashboard/crm` | 4 Tablero + pestañas | ⏳ Fase 04 | Presupuesto + Deudas como pestañas |
-| Clientes | `/dashboard/clientes` | 1 Lista | ⏳ Fase 04 | ⚠️ datos reales. Usa `PageHeader` viejo |
+| Trabajo | `/dashboard/trabajo` (+ `tareas`) | 4 Tablero | ✅ migrada | Fase 04. `layout.tsx` → `PageHeader` + `SubNav`. "Hoy" con `Section` + `Segmented` de canal; `tareas` con `Segmented` de rango + `Table`. Cero cambios en actions (reutiliza Actividades). Copia voseo corregida ("no has agregado") |
+| Planner | `/dashboard/planner` | 4 Tablero + pestañas | ✅ migrada | Fase 04. `?tab=` (Contenido/Producción/Semanal) + `?canal=` re-estilados como `Segmented`, NO convertidos a rutas. `toggleChecklist` (de Guiones) conservado como botón-por-paso, solo re-skin |
+| CRM | `/dashboard/crm` | 4 Tablero + pestañas | ✅ migrada | Fase 04. `?tab=` (Presupuesto/Pipeline/Clientes/Deudas) → `Segmented`, una sola página. `moveDealStage` conservado como botón-por-etapa (el "select Mover ▾" del arquetipo no aplica: el mecanismo actual ya funciona). Cero cambios en actions.ts |
+| Clientes | `/dashboard/clientes` | 1 Lista | ✅ migrada | Fase 04. ⚠️ datos reales — solo markup, cero cambios en actions.ts. Migrado del `PageHeader` viejo (`@/components/app/page-header`) al nuevo. `deleteClient` ahora usa `<ConfirmDialog>` que dice qué borra el CASCADE (proyectos/pagos/invoices). Deuda #5 abajo |
 | Guiones | `/dashboard/guiones` | 5 Documento | ⏳ Fase 05 | |
 | Slides | `/dashboard/slides` | 5 Documento | ⏳ Fase 05 | miniaturas 16:9 |
 | Escuela | `/dashboard/escuela` (+ `cursos/[id]`) | 5 Documento | ⏳ Fase 05 | pestañas `?tab=`, **sin** `SubNav` |
 | Brújula | `/dashboard/brujula` | 6 Panel | ⏳ Fase 05 | árbol con `<details>` nativo |
 | Workspace | `/dashboard/workspace` | 6 Panel | ⏳ Fase 05 | 100% estático, lista de links |
 
-**Sub-layouts en estado transicional**: `habitos/layout.tsx` y
-`cuerpo/layout.tsx` ya están migrados (Fase 03). Quedan `dinero/layout.tsx`
-y `trabajo/layout.tsx`: montan `<SubNav>` (sistema nuevo) pero su shell
-(`<h1>`, `p-8`, `text-text-primary`) sigue en tokens viejos; se terminan de
-migrar con su sección.
+**Sub-layouts**: todos migrados — `habitos/`, `cuerpo/`, `dinero/` (Fase 03)
+y `trabajo/` (Fase 04) usan `PageHeader` + `SubNav` del sistema nuevo.
 
 ### Orden de fases (`4j`)
 
@@ -184,8 +181,8 @@ migrar con su sección.
 | 01 · Extraer el sistema | Rutinas, Actividades, Agenda + shell + librería | ✅ hecha |
 | 02 · Arquetipo 1 en volumen | Ideas, Personas, Hogar, Recursos, Libros | ✅ hecha |
 | 03 · Los que ya tienen datos | Hábitos, Cuerpo, Dinero (6 pestañas) · Citas, Eventos, Reloj | ✅ hecha |
-| 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | ⏳ siguiente |
-| 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | pendiente |
+| 04 · Trabajo y negocio | CRM, Trabajo, Planner, Clientes (arq. 4) | ✅ hecha |
+| 05 · Editores y paneles | Guiones, Slides, Escuela, Brújula, Workspace | ⏳ siguiente |
 
 ---
 
@@ -212,8 +209,8 @@ Nada de esto se toca antes.
 
 **Archivos a borrar** (una vez sin referencias):
 - `os.css` en la raíz (no se importa; es solo referencia)
-- `components/app/page-header.tsx` (el viejo; ya solo lo usa Clientes →
-  Fase 04)
+- `components/app/page-header.tsx` (el viejo; sin usos desde Fase 04 —
+  verificar `grep` antes de borrar)
 - `components/ui/field.tsx` (el `Field` viejo; lo usan ~10 páginas sin
   migrar; su reemplazo es `FormField`)
 
@@ -256,3 +253,14 @@ commits de migración NO los tocan.
    de gasto" (un `GROUP BY category, SUM(amount)` del mes). La página no lo
    tiene. Es funcionalidad nueva; se pospuso para no mezclarla con la
    migración.
+
+### Clientes (`/dashboard/clientes`)
+
+5. **`clients.id` cascada a `projects`, `payments` e `invoices`** (los tres
+   con `references(() => clients.id, { onDelete: "cascade" })` en
+   `lib/db/schema/clientes.ts`). `deleteClient` borra el cliente y todo su
+   historial —pagos y invoices pagados incluidos— sin rastro. Misma clase de
+   riesgo que la deuda #3 de Cobros. Desde la migración el `<ConfirmDialog>`
+   lo **dice** antes ("se borran N proyectos, N pagos, N invoices"), pero el
+   `DELETE` duro no cambió. Abierto: ¿soft-delete? Decidir junto con #3, es
+   la misma pregunta en dos dominios (agencia vs. freelance).
