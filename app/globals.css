@@ -4,6 +4,47 @@
 
 /* Sistema visual "Sistema IArcanIA". Ver docs/sistema-de-diseno.md. */
 
+/* Colores del marcado inline de Marco ({color:frase} — ver
+   app/dashboard/marco/marked.tsx). Paleta propia, no tokens de Tailwind:
+   son 6 colores fijos, no elegibles por el usuario, de una sola pantalla.
+   No reutilizan accent/accent-warm a propósito — esos son de acción
+   primaria / nav activo, y una palabra violeta en un documento de lectura
+   se leería como si fuera clickeable. Juego de pantalla (claro, sobre
+   canvas oscuro) y de impresión (saturado, sobre papel blanco). */
+:root {
+  --marco-rojo: #f87171;
+  --marco-verde: #4ade80;
+  --marco-azul: #60a5fa;
+  --marco-morado: #a78bfa;
+  --marco-rosa: #f472b6;
+  --marco-naranja: #fb923c;
+}
+
+@media print {
+  :root {
+    --marco-rojo: #dc2626;
+    --marco-verde: #16a34a;
+    --marco-azul: #2563eb;
+    --marco-morado: #7c3aed;
+    --marco-rosa: #db2777;
+    --marco-naranja: #ea580c;
+  }
+
+  /* Reset de impresión: nadie quiere gastar tinta en un fondo casi negro.
+     Sin capa (@layer) a propósito — así gana por cascade layers sobre las
+     utilidades de Tailwind sin necesitar !important, y no pisa los colores
+     inline de las palabras marcadas de Marco (el span de cada marca tiene
+     su propio `style`, que siempre gana sobre una clase). */
+  body {
+    background: #fff;
+  }
+  .text-ink,
+  .text-ink-muted,
+  .text-ink-dim {
+    color: #111827;
+  }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;

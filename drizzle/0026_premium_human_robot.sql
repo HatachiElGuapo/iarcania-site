@@ -1,0 +1,17 @@
+CREATE TABLE "marco_documents" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"slug" text NOT NULL,
+	"title" text NOT NULL,
+	"format" text DEFAULT 'prosa' NOT NULL,
+	"intro" text,
+	"content" text NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "marco_documents_format_chk" CHECK ("marco_documents"."format" IN ('prosa','lista'))
+);
+--> statement-breakpoint
+ALTER TABLE "marco_documents" ADD CONSTRAINT "marco_documents_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "marco_documents_user_idx" ON "marco_documents" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "marco_documents_user_slug_idx" ON "marco_documents" USING btree ("user_id","slug");

@@ -20,7 +20,10 @@ type NavGroup = { label: string; items: NavItem[] };
 export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Inicio",
-    items: [{ href: "/dashboard", label: "Rutinas", icon: "🌅" }],
+    items: [
+      { href: "/dashboard", label: "Rutinas", icon: "🌅" },
+      { href: "/dashboard/marco", label: "Marco", icon: "📜" },
+    ],
   },
   {
     label: "Vida personal",

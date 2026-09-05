@@ -183,6 +183,13 @@
       "when": 1787706191542,
       "tag": "0025_productive_toad",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788595408995,
+      "tag": "0026_premium_human_robot",
+      "breakpoints": true
     }
   ]
 }

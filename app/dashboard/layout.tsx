@@ -17,7 +17,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-canvas">
-      <aside className="flex w-[220px] shrink-0 flex-col border-r border-line bg-surface-sunken">
+      <aside className="flex w-[220px] shrink-0 flex-col border-r border-line bg-surface-sunken print:hidden">
         <div className="border-b border-line p-6">
           <Wordmark size={18} />
           <div className="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-ink-dim">
