@@ -190,6 +190,13 @@
       "when": 1788595408995,
       "tag": "0026_premium_human_robot",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788672700597,
+      "tag": "0027_broken_randall",
+      "breakpoints": true
     }
   ]
 }

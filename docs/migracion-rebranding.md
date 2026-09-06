@@ -238,16 +238,23 @@ commits de migración NO los tocan.
 
 ### Cobros (`/dashboard/dinero/cobros`)
 
-1. **El `status` de un cobro no se calcula, se almacena.** No hay ninguna
-   lógica que pase `pendiente` → `vencido` cuando `due_date < hoy`. El badge
-   "Vencido" solo aparece si alguien lo puso a mano en el select. Decidir:
-   ¿se computa `vencido` en la lectura (comparando `due_date` con hoy), o se
-   deja como campo manual?
-2. **El banner y la tarjeta suman distinto.** El banner "$X por cobrar"
-   (`cobros/page.tsx`) suma solo `status === 'pendiente'`. El total
-   por-cliente (`ClientCard`) suma `pendiente` **o** `vencido`. Si (1) se
-   resuelve computando `vencido`, esto se arregla solo; si no, hay que
-   decidir cuál de los dos criterios es el correcto.
+1. ✅ **RESUELTO (migración 0027).** "Vencido" pasó a ser **derivado, no
+   almacenado**: `due_date < hoy` (Bogotá, vía `todayISO()`) y no pagado.
+   La regla vive en un solo lugar, `lib/agencia/payment-status.ts`
+   (`effectivePaymentStatus` / `isOwed`), y la usan el badge de cada cobro,
+   el banner y el total por cliente. `crm_payments.status` ahora tiene
+   `CHECK IN ('pendiente','pagado')` — la base rechaza `vencido`. El
+   `<option>Vencido` salió del formulario y `createAgencyPayment` ya no lo
+   acepta. Bordes: `due_date === hoy` no es vencido; `due_date NULL` nunca
+   es vencido. La migración normaliza cualquier `status='vencido'` a
+   `'pendiente'` **antes** de estrechar el CHECK (0 filas al aplicarla).
+   *Nota para una futura tool MCP de cobros: deriva `vencido`, no lo
+   guardes.*
+2. ✅ **RESUELTO (mismo cambio).** Criterio único: **"por cobrar" = todo lo
+   que no está pagado** (`pendiente` + `vencido` derivado). El banner y el
+   total por cliente usan el mismo predicado `isOwed`, así que coinciden por
+   construcción. El banner además se partió en dos: "$X por cobrar" (incluye
+   lo vencido) y "$Y vencido" como subconjunto destacado en rojo.
 3. **`crm_payments.client_id` tiene `ON DELETE CASCADE` hacia
    `crm_clients.id`** (verificado en `lib/db/schema/agencia.ts`). Borrar un
    cliente de agencia con `deleteAgencyClient` borra todo su historial de

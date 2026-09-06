@@ -5,6 +5,7 @@ import { agencyClients, agencyPayments } from "@/lib/db/schema/agencia";
 import { Badge, EmptyState, Labeled, Input, Select, Button } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { todayISO } from "@/lib/date/bogota";
+import { effectivePaymentStatus, isOwed } from "@/lib/agencia/payment-status";
 import {
   createAgencyClient,
   updateAgencyClientStatus,
@@ -32,10 +33,11 @@ const PAYMENT_STATUS: Record<string, "success" | "warm" | "danger"> = {
 // original), distinto del dominio personal/freelance de la sección Clientes
 // (clients/payments/projects/invoices — SB_P). Ver NOTES.md.
 //
-// El status de un cobro NO se computa (no hay lógica dueDate<hoy → vencido),
-// y el banner suma solo 'pendiente' mientras el total por cliente suma
-// 'pendiente'|'vencido' — deuda de lógica documentada en
-// docs/migracion-rebranding.md, NO se toca en la migración de estilo.
+// "Vencido" es DERIVADO, no almacenado: due_date < hoy (Bogotá) y no pagado.
+// La regla vive en lib/agencia/payment-status.ts y la usan el banner, el
+// total por cliente y el badge de cada cobro por igual. `status` en la base
+// es solo 'pendiente' | 'pagado' (CHECK). Cierra las deudas #1 y #2 de
+// docs/migracion-rebranding.md.
 export default async function CobrosPage() {
   const session = await auth();
   const userId = session!.user.id;
@@ -46,16 +48,31 @@ export default async function CobrosPage() {
     db.select().from(agencyPayments).where(eq(agencyPayments.userId, userId)).orderBy(desc(agencyPayments.dueDate)),
   ]);
 
-  const pendingTotal = payments.filter((p) => p.status === "pendiente").reduce((s, p) => s + p.amount, 0);
+  const owedTotal = payments
+    .filter((p) => isOwed(p, today))
+    .reduce((s, p) => s + p.amount, 0);
+  const vencidoTotal = payments
+    .filter((p) => effectivePaymentStatus(p, today) === "vencido")
+    .reduce((s, p) => s + p.amount, 0);
 
   return (
     <div className="flex flex-col gap-6">
-      {pendingTotal > 0 && (
-        <div className="rounded-ui-lg border border-accent-warm/25 bg-accent-warm/[0.06] px-4 py-3">
-          <span className="text-lg font-bold tabular-nums text-accent-warm">
-            ${pendingTotal.toLocaleString("es-CO")}
+      {owedTotal > 0 && (
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-ui-lg border border-accent-warm/25 bg-accent-warm/[0.06] px-4 py-3">
+          <span>
+            <span className="text-lg font-bold tabular-nums text-accent-warm">
+              ${owedTotal.toLocaleString("es-CO")}
+            </span>
+            <span className="ml-2 text-meta text-ink-dim">por cobrar</span>
           </span>
-          <span className="ml-2 text-meta text-ink-dim">por cobrar</span>
+          {vencidoTotal > 0 && (
+            <span>
+              <span className="text-lg font-bold tabular-nums text-danger">
+                ${vencidoTotal.toLocaleString("es-CO")}
+              </span>
+              <span className="ml-2 text-meta text-ink-dim">vencido</span>
+            </span>
+          )}
         </div>
       )}
 
@@ -121,7 +138,7 @@ function ClientCard({
 }) {
   const totalPagado = clientPayments.filter((p) => p.status === "pagado").reduce((a, p) => a + p.amount, 0);
   const totalPendiente = clientPayments
-    .filter((p) => p.status === "pendiente" || p.status === "vencido")
+    .filter((p) => isOwed(p, today))
     .reduce((a, p) => a + p.amount, 0);
   const n = clientPayments.length;
 
@@ -188,31 +205,34 @@ function ClientCard({
             <p className="text-meta text-ink-muted">Sin cobros registrados.</p>
           ) : (
             <div className="flex flex-col gap-1">
-              {clientPayments.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 text-meta">
-                  <span className="tabular-nums text-ink-dim">{p.dueDate ?? "—"}</span>
-                  <span className="min-w-0 flex-1 truncate text-ink" title={p.notes ?? undefined}>
-                    {p.notes ?? "—"}
-                  </span>
-                  <span className="tabular-nums text-ink">${p.amount.toLocaleString("es-CO")}</span>
-                  <Badge tone={PAYMENT_STATUS[p.status] ?? "neutral"}>{p.status}</Badge>
-                  {p.status !== "pagado" && (
-                    <form action={markAgencyPaymentPaid}>
+              {clientPayments.map((p) => {
+                const eff = effectivePaymentStatus(p, today);
+                return (
+                  <div key={p.id} className="flex items-center gap-2 text-meta">
+                    <span className="tabular-nums text-ink-dim">{p.dueDate ?? "—"}</span>
+                    <span className="min-w-0 flex-1 truncate text-ink" title={p.notes ?? undefined}>
+                      {p.notes ?? "—"}
+                    </span>
+                    <span className="tabular-nums text-ink">${p.amount.toLocaleString("es-CO")}</span>
+                    <Badge tone={PAYMENT_STATUS[eff] ?? "neutral"}>{eff}</Badge>
+                    {eff !== "pagado" && (
+                      <form action={markAgencyPaymentPaid}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <input type="hidden" name="paidDate" value={today} />
+                        <button type="submit" className="text-success hover:underline">
+                          Marcar pagado
+                        </button>
+                      </form>
+                    )}
+                    <form action={deleteAgencyPayment}>
                       <input type="hidden" name="id" value={p.id} />
-                      <input type="hidden" name="paidDate" value={today} />
-                      <button type="submit" className="text-success hover:underline">
-                        Marcar pagado
+                      <button type="submit" className="text-ink-dim hover:text-danger">
+                        ×
                       </button>
                     </form>
-                  )}
-                  <form action={deleteAgencyPayment}>
-                    <input type="hidden" name="id" value={p.id} />
-                    <button type="submit" className="text-ink-dim hover:text-danger">
-                      ×
-                    </button>
-                  </form>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -225,7 +245,6 @@ function ClientCard({
               <Select name="status" defaultValue="pendiente">
                 <option value="pendiente">Pendiente</option>
                 <option value="pagado">Pagado</option>
-                <option value="vencido">Vencido</option>
               </Select>
             </Labeled>
             <Labeled label="Vence">

@@ -73,7 +73,9 @@ export async function createAgencyPayment(formData: FormData) {
 
   if (!clientId) throw new Error("Selecciona un cliente");
   if (!amount || amount <= 0) throw new Error("Monto inválido");
-  if (!["pendiente", "pagado", "vencido"].includes(status)) throw new Error("Estado inválido");
+  // "vencido" ya no es almacenable: se deriva de due_date < hoy y no pagado
+  // (lib/agencia/payment-status.ts).
+  if (!["pendiente", "pagado"].includes(status)) throw new Error("Estado inválido");
 
   const [client] = await db
     .select({ id: agencyClients.id })

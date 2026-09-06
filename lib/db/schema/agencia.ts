@@ -60,7 +60,8 @@ export const agencyPayments = pgTable(
       .notNull()
       .references(() => agencyClients.id, { onDelete: "cascade" }),
     amount: numeric("amount", { precision: 12, scale: 2, mode: "number" }).notNull(),
-    // 'pendiente' | 'pagado' | 'vencido'
+    // 'pendiente' | 'pagado'. "Vencido" NO se almacena: se deriva de
+    // due_date < hoy y no pagado — ver lib/agencia/payment-status.ts.
     status: text("status").notNull().default("pendiente"),
     dueDate: date("due_date"),
     paidDate: date("paid_date"),
@@ -71,6 +72,6 @@ export const agencyPayments = pgTable(
   },
   (t) => ({
     clientIdx: index("crm_payments_client_idx").on(t.clientId),
-    statusCheck: check("crm_payments_status_chk", sql`${t.status} IN ('pendiente','pagado','vencido')`),
+    statusCheck: check("crm_payments_status_chk", sql`${t.status} IN ('pendiente','pagado')`),
   }),
 );
