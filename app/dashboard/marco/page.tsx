@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { marcoDocuments } from "@/lib/db/schema/marco";
-import { PageHeader, EmptyState, Labeled, Input, Textarea, Button, cx } from "@/components/ui";
+import { PageHeader, EmptyState, Labeled, Input, Textarea, Button } from "@/components/ui";
 import { Marked } from "./marked";
 import { PrintButton } from "./print-button";
 import { updateMarcoDocument } from "./actions";
@@ -38,16 +38,13 @@ export default async function MarcoPage() {
       {docs.length === 0 ? (
         <EmptyState icon="📜">Todavía no has escrito ningún documento de Marco.</EmptyState>
       ) : (
-        <div className="flex flex-col gap-10 print:gap-0">
-          {docs.map((doc, i) => (
+        <div className="flex flex-col gap-10 print:gap-8">
+          {docs.map((doc) => (
             <article
               key={doc.id}
-              className={cx(
-                "flex flex-col gap-4 print:break-inside-avoid print:px-10 print:py-8",
-                i < docs.length - 1 && "print:break-after-page",
-              )}
+              className="flex flex-col gap-4 print:break-inside-avoid print:px-10 print:py-6"
             >
-              <div>
+              <div className="print:break-inside-avoid print:break-after-avoid">
                 <h1 className="font-display text-2xl font-bold text-ink print:text-3xl">
                   {doc.title}
                 </h1>
