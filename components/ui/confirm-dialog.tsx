@@ -6,6 +6,10 @@ import { cx } from "./cx";
 // 5b — Confirmación destructiva. El botón peligroso NUNCA es sólido: borde y
 // fondo al 10%. La acción segura ("Conservar") queda a la derecha y recibe
 // el foco inicial. Esc = conservar.
+//
+// `altAction` (opcional) agrega un tercer camino en el medio — una salida no
+// destructiva, p. ej. "Marcar inactivo" en vez de borrar. Es su propio
+// <form action>; al usarlo se cierra el diálogo.
 export function ConfirmDialog({
   trigger,
   title,
@@ -13,6 +17,9 @@ export function ConfirmDialog({
   confirmLabel = "Eliminar",
   action,
   hidden,
+  altAction,
+  altLabel,
+  altHidden,
   className,
 }: {
   trigger: ReactNode; // JSX del disparador
@@ -21,6 +28,9 @@ export function ConfirmDialog({
   confirmLabel?: string;
   action: (formData: FormData) => void | Promise<void>; // Server Action
   hidden?: Record<string, string>;
+  altAction?: (formData: FormData) => void | Promise<void>; // Server Action no destructiva
+  altLabel?: string;
+  altHidden?: Record<string, string>;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -60,7 +70,7 @@ export function ConfirmDialog({
               <div className="text-[13px] font-medium text-ink">{title}</div>
               {body && <p className="mt-1.5 text-meta leading-snug text-ink-muted">{body}</p>}
             </div>
-            <div className="flex items-center gap-2 border-t border-line bg-surface px-3.5 py-3">
+            <div className="flex flex-wrap items-center gap-2 border-t border-line bg-surface px-3.5 py-3">
               <form action={action}>
                 {hidden &&
                   Object.entries(hidden).map(([k, v]) => (
@@ -73,6 +83,20 @@ export function ConfirmDialog({
                   {confirmLabel}
                 </button>
               </form>
+              {altAction && (
+                <form action={altAction} onSubmit={() => setOpen(false)}>
+                  {altHidden &&
+                    Object.entries(altHidden).map(([k, v]) => (
+                      <input key={k} type="hidden" name={k} value={v} />
+                    ))}
+                  <button
+                    type="submit"
+                    className="focus-ring rounded-ui border border-line bg-surface-2 px-3 py-1.5 text-meta text-ink-muted transition-colors duration-120 hover:border-line-strong hover:text-ink"
+                  >
+                    {altLabel ?? "Marcar inactivo"}
+                  </button>
+                </form>
+              )}
               <button
                 ref={keepRef}
                 type="button"

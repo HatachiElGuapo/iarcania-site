@@ -169,14 +169,14 @@ Arquetipo según `4j`. `SubNav` = tiene sub-rutas enlazadas.
 | Dinero · Facturas | `/dashboard/dinero/facturas` | 1 Lista + estado de pago | ✅ migrada | `payBill` (transacción bill_payments+expenses+balance, sin cambios) |
 | Dinero · Metas | `/dashboard/dinero/metas` | 1 Lista priorizada | ✅ migrada | 5g decía arquetipo 3, pero sin campo "ahorrado" una barra sería decorativa → lista simple |
 | Dinero · Escanear | `/dashboard/dinero/escanear` | acción de captura | ✅ migrada | **No funciona sin `ANTHROPIC_API_KEY`** (vacía hoy). `/api/scan-receipt` ahora devuelve 503 con mensaje claro en vez del 401 críptico de Anthropic |
-| Dinero · Cobros | `/dashboard/dinero/cobros` | 1 Lista | ✅ migrada | Solo markup: cero cambios en actions.ts, cero cambios en lectura/escritura del status. El botón "Eliminar cliente" ahora usa <ConfirmDialog> que dice cuántos cobros borrará el CASCADE (no cambia comportamiento, lo hace visible). Deudas 1-3 abajo, abiertas |
+| Dinero · Cobros | `/dashboard/dinero/cobros` | 1 Lista | ✅ migrada | Solo markup: cero cambios en actions.ts, cero cambios en lectura/escritura del status. El botón "Eliminar cliente" ahora usa <ConfirmDialog> que dice cuántos cobros borrará el CASCADE (no cambia comportamiento, lo hace visible). Deudas #1 y #2 (vencido derivado) y #3 (inactivar por defecto) resueltas abajo |
 | Citas | `/dashboard/citas` | 2 Temporal | ✅ migrada | Fase 03. `actions.ts` (offset `-05:00`) sin tocar |
 | Eventos | `/dashboard/eventos` | 2 Temporal | ✅ migrada | Fase 03 |
 | Reloj | `/dashboard/reloj` | 2 Temporal | ✅ migrada | Fase 03. 100% cliente, alarmas en `localStorage` |
 | Trabajo | `/dashboard/trabajo` (+ `tareas`) | 4 Tablero | ✅ migrada | Fase 04. `layout.tsx` → `PageHeader` + `SubNav`. "Hoy" con `Section` + `Segmented` de canal; `tareas` con `Segmented` de rango + `Table`. Cero cambios en actions (reutiliza Actividades). Copia voseo corregida ("no has agregado") |
 | Planner | `/dashboard/planner` | 4 Tablero + pestañas | ✅ migrada | Fase 04. `?tab=` (Contenido/Producción/Semanal) + `?canal=` re-estilados como `Segmented`, NO convertidos a rutas. `toggleChecklist` (de Guiones) conservado como botón-por-paso, solo re-skin |
 | CRM | `/dashboard/crm` | 4 Tablero + pestañas | ✅ migrada | Fase 04. `?tab=` (Presupuesto/Pipeline/Clientes/Deudas) → `Segmented`, una sola página. `moveDealStage` conservado como botón-por-etapa (el "select Mover ▾" del arquetipo no aplica: el mecanismo actual ya funciona). Cero cambios en actions.ts |
-| Clientes | `/dashboard/clientes` | 1 Lista | ✅ migrada | Fase 04. ⚠️ datos reales — solo markup, cero cambios en actions.ts. Migrado del `PageHeader` viejo (`@/components/app/page-header`) al nuevo. `deleteClient` ahora usa `<ConfirmDialog>` que dice qué borra el CASCADE (proyectos/pagos/invoices). Deuda #5 abajo |
+| Clientes | `/dashboard/clientes` | 1 Lista | ✅ migrada | Fase 04. ⚠️ datos reales — solo markup, cero cambios en actions.ts. Migrado del `PageHeader` viejo (`@/components/app/page-header`) al nuevo. `deleteClient` ahora usa `<ConfirmDialog>` que dice qué borra el CASCADE (proyectos/pagos/invoices). Deuda #5 (inactivar por defecto) resuelta abajo |
 | Guiones | `/dashboard/guiones` | 5 Documento | ✅ migrada | Fase 05. `PageHeader` + `Segmented` de canal. `new-script-form` y `script-card` (client) re-skineados; llamadas a `/api/scripts/*` y descarga por Blob intactas. Cero cambios en actions.ts |
 | Slides | `/dashboard/slides` | 5 Documento | ✅ migrada | Fase 05. Sigue siendo stub (no hay editor); `PageHeader` + `EmptyState` |
 | Escuela | `/dashboard/escuela` (+ `cursos/[id]`) | 5 Documento | ✅ migrada | Fase 05. `?tab=` (Cursos/Estudiantes) → `Segmented`, **sin** `SubNav`, no convertido a rutas. `cursos/[id]` sigue stub. Tier→`MetricCard`/`Badge`, Field→Labeled. Cero cambios en actions.ts |
@@ -255,13 +255,18 @@ commits de migración NO los tocan.
    total por cliente usan el mismo predicado `isOwed`, así que coinciden por
    construcción. El banner además se partió en dos: "$X por cobrar" (incluye
    lo vencido) y "$Y vencido" como subconjunto destacado en rojo.
-3. **`crm_payments.client_id` tiene `ON DELETE CASCADE` hacia
-   `crm_clients.id`** (verificado en `lib/db/schema/agencia.ts`). Borrar un
-   cliente de agencia con `deleteAgencyClient` borra todo su historial de
-   cobros, pagados incluidos. Desde la migración el `<ConfirmDialog>` lo
-   **dice** antes de ejecutar ("se borran N cobros"), pero el comportamiento
-   del CASCADE no cambió. Abierto: ¿soft-delete del cliente en vez de
-   `DELETE` duro?
+3. ✅ **RESUELTO.** Sin soft-delete ni `deleted_at`: **inactivar es el
+   camino por defecto**. El `status` (`activo`/`inactivo`/`pausado`) ya
+   existía en `crm_clients`; ahora la lista de Cobros lo respeta —
+   `updateAgencyClientStatus` no cambió. Un cliente inactivo se **oculta**
+   de la lista salvo que todavía deba cobros pendientes/vencidos (ahí sigue
+   visible, al final, con badge y atenuado); el toggle `?inactivos=1` los
+   trae (patrón de `?archivadas=1`). El contador del toggle cuenta solo los
+   ocultos de verdad. Botón de **un clic "Marcar inactivo" / "Reactivar"**.
+   Borrar quedó degradado a acción secundaria: enlace de texto tras un
+   disclosure "Eliminar definitivamente", y dentro del `<ConfirmDialog>` un
+   tercer botón **"Marcar inactivo"** (`altAction`) como salida no
+   destructiva. El CASCADE sigue igual para quien de verdad elija borrar.
 
 ### Gastos (`/dashboard/dinero/gastos`)
 
@@ -272,11 +277,11 @@ commits de migración NO los tocan.
 
 ### Clientes (`/dashboard/clientes`)
 
-5. **`clients.id` cascada a `projects`, `payments` e `invoices`** (los tres
-   con `references(() => clients.id, { onDelete: "cascade" })` en
-   `lib/db/schema/clientes.ts`). `deleteClient` borra el cliente y todo su
-   historial —pagos y invoices pagados incluidos— sin rastro. Misma clase de
-   riesgo que la deuda #3 de Cobros. Desde la migración el `<ConfirmDialog>`
-   lo **dice** antes ("se borran N proyectos, N pagos, N invoices"), pero el
-   `DELETE` duro no cambió. Abierto: ¿soft-delete? Decidir junto con #3, es
-   la misma pregunta en dos dominios (agencia vs. freelance).
+5. ✅ **RESUELTO junto con #3, mismo tratamiento.** `clients` ya tenía el
+   mismo `status` (`activo`/`inactivo`/`pausado`) que `crm_clients`. La
+   lista de Clientes ahora oculta los inactivos salvo que deban plata
+   (algún `payments`/`invoices` en `pendiente`/`vencido` — almacenado, el
+   vencido derivado es solo de Cobros); toggle `?inactivos=1` en el
+   `PageHeader`; botón de un clic; borrar tras disclosure con `altAction`
+   "Marcar inactivo". `updateClientStatus`/`deleteClient` sin cambios. El
+   CASCADE sigue igual para el borrado explícito.

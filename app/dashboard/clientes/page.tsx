@@ -11,6 +11,7 @@ import {
   Input,
   Select,
   Button,
+  cx,
 } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { todayISO, currentMonthRangeISO } from "@/lib/date/bogota";
@@ -44,11 +45,16 @@ const PAY_STATUS: Record<string, "success" | "warm" | "danger"> = {
   vencido: "danger",
 };
 
-export default async function ClientesPage() {
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ inactivos?: string }>;
+}) {
   const session = await auth();
   const userId = session!.user.id;
   const date = todayISO();
   const { from, to } = currentMonthRangeISO();
+  const showInactive = (await searchParams).inactivos === "1";
 
   const [allClients, allProjects, allPayments, allInvoices] = await Promise.all([
     db.select().from(clients).where(eq(clients.userId, userId)).orderBy(desc(clients.createdAt)),
@@ -67,6 +73,19 @@ export default async function ClientesPage() {
 
   const activos = allClients.filter((c) => c.status === "activo").length;
 
+  // "Debe plata": algún pago o invoice sin pagar (status almacenado — el
+  // vencido derivado es solo de Cobros).
+  const owes = (c: Client) =>
+    allPayments.some((p) => p.clientId === c.id && (p.status === "pendiente" || p.status === "vencido")) ||
+    allInvoices.some((i) => i.clientId === c.id && (i.status === "pendiente" || i.status === "vencido"));
+
+  const visible = allClients.filter((c) => c.status !== "inactivo" || owes(c) || showInactive);
+  const hiddenCount = allClients.filter((c) => c.status === "inactivo" && !owes(c)).length;
+  const ordered = [
+    ...visible.filter((c) => c.status !== "inactivo"),
+    ...visible.filter((c) => c.status === "inactivo"),
+  ];
+
   return (
     <div className="p-8">
       <PageHeader
@@ -76,6 +95,17 @@ export default async function ClientesPage() {
           allClients.length > 0
             ? `${allClients.length} cliente${allClients.length !== 1 ? "s" : ""} · ${activos} activo${activos !== 1 ? "s" : ""}`
             : undefined
+        }
+        actions={
+          hiddenCount > 0 || showInactive ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              href={showInactive ? "/dashboard/clientes" : "/dashboard/clientes?inactivos=1"}
+            >
+              {showInactive ? "Ocultar inactivos" : `Ver inactivos (${hiddenCount})`}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -91,9 +121,13 @@ export default async function ClientesPage() {
           <EmptyState icon="🎯">
             Todavía no has registrado ningún cliente. Cuando cierres tu primer deal, créalo abajo.
           </EmptyState>
+        ) : ordered.length === 0 ? (
+          <p className="text-meta text-ink-muted">
+            Todos tus clientes están inactivos y sin nada pendiente. «Ver inactivos» para verlos.
+          </p>
         ) : (
           <div className="flex flex-col gap-3">
-            {allClients.map((c) => (
+            {ordered.map((c) => (
               <ClientCard
                 key={c.id}
                 client={c}
@@ -159,8 +193,12 @@ function ClientCard({
   if (counts.payments) cascade.push(`${counts.payments} pago${counts.payments !== 1 ? "s" : ""}`);
   if (counts.invoices) cascade.push(`${counts.invoices} invoice${counts.invoices !== 1 ? "s" : ""}`);
 
+  const inactivo = client.status === "inactivo";
+
   return (
-    <details className="rounded-ui-lg border border-line bg-surface p-4">
+    <details
+      className={cx("rounded-ui-lg border border-line bg-surface p-4", inactivo && "opacity-70")}
+    >
       <summary className="flex cursor-pointer items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-accent-warm/20 bg-accent-warm/10 font-display text-sm text-accent-warm">
           {client.name.charAt(0).toUpperCase()}
@@ -184,8 +222,15 @@ function ClientCard({
       </summary>
 
       <div className="mt-4 flex flex-col gap-4 border-t border-line pt-4">
-        {/* Estado + eliminar */}
+        {/* Estado — inactivar es el camino por defecto */}
         <div className="flex flex-wrap items-center gap-2">
+          <form action={updateClientStatus}>
+            <input type="hidden" name="id" value={client.id} />
+            <input type="hidden" name="status" value={inactivo ? "activo" : "inactivo"} />
+            <Button type="submit" variant="secondary" size="sm">
+              {inactivo ? "Reactivar" : "Marcar inactivo"}
+            </Button>
+          </form>
           <form action={updateClientStatus} className="flex items-center gap-2">
             <input type="hidden" name="id" value={client.id} />
             <Select name="status" defaultValue={client.status}>
@@ -194,25 +239,9 @@ function ClientCard({
               <option value="pausado">Pausado</option>
             </Select>
             <Button type="submit" variant="secondary" size="sm">
-              Actualizar estado
+              Actualizar
             </Button>
           </form>
-          <ConfirmDialog
-            trigger={
-              <Button variant="danger" size="sm">
-                Eliminar cliente
-              </Button>
-            }
-            title={`¿Eliminar a «${client.name}»?`}
-            body={
-              cascade.length
-                ? `Se borran también ${cascade.join(", ")} (incluidos los pagados). No se puede deshacer.`
-                : "No tiene proyectos ni pagos registrados. No se puede deshacer."
-            }
-            confirmLabel="Eliminar cliente"
-            action={deleteClient}
-            hidden={{ id: client.id }}
-          />
         </div>
 
         {/* Proyecto */}
@@ -354,6 +383,38 @@ function ClientCard({
             </Button>
           </form>
         </div>
+
+        <details className="mt-1">
+          <summary className="cursor-pointer text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-dim hover:text-ink">
+            Eliminar definitivamente
+          </summary>
+          <div className="mt-2">
+            <ConfirmDialog
+              trigger={
+                <button className="text-meta text-ink-dim underline-offset-2 hover:text-danger hover:underline">
+                  Eliminar cliente{cascade.length ? ` y ${cascade.join(", ")}` : ""}
+                </button>
+              }
+              title={`¿Eliminar a «${client.name}»?`}
+              body={
+                (cascade.length
+                  ? `Se borran también ${cascade.join(", ")} (incluidos los pagados). No se puede deshacer. `
+                  : "No tiene proyectos ni pagos registrados. No se puede deshacer. ") +
+                (inactivo ? "" : "O márcalo inactivo para sacarlo de la lista sin perder nada.")
+              }
+              confirmLabel="Eliminar cliente"
+              action={deleteClient}
+              hidden={{ id: client.id }}
+              {...(inactivo
+                ? {}
+                : {
+                    altAction: updateClientStatus,
+                    altLabel: "Marcar inactivo",
+                    altHidden: { id: client.id, status: "inactivo" },
+                  })}
+            />
+          </div>
+        </details>
       </div>
     </details>
   );

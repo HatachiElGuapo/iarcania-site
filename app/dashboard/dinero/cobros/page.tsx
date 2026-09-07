@@ -2,7 +2,7 @@ import { desc, eq, type InferSelectModel } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { agencyClients, agencyPayments } from "@/lib/db/schema/agencia";
-import { Badge, EmptyState, Labeled, Input, Select, Button } from "@/components/ui";
+import { Badge, EmptyState, Labeled, Input, Select, Button, cx } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { todayISO } from "@/lib/date/bogota";
 import { effectivePaymentStatus, isOwed } from "@/lib/agencia/payment-status";
@@ -38,15 +38,35 @@ const PAYMENT_STATUS: Record<string, "success" | "warm" | "danger"> = {
 // total por cliente y el badge de cada cobro por igual. `status` en la base
 // es solo 'pendiente' | 'pagado' (CHECK). Cierra las deudas #1 y #2 de
 // docs/migracion-rebranding.md.
-export default async function CobrosPage() {
+//
+// Sacar un cliente = marcarlo inactivo (updateAgencyClientStatus). Un cliente
+// inactivo se oculta de la lista salvo que todavía deba plata; el toggle
+// ?inactivos=1 los trae. Borrar es acción excepcional, degradada y tras
+// barrera. Cierra las deudas #3 y #5 — sin `deleted_at`, el status ya existía.
+export default async function CobrosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ inactivos?: string }>;
+}) {
   const session = await auth();
   const userId = session!.user.id;
   const today = todayISO();
+  const showInactive = (await searchParams).inactivos === "1";
 
   const [clients, payments] = await Promise.all([
     db.select().from(agencyClients).where(eq(agencyClients.userId, userId)).orderBy(desc(agencyClients.createdAt)),
     db.select().from(agencyPayments).where(eq(agencyPayments.userId, userId)).orderBy(desc(agencyPayments.dueDate)),
   ]);
+
+  const owes = (c: Client) => payments.some((p) => p.clientId === c.id && isOwed(p, today));
+
+  const visible = clients.filter((c) => c.status !== "inactivo" || owes(c) || showInactive);
+  const hiddenCount = clients.filter((c) => c.status === "inactivo" && !owes(c)).length;
+  // Activos y pausados primero (en su orden), inactivos al final.
+  const ordered = [
+    ...visible.filter((c) => c.status !== "inactivo"),
+    ...visible.filter((c) => c.status === "inactivo"),
+  ];
 
   const owedTotal = payments
     .filter((p) => isOwed(p, today))
@@ -76,14 +96,30 @@ export default async function CobrosPage() {
         </div>
       )}
 
+      {(hiddenCount > 0 || showInactive) && (
+        <div className="flex justify-end">
+          <Button
+            variant="secondary"
+            size="sm"
+            href={showInactive ? "/dashboard/dinero/cobros" : "/dashboard/dinero/cobros?inactivos=1"}
+          >
+            {showInactive ? "Ocultar inactivos" : `Ver inactivos (${hiddenCount})`}
+          </Button>
+        </div>
+      )}
+
       {clients.length === 0 ? (
         <EmptyState icon="🤝">
           Los clientes de tu agencia y sus cobros mensuales. Todavía no has registrado ninguno —
           crea el primero abajo.
         </EmptyState>
+      ) : ordered.length === 0 ? (
+        <p className="text-meta text-ink-muted">
+          Todos tus clientes están inactivos y sin cobros pendientes. «Ver inactivos» para verlos.
+        </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {clients.map((c) => (
+          {ordered.map((c) => (
             <ClientCard
               key={c.id}
               client={c}
@@ -141,9 +177,15 @@ function ClientCard({
     .filter((p) => isOwed(p, today))
     .reduce((a, p) => a + p.amount, 0);
   const n = clientPayments.length;
+  const inactivo = client.status === "inactivo";
 
   return (
-    <details className="rounded-ui-lg border border-line bg-surface p-4">
+    <details
+      className={cx(
+        "rounded-ui-lg border border-line bg-surface p-4",
+        inactivo && "opacity-70",
+      )}
+    >
       <summary className="flex cursor-pointer items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm">
           {client.name.charAt(0).toUpperCase()}
@@ -168,6 +210,13 @@ function ClientCard({
 
       <div className="mt-4 flex flex-col gap-4 border-t border-line pt-4">
         <div className="flex flex-wrap items-center gap-2">
+          <form action={updateAgencyClientStatus}>
+            <input type="hidden" name="id" value={client.id} />
+            <input type="hidden" name="status" value={inactivo ? "activo" : "inactivo"} />
+            <Button type="submit" variant="secondary" size="sm">
+              {inactivo ? "Reactivar" : "Marcar inactivo"}
+            </Button>
+          </form>
           <form action={updateAgencyClientStatus} className="flex items-center gap-2">
             <input type="hidden" name="id" value={client.id} />
             <Select name="status" defaultValue={client.status}>
@@ -176,25 +225,9 @@ function ClientCard({
               <option value="pausado">Pausado</option>
             </Select>
             <Button type="submit" variant="secondary" size="sm">
-              Actualizar estado
+              Actualizar
             </Button>
           </form>
-          <ConfirmDialog
-            trigger={
-              <Button variant="danger" size="sm">
-                Eliminar cliente
-              </Button>
-            }
-            title={`¿Eliminar a «${client.name}»?`}
-            body={
-              n > 0
-                ? `Se borran también sus ${n} cobro${n !== 1 ? "s" : ""} (incluidos los pagados). No se puede deshacer.`
-                : "No tiene cobros registrados. No se puede deshacer."
-            }
-            confirmLabel="Eliminar cliente"
-            action={deleteAgencyClient}
-            hidden={{ id: client.id }}
-          />
         </div>
 
         <div>
@@ -261,6 +294,38 @@ function ClientCard({
             </Button>
           </form>
         </div>
+
+        <details className="mt-1">
+          <summary className="cursor-pointer text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-dim hover:text-ink">
+            Eliminar definitivamente
+          </summary>
+          <div className="mt-2">
+            <ConfirmDialog
+              trigger={
+                <button className="text-meta text-ink-dim underline-offset-2 hover:text-danger hover:underline">
+                  Eliminar cliente{n > 0 ? ` y sus ${n} cobro${n !== 1 ? "s" : ""}` : ""}
+                </button>
+              }
+              title={`¿Eliminar a «${client.name}»?`}
+              body={
+                (n > 0
+                  ? `Se borran también sus ${n} cobro${n !== 1 ? "s" : ""} (incluidos los pagados). No se puede deshacer. `
+                  : "No tiene cobros registrados. No se puede deshacer. ") +
+                (inactivo ? "" : "O márcalo inactivo para sacarlo de la lista sin perder nada.")
+              }
+              confirmLabel="Eliminar cliente"
+              action={deleteAgencyClient}
+              hidden={{ id: client.id }}
+              {...(inactivo
+                ? {}
+                : {
+                    altAction: updateAgencyClientStatus,
+                    altLabel: "Marcar inactivo",
+                    altHidden: { id: client.id, status: "inactivo" },
+                  })}
+            />
+          </div>
+        </details>
       </div>
     </details>
   );
