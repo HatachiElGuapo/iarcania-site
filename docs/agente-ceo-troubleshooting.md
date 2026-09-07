@@ -70,3 +70,26 @@ docker logs familyos_evolution | grep wuid
 ## Nota de seguridad
 
 Durante este debugging quedaron expuestas en texto plano: el `apikey` de Evolution API y la contraseña del usuario Postgres `admin`. Rotarlas cuando haya oportunidad.
+
+## Fixes del 1 de septiembre 2026
+
+### 6. `create_task` fallaba de forma intermitente pese al cast `$7::boolean`
+Causa: el campo "Query Parameters" del nodo Postgres armaba la lista de parámetros uniendo texto con comas — formato frágil que perdía un parámetro al azar en algunas ejecuciones.
+
+**Fix aplicado:** reescribir el campo como un arreglo real de JS en vez de texto concatenado:
+```js
+[ $fromAI('titulo'), $fromAI('descripcion'), $fromAI('fecha'), ... ]
+```
+
+**Lección:** en nodos Postgres de n8n, preferir siempre el modo de arreglo real para "Query Parameters" en vez de escribir la lista como texto separado por comas — el texto es propenso a perder o desalinear parámetros silenciosamente.
+
+### 7. El AI Agent confirmaba "tarea creada" (✅) sin haber llamado la tool
+Ocurría específicamente cuando el pedido incluía una hora concreta (ej. "recuérdame algo a las 7 de la noche") — la tabla `tasks` solo tiene `due_date` (fecha, sin hora), así que el agente "alucinaba" el éxito en vez de manejar el caso correctamente.
+
+**Fix aplicado:** se agregó al system prompt del agente:
+- **REGLA CRÍTICA #2**: nunca usar lenguaje de acción completada (✅, "listo", "creada") sin haber recibido una respuesta exitosa real de la tool.
+- Sección **"TAREAS CON HORA"**: la fecha va en `due_date`, la hora (si el usuario la da) va en `notes` como texto, y si hay ambigüedad, el agente debe preguntar si el usuario quiere una tarea o un recordatorio.
+
+**Lección:** cuando el schema de una tabla no soporta un campo que el usuario menciona naturalmente (como la hora), es mejor instruir explícitamente al agente sobre dónde debe ir ese dato (y cuándo preguntar) que confiar en que infiera el comportamiento correcto por su cuenta.
+
+**Confirmado:** tarea de prueba con hora específica se guardó correctamente (`due_date` solo con fecha, `notes` con "Hora: 8:00 pm"), verificado por consulta directa a la tabla.
