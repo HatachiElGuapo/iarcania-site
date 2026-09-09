@@ -89,6 +89,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { href: "/dashboard/dinero/cuentas", label: "Cuentas" },
           { href: "/dashboard/dinero/facturas", label: "Facturas" },
           { href: "/dashboard/dinero/gastos", label: "Gastos" },
+          { href: "/dashboard/dinero/presupuesto", label: "Presupuesto" },
+          { href: "/dashboard/dinero/deudas", label: "Deudas" },
           { href: "/dashboard/dinero/cobros", label: "Cobros" },
           { href: "/dashboard/dinero/metas", label: "Metas" },
           { href: "/dashboard/dinero/escanear", label: "Escanear" },
