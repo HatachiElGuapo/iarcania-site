@@ -101,3 +101,95 @@ export const income = pgTable(
     userDateIdx: index("income_user_date_idx").on(t.userId, t.date),
   }),
 );
+
+// ─────────────────────────────────────────────────────────────────────────
+// Presupuesto v2 — modelo "categoría viva". Convive con el trío de crm.ts
+// (budgets/budget_distributions/debts, por mes/año) hasta que se decida el
+// modelo nuevo (objetivo de Brújula "Repensar la arquitectura de Dinero").
+// Por eso los nombres son propios: no chocan con crm.ts en el barrel ni en
+// SQL.
+// ─────────────────────────────────────────────────────────────────────────
+
+// Categoría de presupuesto con meta mensual + gasto corrido del mes. A
+// diferencia de crm.budgets (una fila por mes/año), acá es una sola fila
+// viva por categoría; `current_month_spent` se reinicia por proceso, no por
+// fila nueva.
+export const budgetCategories = pgTable(
+  "budget_categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // 'income' | 'expense'
+    type: text("type").notNull().default("expense"),
+    monthlyAmount: numeric("monthly_amount", { precision: 12, scale: 2, mode: "number" })
+      .notNull()
+      .default(0),
+    currentMonthSpent: numeric("current_month_spent", { precision: 12, scale: 2, mode: "number" })
+      .notNull()
+      .default(0),
+    // 1 = más urgente.
+    priority: integer("priority").notNull().default(10),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("budget_categories_user_idx").on(t.userId),
+  }),
+);
+
+// Reparto de un ingreso entre categorías de presupuesto v2. Equivalente a
+// crm.budgetDistributions pero apuntando a budget_categories en vez de
+// budgets.
+export const budgetCategoryDistributions = pgTable(
+  "budget_category_distributions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    incomeId: uuid("income_id")
+      .notNull()
+      .references(() => income.id, { onDelete: "cascade" }),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => budgetCategories.id, { onDelete: "cascade" }),
+    amountAssigned: numeric("amount_assigned", { precision: 12, scale: 2, mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    incomeIdx: index("budget_category_distributions_income_idx").on(t.incomeId),
+  }),
+);
+
+// Deudas personales/del hogar. Cercana a crm.debts pero sin `debtor` (acá el
+// deudor siempre es la casa) ni CHECK sobre status.
+export const personalDebts = pgTable(
+  "personal_debts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // A quién se le debe.
+    creditor: text("creditor").notNull(),
+    totalAmount: numeric("total_amount", { precision: 12, scale: 2, mode: "number" }).notNull(),
+    remainingAmount: numeric("remaining_amount", { precision: 12, scale: 2, mode: "number" }).notNull(),
+    // Cuota mensual, si aplica.
+    monthlyPayment: numeric("monthly_payment", { precision: 12, scale: 2, mode: "number" }),
+    // Fecha límite, si aplica.
+    dueDate: date("due_date"),
+    // 'active' | 'paid'
+    status: text("status").notNull().default("active"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("personal_debts_user_idx").on(t.userId),
+  }),
+);
