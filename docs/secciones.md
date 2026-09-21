@@ -37,12 +37,21 @@ Lista de tareas personales agrupada por vencimiento (vencidas / hoy / semana
 
 ### Agenda — `/dashboard/agenda` 📅
 Rejilla horaria fija 00:00–24:00 de un día: bloques de agenda, tareas con
-hora, citas y los hábitos diarios (dibujados como bloques virtuales; al
-arrastrarlos se materializan como fila real solo para ese día). Arrastrar y
-redimensionar.
-- **Tablas**: `agenda.agenda_items` (escribe), `habitos.activities` + `activity_logs`, `trabajo.tasks`, `citas.appointments` (lee).
+hora, citas, los hábitos diarios sin enlazar a Plan (dibujados como bloques
+virtuales; al arrastrarlos se materializan como fila real solo para ese
+día) y los bloques resueltos de Plan (de solo lectura — ver la sección
+Plan diario). Arrastrar y redimensionar (no aplica a los bloques de Plan).
+- **Tablas**: `agenda.agenda_items` (escribe), `habitos.activities` + `activity_logs`, `trabajo.tasks`, `citas.appointments`, `plan.plan_blocks` + `plan.plan_block_activities` + `plan.plan_checks` (lee).
 - **Escritura** (`agenda/actions.ts`): `createBlock`, `updateBlock`, `deleteBlock`, `moveBlock`, `scheduleHabit`.
 - **Sub-vistas**: `?date=` (día), `?pre=` / `?edit=` (bloque en edición).
+- **Una sola fuente por hábito**: un hábito de `activities` enlazado a un
+  bloque de Plan (`plan_block_activities`) no se dibuja aparte — ni virtual
+  ni materializado. Se pinta una vez, dentro de la tarjeta del bloque de
+  Plan, con un check por hábito enlazado (puede ser más de uno, ej. el
+  bloque "40/40/40" trae dos). Un bloque con `end_time` null (ej. Dormir) se
+  ve de su hora hasta "24:00" ese día, y al día siguiente aparece un tramo
+  aparte de 00:00 al primer bloque de Plan de ese día — mismo bloque de
+  ayer, mismo check, no uno nuevo.
 
 ### Plan diario — `/dashboard/plan` 🗺️
 Planificador semanal con fases y verificación diaria — la versión en
@@ -55,7 +64,18 @@ diario de hecho/saltado sin tocar la plantilla.
   `plan.plan_holidays`, `plan.plan_events`, `plan.plan_overrides` (cambia o
   quita un bloque solo para un día), `plan.plan_checks` (hecho/saltado por
   día, con `resolved_text` fijo al momento de marcar — reordenar una cola
-  después no cambia el historial).
+  después no cambia el historial), `plan.plan_block_activities` (N a N con
+  `habitos.activities` — un bloque puede tener varios hábitos, ej. "40/40/40"
+  tiene dos; un hábito puede repetirse en varios bloques, uno por weekday;
+  cascade en ambos lados, así que borrar el bloque o el hábito solo quita el
+  enlace). `scripts/link-plan-activities.ts` arma esos enlaces: automático
+  por nombre normalizado + hora exacta, o mapeo explícito para casos donde
+  `activities` quedó desactualizada frente al Plan — ver el script para el
+  mapeo usado la última vez. También puede sincronizar `hora_sugerida` con
+  la hora del bloque enlazado (cuando todos los bloques de ese hábito
+  comparten una sola hora) para que el Agente CEO por WhatsApp (que lee
+  `activities.hora_sugerida`, ver `docs/agente-ceo-troubleshooting.md`) no
+  recuerde a una hora vieja.
 - **Resolver** (`lib/plan/resolve.ts`, función pura, sin acceso a la base;
   tests en `lib/plan/resolve.test.ts`): recibe el plan completo y un rango
   de fechas, y por cada día devuelve la fase activa, si es festivo, los
@@ -90,7 +110,8 @@ diario de hecho/saltado sin tocar la plantilla.
   por `plan_people.user_id`, no por dueño del plan — así funciona también
   para quien no sea el dueño) aparecen en la grilla de `/dashboard/agenda`,
   de solo lectura (sin drag, sin resize, sin borrar — un enlace "Ver en
-  Plan →" lleva a editarlos donde corresponde).
+  Plan →" lleva a editarlos donde corresponde). Ver la entrada de Agenda
+  arriba para el dedup con hábitos y el caso de los bloques sin `end_time`.
 - **Re-importar el seed**: `docs/plan/plan-seed.json` es el formato del
   artifact original (`people`, `queues`, `phases`, `hol`, `events`,
   `range`). `scripts/seed-plan.ts` lo lee y crea el plan dentro de una
