@@ -1,11 +1,11 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { agendaItems } from "@/lib/db/schema/agenda";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { appointments } from "@/lib/db/schema/citas";
-import { planChecks } from "@/lib/db/schema/plan";
+import { planBlocks, planBlockActivities, planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
@@ -101,32 +101,84 @@ export default async function AgendaPage({
       .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date))),
   ]);
 
+  const doneHabitIds = new Set(habitLogs.map((l) => l.activityId));
+
   // Bloques resueltos de Plan para la columna de este usuario (si tiene una
-  // en algún plan) — de solo lectura acá: se editan en /dashboard/plan.
+  // en algún plan) — de solo lectura acá: se editan en /dashboard/plan. Un
+  // bloque puede tener uno o más hábitos enlazados (plan_block_activities);
+  // esos hábitos NO se pintan aparte más abajo (virtuales ni materializados).
+  // "Dormir" y cualquier bloque con end null sigue hasta el primer bloque
+  // de HOY (acá, o hasta las 24:00 si no hay ninguno) y además aparece como
+  // "cola" de 00:00 al primer bloque de hoy si el bloque abierto es el de
+  // AYER — dos tramos del mismo bloque, no un bloque duplicado.
+  const yesterday = addDays(date, -1);
   const planPerson = await findPlanPersonForUser(userId);
   let planBlockEvents: AgendaEvent[] = [];
+  let linkedActivityIds = new Set<string>();
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
-    const [day] = resolvePlan(toPlanData(planCtx), date, date);
-    const resolvedBlocks = day.blocksByPerson[planPerson.personId] ?? [];
-    const planChecksForDay = resolvedBlocks.length
-      ? await db
-          .select({ blockId: planChecks.blockId, status: planChecks.status })
-          .from(planChecks)
-          .where(and(eq(planChecks.planId, planPerson.planId), eq(planChecks.date, date)))
-      : [];
-    const planCheckByBlockId = new Map(planChecksForDay.map((c) => [c.blockId, c.status]));
+    const resolvedRange = resolvePlan(toPlanData(planCtx), yesterday, date);
+    const today = resolvedRange.find((d) => d.date === date) ?? null;
+    const before = resolvedRange.find((d) => d.date === yesterday) ?? null;
+    const todaysBlocks = today?.blocksByPerson[planPerson.personId] ?? [];
+    const carryBlocks = (before?.blocksByPerson[planPerson.personId] ?? []).filter((b) => !b.endTime);
 
-    planBlockEvents = resolvedBlocks.map((b) => {
+    const linkRows = await db
+      .select({ blockId: planBlockActivities.blockId, activityId: planBlockActivities.activityId, name: activities.name })
+      .from(planBlockActivities)
+      .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
+      .innerJoin(planBlocks, eq(planBlocks.id, planBlockActivities.blockId))
+      .where(eq(planBlocks.planId, planPerson.planId));
+    linkedActivityIds = new Set(linkRows.map((r) => r.activityId));
+    const habitsByBlockId = new Map<string, { activityId: string; name: string }[]>();
+    for (const r of linkRows) {
+      const list = habitsByBlockId.get(r.blockId) ?? [];
+      list.push({ activityId: r.activityId, name: r.name });
+      habitsByBlockId.set(r.blockId, list);
+    }
+    const buildHabitChecks = (blockId: string, doneSet: Set<string>) =>
+      (habitsByBlockId.get(blockId) ?? []).map((h) => ({ name: h.name, done: doneSet.has(h.activityId) }));
+
+    const planChecksRows = await db
+      .select({ blockId: planChecks.blockId, date: planChecks.date, status: planChecks.status })
+      .from(planChecks)
+      .where(and(eq(planChecks.planId, planPerson.planId), inArray(planChecks.date, [date, yesterday])));
+    const planCheckByKey = new Map(planChecksRows.map((c) => [`${c.date}:${c.blockId}`, c.status]));
+
+    const yesterdayLogs = linkedActivityIds.size
+      ? await db
+          .select({ activityId: activityLogs.activityId })
+          .from(activityLogs)
+          .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, yesterday)))
+      : [];
+    const yesterdayDoneIds = new Set(yesterdayLogs.map((l) => l.activityId));
+
+    const firstBlockStart = todaysBlocks.length ? Math.min(...todaysBlocks.map((b) => toMinutes(b.startTime))) : DAY_END;
+
+    const carryEvents: AgendaEvent[] = carryBlocks.map((b) => {
       const info = kindInfo(b.kind);
-      const [sh, sm] = b.startTime.split(":").map(Number);
-      const start = sh * 60 + sm;
-      const endMinutes = b.endTime
-        ? (() => {
-            const [eh, em] = b.endTime!.split(":").map(Number);
-            return eh * 60 + em;
-          })()
-        : DAY_END;
+      return {
+        key: `plan-carry-${b.blockId}`,
+        kind: "plan",
+        refId: b.blockId,
+        itemType: "plan",
+        start: 0,
+        duration: Math.max(1, firstBlockStart),
+        title: b.text,
+        accent: info.color,
+        icon: info.icon,
+        badge: info.label,
+        done: planCheckByKey.get(`${yesterday}:${b.blockId}`) === "done",
+        autoTime: false,
+        editHref: `/dashboard/plan?date=${yesterday}`,
+        habitChecks: buildHabitChecks(b.blockId, yesterdayDoneIds),
+      };
+    });
+
+    const todayEvents: AgendaEvent[] = todaysBlocks.map((b) => {
+      const info = kindInfo(b.kind);
+      const start = toMinutes(b.startTime);
+      const endMinutes = b.endTime ? toMinutes(b.endTime) : DAY_END;
       return {
         key: `plan-${b.blockId}`,
         kind: "plan",
@@ -138,11 +190,15 @@ export default async function AgendaPage({
         accent: info.color,
         icon: info.icon,
         badge: info.label,
-        done: planCheckByBlockId.get(b.blockId) === "done",
+        done: planCheckByKey.get(`${date}:${b.blockId}`) === "done",
         autoTime: false,
         editHref: `/dashboard/plan?date=${date}`,
+        habitChecks: buildHabitChecks(b.blockId, doneHabitIds),
+        endLabel: b.endTime ? undefined : "24:00",
       };
     });
+
+    planBlockEvents = [...carryEvents, ...todayEvents];
   }
 
   const taskById = new Map(pendingTasks.map((t) => [t.id, t]));
@@ -152,15 +208,15 @@ export default async function AgendaPage({
   const backlog = pendingTasks.filter((t) => !scheduledTaskIds.has(t.id));
 
   // Hábitos ya materializados como bloque real para este día: no se dibuja su
-  // versión virtual.
+  // versión virtual. Los enlazados a un bloque de Plan tampoco — se pintan
+  // ahí, no aparte (ver planBlockEvents arriba).
   const overriddenHabitIds = new Set(
     blocks.filter((b) => b.itemType === "habito" && b.itemId).map((b) => b.itemId as string),
   );
-  const doneHabitIds = new Set(habitLogs.map((l) => l.activityId));
 
   let habitCursor = HABIT_FALLBACK_START;
   const virtualHabits = dailyHabits
-    .filter((h) => !overriddenHabitIds.has(h.id))
+    .filter((h) => !overriddenHabitIds.has(h.id) && !linkedActivityIds.has(h.id))
     .map((h) => {
       const hasTime = !!h.horaSugerida && /^\d{1,2}:\d{2}$/.test(h.horaSugerida);
       const start = hasTime ? toMinutes(h.horaSugerida as string) : habitCursor;
@@ -168,32 +224,34 @@ export default async function AgendaPage({
       return { id: h.id, name: h.name, start, autoTime: !hasTime, done: doneHabitIds.has(h.id) };
     });
 
-  const blockEvents: AgendaEvent[] = blocks.map((b) => {
-    const meta = TYPE_META[b.itemType] ?? TYPE_META.nota;
-    const title =
-      b.itemType === "cita"
-        ? citaTitleById.get(b.itemId ?? "") ?? b.notes ?? "(sin título)"
-        : b.itemType === "task"
-          ? taskById.get(b.itemId ?? "")?.title ?? b.notes ?? "(sin título)"
-          : b.itemType === "habito"
-            ? habitNameById.get(b.itemId ?? "") ?? b.notes ?? "Hábito"
-            : b.notes ?? "(sin título)";
-    return {
-      key: `block-${b.id}`,
-      kind: "block",
-      refId: b.id,
-      itemType: b.itemType,
-      start: toMinutes(b.blockTime),
-      duration: b.duration,
-      title,
-      accent: meta.accent,
-      icon: meta.icon,
-      badge: meta.label,
-      done: b.itemType === "habito" && b.itemId ? doneHabitIds.has(b.itemId) : false,
-      autoTime: false,
-      editHref: `/dashboard/agenda?date=${date}&edit=${b.id}`,
-    };
-  });
+  const blockEvents: AgendaEvent[] = blocks
+    .filter((b) => !(b.itemType === "habito" && b.itemId && linkedActivityIds.has(b.itemId)))
+    .map((b) => {
+      const meta = TYPE_META[b.itemType] ?? TYPE_META.nota;
+      const title =
+        b.itemType === "cita"
+          ? citaTitleById.get(b.itemId ?? "") ?? b.notes ?? "(sin título)"
+          : b.itemType === "task"
+            ? taskById.get(b.itemId ?? "")?.title ?? b.notes ?? "(sin título)"
+            : b.itemType === "habito"
+              ? habitNameById.get(b.itemId ?? "") ?? b.notes ?? "Hábito"
+              : b.notes ?? "(sin título)";
+      return {
+        key: `block-${b.id}`,
+        kind: "block",
+        refId: b.id,
+        itemType: b.itemType,
+        start: toMinutes(b.blockTime),
+        duration: b.duration,
+        title,
+        accent: meta.accent,
+        icon: meta.icon,
+        badge: meta.label,
+        done: b.itemType === "habito" && b.itemId ? doneHabitIds.has(b.itemId) : false,
+        autoTime: false,
+        editHref: `/dashboard/agenda?date=${date}&edit=${b.id}`,
+      };
+    });
 
   const habitEvents: AgendaEvent[] = virtualHabits.map((h) => ({
     key: `habit-${h.id}`,

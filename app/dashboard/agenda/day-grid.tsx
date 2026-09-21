@@ -35,6 +35,12 @@ export type AgendaEvent = {
   done: boolean;
   autoTime: boolean; // hábito sin hora fija
   editHref: string | null;
+  // Solo bloques de Plan con hábitos enlazados: un check por hábito, en vez
+  // de pintar cada hábito aparte.
+  habitChecks?: { name: string; done: boolean }[];
+  // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
+  // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
+  endLabel?: string;
 };
 
 function fmt(min: number) {
@@ -361,17 +367,36 @@ export function DayGrid({
                 </div>
                 {!compact && (
                   <div className="mt-0.5 text-[10px] tabular-nums text-ink-muted">
-                    {fmt(ev.start)} – {fmt(ev.start + ev.duration)} · {ev.duration} min
+                    {fmt(ev.start)} – {ev.endLabel ?? fmt(ev.start + ev.duration)} · {ev.duration} min
+                  </div>
+                )}
+                {!compact && ev.habitChecks && ev.habitChecks.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {ev.habitChecks.map((h) => (
+                      <span
+                        key={h.name}
+                        className={`inline-flex items-center gap-1 rounded-full border px-1.5 text-[9px] ${
+                          h.done
+                            ? "border-success/40 bg-success/12 text-success"
+                            : "border-line text-ink-dim"
+                        }`}
+                      >
+                        {h.done ? "✓" : "○"} {h.name}
+                      </span>
+                    ))}
                   </div>
                 )}
 
                 {selected && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-1 border-t border-line pt-1.5">
-                    <span className="text-[9.5px] tabular-nums text-ink-dim">
-                      {fmt(ev.start)}–{fmt(ev.start + ev.duration)}
-                    </span>
+                    {ev.kind !== "plan" && (
+                      <span className="text-[9.5px] tabular-nums text-ink-dim">
+                        {fmt(ev.start)}–{ev.endLabel ?? fmt(ev.start + ev.duration)}
+                      </span>
+                    )}
                     {ev.kind === "plan" ? (
-                      // Plantilla de Plan: solo lectura acá, se edita en /dashboard/plan.
+                      // Plantilla de Plan: la hora ya se ve arriba (línea de
+                      // horario) — acá solo el link, sin repetirla.
                       <a href={ev.editHref ?? "/dashboard/plan"} className={`${btn} no-underline`}>
                         Ver en Plan →
                       </a>
