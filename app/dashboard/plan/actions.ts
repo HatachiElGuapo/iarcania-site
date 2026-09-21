@@ -119,10 +119,22 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
-// Mueve un bloque de Plan a otra hora SOLO ese día (arrastrar en Agenda) —
-// conserva la duración de la plantilla; si el bloque es abierto (ej.
-// Dormir, end null) sigue abierto en el horario nuevo.
-export async function moveBlockForDay(input: { date: string; blockId: string; startTime: string }) {
+function normalizeDuration(raw: number): number {
+  return Math.min(24 * 60, Math.max(20, Math.round((raw || 20) / 10) * 10));
+}
+
+// Mueve o redimensiona un bloque de Plan SOLO ese día (arrastrar/estirar en
+// Agenda) — al mover (mode="move") conserva la duración de la plantilla
+// (si el bloque es abierto, ej. Dormir, sigue abierto en el horario nuevo);
+// al redimensionar (mode="resize") la duración pasada queda fija ese día,
+// aunque el bloque sea normalmente abierto.
+export async function moveBlockForDay(input: {
+  date: string;
+  blockId: string;
+  startTime: string;
+  duration?: number;
+  mode?: "move" | "resize";
+}) {
   const userId = await requireUserId();
   if (!input?.date || !input?.blockId || !input?.startTime) throw new Error("Faltan datos");
 
@@ -138,7 +150,12 @@ export async function moveBlockForDay(input: { date: string; blockId: string; st
   if (!block) throw new Error("Bloque no encontrado");
 
   const startTime = normalizeTime(input.startTime);
-  const durationMinutes = block.endTime ? toMinutes(block.endTime) - toMinutes(block.startTime) : null;
+  const durationMinutes =
+    input.mode === "resize"
+      ? normalizeDuration(input.duration ?? 20)
+      : block.endTime
+        ? toMinutes(block.endTime) - toMinutes(block.startTime)
+        : null;
 
   await db
     .insert(planOverrides)

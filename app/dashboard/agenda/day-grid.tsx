@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { moveBlock, scheduleHabit, deleteBlock } from "./actions";
+import { moveBlock, scheduleHabit, deleteBlock, createBlock } from "./actions";
 import { moveBlockForDay } from "../plan/actions";
 
 // Vista de día: rejilla FIJA de 00:00 a 24:00 con marcas cada 20 min (72),
@@ -110,6 +110,8 @@ export function DayGrid({
   const [sel, setSel] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(null);
   const [isPending, startTransition] = useTransition();
+  const [dropAt, setDropAt] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const draftRef = useRef<Draft>(null);
   draftRef.current = draft;
@@ -151,7 +153,7 @@ export function DayGrid({
   const laneSig = display.map((e) => `${e.key}:${e.start}:${e.duration}`).join("|");
   const lanes = useMemo(() => computeLanes(display), [laneSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function commit(key: string, start: number, duration: number) {
+  function commit(key: string, start: number, duration: number, mode: "move" | "resize" = "move") {
     const ev = events.find((e) => e.key === key);
     if (!ev) return;
     if (start === ev.start && duration === ev.duration) return;
@@ -161,7 +163,7 @@ export function DayGrid({
         if (ev.kind === "habit") {
           await scheduleHabit({ activityId: ev.refId, date, blockTime: fmt(start), duration });
         } else if (ev.kind === "plan") {
-          await moveBlockForDay({ date, blockId: ev.refId, startTime: fmt(start) });
+          await moveBlockForDay({ date, blockId: ev.refId, startTime: fmt(start), duration, mode });
         } else {
           await moveBlock({ id: ev.refId, blockTime: fmt(start), duration });
         }
@@ -175,10 +177,6 @@ export function DayGrid({
 
   function onPointerDown(e: React.PointerEvent, ev: AgendaEvent, mode: "move" | "resize") {
     if ((e.target as HTMLElement).closest("a,button")) return;
-    // Los bloques de Plan se pueden mover (queda como "solo hoy", vía
-    // plan_overrides) pero no redimensionar — la duración es la de la
-    // plantilla, eso se edita en /dashboard/plan/semana.
-    if (ev.kind === "plan" && mode === "resize") return;
     if (mode === "resize") e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -204,7 +202,45 @@ export function DayGrid({
     drag.current = null;
     const df = draftRef.current;
     setDraft(null);
-    if (d && df) commit(d.key, df.start, df.duration);
+    if (d && df) commit(d.key, df.start, df.duration, d.mode);
+  }
+
+  // Soltar una tarea de "Sin agendar" (native HTML5 drag and drop, ver
+  // draggable-task.tsx — cruza de ese componente cliente a este sin
+  // compartir estado, con dataTransfer).
+  function minutesFromClientY(clientY: number) {
+    const rect = containerRef.current!.getBoundingClientRect();
+    const y = clientY - rect.top;
+    return clamp(Math.round(y / PX_PER_MIN / SNAP) * SNAP, 0, 1440 - MIN_DUR);
+  }
+
+  function onDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes("text/plain")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setDropAt(minutesFromClientY(e.clientY));
+  }
+
+  function onDragLeave(e: React.DragEvent) {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setDropAt(null);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("text/plain");
+    const start = dropAt ?? minutesFromClientY(e.clientY);
+    setDropAt(null);
+    if (!taskId) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("date", date);
+      fd.set("blockTime", fmt(start));
+      fd.set("itemType", "task");
+      fd.set("itemId", taskId);
+      fd.set("duration", "20");
+      await createBlock(fd);
+    });
   }
 
   function onCardClick(e: React.MouseEvent, key: string) {
@@ -219,7 +255,7 @@ export function DayGrid({
   function nudge(ev: AgendaEvent, dStart: number, dDur: number) {
     const start = clamp(ev.start + dStart, 0, 1440 - ev.duration);
     const duration = clamp(ev.duration + dDur, MIN_DUR, 1440 - start);
-    commit(ev.key, start, duration);
+    commit(ev.key, start, duration, dDur !== 0 ? "resize" : "move");
   }
 
   function remove(ev: AgendaEvent) {
@@ -263,8 +299,12 @@ export function DayGrid({
       </div>
 
       <div
+        ref={containerRef}
         className={`relative ${drag.current ? "select-none" : ""}`}
         style={{ height: bodyH + 16, touchAction: "pan-y" }}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
       >
         <div
           ref={anchorRef}
@@ -272,6 +312,17 @@ export function DayGrid({
           className="pointer-events-none absolute"
           style={{ top: anchorMin * PX_PER_MIN, left: 0, height: 1, width: 1 }}
         />
+
+        {dropAt != null && (
+          <div
+            className="pointer-events-none absolute z-30 border-t-2 border-dashed border-accent"
+            style={{ top: dropAt * PX_PER_MIN, left: GUTTER - 4, right: 8 }}
+          >
+            <span className="absolute -top-2.5 -left-1 rounded-[3px] bg-accent px-1 text-[9px] font-semibold text-white">
+              {fmt(dropAt)}
+            </span>
+          </div>
+        )}
 
         {/* Regla: marca cada 20 min. La hora en punto pesa más (texto más
             claro y grande, línea sólida); :20 y :40 quedan tenues para no
@@ -411,21 +462,21 @@ export function DayGrid({
                     <button type="button" onClick={() => nudge(ev, 30, 0)} className={btn}>
                       +30
                     </button>
+                    <span className="ml-1 text-[9.5px] text-ink-dim">dur</span>
+                    <button type="button" onClick={() => nudge(ev, 0, -10)} className={btn}>
+                      −
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, 0, 10)} className={btn}>
+                      +
+                    </button>
                     {ev.kind === "plan" ? (
-                      // Plantilla de Plan: se mueve, pero no se redimensiona
-                      // (la duración es la de la plantilla) ni se borra acá.
+                      // Plantilla de Plan: se mueve y redimensiona solo para
+                      // hoy (plan_overrides) — no se borra acá.
                       <a href={ev.editHref ?? "/dashboard/plan"} className={`${btn} no-underline`}>
                         Ver en Plan →
                       </a>
                     ) : (
                       <>
-                        <span className="ml-1 text-[9.5px] text-ink-dim">dur</span>
-                        <button type="button" onClick={() => nudge(ev, 0, -10)} className={btn}>
-                          −
-                        </button>
-                        <button type="button" onClick={() => nudge(ev, 0, 10)} className={btn}>
-                          +
-                        </button>
                         {ev.editHref && (
                           <a href={ev.editHref} className={`${btn} no-underline`}>
                             Editar
@@ -449,15 +500,13 @@ export function DayGrid({
                   </div>
                 )}
 
-                {ev.kind !== "plan" && (
-                  <div
-                    onPointerDown={(e) => onPointerDown(e, ev, "resize")}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
-                    style={{ touchAction: "none" }}
-                  />
-                )}
+                <div
+                  onPointerDown={(e) => onPointerDown(e, ev, "resize")}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                  className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
+                  style={{ touchAction: "none" }}
+                />
               </div>
             );
           })}

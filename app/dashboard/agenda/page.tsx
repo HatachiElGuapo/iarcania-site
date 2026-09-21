@@ -13,6 +13,7 @@ import { kindInfo } from "@/lib/plan/kinds";
 import { createBlock, updateBlock } from "./actions";
 import { todayISO, addDaysISO as addDays, nowHHMM } from "@/lib/date/bogota";
 import { DayGrid, type AgendaEvent } from "./day-grid";
+import { DraggableTask } from "./draggable-task";
 import {
   PageHeader,
   Button,
@@ -433,18 +434,19 @@ export default async function AgendaPage({
               <div className="p-3">
                 <ItemList>
                   {backlog.map((t) => (
-                    <ItemRow
-                      key={t.id}
-                      href={`/dashboard/agenda?date=${date}&pre=${t.id}#agregar-bloque`}
-                      category={t.category}
-                      title={t.title}
-                      trailing={
-                        <>
-                          <span className="shrink-0 text-[10px] text-ink-dim">20 min</span>
-                          <span className="shrink-0 text-ink-dim">⠿</span>
-                        </>
-                      }
-                    />
+                    <DraggableTask key={t.id} id={t.id}>
+                      <ItemRow
+                        href={`/dashboard/agenda?date=${date}&pre=${t.id}#agregar-bloque`}
+                        category={t.category}
+                        title={t.title}
+                        trailing={
+                          <>
+                            <span className="shrink-0 text-[10px] text-ink-dim">20 min</span>
+                            <span className="shrink-0 text-ink-dim">⠿</span>
+                          </>
+                        }
+                      />
+                    </DraggableTask>
                   ))}
                 </ItemList>
               </div>
