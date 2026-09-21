@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { planChecks } from "@/lib/db/schema/plan";
+import { planChecks, planBlocks } from "@/lib/db/schema/plan";
 import { loadPlanContext, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, computeQueueProgress } from "@/lib/plan/resolve";
 import { todayISO, diffDaysISO } from "@/lib/date/bogota";
@@ -19,14 +19,9 @@ export default async function PlanFasesPage() {
 
   const globalQueues = ctx.queues.filter((q) => q.global);
   const phaseQueues = ctx.queues.filter((q) => !q.global);
-  const itemsFor = (queueId: string, phaseId: string | null) =>
-    ctx.queueItems
-      .filter((i) => i.queueId === queueId && i.phaseId === phaseId)
-      .sort((a, b) => a.position - b.position)
-      .map((i) => i.text)
-      .join("\n");
-  const itemCountFor = (queueId: string, phaseId: string | null) =>
-    ctx.queueItems.filter((i) => i.queueId === queueId && i.phaseId === phaseId).length;
+  const itemsOf = (queueId: string, phaseId: string | null) =>
+    ctx.queueItems.filter((i) => i.queueId === queueId && i.phaseId === phaseId).sort((a, b) => a.position - b.position);
+  const itemsFor = (queueId: string, phaseId: string | null) => itemsOf(queueId, phaseId).map((i) => i.text).join("\n");
 
   // Progreso: días transcurridos, % de bloques hechos/saltados, y posición
   // en cada cola — todo hasta hoy (o hasta que termine la fase, si ya
@@ -37,8 +32,33 @@ export default async function PlanFasesPage() {
   const resolvedSoFar = planStarted ? resolvePlan(planData, planData.startDate, today) : [];
   const queueProgress = planStarted ? computeQueueProgress(planData, today) : new Map<string, number>();
 
-  const allChecks = await db.select().from(planChecks).where(eq(planChecks.planId, ctx.plan.id));
+  // Un solo query de plan_checks (con join a plan_blocks para saber la cola
+  // de cada uno) alcanza para las dos cosas: el % de bloques hechos por
+  // fase (checkByKey) y qué tareas de cada cola ya se hicieron
+  // (doneDateByQueueText) — esto último no vive en plan_queue_items (eso es
+  // solo la plantilla), sino en resolved_text del check "hecho" que
+  // coincide con el texto de ese item. Se guarda la fecha más reciente por
+  // si se repite (cola cíclica).
+  const allChecks = await db
+    .select({
+      date: planChecks.date,
+      blockId: planChecks.blockId,
+      status: planChecks.status,
+      resolvedText: planChecks.resolvedText,
+      queueId: planBlocks.queueId,
+    })
+    .from(planChecks)
+    .innerJoin(planBlocks, eq(planBlocks.id, planChecks.blockId))
+    .where(eq(planChecks.planId, ctx.plan.id));
   const checkByKey = new Map(allChecks.map((c) => [`${c.date}:${c.blockId}`, c.status]));
+
+  const doneDateByQueueText = new Map<string, string>();
+  for (const c of allChecks) {
+    if (c.status !== "done" || !c.queueId) continue;
+    const key = `${c.queueId}:${c.resolvedText}`;
+    const prev = doneDateByQueueText.get(key);
+    if (!prev || c.date > prev) doneDateByQueueText.set(key, c.date);
+  }
 
   const phaseStats = ctx.phases.map((phase) => {
     const totalDays = diffDaysISO(phase.startDate, phase.endDate) + 1;
@@ -67,7 +87,8 @@ export default async function PlanFasesPage() {
   return (
     <>
       <p className="mb-5 text-meta text-ink-dim">
-        Una tarea por línea. Al guardar se reescribe toda la lista de esa cola, en ese orden.
+        Cada cola muestra su lista con lo que ya se hizo (según el historial de checks) — para reordenar,
+        agregar o borrar de una, abrí &ldquo;Editar como texto&rdquo;.
       </p>
 
       {globalQueues.length > 0 && (
@@ -76,30 +97,18 @@ export default async function PlanFasesPage() {
             No se reinician por fase — la posición sigue avanzando de una fase a la siguiente.
           </p>
           <div className="flex flex-col gap-3">
-            {globalQueues.map((q) => {
-              const total = itemCountFor(q.id, null);
-              const done = queueProgress.get(q.id) ?? 0;
-              return (
-                <form key={q.id} action={replaceQueueItems} className="flex flex-col gap-1.5">
-                  <input type="hidden" name="queueId" value={q.id} />
-                  <Labeled label={`${q.name}${q.fallback ? ` (fallback: ${q.fallback})` : ""}`}>
-                    <Textarea name="lines" defaultValue={itemsFor(q.id, null)} className="min-h-[120px] w-full" />
-                  </Labeled>
-                  {total > 0 && (
-                    <Progress
-                      pct={Math.min(100, Math.round((done / total) * 100))}
-                      value={done > total ? `${done}/${total} (repitió)` : `${done}/${total}`}
-                      tone="warm"
-                    />
-                  )}
-                  <div>
-                    <Button type="submit" variant="secondary" size="sm">
-                      Guardar lista
-                    </Button>
-                  </div>
-                </form>
-              );
-            })}
+            {globalQueues.map((q) => (
+              <QueueChecklist
+                key={q.id}
+                queueId={q.id}
+                phaseId={null}
+                name={`${q.name}${q.fallback ? ` (fallback: ${q.fallback})` : ""}`}
+                items={itemsOf(q.id, null)}
+                itemsText={itemsFor(q.id, null)}
+                doneDateByQueueText={doneDateByQueueText}
+                progressDone={queueProgress.get(q.id) ?? 0}
+              />
+            ))}
           </div>
         </Card>
       )}
@@ -158,35 +167,91 @@ export default async function PlanFasesPage() {
             </form>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {phaseQueues.map((q) => {
-                const total = itemCountFor(q.id, phase.id);
-                const done = queueProgress.get(`${phase.id}:${q.id}`) ?? 0;
-                return (
-                  <form key={q.id} action={replaceQueueItems} className="flex flex-col gap-1.5">
-                    <input type="hidden" name="queueId" value={q.id} />
-                    <input type="hidden" name="phaseId" value={phase.id} />
-                    <Labeled label={q.name}>
-                      <Textarea name="lines" defaultValue={itemsFor(q.id, phase.id)} className="min-h-[140px] w-full" />
-                    </Labeled>
-                    {total > 0 && (
-                      <Progress
-                        pct={Math.min(100, Math.round((done / total) * 100))}
-                        value={done > total ? `${done}/${total} (repitió)` : `${done}/${total}`}
-                        tone="warm"
-                      />
-                    )}
-                    <div>
-                      <Button type="submit" variant="secondary" size="sm">
-                        Guardar lista
-                      </Button>
-                    </div>
-                  </form>
-                );
-              })}
+              {phaseQueues.map((q) => (
+                <QueueChecklist
+                  key={q.id}
+                  queueId={q.id}
+                  phaseId={phase.id}
+                  name={q.name}
+                  items={itemsOf(q.id, phase.id)}
+                  itemsText={itemsFor(q.id, phase.id)}
+                  doneDateByQueueText={doneDateByQueueText}
+                  progressDone={queueProgress.get(`${phase.id}:${q.id}`) ?? 0}
+                />
+              ))}
             </div>
           </Card>
         ))}
       </div>
     </>
+  );
+}
+
+function QueueChecklist({
+  queueId,
+  phaseId,
+  name,
+  items,
+  itemsText,
+  doneDateByQueueText,
+  progressDone,
+}: {
+  queueId: string;
+  phaseId: string | null;
+  name: string;
+  items: { text: string }[];
+  itemsText: string;
+  doneDateByQueueText: Map<string, string>;
+  progressDone: number;
+}) {
+  const total = items.length;
+  const doneCount = items.filter((i) => doneDateByQueueText.has(`${queueId}:${i.text}`)).length;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Labeled label={name}>
+        {total === 0 ? (
+          <p className="text-meta text-ink-dim">Sin tareas todavía.</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-line rounded-ui border border-line">
+            {items.map((item, i) => {
+              const doneDate = doneDateByQueueText.get(`${queueId}:${item.text}`);
+              return (
+                <div key={i} className="flex items-start gap-2 px-2.5 py-1.5 text-meta">
+                  <span className={`mt-0.5 shrink-0 ${doneDate ? "text-success" : "text-ink-dim"}`}>
+                    {doneDate ? "✓" : "○"}
+                  </span>
+                  <span className={`min-w-0 flex-1 ${doneDate ? "text-ink-dim line-through" : "text-ink"}`}>
+                    {item.text}
+                  </span>
+                  {doneDate && <span className="shrink-0 tabular-nums text-ink-dim">{doneDate}</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Labeled>
+      {total > 0 && (
+        <Progress
+          label={`${doneCount} hecho${doneCount !== 1 ? "s" : ""} de ${total}`}
+          pct={Math.min(100, Math.round((progressDone / total) * 100))}
+          value={progressDone > total ? `pos. ${progressDone}/${total} (repitió)` : `pos. ${progressDone}/${total}`}
+          tone="warm"
+        />
+      )}
+      <details>
+        <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">Editar como texto</summary>
+        <form action={replaceQueueItems} className="mt-1.5 flex flex-col gap-1.5">
+          <input type="hidden" name="queueId" value={queueId} />
+          {phaseId && <input type="hidden" name="phaseId" value={phaseId} />}
+          <Textarea name="lines" defaultValue={itemsText} className="min-h-[120px] w-full" />
+          <div>
+            <Button type="submit" variant="secondary" size="sm">
+              Guardar lista
+            </Button>
+          </div>
+        </form>
+      </details>
+    </div>
   );
 }
