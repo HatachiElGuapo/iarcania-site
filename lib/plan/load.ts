@@ -120,6 +120,13 @@ export function toPlanData(ctx: PlanContext): PlanData {
       text: e.text,
       kind: e.kind,
     })),
-    overrides: ctx.overrides.map((o) => ({ date: o.date, blockId: o.blockId, text: o.text, removed: o.removed })),
+    overrides: ctx.overrides.map((o) => ({
+      date: o.date,
+      blockId: o.blockId,
+      text: o.text,
+      removed: o.removed,
+      startTime: o.startTime,
+      durationMinutes: o.durationMinutes,
+    })),
   };
 }

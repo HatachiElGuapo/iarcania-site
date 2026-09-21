@@ -60,6 +60,12 @@ export type PlanOverride = {
   blockId: string;
   text: string | null;
   removed: boolean;
+  // startTime no nulo = se movió (ej. arrastrado en Agenda) solo para ese
+  // día. durationMinutes es la duración original del bloque — null si el
+  // bloque es abierto (ej. Dormir), para que siga abierto en el horario
+  // nuevo.
+  startTime: string | null;
+  durationMinutes: number | null;
 };
 
 export type PlanEventDef = {
@@ -117,6 +123,14 @@ export type ResolvedDay = {
 
 function findPhase(phases: PlanPhase[], date: string): PlanPhase | null {
   return phases.find((p) => p.startDate <= date && date <= p.endDate) ?? null;
+}
+
+// Suma minutos a "HH:MM", sin pasar de 23:59 (un bloque movido no cruza
+// medianoche — eso ya lo maneja el caso de bloque abierto, endTime null).
+function addMinutes(hhmm: string, minutes: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 export function resolvePlan(plan: PlanData, fromDate: string, toDate: string): ResolvedDay[] {
@@ -192,12 +206,19 @@ export function resolvePlan(plan: PlanData, fromDate: string, toDate: string): R
       if (override?.removed) continue;
       if (override?.text != null) text = override.text;
 
+      let startTime = b.startTime;
+      let endTime = b.endTime;
+      if (override?.startTime) {
+        startTime = override.startTime;
+        endTime = override.durationMinutes != null ? addMinutes(startTime, override.durationMinutes) : null;
+      }
+
       if (cur >= fromDate) {
         blocksByPerson[b.personId]!.push({
           blockId: b.id,
           personId: b.personId,
-          startTime: b.startTime,
-          endTime: b.endTime,
+          startTime,
+          endTime,
           text,
           kind: b.kind,
           tentative: b.tentative,

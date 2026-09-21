@@ -232,6 +232,13 @@
       "when": 1790022711698,
       "tag": "0032_military_crusher_hogan",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790026882243,
+      "tag": "0033_pretty_franklin_storm",
+      "breakpoints": true
     }
   ]
 }

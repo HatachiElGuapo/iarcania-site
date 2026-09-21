@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { moveBlock, scheduleHabit, deleteBlock } from "./actions";
+import { moveBlockForDay } from "../plan/actions";
 
 // Vista de día: rejilla FIJA de 00:00 a 24:00 con marcas cada 20 min (72),
 // eventos posicionados en absoluto (top = minutos, alto = duración) dentro
@@ -159,6 +160,8 @@ export function DayGrid({
       try {
         if (ev.kind === "habit") {
           await scheduleHabit({ activityId: ev.refId, date, blockTime: fmt(start), duration });
+        } else if (ev.kind === "plan") {
+          await moveBlockForDay({ date, blockId: ev.refId, startTime: fmt(start) });
         } else {
           await moveBlock({ id: ev.refId, blockTime: fmt(start), duration });
         }
@@ -172,8 +175,10 @@ export function DayGrid({
 
   function onPointerDown(e: React.PointerEvent, ev: AgendaEvent, mode: "move" | "resize") {
     if ((e.target as HTMLElement).closest("a,button")) return;
-    // Los bloques de Plan son de solo lectura acá — se editan en /dashboard/plan.
-    if (ev.kind === "plan") return;
+    // Los bloques de Plan se pueden mover (queda como "solo hoy", vía
+    // plan_overrides) pero no redimensionar — la duración es la de la
+    // plantilla, eso se edita en /dashboard/plan/semana.
+    if (ev.kind === "plan" && mode === "resize") return;
     if (mode === "resize") e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -340,9 +345,9 @@ export function DayGrid({
                   borderColor: selected ? a : `${a}44`,
                   background: `${a}14`,
                   borderLeftColor: a,
-                  borderStyle: ev.autoTime || ev.kind === "plan" ? "dashed" : "solid",
+                  borderStyle: ev.autoTime ? "dashed" : "solid",
                   zIndex: selected ? 25 : 10,
-                  cursor: ev.kind === "plan" ? "pointer" : "grab",
+                  cursor: "grab",
                   touchAction: "none",
                 }}
                 className={`group overflow-hidden rounded-ui border border-l-[3px] px-2 py-1 ${
@@ -394,26 +399,26 @@ export function DayGrid({
                         {fmt(ev.start)}–{ev.endLabel ?? fmt(ev.start + ev.duration)}
                       </span>
                     )}
+                    <button type="button" onClick={() => nudge(ev, -30, 0)} className={btn}>
+                      −30
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, -10, 0)} className={btn}>
+                      −10
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, 10, 0)} className={btn}>
+                      +10
+                    </button>
+                    <button type="button" onClick={() => nudge(ev, 30, 0)} className={btn}>
+                      +30
+                    </button>
                     {ev.kind === "plan" ? (
-                      // Plantilla de Plan: la hora ya se ve arriba (línea de
-                      // horario) — acá solo el link, sin repetirla.
+                      // Plantilla de Plan: se mueve, pero no se redimensiona
+                      // (la duración es la de la plantilla) ni se borra acá.
                       <a href={ev.editHref ?? "/dashboard/plan"} className={`${btn} no-underline`}>
                         Ver en Plan →
                       </a>
                     ) : (
                       <>
-                        <button type="button" onClick={() => nudge(ev, -30, 0)} className={btn}>
-                          −30
-                        </button>
-                        <button type="button" onClick={() => nudge(ev, -10, 0)} className={btn}>
-                          −10
-                        </button>
-                        <button type="button" onClick={() => nudge(ev, 10, 0)} className={btn}>
-                          +10
-                        </button>
-                        <button type="button" onClick={() => nudge(ev, 30, 0)} className={btn}>
-                          +30
-                        </button>
                         <span className="ml-1 text-[9.5px] text-ink-dim">dur</span>
                         <button type="button" onClick={() => nudge(ev, 0, -10)} className={btn}>
                           −

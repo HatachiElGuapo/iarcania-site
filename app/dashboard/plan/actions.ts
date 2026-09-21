@@ -106,6 +106,52 @@ export async function removeForDay(formData: FormData) {
   revalidatePath("/dashboard/plan");
 }
 
+function normalizeTime(raw: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(raw.trim());
+  if (!m) throw new Error("Hora inválida");
+  const total = Math.min(23 * 60 + 50, Math.max(0, Number(m[1]) * 60 + Number(m[2])));
+  const snapped = Math.round(total / 10) * 10;
+  return `${String(Math.floor(snapped / 60)).padStart(2, "0")}:${String(snapped % 60).padStart(2, "0")}`;
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Mueve un bloque de Plan a otra hora SOLO ese día (arrastrar en Agenda) —
+// conserva la duración de la plantilla; si el bloque es abierto (ej.
+// Dormir, end null) sigue abierto en el horario nuevo.
+export async function moveBlockForDay(input: { date: string; blockId: string; startTime: string }) {
+  const userId = await requireUserId();
+  if (!input?.date || !input?.blockId || !input?.startTime) throw new Error("Faltan datos");
+
+  const [block] = await db
+    .select({
+      planId: planBlocks.planId,
+      startTime: planBlocks.startTime,
+      endTime: planBlocks.endTime,
+    })
+    .from(planBlocks)
+    .innerJoin(plans, eq(plans.id, planBlocks.planId))
+    .where(and(eq(planBlocks.id, input.blockId), eq(plans.ownerId, userId)));
+  if (!block) throw new Error("Bloque no encontrado");
+
+  const startTime = normalizeTime(input.startTime);
+  const durationMinutes = block.endTime ? toMinutes(block.endTime) - toMinutes(block.startTime) : null;
+
+  await db
+    .insert(planOverrides)
+    .values({ planId: block.planId, date: input.date, blockId: input.blockId, startTime, durationMinutes, removed: false })
+    .onConflictDoUpdate({
+      target: [planOverrides.date, planOverrides.blockId],
+      set: { startTime, durationMinutes, removed: false },
+    });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard/agenda");
+}
+
 // Vuelve un bloque a lo que diga la plantilla ese día (quita el override).
 export async function clearOverride(formData: FormData) {
   const userId = await requireUserId();

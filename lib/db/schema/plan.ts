@@ -214,7 +214,10 @@ export const planBlockActivities = pgTable(
 
 // Cambia o quita un bloque para UN día concreto sin tocar la plantilla
 // semanal. `text` null + removed=false = solo se tocó otra cosa (no aplica
-// hoy, pero deja la fila lista); removed=true = el bloque no aparece ese día.
+// hoy, pero deja la fila lista); removed=true = el bloque no aparece ese
+// día. `startTime` no nulo = se arrastró en Agenda ese día — `duration_
+// minutes` guarda la duración original del bloque (null si el bloque es
+// abierto, ej. Dormir, para que siga abierto en el nuevo horario).
 export const planOverrides = pgTable(
   "plan_overrides",
   {
@@ -227,6 +230,8 @@ export const planOverrides = pgTable(
       .references(() => planBlocks.id, { onDelete: "cascade" }),
     text: text("text"),
     removed: boolean("removed").notNull().default(false),
+    startTime: text("start_time"),
+    durationMinutes: integer("duration_minutes"),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.date, t.blockId] }),

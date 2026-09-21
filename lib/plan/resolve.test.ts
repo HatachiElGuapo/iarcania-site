@@ -156,3 +156,27 @@ test("2026-09-21 es lunes → devuelve los bloques de la plantilla 'lun'", () =>
     false,
   );
 });
+
+test("override con startTime mueve el bloque solo ese día, conservando (o no) el final abierto", () => {
+  const plan = loadPlanData();
+
+  // b1 = Despertar, cama y agua, lun 03:40–04:00 (20 min) → se mueve a las
+  // 10:00, debe seguir durando 20 min (10:00–10:20), no quedar abierto.
+  const withMove = {
+    ...plan,
+    overrides: [{ date: "2026-09-21", blockId: "b1", text: null, removed: false, startTime: "10:00", durationMinutes: 20 }],
+  };
+  const moved = blockAt(withMove, "2026-09-21", "miguel", "10:00");
+  assert.equal(moved.text, "Despertar, cama y agua");
+  assert.equal(moved.endTime, "10:20");
+
+  // b10 = Dormir, lun 19:40–null (abierto) → se mueve a las 22:00,
+  // durationMinutes null porque el original es abierto, debe SEGUIR abierto.
+  const withMoveOpen = {
+    ...plan,
+    overrides: [{ date: "2026-09-21", blockId: "b10", text: null, removed: false, startTime: "22:00", durationMinutes: null }],
+  };
+  const movedOpen = blockAt(withMoveOpen, "2026-09-21", "miguel", "22:00");
+  assert.equal(movedOpen.text, "Dormir");
+  assert.equal(movedOpen.endTime, null);
+});
