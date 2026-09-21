@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { resolvePlan, type PlanData } from "./resolve";
+import { resolvePlan, computeQueueProgress, type PlanData } from "./resolve";
 
 const WEEKDAY_KEYS = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"] as const;
 
@@ -179,4 +179,16 @@ test("override con startTime mueve el bloque solo ese día, conservando (o no) e
   const movedOpen = blockAt(withMoveOpen, "2026-09-21", "miguel", "22:00");
   assert.equal(movedOpen.text, "Dormir");
   assert.equal(movedOpen.endTime, null);
+});
+
+test("computeQueueProgress: 5 ocurrencias de 'build' (lun-vie) al 2026-09-25", () => {
+  const plan = loadPlanData();
+  const progress = computeQueueProgress(plan, "2026-09-25");
+  assert.equal(progress.get("f1:build"), 5);
+});
+
+test("computeQueueProgress antes de plan.startDate da vacío", () => {
+  const plan = loadPlanData();
+  const progress = computeQueueProgress(plan, "2026-09-20"); // un día antes de empezar
+  assert.equal(progress.size, 0);
 });

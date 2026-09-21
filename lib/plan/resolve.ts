@@ -133,6 +133,49 @@ function addMinutes(hhmm: string, minutes: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+// Progreso de cada cola al final de `throughDate` (inclusive) — cuántas
+// veces se consumió cada (fase, cola) o cada cola global, sin resolver
+// texto (más liviano que resolvePlan cuando solo hace falta el número).
+// Misma clave que el contador interno de resolvePlan: queueId solo si es
+// global, si no `${phaseId}:${queueId}`. Replica las mismas reglas
+// (festivo con holiday_text no avanza; sin items en la lista tampoco).
+export function computeQueueProgress(plan: PlanData, throughDate: string): Map<string, number> {
+  const holidaySet = new Set(plan.holidays);
+  const queueById = new Map(plan.queues.map((q) => [q.id, q]));
+  const itemCountByQueuePhase = new Map<string, number>();
+  for (const item of plan.queueItems) {
+    const key = `${item.queueId}:${item.phaseId ?? ""}`;
+    itemCountByQueuePhase.set(key, (itemCountByQueuePhase.get(key) ?? 0) + 1);
+  }
+  const blocksByWeekday = new Map<number, PlanBlockDef[]>();
+  for (const b of plan.blocks) {
+    if (!b.queueId) continue;
+    const list = blocksByWeekday.get(b.weekday) ?? [];
+    list.push(b);
+    blocksByWeekday.set(b.weekday, list);
+  }
+
+  const counters = new Map<string, number>();
+  let cur = plan.startDate;
+  while (cur <= throughDate) {
+    const isHoliday = holidaySet.has(cur);
+    const phase = findPhase(plan.phases, cur);
+    const weekday = weekdayMon0(cur);
+    for (const b of blocksByWeekday.get(weekday) ?? []) {
+      if (isHoliday && b.holidayText) continue; // regla 3: no avanza
+      const queue = queueById.get(b.queueId!);
+      if (!queue) continue;
+      const phaseId = queue.global ? null : (phase?.id ?? null);
+      const itemCount = itemCountByQueuePhase.get(`${queue.id}:${phaseId ?? ""}`) ?? 0;
+      if (itemCount === 0) continue; // sin items, no avanza (igual que resolvePlan)
+      const counterKey = queue.global ? queue.id : `${phaseId ?? ""}:${queue.id}`;
+      counters.set(counterKey, (counters.get(counterKey) ?? 0) + 1);
+    }
+    cur = addDaysISO(cur, 1);
+  }
+  return counters;
+}
+
 export function resolvePlan(plan: PlanData, fromDate: string, toDate: string): ResolvedDay[] {
   const holidaySet = new Set(plan.holidays);
   const queueById = new Map(plan.queues.map((q) => [q.id, q]));
