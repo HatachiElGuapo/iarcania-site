@@ -1,4 +1,4 @@
-import { and, asc, eq, lt, ne, gte, lte, gt, inArray } from "drizzle-orm";
+import { and, eq, lt, ne, gte, lte, gt } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { tasks } from "@/lib/db/schema/trabajo";
@@ -7,21 +7,17 @@ import { appointments } from "@/lib/db/schema/citas";
 import { planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
 import { todayISO, addDaysISO } from "@/lib/date/bogota";
-import { ToggleRow } from "@/components/app/optimistic-toggle-row";
+import { buildDayEvents, type AgendaEvent } from "@/lib/agenda/day-events";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
-import { setCheck } from "./plan/actions";
 import {
   PageHeader,
   Card,
   MetricCard,
-  Segmented,
   Stepper,
   Button,
   Badge,
-  CategoryTag,
-  CategoryDot,
   EmptyState,
   QuickCapture,
   Select,
@@ -30,14 +26,13 @@ import {
 } from "@/components/ui";
 import { toggleTaskStatus, createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity } from "./habitos/actions";
+import { setCheck } from "./plan/actions";
 
 const PRIORITY_COLOR: Record<string, string> = {
   alta: "text-danger",
   media: "text-accent-warm",
   baja: "text-ink-dim",
 };
-
-const PRIORITY_TONE = { alta: "danger", media: "warm", baja: "neutral" } as const;
 
 const APPT_ICON: Record<string, string> = {
   medica: "🏥",
@@ -46,12 +41,7 @@ const APPT_ICON: Record<string, string> = {
   otro: "📌",
 };
 
-const FILTROS = [
-  { id: "todas", label: "Todas" },
-  { id: "pendientes", label: "Pendientes" },
-  { id: "alta", label: "Alta" },
-] as const;
-
+const PLAN_PENDING_LOOKBACK_DAYS = 14;
 const HABIT_LOOKBACK_DAYS = 90;
 
 function capitalize(s: string) {
@@ -65,6 +55,12 @@ function fmtDayShort(iso: string) {
     day: "numeric",
     month: "short",
   });
+}
+
+function fmtTime(min: number) {
+  const h = Math.floor(min / 60) % 24;
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 // Racha actual: días consecutivos con log terminando en `from` — si `from`
@@ -81,111 +77,92 @@ function computeStreak(dates: Set<string> | undefined, from: string): number {
   return streak;
 }
 
-function weekCells(dates: Set<string> | undefined, upTo: string) {
-  const cells: { done: boolean }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    cells.push({ done: dates?.has(addDaysISO(upTo, -i)) ?? false });
-  }
-  return cells;
-}
-
-function blockOf(t: { timeDue: string | null }): "mañana" | "tarde" | "sin" {
-  if (!t.timeDue) return "sin";
-  return t.timeDue < "12:00" ? "mañana" : "tarde";
-}
-
-const BLOCK_LABELS = { mañana: "Mañana", tarde: "Tarde", sin: "Sin hora" } as const;
-const BLOCK_ORDER = ["mañana", "tarde", "sin"] as const;
-
 // Home del dashboard — arquetipo 6 (Panel resumen) del sistema IArcanIA.
-// os.html combinaba esto con una vista muy personalizada (rutina 20/20/20,
-// ~30 hábitos hardcodeados por ID, modo emergencia) que NOTES.md ya
-// documentó como deliberadamente fuera de alcance. Aquí es un resumen real
-// sobre las tablas migradas (tasks, activities/activity_logs, appointments):
-// foco del día, hábitos pendientes, tareas de hoy, próximos 7 días. El
-// navegador de día (‹ fecha ›) no puede ir al futuro, igual que el original.
+// "Tu día" es UNA lista mezclada por hora (tareas + hábitos + Plan + citas
+// ya agendadas), la misma que arma /dashboard/agenda (lib/agenda/day-
+// events.ts) — antes eran cards separadas por tipo y Plan no aparecía acá.
 export default async function RutinasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; filtro?: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
   const session = await auth();
   const userId = session!.user.id;
   const today = todayISO();
-  const { date: dateParam, filtro: filtroParam } = await searchParams;
+  const { date: dateParam } = await searchParams;
   const date = dateParam && dateParam <= today ? dateParam : today;
   const isToday = date === today;
   const now = new Date();
   const weekEnd = addDaysISO(date, 7);
   const lookbackStart = addDaysISO(date, -HABIT_LOOKBACK_DAYS);
-  const filtro = FILTROS.some((f) => f.id === filtroParam) ? (filtroParam as string) : "todas";
 
-  const [dayTasks, dailyHabits, dayLogs, habitLogs, overdueTasks, upcomingAppointments, upcomingTasks] =
+  const [dayEvents, dailyHabits, habitLogs, overdueTasks, upcomingAppointments, upcomingTasks, dayTaskCategories] =
     await Promise.all([
-      db
-        .select()
-        .from(tasks)
-        .where(and(eq(tasks.userId, userId), eq(tasks.dueDate, date), ne(tasks.status, "archivada")))
-        .orderBy(asc(tasks.timeDue)),
-      db
-        .select()
-        .from(activities)
-        .where(and(eq(activities.userId, userId), eq(activities.isActive, true), eq(activities.frequency, "diaria")))
-        .orderBy(asc(activities.horaSugerida), asc(activities.name)),
-      db
-        .select({ activityId: activityLogs.activityId })
-        .from(activityLogs)
-        .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date))),
-      db
-        .select({ activityId: activityLogs.activityId, date: activityLogs.date })
-        .from(activityLogs)
-        .where(and(eq(activityLogs.userId, userId), gte(activityLogs.date, lookbackStart), lte(activityLogs.date, date))),
-      db
-        .select({ id: tasks.id })
-        .from(tasks)
-        .where(and(eq(tasks.userId, userId), lt(tasks.dueDate, today), eq(tasks.status, "pendiente"))),
-      db
-        .select()
-        .from(appointments)
-        .where(and(eq(appointments.userId, userId), eq(appointments.status, "pendiente"), gte(appointments.datetime, now)))
-        .orderBy(asc(appointments.datetime))
-        .limit(2),
-      db
-        .select()
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.userId, userId),
-            gt(tasks.dueDate, date),
-            lte(tasks.dueDate, weekEnd),
-            ne(tasks.status, "completada"),
-            ne(tasks.status, "archivada"),
-          ),
-        )
-        .orderBy(asc(tasks.dueDate), asc(tasks.timeDue)),
-    ]);
+    buildDayEvents(userId, date),
+    db
+      .select({ id: activities.id, name: activities.name })
+      .from(activities)
+      .where(and(eq(activities.userId, userId), eq(activities.isActive, true), eq(activities.frequency, "diaria"))),
+    db
+      .select({ activityId: activityLogs.activityId, date: activityLogs.date })
+      .from(activityLogs)
+      .where(and(eq(activityLogs.userId, userId), gte(activityLogs.date, lookbackStart), lte(activityLogs.date, date))),
+    db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(and(eq(tasks.userId, userId), lt(tasks.dueDate, today), eq(tasks.status, "pendiente"))),
+    db
+      .select()
+      .from(appointments)
+      .where(and(eq(appointments.userId, userId), eq(appointments.status, "pendiente"), gte(appointments.datetime, now)))
+      .orderBy(appointments.datetime)
+      .limit(2),
+    db
+      .select()
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, userId),
+          gt(tasks.dueDate, date),
+          lte(tasks.dueDate, weekEnd),
+          ne(tasks.status, "completada"),
+          ne(tasks.status, "archivada"),
+        ),
+      )
+      .orderBy(tasks.dueDate, tasks.timeDue),
+    db
+      .select({ category: tasks.category })
+      .from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.dueDate, date), ne(tasks.status, "archivada"))),
+  ]);
 
-  // Plan: bloques de HOY (respeta el navegador ‹ fecha ›, igual que tareas y
-  // hábitos) + los de los últimos PLAN_PENDING_LOOKBACK_DAYS días ANTERIORES
+  const events = [...dayEvents.events].sort((a, b) => a.start - b.start);
+  const doneToday = events.filter((e) => e.done).length;
+  const totalToday = events.length;
+  const pendingToday = totalToday - doneToday;
+  const pctToday = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
+
+  const logsByHabit = new Map<string, Set<string>>();
+  for (const l of habitLogs) {
+    if (!logsByHabit.has(l.activityId)) logsByHabit.set(l.activityId, new Set());
+    logsByHabit.get(l.activityId)!.add(l.date);
+  }
+  const bestStreak = dailyHabits.length
+    ? Math.max(...dailyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date)))
+    : 0;
+
+  // Plan: bloques de los últimos PLAN_PENDING_LOOKBACK_DAYS días ANTERIORES
   // a hoy real que quedaron sin marcar (ni hecho ni saltado) — para que no
-  // se pierdan silenciosamente al pasar de día sin cerrarlos.
-  const PLAN_PENDING_LOOKBACK_DAYS = 14;
+  // se pierdan silenciosamente al pasar de día sin cerrarlos. (El resto de
+  // los bloques de Plan de HOY ya vienen mezclados en `events` arriba.)
   const planPerson = await findPlanPersonForUser(userId);
-  let planTodayBlocks: {
-    blockId: string;
-    startTime: string;
-    text: string;
-    kind: string;
-    status: string | null;
-  }[] = [];
   let planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[] = [];
   if (planPerson) {
     const pendingFrom = addDaysISO(today, -PLAN_PENDING_LOOKBACK_DAYS);
     const planCtx = await loadPlanContextById(planPerson.planId);
-    const resolvedRange = resolvePlan(toPlanData(planCtx), pendingFrom, date > today ? date : today);
-    const todayResolved = resolvedRange.find((d) => d.date === date);
+    const resolvedRange = resolvePlan(toPlanData(planCtx), pendingFrom, today);
     const checksRange = await db
-      .select({ blockId: planChecks.blockId, date: planChecks.date, status: planChecks.status })
+      .select({ blockId: planChecks.blockId, date: planChecks.date })
       .from(planChecks)
       .where(
         and(
@@ -195,64 +172,19 @@ export default async function RutinasPage({
           lte(planChecks.date, today),
         ),
       );
-    const checkByKey = new Map(checksRange.map((c) => [`${c.date}:${c.blockId}`, c.status]));
-
-    planTodayBlocks = (todayResolved?.blocksByPerson[planPerson.personId] ?? []).map((b) => ({
-      blockId: b.blockId,
-      startTime: b.startTime,
-      text: b.text,
-      kind: b.kind,
-      status: checkByKey.get(`${date}:${b.blockId}`) ?? null,
-    }));
-
+    const checkedKeys = new Set(checksRange.map((c) => `${c.date}:${c.blockId}`));
     for (const day of resolvedRange) {
       if (day.date >= today) continue; // solo días ANTERIORES a hoy real
       for (const b of day.blocksByPerson[planPerson.personId] ?? []) {
-        if (!checkByKey.has(`${day.date}:${b.blockId}`)) {
+        if (!checkedKeys.has(`${day.date}:${b.blockId}`)) {
           planPending.push({ blockId: b.blockId, date: day.date, startTime: b.startTime, text: b.text, kind: b.kind });
         }
       }
     }
   }
-  const planDoneToday = planTodayBlocks.filter((b) => b.status === "done").length;
-
-  const doneHabitIds = new Set(dayLogs.map((l) => l.activityId));
-  const habitsDone = dailyHabits.filter((h) => doneHabitIds.has(h.id)).length;
-  const tasksDone = dayTasks.filter((t) => t.status === "completada").length;
-  const totalToday = dayTasks.length + dailyHabits.length;
-  const doneToday = tasksDone + habitsDone;
-  const pendingToday = totalToday - doneToday;
-  const pctToday = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
-
-  const logsByHabit = new Map<string, Set<string>>();
-  for (const l of habitLogs) {
-    if (!logsByHabit.has(l.activityId)) logsByHabit.set(l.activityId, new Set());
-    logsByHabit.get(l.activityId)!.add(l.date);
-  }
-  const habitsView = dailyHabits.map((h) => {
-    const dates = logsByHabit.get(h.id);
-    return {
-      id: h.id,
-      name: h.name,
-      horaSugerida: h.horaSugerida,
-      done: doneHabitIds.has(h.id),
-      streak: computeStreak(dates, date),
-      week: weekCells(dates, date),
-    };
-  });
-  const bestStreak = habitsView.length ? Math.max(...habitsView.map((h) => h.streak)) : 0;
-
-  const filteredDayTasks = dayTasks.filter((t) =>
-    filtro === "pendientes" ? t.status !== "completada" : filtro === "alta" ? t.priority === "alta" : true,
-  );
-  const blocks = BLOCK_ORDER.map((k) => ({
-    key: k,
-    label: BLOCK_LABELS[k],
-    items: filteredDayTasks.filter((t) => blockOf(t) === k),
-  })).filter((b) => b.items.length > 0);
 
   const catCounts: Record<string, number> = {};
-  for (const t of dayTasks) if (t.category) catCounts[t.category] = (catCounts[t.category] ?? 0) + 1;
+  for (const t of dayTaskCategories) if (t.category) catCounts[t.category] = (catCounts[t.category] ?? 0) + 1;
   const maxCatCount = Math.max(1, ...Object.values(catCounts));
   const categoryLegend = Object.entries(catCounts)
     .map(([key, count]) => ({
@@ -274,18 +206,6 @@ export default async function RutinasPage({
     }),
   );
   const nowTime = now.toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "numeric", minute: "2-digit" });
-
-  const qsHome = (extra: Record<string, string | undefined>) => {
-    const params = new URLSearchParams();
-    if (date !== today) params.set("date", date);
-    if (filtro !== "todas") params.set("filtro", filtro);
-    for (const [k, v] of Object.entries(extra)) {
-      if (v) params.set(k, v);
-      else params.delete(k);
-    }
-    const s = params.toString();
-    return s ? `/dashboard?${s}` : "/dashboard";
-  };
 
   return (
     <div className="flex flex-col gap-4 p-8">
@@ -328,10 +248,7 @@ export default async function RutinasPage({
           <div className="h-1.5 overflow-hidden rounded-full bg-line">
             <div className="h-full rounded-full bg-accent" style={{ width: `${pctToday}%` }} />
           </div>
-          <div className="text-[10px] text-ink-dim">
-            {habitsDone} hábito{habitsDone !== 1 ? "s" : ""} y {tasksDone} tarea{tasksDone !== 1 ? "s" : ""} hechas ·
-            quedan {pendingToday} por hacer
-          </div>
+          <div className="text-[10px] text-ink-dim">Todo lo de hoy: tareas, hábitos, Plan y citas agendadas.</div>
         </div>
       </div>
 
@@ -367,9 +284,6 @@ export default async function RutinasPage({
               })}
             </a>
           ))}
-          <span className="ml-auto text-meta text-ink-dim">
-            Vista: <span className="text-ink-muted">día</span> · <span className="text-ink-dim">semana</span>
-          </span>
         </div>
       )}
 
@@ -429,73 +343,17 @@ export default async function RutinasPage({
       )}
 
       <div className="grid items-start gap-4" style={{ gridTemplateColumns: "1.35fr 1fr" }}>
-        <Card
-          title="Tareas de hoy"
-          count={dayTasks.length}
-          action={
-            <a href="/dashboard/actividades" className="hover:text-ink">
-              Ver todas →
-            </a>
-          }
-          flush
-        >
-          <div className="px-3.5 pt-3">
-            <Segmented
-              options={FILTROS.map((f) => ({
-                label: f.label,
-                href: qsHome({ filtro: f.id === "todas" ? undefined : f.id }),
-                active: filtro === f.id,
-              }))}
-            />
-          </div>
-          <div className="flex flex-col gap-2.5 p-3.5">
-            {blocks.length === 0 ? (
+        <Card title="Tu día" count={`${doneToday} / ${totalToday}`} flush>
+          <div className="flex flex-col divide-y divide-line">
+            {events.length === 0 ? (
               <EmptyState icon="🗒️">
-                No tienes tareas para este día. Agrégala con la barra de abajo.
+                No tienes nada para este día todavía. Agrégalo con la barra de abajo.
               </EmptyState>
             ) : (
-              blocks.map((b) => (
-                <div key={b.key} className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2 px-0.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-dim">
-                      {b.label}
-                    </span>
-                    <span className="h-px flex-1 bg-line" />
-                    <span className="text-[10px] text-ink-dim">
-                      {b.items.length} tarea{b.items.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  {b.items.map((t) => (
-                    <ToggleRow
-                      key={t.id}
-                      boxed
-                      label={t.title}
-                      initialDone={t.status === "completada"}
-                      action={toggleTaskStatus}
-                      fieldsOn={{ id: t.id, nextStatus: "completada" }}
-                      fieldsOff={{ id: t.id, nextStatus: "pendiente" }}
-                      borderColor={t.category ? catInfo(t.category).color : undefined}
-                      prefix={
-                        <span className="w-10 shrink-0 text-meta tabular-nums text-ink-dim">
-                          {t.timeDue ?? "—"}
-                        </span>
-                      }
-                      meta={
-                        <>
-                          {t.category && <CategoryTag category={t.category} />}
-                          <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
-                            {t.priority}
-                          </Badge>
-                          <span className="shrink-0 text-xs text-ink-dim">⋯</span>
-                        </>
-                      }
-                    />
-                  ))}
-                </div>
-              ))
+              events.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
             )}
           </div>
-          <div id="nueva-tarea">
+          <div id="nueva-tarea" className="flex flex-col gap-1 border-t border-line">
             <QuickCapture
               action={createTask}
               placeholder="Nueva tarea para hoy…"
@@ -519,66 +377,6 @@ export default async function RutinasPage({
                 </>
               }
             />
-          </div>
-        </Card>
-
-        <div className="flex flex-col gap-4">
-          <Card
-            title="Hábitos de hoy"
-            count={`${habitsDone} / ${dailyHabits.length}`}
-            action={
-              <a href="/dashboard/habitos/rachas" className="hover:text-ink">
-                Rachas →
-              </a>
-            }
-            flush
-          >
-            <div className="px-3.5 pt-3">
-              <div className="h-1.5 overflow-hidden rounded-full bg-line">
-                <div
-                  className="h-full rounded-full bg-accent-warm"
-                  style={{
-                    width: dailyHabits.length
-                      ? `${Math.round((habitsDone / dailyHabits.length) * 100)}%`
-                      : "0%",
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5 p-3.5">
-              {habitsView.length === 0 ? (
-                <EmptyState icon="🔥">
-                  Aún no sigues ningún hábito diario. Crea el primero abajo.
-                </EmptyState>
-              ) : (
-                habitsView.map((h) => (
-                  <ToggleRow
-                    key={h.id}
-                    boxed
-                    circle
-                    label={h.name}
-                    sublabel={h.horaSugerida ?? "cualquier hora"}
-                    initialDone={h.done}
-                    action={toggleLogToday}
-                    fieldsOn={{ activityId: h.id, date }}
-                    fieldsOff={{ activityId: h.id, date }}
-                    meta={
-                      <>
-                        <span className="flex shrink-0 gap-[2px]">
-                          {h.week.map((c, i) => (
-                            <span
-                              key={i}
-                              className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
-                            />
-                          ))}
-                        </span>
-                        <Badge tone="warm">🔥 {h.streak}</Badge>
-                      </>
-                    }
-                  />
-                ))
-              )}
-            </div>
             <QuickCapture
               action={createActivity}
               name="name"
@@ -587,73 +385,18 @@ export default async function RutinasPage({
               submitLabel="+"
               extras={<Input type="time" name="horaSugerida" />}
             />
-          </Card>
+          </div>
+        </Card>
 
-          {planPerson && (
-            <Card
-              title="Plan de hoy"
-              count={`${planDoneToday} / ${planTodayBlocks.length}`}
-              action={
-                <a href={`/dashboard/plan?date=${date}`} className="hover:text-ink">
-                  Ver plan →
-                </a>
-              }
-              flush
-            >
-              <div className="flex flex-col divide-y divide-line">
-                {planTodayBlocks.length === 0 ? (
-                  <p className="px-3.5 py-4 text-xs text-ink-muted">Nada en el Plan para este día.</p>
-                ) : (
-                  planTodayBlocks.map((b) => {
-                    const kind = kindInfo(b.kind);
-                    const isDone = b.status === "done";
-                    const isSkipped = b.status === "skipped";
-                    return (
-                      <div key={b.blockId} className="flex items-center gap-2 px-3.5 py-2">
-                        <span className="w-10 shrink-0 text-meta tabular-nums text-ink-dim">{b.startTime}</span>
-                        <span className="shrink-0 text-meta">{kind.icon}</span>
-                        <span
-                          className={`min-w-0 flex-1 truncate text-sm ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
-                        >
-                          {b.text}
-                        </span>
-                        <form action={setCheck} className="shrink-0">
-                          <input type="hidden" name="date" value={date} />
-                          <input type="hidden" name="blockId" value={b.blockId} />
-                          <input type="hidden" name="status" value={isDone ? "" : "done"} />
-                          <button
-                            type="submit"
-                            className={`focus-ring rounded-ui border px-1.5 py-0.5 text-[11px] ${
-                              isDone
-                                ? "border-success/40 bg-success/12 text-success"
-                                : "border-line text-ink-dim hover:border-line-strong hover:text-ink"
-                            }`}
-                          >
-                            ✓
-                          </button>
-                        </form>
-                        <form action={setCheck} className="shrink-0">
-                          <input type="hidden" name="date" value={date} />
-                          <input type="hidden" name="blockId" value={b.blockId} />
-                          <input type="hidden" name="status" value={isSkipped ? "" : "skipped"} />
-                          <button
-                            type="submit"
-                            className={`focus-ring rounded-ui border px-1.5 py-0.5 text-[11px] ${
-                              isSkipped
-                                ? "border-danger/40 bg-danger/12 text-danger"
-                                : "border-line text-ink-dim hover:border-line-strong hover:text-ink"
-                            }`}
-                          >
-                            ✗
-                          </button>
-                        </form>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </Card>
-          )}
+        <div className="flex flex-col gap-4">
+          <Card title="Hábitos" action={<span>{bestStreak} días de racha</span>}>
+            <p className="mb-2 text-meta text-ink-dim">
+              Los de hoy ya están en &ldquo;Tu día&rdquo;, mezclados con el resto por hora.
+            </p>
+            <a href="/dashboard/habitos/rachas" className="text-meta text-accent hover:underline">
+              Ver rachas de cada hábito →
+            </a>
+          </Card>
 
           <Card title="Por categoría" action={<span>hoy</span>}>
             {categoryLegend.length === 0 ? (
@@ -662,7 +405,7 @@ export default async function RutinasPage({
               <div className="flex flex-col gap-1.5">
                 {categoryLegend.map((c) => (
                   <div key={c.key} className="flex items-center gap-2.5 text-meta text-ink-muted">
-                    <CategoryDot category={c.key} />
+                    <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: c.color }} />
                     <span className="flex-1 truncate">{c.label}</span>
                     <span className="h-1 max-w-[90px] flex-1 overflow-hidden rounded-full bg-line">
                       <span
@@ -713,6 +456,106 @@ export default async function RutinasPage({
             })}
           </div>
         </Card>
+      )}
+    </div>
+  );
+}
+
+// Una fila de "Tu día" — el control de marcar cambia según el tipo:
+// tarea (toggleTaskStatus), hábito (toggleLogToday) o Plan (setCheck,
+// hecho/saltado). Citas y notas no tienen check acá, solo enlazan.
+function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
+  return (
+    <div className="flex items-center gap-2.5 px-3.5 py-2.5">
+      <span className="w-11 shrink-0 text-meta tabular-nums text-ink-dim">
+        {ev.autoTime ? "—" : fmtTime(ev.start)}
+      </span>
+      <span className="shrink-0 text-meta">{ev.icon}</span>
+      <div className="min-w-0 flex-1">
+        <span className={`block truncate text-sm ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
+          {ev.title}
+        </span>
+        {ev.habitChecks && ev.habitChecks.length > 0 && (
+          <span className="mt-0.5 flex flex-wrap gap-1">
+            {ev.habitChecks.map((h) => (
+              <span
+                key={h.name}
+                className={`text-[9px] ${h.done ? "text-success" : "text-ink-dim"}`}
+              >
+                {h.done ? "✓" : "○"} {h.name}
+              </span>
+            ))}
+          </span>
+        )}
+      </div>
+      <span
+        className="shrink-0 rounded-full px-1.5 text-[9px]"
+        style={{ background: `${ev.accent}22`, color: ev.accent }}
+      >
+        {ev.badge}
+      </span>
+      {ev.kind === "block" && ev.itemType === "task" && (
+        <form action={toggleTaskStatus} className="shrink-0">
+          <input type="hidden" name="id" value={ev.refId} />
+          <input type="hidden" name="nextStatus" value={ev.done ? "pendiente" : "completada"} />
+          <button
+            type="submit"
+            className={`focus-ring flex h-5 w-5 items-center justify-center rounded border text-[10px] ${
+              ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent hover:text-ink-dim"
+            }`}
+          >
+            ✓
+          </button>
+        </form>
+      )}
+      {ev.kind === "habit" && (
+        <form action={toggleLogToday} className="shrink-0">
+          <input type="hidden" name="activityId" value={ev.refId} />
+          <input type="hidden" name="date" value={date} />
+          <button
+            type="submit"
+            className={`focus-ring flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
+              ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent hover:text-ink-dim"
+            }`}
+          >
+            ✓
+          </button>
+        </form>
+      )}
+      {ev.kind === "plan" && (
+        <div className="flex shrink-0 items-center gap-1">
+          <form action={setCheck}>
+            <input type="hidden" name="date" value={date} />
+            <input type="hidden" name="blockId" value={ev.refId} />
+            <input type="hidden" name="status" value={ev.done ? "" : "done"} />
+            <button
+              type="submit"
+              className={`focus-ring rounded-ui border px-1.5 py-0.5 text-[11px] ${
+                ev.done
+                  ? "border-success/40 bg-success/12 text-success"
+                  : "border-line text-ink-dim hover:border-line-strong hover:text-ink"
+              }`}
+            >
+              ✓
+            </button>
+          </form>
+          <form action={setCheck}>
+            <input type="hidden" name="date" value={date} />
+            <input type="hidden" name="blockId" value={ev.refId} />
+            <input type="hidden" name="status" value="skipped" />
+            <button
+              type="submit"
+              className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-danger/40 hover:text-danger"
+            >
+              ✗
+            </button>
+          </form>
+        </div>
+      )}
+      {ev.editHref && ev.kind !== "plan" && (
+        <a href={ev.editHref} className="shrink-0 text-meta text-ink-dim hover:text-ink">
+          ⋯
+        </a>
       )}
     </div>
   );

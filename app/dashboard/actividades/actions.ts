@@ -40,6 +40,7 @@ export async function createTask(formData: FormData) {
 
   revalidatePath("/dashboard/actividades");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
   revalidatePath("/dashboard/trabajo");
   revalidatePath("/dashboard/trabajo/tareas");
 }
@@ -60,6 +61,7 @@ export async function toggleTaskStatus(formData: FormData) {
 
   revalidatePath("/dashboard/actividades");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
   revalidatePath("/dashboard/trabajo");
   revalidatePath("/dashboard/trabajo/tareas");
 }

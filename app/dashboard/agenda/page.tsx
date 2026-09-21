@@ -1,48 +1,10 @@
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db/client";
-import { agendaItems } from "@/lib/db/schema/agenda";
-import { activities, activityLogs } from "@/lib/db/schema/habitos";
-import { tasks } from "@/lib/db/schema/trabajo";
-import { appointments } from "@/lib/db/schema/citas";
-import { planBlocks, planBlockActivities, planChecks } from "@/lib/db/schema/plan";
-import { CATS } from "@/lib/constants/cats";
-import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
-import { resolvePlan } from "@/lib/plan/resolve";
-import { kindInfo } from "@/lib/plan/kinds";
+import { buildDayEvents } from "@/lib/agenda/day-events";
 import { createBlock, updateBlock } from "./actions";
 import { todayISO, addDaysISO as addDays, nowHHMM } from "@/lib/date/bogota";
-import { DayGrid, type AgendaEvent } from "./day-grid";
+import { DayGrid } from "./day-grid";
 import { DraggableTask } from "./draggable-task";
-import {
-  PageHeader,
-  Button,
-  Card,
-  Stepper,
-  ItemList,
-  ItemRow,
-  Input,
-  Select,
-  catInfo,
-} from "@/components/ui";
-
-const TYPE_META: Record<string, { icon: string; label: string; accent: string }> = {
-  task: { icon: "✅", label: "Tarea", accent: "#8B5CF6" }, // accent
-  cita: { icon: "📞", label: "Cita", accent: "#E8A33D" }, // accent-warm
-  nota: { icon: "📝", label: "Nota", accent: "#5DCAA5" }, // category-personal
-  habito: { icon: "🔁", label: "Hábito", accent: CATS.habitos.color },
-};
-
-const DAY_START = 0;
-const DAY_END = 24 * 60;
-
-// Hábitos de rutina diaria = filas de `activities` con frequency='diaria' e
-// isActive. Se dibujan como bloques VIRTUALES para el día que se ve (no se
-// persisten): así valen para fechas pasadas/futuras sin backfill, y cambiar
-// la hora en Hábitos se refleja en cada día. Al arrastrarlos en la agenda se
-// materializan como fila real (itemType='habito') SOLO para ese día.
-const HABIT_DURATION = 20;
-const HABIT_FALLBACK_START = 6 * 60;
+import { PageHeader, Button, Card, Stepper, ItemList, ItemRow, Input, Select } from "@/components/ui";
 
 function toMinutes(hhmm: string) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -70,240 +32,13 @@ export default async function AgendaPage({
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO();
   const isToday = date === todayISO();
 
-  const [blocks, pendingTasks, citas, dailyHabits, habitLogs] = await Promise.all([
-    db
-      .select()
-      .from(agendaItems)
-      .where(and(eq(agendaItems.userId, userId), eq(agendaItems.date, date)))
-      .orderBy(asc(agendaItems.blockTime)),
-    db
-      .select({ id: tasks.id, title: tasks.title, category: tasks.category })
-      .from(tasks)
-      .where(and(eq(tasks.userId, userId), ne(tasks.status, "archivada"), ne(tasks.status, "completada")))
-      .orderBy(asc(tasks.title)),
-    db
-      .select({ id: appointments.id, title: appointments.title, datetime: appointments.datetime })
-      .from(appointments)
-      .where(and(eq(appointments.userId, userId), eq(appointments.status, "pendiente"))),
-    db
-      .select({ id: activities.id, name: activities.name, horaSugerida: activities.horaSugerida })
-      .from(activities)
-      .where(
-        and(
-          eq(activities.userId, userId),
-          eq(activities.isActive, true),
-          eq(activities.frequency, "diaria"),
-        ),
-      )
-      .orderBy(asc(activities.horaSugerida), asc(activities.sortOrder), asc(activities.name)),
-    db
-      .select({ activityId: activityLogs.activityId })
-      .from(activityLogs)
-      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date))),
-  ]);
+  const { events, agendaItemsRaw, pendingTasks, backlog, citasPendientes, freeMinutes, occupancy } =
+    await buildDayEvents(userId, date);
 
-  const doneHabitIds = new Set(habitLogs.map((l) => l.activityId));
-
-  // Bloques resueltos de Plan para la columna de este usuario (si tiene una
-  // en algún plan) — de solo lectura acá: se editan en /dashboard/plan. Un
-  // bloque puede tener uno o más hábitos enlazados (plan_block_activities);
-  // esos hábitos NO se pintan aparte más abajo (virtuales ni materializados).
-  // "Dormir" y cualquier bloque con end null sigue hasta el primer bloque
-  // de HOY (acá, o hasta las 24:00 si no hay ninguno) y además aparece como
-  // "cola" de 00:00 al primer bloque de hoy si el bloque abierto es el de
-  // AYER — dos tramos del mismo bloque, no un bloque duplicado.
-  const yesterday = addDays(date, -1);
-  const planPerson = await findPlanPersonForUser(userId);
-  let planBlockEvents: AgendaEvent[] = [];
-  let linkedActivityIds = new Set<string>();
-  if (planPerson) {
-    const planCtx = await loadPlanContextById(planPerson.planId);
-    const resolvedRange = resolvePlan(toPlanData(planCtx), yesterday, date);
-    const today = resolvedRange.find((d) => d.date === date) ?? null;
-    const before = resolvedRange.find((d) => d.date === yesterday) ?? null;
-    const todaysBlocks = today?.blocksByPerson[planPerson.personId] ?? [];
-    const carryBlocks = (before?.blocksByPerson[planPerson.personId] ?? []).filter((b) => !b.endTime);
-
-    const linkRows = await db
-      .select({ blockId: planBlockActivities.blockId, activityId: planBlockActivities.activityId, name: activities.name })
-      .from(planBlockActivities)
-      .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
-      .innerJoin(planBlocks, eq(planBlocks.id, planBlockActivities.blockId))
-      .where(eq(planBlocks.planId, planPerson.planId));
-    linkedActivityIds = new Set(linkRows.map((r) => r.activityId));
-    const habitsByBlockId = new Map<string, { activityId: string; name: string }[]>();
-    for (const r of linkRows) {
-      const list = habitsByBlockId.get(r.blockId) ?? [];
-      list.push({ activityId: r.activityId, name: r.name });
-      habitsByBlockId.set(r.blockId, list);
-    }
-    const buildHabitChecks = (blockId: string, doneSet: Set<string>) =>
-      (habitsByBlockId.get(blockId) ?? []).map((h) => ({ name: h.name, done: doneSet.has(h.activityId) }));
-
-    const planChecksRows = await db
-      .select({ blockId: planChecks.blockId, date: planChecks.date, status: planChecks.status })
-      .from(planChecks)
-      .where(and(eq(planChecks.planId, planPerson.planId), inArray(planChecks.date, [date, yesterday])));
-    const planCheckByKey = new Map(planChecksRows.map((c) => [`${c.date}:${c.blockId}`, c.status]));
-
-    const yesterdayLogs = linkedActivityIds.size
-      ? await db
-          .select({ activityId: activityLogs.activityId })
-          .from(activityLogs)
-          .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, yesterday)))
-      : [];
-    const yesterdayDoneIds = new Set(yesterdayLogs.map((l) => l.activityId));
-
-    const firstBlockStart = todaysBlocks.length ? Math.min(...todaysBlocks.map((b) => toMinutes(b.startTime))) : DAY_END;
-
-    const carryEvents: AgendaEvent[] = carryBlocks.map((b) => {
-      const info = kindInfo(b.kind);
-      return {
-        key: `plan-carry-${b.blockId}`,
-        kind: "plan",
-        refId: b.blockId,
-        itemType: "plan",
-        start: 0,
-        duration: Math.max(1, firstBlockStart),
-        title: b.text,
-        accent: info.color,
-        icon: info.icon,
-        badge: info.label,
-        done: planCheckByKey.get(`${yesterday}:${b.blockId}`) === "done",
-        autoTime: false,
-        editHref: `/dashboard/plan?date=${yesterday}`,
-        habitChecks: buildHabitChecks(b.blockId, yesterdayDoneIds),
-      };
-    });
-
-    const todayEvents: AgendaEvent[] = todaysBlocks.map((b) => {
-      const info = kindInfo(b.kind);
-      const start = toMinutes(b.startTime);
-      const endMinutes = b.endTime ? toMinutes(b.endTime) : DAY_END;
-      return {
-        key: `plan-${b.blockId}`,
-        kind: "plan",
-        refId: b.blockId,
-        itemType: "plan",
-        start,
-        duration: Math.max(1, endMinutes - start),
-        title: b.text,
-        accent: info.color,
-        icon: info.icon,
-        badge: info.label,
-        done: planCheckByKey.get(`${date}:${b.blockId}`) === "done",
-        autoTime: false,
-        editHref: `/dashboard/plan?date=${date}`,
-        habitChecks: buildHabitChecks(b.blockId, doneHabitIds),
-        endLabel: b.endTime ? undefined : "24:00",
-      };
-    });
-
-    planBlockEvents = [...carryEvents, ...todayEvents];
-  }
-
-  const taskById = new Map(pendingTasks.map((t) => [t.id, t]));
-  const citaTitleById = new Map(citas.map((c) => [c.id, c.title]));
-  const habitNameById = new Map(dailyHabits.map((h) => [h.id, h.name]));
-  const scheduledTaskIds = new Set(blocks.filter((b) => b.itemType === "task" && b.itemId).map((b) => b.itemId));
-  const backlog = pendingTasks.filter((t) => !scheduledTaskIds.has(t.id));
-
-  // Hábitos ya materializados como bloque real para este día: no se dibuja su
-  // versión virtual. Los enlazados a un bloque de Plan tampoco — se pintan
-  // ahí, no aparte (ver planBlockEvents arriba).
-  const overriddenHabitIds = new Set(
-    blocks.filter((b) => b.itemType === "habito" && b.itemId).map((b) => b.itemId as string),
-  );
-
-  let habitCursor = HABIT_FALLBACK_START;
-  const virtualHabits = dailyHabits
-    .filter((h) => !overriddenHabitIds.has(h.id) && !linkedActivityIds.has(h.id))
-    .map((h) => {
-      const hasTime = !!h.horaSugerida && /^\d{1,2}:\d{2}$/.test(h.horaSugerida);
-      const start = hasTime ? toMinutes(h.horaSugerida as string) : habitCursor;
-      if (!hasTime) habitCursor += HABIT_DURATION;
-      return { id: h.id, name: h.name, start, autoTime: !hasTime, done: doneHabitIds.has(h.id) };
-    });
-
-  const blockEvents: AgendaEvent[] = blocks
-    .filter((b) => !(b.itemType === "habito" && b.itemId && linkedActivityIds.has(b.itemId)))
-    .map((b) => {
-      const meta = TYPE_META[b.itemType] ?? TYPE_META.nota;
-      const title =
-        b.itemType === "cita"
-          ? citaTitleById.get(b.itemId ?? "") ?? b.notes ?? "(sin título)"
-          : b.itemType === "task"
-            ? taskById.get(b.itemId ?? "")?.title ?? b.notes ?? "(sin título)"
-            : b.itemType === "habito"
-              ? habitNameById.get(b.itemId ?? "") ?? b.notes ?? "Hábito"
-              : b.notes ?? "(sin título)";
-      return {
-        key: `block-${b.id}`,
-        kind: "block",
-        refId: b.id,
-        itemType: b.itemType,
-        start: toMinutes(b.blockTime),
-        duration: b.duration,
-        title,
-        accent: meta.accent,
-        icon: meta.icon,
-        badge: meta.label,
-        done: b.itemType === "habito" && b.itemId ? doneHabitIds.has(b.itemId) : false,
-        autoTime: false,
-        editHref: `/dashboard/agenda?date=${date}&edit=${b.id}`,
-      };
-    });
-
-  const habitEvents: AgendaEvent[] = virtualHabits.map((h) => ({
-    key: `habit-${h.id}`,
-    kind: "habit",
-    refId: h.id,
-    itemType: "habit",
-    start: h.start,
-    duration: HABIT_DURATION,
-    title: h.name,
-    accent: CATS.habitos.color,
-    icon: "🔁",
-    badge: h.autoTime ? "Hábito · sin hora" : "Hábito",
-    done: h.done,
-    autoTime: h.autoTime,
-    editHref: null,
-  }));
-
-  const agendaEvents = [...blockEvents, ...habitEvents, ...planBlockEvents];
-  const gridCount = agendaEvents.length;
+  const gridCount = events.length;
   const nowMinutes = toMinutes(nowHHMM());
-
-  const habitMinutes = habitEvents.reduce((sum, h) => sum + h.duration, 0);
-  const planMinutes = planBlockEvents.reduce((sum, b) => sum + b.duration, 0);
-  const totalScheduled = blocks.reduce((sum, b) => sum + b.duration, 0) + habitMinutes + planMinutes;
-  const freeMinutes = Math.max(0, DAY_END - DAY_START - totalScheduled);
+  const totalScheduled = 24 * 60 - freeMinutes;
   const freeTicks = Math.floor(freeMinutes / 10);
-
-  const occByKey = new Map<string, { label: string; color: string; minutes: number }>();
-  const bump = (key: string, label: string, color: string, minutes: number) => {
-    const ex = occByKey.get(key);
-    if (ex) ex.minutes += minutes;
-    else occByKey.set(key, { label, color, minutes });
-  };
-  for (const b of blocks) {
-    if (b.itemType === "task") {
-      const t = b.itemId ? taskById.get(b.itemId) : undefined;
-      const c = t?.category ? catInfo(t.category) : null;
-      bump(t?.category ?? "sin-categoria", c?.label ?? "Sin categoría", c?.color ?? "#5A5870", b.duration);
-    } else if (b.itemType === "cita") {
-      bump("cita", "Citas", TYPE_META.cita.accent, b.duration);
-    } else if (b.itemType === "habito") {
-      bump("habitos", "Hábitos", CATS.habitos.color, b.duration);
-    } else {
-      bump("nota", "Notas", TYPE_META.nota.accent, b.duration);
-    }
-  }
-  if (habitMinutes > 0) bump("habitos", "Hábitos", CATS.habitos.color, habitMinutes);
-  for (const p of planBlockEvents) bump(`plan-${p.badge}`, `Plan · ${p.badge}`, p.accent, p.duration);
-  const occupancy = [...occByKey.entries()]
-    .map(([key, v]) => ({ key, ...v }))
-    .sort((a, b) => b.minutes - a.minutes);
 
   const dateLong = capitalize(
     new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-CO", {
@@ -314,7 +49,7 @@ export default async function AgendaPage({
     }),
   );
 
-  const editBlock = edit ? blocks.find((b) => b.id === edit) ?? null : null;
+  const editBlock = edit ? agendaItemsRaw.find((b) => b.id === edit) ?? null : null;
 
   return (
     <div className="p-8">
@@ -342,7 +77,7 @@ export default async function AgendaPage({
 
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_300px]">
         <div className="flex flex-col gap-4">
-          <DayGrid date={date} isToday={isToday} nowMinutes={nowMinutes} events={agendaEvents} />
+          <DayGrid date={date} isToday={isToday} nowMinutes={nowMinutes} events={events} />
 
           {editBlock && (
             <form
@@ -426,39 +161,39 @@ export default async function AgendaPage({
         {/* Panel lateral */}
         <div className="flex flex-col gap-4">
           <div id="agenda-backlog">
-          <Card title="Sin agendar" count={backlog.length} flush>
-            {backlog.length === 0 ? (
-              <p className="px-3.5 py-4 text-xs text-ink-muted">
-                Todo lo pendiente ya está agendado para este día.
-              </p>
-            ) : (
-              <div className="p-3">
-                <ItemList>
-                  {backlog.map((t) => (
-                    <DraggableTask key={t.id} id={t.id}>
-                      <ItemRow
-                        href={`/dashboard/agenda?date=${date}&pre=${t.id}#agregar-bloque`}
-                        category={t.category}
-                        title={t.title}
-                        trailing={
-                          <>
-                            <span className="shrink-0 text-[10px] text-ink-dim">20 min</span>
-                            <span className="shrink-0 text-ink-dim">⠿</span>
-                          </>
-                        }
-                      />
-                    </DraggableTask>
-                  ))}
-                </ItemList>
-              </div>
-            )}
-          </Card>
+            <Card title="Sin agendar" count={backlog.length} flush>
+              {backlog.length === 0 ? (
+                <p className="px-3.5 py-4 text-xs text-ink-muted">
+                  Todo lo pendiente ya está agendado para este día.
+                </p>
+              ) : (
+                <div className="p-3">
+                  <ItemList>
+                    {backlog.map((t) => (
+                      <DraggableTask key={t.id} id={t.id}>
+                        <ItemRow
+                          href={`/dashboard/agenda?date=${date}&pre=${t.id}#agregar-bloque`}
+                          category={t.category}
+                          title={t.title}
+                          trailing={
+                            <>
+                              <span className="shrink-0 text-[10px] text-ink-dim">20 min</span>
+                              <span className="shrink-0 text-ink-dim">⠿</span>
+                            </>
+                          }
+                        />
+                      </DraggableTask>
+                    ))}
+                  </ItemList>
+                </div>
+              )}
+            </Card>
           </div>
 
-          {citas.length > 0 && (
+          {citasPendientes.length > 0 && (
             <Card title="Citas por agendar" flush>
               <div className="flex flex-col gap-1.5 p-3">
-                {citas.map((c) => (
+                {citasPendientes.map((c) => (
                   <div
                     key={c.id}
                     className="flex items-center gap-2.5 rounded-ui border border-accent-warm/20 bg-accent-warm/[0.05] px-2.5 py-1.5"

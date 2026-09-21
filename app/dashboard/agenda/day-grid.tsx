@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { moveBlock, scheduleHabit, deleteBlock, createBlock } from "./actions";
 import { moveBlockForDay } from "../plan/actions";
+import type { AgendaEvent } from "@/lib/agenda/day-events";
+
+export type { AgendaEvent };
 
 // Vista de día: rejilla FIJA de 00:00 a 24:00 con marcas cada 20 min (72),
 // eventos posicionados en absoluto (top = minutos, alto = duración) dentro
@@ -21,28 +24,6 @@ const MIN_DUR = 20; // mínimo de actividad de la app
 const MARK_STEP = 20; // una etiqueta cada 20 min
 const V_START = 0;
 const V_END = 24 * 60;
-
-export type AgendaEvent = {
-  key: string;
-  kind: "block" | "habit" | "plan";
-  refId: string; // agenda_items.id (block) | activities.id (habit) | plan_blocks.id (plan)
-  itemType: string; // task | nota | cita | habito | habit | plan
-  start: number; // minutos desde 00:00
-  duration: number;
-  title: string;
-  accent: string; // hex
-  icon: string;
-  badge: string;
-  done: boolean;
-  autoTime: boolean; // hábito sin hora fija
-  editHref: string | null;
-  // Solo bloques de Plan con hábitos enlazados: un check por hábito, en vez
-  // de pintar cada hábito aparte.
-  habitChecks?: { name: string; done: boolean }[];
-  // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
-  // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
-  endLabel?: string;
-};
 
 function fmt(min: number) {
   const m = ((Math.round(min) % 1440) + 1440) % 1440;
