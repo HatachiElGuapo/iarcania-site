@@ -69,6 +69,8 @@ export async function setCheck(formData: FormData) {
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/plan/historial");
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
 }
 
 // Cambia el texto de un bloque solo para ese día, sin tocar la plantilla.

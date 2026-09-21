@@ -1,12 +1,17 @@
-import { and, asc, eq, lt, ne, gte, lte, gt } from "drizzle-orm";
+import { and, asc, eq, lt, ne, gte, lte, gt, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { appointments } from "@/lib/db/schema/citas";
+import { planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
 import { todayISO, addDaysISO } from "@/lib/date/bogota";
 import { ToggleRow } from "@/components/app/optimistic-toggle-row";
+import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
+import { resolvePlan } from "@/lib/plan/resolve";
+import { kindInfo } from "@/lib/plan/kinds";
+import { setCheck } from "./plan/actions";
 import {
   PageHeader,
   Card,
@@ -159,6 +164,57 @@ export default async function RutinasPage({
         )
         .orderBy(asc(tasks.dueDate), asc(tasks.timeDue)),
     ]);
+
+  // Plan: bloques de HOY (respeta el navegador ‹ fecha ›, igual que tareas y
+  // hábitos) + los de los últimos PLAN_PENDING_LOOKBACK_DAYS días ANTERIORES
+  // a hoy real que quedaron sin marcar (ni hecho ni saltado) — para que no
+  // se pierdan silenciosamente al pasar de día sin cerrarlos.
+  const PLAN_PENDING_LOOKBACK_DAYS = 14;
+  const planPerson = await findPlanPersonForUser(userId);
+  let planTodayBlocks: {
+    blockId: string;
+    startTime: string;
+    text: string;
+    kind: string;
+    status: string | null;
+  }[] = [];
+  let planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[] = [];
+  if (planPerson) {
+    const pendingFrom = addDaysISO(today, -PLAN_PENDING_LOOKBACK_DAYS);
+    const planCtx = await loadPlanContextById(planPerson.planId);
+    const resolvedRange = resolvePlan(toPlanData(planCtx), pendingFrom, date > today ? date : today);
+    const todayResolved = resolvedRange.find((d) => d.date === date);
+    const checksRange = await db
+      .select({ blockId: planChecks.blockId, date: planChecks.date, status: planChecks.status })
+      .from(planChecks)
+      .where(
+        and(
+          eq(planChecks.planId, planPerson.planId),
+          eq(planChecks.personId, planPerson.personId),
+          gte(planChecks.date, pendingFrom),
+          lte(planChecks.date, today),
+        ),
+      );
+    const checkByKey = new Map(checksRange.map((c) => [`${c.date}:${c.blockId}`, c.status]));
+
+    planTodayBlocks = (todayResolved?.blocksByPerson[planPerson.personId] ?? []).map((b) => ({
+      blockId: b.blockId,
+      startTime: b.startTime,
+      text: b.text,
+      kind: b.kind,
+      status: checkByKey.get(`${date}:${b.blockId}`) ?? null,
+    }));
+
+    for (const day of resolvedRange) {
+      if (day.date >= today) continue; // solo días ANTERIORES a hoy real
+      for (const b of day.blocksByPerson[planPerson.personId] ?? []) {
+        if (!checkByKey.has(`${day.date}:${b.blockId}`)) {
+          planPending.push({ blockId: b.blockId, date: day.date, startTime: b.startTime, text: b.text, kind: b.kind });
+        }
+      }
+    }
+  }
+  const planDoneToday = planTodayBlocks.filter((b) => b.status === "done").length;
 
   const doneHabitIds = new Set(dayLogs.map((l) => l.activityId));
   const habitsDone = dailyHabits.filter((h) => doneHabitIds.has(h.id)).length;
@@ -315,6 +371,61 @@ export default async function RutinasPage({
             Vista: <span className="text-ink-muted">día</span> · <span className="text-ink-dim">semana</span>
           </span>
         </div>
+      )}
+
+      {planPending.length > 0 && (
+        <Card
+          title="Plan · sin marcar"
+          count={planPending.length}
+          className="border-danger/25 bg-danger/[0.04]"
+          action={
+            <a href="/dashboard/plan/historial" className="hover:text-ink">
+              Historial →
+            </a>
+          }
+        >
+          <p className="mb-2.5 text-meta text-ink-dim">
+            De los últimos {PLAN_PENDING_LOOKBACK_DAYS} días — ni hecho ni saltado. Marcalos para no perder el
+            rastro.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {planPending.map((b) => {
+              const kind = kindInfo(b.kind);
+              return (
+                <div
+                  key={`${b.date}-${b.blockId}`}
+                  className="flex items-center gap-2.5 rounded-ui bg-surface-sunken px-2.5 py-1.5 text-meta"
+                >
+                  <span className="shrink-0 tabular-nums text-ink-dim">{fmtDayShort(b.date)}</span>
+                  <span className="shrink-0">{kind.icon}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink">{b.text}</span>
+                  <form action={setCheck} className="shrink-0">
+                    <input type="hidden" name="date" value={b.date} />
+                    <input type="hidden" name="blockId" value={b.blockId} />
+                    <input type="hidden" name="status" value="done" />
+                    <button
+                      type="submit"
+                      className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-success/40 hover:text-success"
+                    >
+                      ✓
+                    </button>
+                  </form>
+                  <form action={setCheck} className="shrink-0">
+                    <input type="hidden" name="date" value={b.date} />
+                    <input type="hidden" name="blockId" value={b.blockId} />
+                    <input type="hidden" name="status" value="skipped" />
+                    <button
+                      type="submit"
+                      className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-danger/40 hover:text-danger"
+                    >
+                      ✗
+                    </button>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
 
       <div className="grid items-start gap-4" style={{ gridTemplateColumns: "1.35fr 1fr" }}>
@@ -477,6 +588,72 @@ export default async function RutinasPage({
               extras={<Input type="time" name="horaSugerida" />}
             />
           </Card>
+
+          {planPerson && (
+            <Card
+              title="Plan de hoy"
+              count={`${planDoneToday} / ${planTodayBlocks.length}`}
+              action={
+                <a href={`/dashboard/plan?date=${date}`} className="hover:text-ink">
+                  Ver plan →
+                </a>
+              }
+              flush
+            >
+              <div className="flex flex-col divide-y divide-line">
+                {planTodayBlocks.length === 0 ? (
+                  <p className="px-3.5 py-4 text-xs text-ink-muted">Nada en el Plan para este día.</p>
+                ) : (
+                  planTodayBlocks.map((b) => {
+                    const kind = kindInfo(b.kind);
+                    const isDone = b.status === "done";
+                    const isSkipped = b.status === "skipped";
+                    return (
+                      <div key={b.blockId} className="flex items-center gap-2 px-3.5 py-2">
+                        <span className="w-10 shrink-0 text-meta tabular-nums text-ink-dim">{b.startTime}</span>
+                        <span className="shrink-0 text-meta">{kind.icon}</span>
+                        <span
+                          className={`min-w-0 flex-1 truncate text-sm ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
+                        >
+                          {b.text}
+                        </span>
+                        <form action={setCheck} className="shrink-0">
+                          <input type="hidden" name="date" value={date} />
+                          <input type="hidden" name="blockId" value={b.blockId} />
+                          <input type="hidden" name="status" value={isDone ? "" : "done"} />
+                          <button
+                            type="submit"
+                            className={`focus-ring rounded-ui border px-1.5 py-0.5 text-[11px] ${
+                              isDone
+                                ? "border-success/40 bg-success/12 text-success"
+                                : "border-line text-ink-dim hover:border-line-strong hover:text-ink"
+                            }`}
+                          >
+                            ✓
+                          </button>
+                        </form>
+                        <form action={setCheck} className="shrink-0">
+                          <input type="hidden" name="date" value={date} />
+                          <input type="hidden" name="blockId" value={b.blockId} />
+                          <input type="hidden" name="status" value={isSkipped ? "" : "skipped"} />
+                          <button
+                            type="submit"
+                            className={`focus-ring rounded-ui border px-1.5 py-0.5 text-[11px] ${
+                              isSkipped
+                                ? "border-danger/40 bg-danger/12 text-danger"
+                                : "border-line text-ink-dim hover:border-line-strong hover:text-ink"
+                            }`}
+                          >
+                            ✗
+                          </button>
+                        </form>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </Card>
+          )}
 
           <Card title="Por categoría" action={<span>hoy</span>}>
             {categoryLegend.length === 0 ? (
