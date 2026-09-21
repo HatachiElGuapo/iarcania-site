@@ -30,6 +30,13 @@ export function addDaysISO(dateISO: string, delta: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Día de la semana de una fecha "YYYY-MM-DD", 0 = lunes … 6 = domingo (el
+// orden que usa Plan) — distinto de Date#getUTCDay(), donde 0 = domingo.
+export function weekdayMon0(dateISO: string): number {
+  const jsDay = new Date(`${dateISO}T12:00:00${BOGOTA_OFFSET}`).getUTCDay();
+  return (jsDay + 6) % 7;
+}
+
 // Primer y último día del mes actual (Bogotá), sin arrastrar Date local.
 export function currentMonthRangeISO(): { from: string; to: string } {
   const today = todayISO();
