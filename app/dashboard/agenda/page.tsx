@@ -5,7 +5,11 @@ import { agendaItems } from "@/lib/db/schema/agenda";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { appointments } from "@/lib/db/schema/citas";
+import { planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
+import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
+import { resolvePlan } from "@/lib/plan/resolve";
+import { kindInfo } from "@/lib/plan/kinds";
 import { createBlock, updateBlock } from "./actions";
 import { todayISO, addDaysISO as addDays, nowHHMM } from "@/lib/date/bogota";
 import { DayGrid, type AgendaEvent } from "./day-grid";
@@ -97,6 +101,50 @@ export default async function AgendaPage({
       .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date))),
   ]);
 
+  // Bloques resueltos de Plan para la columna de este usuario (si tiene una
+  // en algún plan) — de solo lectura acá: se editan en /dashboard/plan.
+  const planPerson = await findPlanPersonForUser(userId);
+  let planBlockEvents: AgendaEvent[] = [];
+  if (planPerson) {
+    const planCtx = await loadPlanContextById(planPerson.planId);
+    const [day] = resolvePlan(toPlanData(planCtx), date, date);
+    const resolvedBlocks = day.blocksByPerson[planPerson.personId] ?? [];
+    const planChecksForDay = resolvedBlocks.length
+      ? await db
+          .select({ blockId: planChecks.blockId, status: planChecks.status })
+          .from(planChecks)
+          .where(and(eq(planChecks.planId, planPerson.planId), eq(planChecks.date, date)))
+      : [];
+    const planCheckByBlockId = new Map(planChecksForDay.map((c) => [c.blockId, c.status]));
+
+    planBlockEvents = resolvedBlocks.map((b) => {
+      const info = kindInfo(b.kind);
+      const [sh, sm] = b.startTime.split(":").map(Number);
+      const start = sh * 60 + sm;
+      const endMinutes = b.endTime
+        ? (() => {
+            const [eh, em] = b.endTime!.split(":").map(Number);
+            return eh * 60 + em;
+          })()
+        : DAY_END;
+      return {
+        key: `plan-${b.blockId}`,
+        kind: "plan",
+        refId: b.blockId,
+        itemType: "plan",
+        start,
+        duration: Math.max(1, endMinutes - start),
+        title: b.text,
+        accent: info.color,
+        icon: info.icon,
+        badge: info.label,
+        done: planCheckByBlockId.get(b.blockId) === "done",
+        autoTime: false,
+        editHref: `/dashboard/plan?date=${date}`,
+      };
+    });
+  }
+
   const taskById = new Map(pendingTasks.map((t) => [t.id, t]));
   const citaTitleById = new Map(citas.map((c) => [c.id, c.title]));
   const habitNameById = new Map(dailyHabits.map((h) => [h.id, h.name]));
@@ -163,12 +211,13 @@ export default async function AgendaPage({
     editHref: null,
   }));
 
-  const agendaEvents = [...blockEvents, ...habitEvents];
+  const agendaEvents = [...blockEvents, ...habitEvents, ...planBlockEvents];
   const gridCount = agendaEvents.length;
   const nowMinutes = toMinutes(nowHHMM());
 
   const habitMinutes = habitEvents.reduce((sum, h) => sum + h.duration, 0);
-  const totalScheduled = blocks.reduce((sum, b) => sum + b.duration, 0) + habitMinutes;
+  const planMinutes = planBlockEvents.reduce((sum, b) => sum + b.duration, 0);
+  const totalScheduled = blocks.reduce((sum, b) => sum + b.duration, 0) + habitMinutes + planMinutes;
   const freeMinutes = Math.max(0, DAY_END - DAY_START - totalScheduled);
   const freeTicks = Math.floor(freeMinutes / 10);
 
@@ -192,6 +241,7 @@ export default async function AgendaPage({
     }
   }
   if (habitMinutes > 0) bump("habitos", "Hábitos", CATS.habitos.color, habitMinutes);
+  for (const p of planBlockEvents) bump(`plan-${p.badge}`, `Plan · ${p.badge}`, p.accent, p.duration);
   const occupancy = [...occByKey.entries()]
     .map(([key, v]) => ({ key, ...v }))
     .sort((a, b) => b.minutes - a.minutes);

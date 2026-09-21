@@ -32,6 +32,12 @@ export type PlanContext = {
 export async function loadPlanContext(userId: string): Promise<PlanContext | null> {
   const [plan] = await db.select().from(plans).where(eq(plans.ownerId, userId)).limit(1);
   if (!plan) return null;
+  return loadPlanContextById(plan.id);
+}
+
+export async function loadPlanContextById(planId: string): Promise<PlanContext> {
+  const [plan] = await db.select().from(plans).where(eq(plans.id, planId)).limit(1);
+  if (!plan) throw new Error("Plan no encontrado");
 
   const [people, phases, queues, queueItems, blocks, holidayRows, events, overrides] = await Promise.all([
     db.select().from(planPeople).where(eq(planPeople.planId, plan.id)).orderBy(asc(planPeople.sortOrder)),
@@ -66,6 +72,20 @@ export async function loadPlanContext(userId: string): Promise<PlanContext | nul
     events,
     overrides,
   };
+}
+
+// Encuentra la persona del plan ligada a este usuario — el dueño del plan
+// (Miguel) o cualquier otra con user_id propio (Diana). Null si el usuario
+// no tiene columna en ningún plan.
+export async function findPlanPersonForUser(
+  userId: string,
+): Promise<{ planId: string; personId: string } | null> {
+  const [row] = await db
+    .select({ planId: planPeople.planId, personId: planPeople.id })
+    .from(planPeople)
+    .where(eq(planPeople.userId, userId))
+    .limit(1);
+  return row ? { planId: row.planId, personId: row.personId } : null;
 }
 
 export function toPlanData(ctx: PlanContext): PlanData {

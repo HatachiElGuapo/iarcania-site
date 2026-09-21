@@ -23,9 +23,9 @@ const V_END = 24 * 60;
 
 export type AgendaEvent = {
   key: string;
-  kind: "block" | "habit";
-  refId: string; // agenda_items.id (block) | activities.id (habit)
-  itemType: string; // task | nota | cita | habito | habit
+  kind: "block" | "habit" | "plan";
+  refId: string; // agenda_items.id (block) | activities.id (habit) | plan_blocks.id (plan)
+  itemType: string; // task | nota | cita | habito | habit | plan
   start: number; // minutos desde 00:00
   duration: number;
   title: string;
@@ -166,6 +166,8 @@ export function DayGrid({
 
   function onPointerDown(e: React.PointerEvent, ev: AgendaEvent, mode: "move" | "resize") {
     if ((e.target as HTMLElement).closest("a,button")) return;
+    // Los bloques de Plan son de solo lectura acá — se editan en /dashboard/plan.
+    if (ev.kind === "plan") return;
     if (mode === "resize") e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -332,9 +334,9 @@ export function DayGrid({
                   borderColor: selected ? a : `${a}44`,
                   background: `${a}14`,
                   borderLeftColor: a,
-                  borderStyle: ev.autoTime ? "dashed" : "solid",
+                  borderStyle: ev.autoTime || ev.kind === "plan" ? "dashed" : "solid",
                   zIndex: selected ? 25 : 10,
-                  cursor: "grab",
+                  cursor: ev.kind === "plan" ? "pointer" : "grab",
                   touchAction: "none",
                 }}
                 className={`group overflow-hidden rounded-ui border border-l-[3px] px-2 py-1 ${
@@ -368,53 +370,64 @@ export function DayGrid({
                     <span className="text-[9.5px] tabular-nums text-ink-dim">
                       {fmt(ev.start)}–{fmt(ev.start + ev.duration)}
                     </span>
-                    <button type="button" onClick={() => nudge(ev, -30, 0)} className={btn}>
-                      −30
-                    </button>
-                    <button type="button" onClick={() => nudge(ev, -10, 0)} className={btn}>
-                      −10
-                    </button>
-                    <button type="button" onClick={() => nudge(ev, 10, 0)} className={btn}>
-                      +10
-                    </button>
-                    <button type="button" onClick={() => nudge(ev, 30, 0)} className={btn}>
-                      +30
-                    </button>
-                    <span className="ml-1 text-[9.5px] text-ink-dim">dur</span>
-                    <button type="button" onClick={() => nudge(ev, 0, -10)} className={btn}>
-                      −
-                    </button>
-                    <button type="button" onClick={() => nudge(ev, 0, 10)} className={btn}>
-                      +
-                    </button>
-                    {ev.editHref && (
-                      <a href={ev.editHref} className={`${btn} no-underline`}>
-                        Editar
-                      </a>
-                    )}
-                    {ev.kind === "habit" ? (
-                      <a href="/dashboard/habitos" className={`${btn} no-underline`}>
-                        Hábito
+                    {ev.kind === "plan" ? (
+                      // Plantilla de Plan: solo lectura acá, se edita en /dashboard/plan.
+                      <a href={ev.editHref ?? "/dashboard/plan"} className={`${btn} no-underline`}>
+                        Ver en Plan →
                       </a>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => remove(ev)}
-                        className="rounded border border-line px-1.5 text-[10px] text-ink-dim hover:border-danger/50 hover:text-danger"
-                      >
-                        ✕
-                      </button>
+                      <>
+                        <button type="button" onClick={() => nudge(ev, -30, 0)} className={btn}>
+                          −30
+                        </button>
+                        <button type="button" onClick={() => nudge(ev, -10, 0)} className={btn}>
+                          −10
+                        </button>
+                        <button type="button" onClick={() => nudge(ev, 10, 0)} className={btn}>
+                          +10
+                        </button>
+                        <button type="button" onClick={() => nudge(ev, 30, 0)} className={btn}>
+                          +30
+                        </button>
+                        <span className="ml-1 text-[9.5px] text-ink-dim">dur</span>
+                        <button type="button" onClick={() => nudge(ev, 0, -10)} className={btn}>
+                          −
+                        </button>
+                        <button type="button" onClick={() => nudge(ev, 0, 10)} className={btn}>
+                          +
+                        </button>
+                        {ev.editHref && (
+                          <a href={ev.editHref} className={`${btn} no-underline`}>
+                            Editar
+                          </a>
+                        )}
+                        {ev.kind === "habit" ? (
+                          <a href="/dashboard/habitos" className={`${btn} no-underline`}>
+                            Hábito
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => remove(ev)}
+                            className="rounded border border-line px-1.5 text-[10px] text-ink-dim hover:border-danger/50 hover:text-danger"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
 
-                <div
-                  onPointerDown={(e) => onPointerDown(e, ev, "resize")}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
-                  style={{ touchAction: "none" }}
-                />
+                {ev.kind !== "plan" && (
+                  <div
+                    onPointerDown={(e) => onPointerDown(e, ev, "resize")}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
+                    style={{ touchAction: "none" }}
+                  />
+                )}
               </div>
             );
           })}
