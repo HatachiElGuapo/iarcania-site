@@ -1,4 +1,4 @@
-# Las 23 secciones del dashboard
+# Las 24 secciones del dashboard
 
 Qué hace cada sección del sidebar (`/dashboard/*`), qué tablas lee/escribe,
 qué Server Actions de escritura tiene y sus sub-vistas. Sacado del código
@@ -43,6 +43,66 @@ redimensionar.
 - **Tablas**: `agenda.agenda_items` (escribe), `habitos.activities` + `activity_logs`, `trabajo.tasks`, `citas.appointments` (lee).
 - **Escritura** (`agenda/actions.ts`): `createBlock`, `updateBlock`, `deleteBlock`, `moveBlock`, `scheduleHabit`.
 - **Sub-vistas**: `?date=` (día), `?pre=` / `?edit=` (bloque en edición).
+
+### Plan diario — `/dashboard/plan` 🗺️
+Planificador semanal con fases y verificación diaria — la versión en
+dashboard del "Plan de la casa" (antes un artifact HTML). Una plantilla de
+bloques por weekday (0=lunes…6=domingo) y por persona se reparte
+automáticamente en fechas reales según fases y "colas" de tareas, con check
+diario de hecho/saltado sin tocar la plantilla.
+- **Tablas**: `plan.plans`, `plan.plan_people`, `plan.plan_phases`,
+  `plan.plan_queues`, `plan.plan_queue_items`, `plan.plan_blocks`,
+  `plan.plan_holidays`, `plan.plan_events`, `plan.plan_overrides` (cambia o
+  quita un bloque solo para un día), `plan.plan_checks` (hecho/saltado por
+  día, con `resolved_text` fijo al momento de marcar — reordenar una cola
+  después no cambia el historial).
+- **Resolver** (`lib/plan/resolve.ts`, función pura, sin acceso a la base;
+  tests en `lib/plan/resolve.test.ts`): recibe el plan completo y un rango
+  de fechas, y por cada día devuelve la fase activa, si es festivo, los
+  eventos y los bloques resueltos por persona. Recorre día a día desde
+  `plans.start_date` aunque el rango pedido empiece después, porque el
+  reparto de las colas depende de todo lo anterior. Reglas del reparto:
+  - Un bloque con `queue_id` avanza un contador — por (fase, cola), o solo
+    por cola si `plan_queues.global = true` (ej. Void Stoic, que no se
+    reinicia en cada fase). Cola cíclica → vuelve a empezar cuando se
+    acaba la lista; no cíclica → usa `plan_queues.fallback` una vez
+    agotada.
+  - Si el día es festivo y el bloque tiene `holiday_text`, se usa ese
+    texto y el contador de su cola NO avanza ese día.
+  - `plan_overrides` se aplica después de avanzar el contador (cambia el
+    texto resuelto o quita el bloque, solo para esa fecha).
+- **Escritura**: `plan/actions.ts` (`setCheck`, `setOverride`,
+  `removeForDay`, `clearOverride`), `plan/semana/actions.ts` (`upsertBlock`,
+  `deleteBlock`), `plan/fases/actions.ts` (`updatePhase`,
+  `replaceQueueItems` — reescribe toda la lista de una cola, de una
+  fase o global, a partir del textarea).
+- **Sub-vistas**:
+  - `?date=` en la página principal (día visible, por defecto hoy).
+  - **`/plan/semana`** — plantilla editable por weekday: crear, editar y
+    borrar bloques ("también en estos días" crea el mismo bloque en varios
+    weekdays de una), cola asignada, texto de festivo. `?weekday=`.
+  - **`/plan/fases`** — nombre/fechas/meta de cada fase y sus listas de
+    tareas en textarea (una por línea); las colas globales se editan aparte,
+    no dependen de una fase.
+  - **`/plan/historial`** — últimos 30 días: % de bloques hechos por tipo y
+    por persona, mínimos cumplidos por día, lista de lo saltado con su nota.
+- **Agenda**: los bloques resueltos del día del usuario logueado (buscado
+  por `plan_people.user_id`, no por dueño del plan — así funciona también
+  para quien no sea el dueño) aparecen en la grilla de `/dashboard/agenda`,
+  de solo lectura (sin drag, sin resize, sin borrar — un enlace "Ver en
+  Plan →" lleva a editarlos donde corresponde).
+- **Re-importar el seed**: `docs/plan/plan-seed.json` es el formato del
+  artifact original (`people`, `queues`, `phases`, `hol`, `events`,
+  `range`). `scripts/seed-plan.ts` lo lee y crea el plan dentro de una
+  transacción — es idempotente por nombre de plan: si ya existe uno con el
+  mismo nombre (`plans.name`, por defecto "Plan de la casa") para ese
+  dueño, no hace nada, así que para reimportar de cero primero hay que
+  borrar el plan existente (cascada: borra fases, colas, bloques, checks,
+  etc.) y volver a correr:
+  ```
+  node --env-file=.env.local --env-file-if-exists=.env.development.local \
+       --import tsx scripts/seed-plan.ts <email-del-dueño>
+  ```
 
 ### Ideas — `/dashboard/ideas` 💡
 Bandeja de captura rápida de ideas, con estado (nueva / procesada) y
