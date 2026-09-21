@@ -225,6 +225,13 @@
       "when": 1790021486946,
       "tag": "0031_mature_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790022711698,
+      "tag": "0032_military_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }

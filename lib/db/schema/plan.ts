@@ -135,10 +135,6 @@ export const planBlocks = pgTable(
     isMinimum: boolean("is_minimum").notNull().default(false),
     queueId: uuid("queue_id").references(() => planQueues.id, { onDelete: "set null" }),
     holidayText: text("holiday_text"),
-    // Une este bloque a un hábito de Hábitos (activities) — Agenda lo pinta
-    // una sola vez, con el texto/hora del Plan y el check del hábito.
-    // set null al borrar la actividad: el bloque de Plan sigue existiendo.
-    activityId: uuid("activity_id").references(() => activities.id, { onDelete: "set null" }),
   },
   (t) => ({
     planPersonWeekdayIdx: index("plan_blocks_person_weekday_idx").on(t.personId, t.weekday),
@@ -191,6 +187,28 @@ export const planEvents = pgTable(
       "plan_events_kind_chk",
       sql`${t.kind} IS NULL OR ${t.kind} IN (${sql.raw(PLAN_KINDS.map((k) => `'${k}'`).join(","))})`,
     ),
+  }),
+);
+
+// Une bloques de Plan con hábitos de Hábitos (activities) — N a N: un
+// bloque puede tener varios hábitos (ej. "40/40/40" son dos) y un hábito
+// puede repetirse en varios bloques (uno por weekday). Agenda pinta el
+// bloque una sola vez, con un check por hábito enlazado, en vez de
+// duplicar la tarjeta del hábito aparte. Cascade en ambos lados: si se
+// borra el bloque o el hábito, solo desaparece el enlace, no la otra fila.
+export const planBlockActivities = pgTable(
+  "plan_block_activities",
+  {
+    blockId: uuid("block_id")
+      .notNull()
+      .references(() => planBlocks.id, { onDelete: "cascade" }),
+    activityId: uuid("activity_id")
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.blockId, t.activityId] }),
+    activityIdx: index("plan_block_activities_activity_idx").on(t.activityId),
   }),
 );
 
