@@ -53,6 +53,35 @@ export default async function PlanPage({
   const planData = toPlanData(ctx);
   const [day] = resolvePlan(planData, date, date);
 
+  if (!day) {
+    const outOfRangeBefore = date < ctx.plan.startDate;
+    return (
+      <div className="p-8">
+        <PageHeader
+          icon="🗺️"
+          title="Plan diario"
+          actions={
+            <Stepper
+              prevHref={`/dashboard/plan?date=${addDaysISO(date, -1)}`}
+              nextHref={`/dashboard/plan?date=${addDaysISO(date, 1)}`}
+              label={isToday ? "Hoy" : date}
+              current={isToday}
+            />
+          }
+        />
+        <EmptyState icon="🗺️">
+          {outOfRangeBefore
+            ? `El plan todavía no arranca — empieza el ${ctx.plan.startDate}.`
+            : `El plan ya terminó — el último día es el ${ctx.plan.endDate}.`}
+          {" "}
+          <a href={`/dashboard/plan?date=${outOfRangeBefore ? ctx.plan.startDate : ctx.plan.endDate}`} className="text-accent hover:underline">
+            Ir a ese día →
+          </a>
+        </EmptyState>
+      </div>
+    );
+  }
+
   const checks = await db
     .select()
     .from(planChecks)

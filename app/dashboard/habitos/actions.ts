@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
@@ -131,6 +131,38 @@ export async function toggleLogToday(formData: FormData) {
   } else {
     await db.insert(activityLogs).values({ userId, activityId, date });
   }
+
+  revalidateAll();
+}
+
+// Contador (para "vicios" u otros hábitos frequency='recurrente'): cada
+// click suma una fila nueva — el conteo del día es la cantidad de filas,
+// no un booleano. decrementLog quita la última en vez de todo el día, para
+// poder corregir un +1 de más sin perder el resto.
+export async function incrementLog(formData: FormData) {
+  const userId = await requireUserId();
+  const activityId = String(formData.get("activityId") || "");
+  const date = String(formData.get("date") || "");
+  if (!activityId || !date) throw new Error("Faltan datos");
+
+  await db.insert(activityLogs).values({ userId, activityId, date });
+
+  revalidateAll();
+}
+
+export async function decrementLog(formData: FormData) {
+  const userId = await requireUserId();
+  const activityId = String(formData.get("activityId") || "");
+  const date = String(formData.get("date") || "");
+  if (!activityId || !date) throw new Error("Faltan datos");
+
+  const [last] = await db
+    .select({ id: activityLogs.id })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)))
+    .orderBy(desc(activityLogs.createdAt))
+    .limit(1);
+  if (last) await db.delete(activityLogs).where(eq(activityLogs.id, last.id));
 
   revalidateAll();
 }

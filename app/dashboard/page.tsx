@@ -25,8 +25,9 @@ import {
   catInfo,
 } from "@/components/ui";
 import { toggleTaskStatus, createTask } from "./actividades/actions";
-import { toggleLogToday, createActivity } from "./habitos/actions";
+import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { setCheck } from "./plan/actions";
+import { completeAppointment } from "./citas/actions";
 
 const PRIORITY_COLOR: Record<string, string> = {
   alta: "text-danger",
@@ -96,7 +97,7 @@ export default async function RutinasPage({
   const weekEnd = addDaysISO(date, 7);
   const lookbackStart = addDaysISO(date, -HABIT_LOOKBACK_DAYS);
 
-  const [dayEvents, dailyHabits, habitLogs, overdueTasks, upcomingAppointments, upcomingTasks, dayTaskCategories] =
+  const [dayEvents, dailyHabits, habitLogs, overdueTasks, upcomingAppointments, upcomingTasks, dayTaskCategories, vicios, viciosLogs] =
     await Promise.all([
     buildDayEvents(userId, date),
     db
@@ -134,7 +135,19 @@ export default async function RutinasPage({
       .select({ category: tasks.category })
       .from(tasks)
       .where(and(eq(tasks.userId, userId), eq(tasks.dueDate, date), ne(tasks.status, "archivada"))),
+    db
+      .select({ id: activities.id, name: activities.name })
+      .from(activities)
+      .where(and(eq(activities.userId, userId), eq(activities.isActive, true), eq(activities.frequency, "recurrente")))
+      .orderBy(activities.name),
+    db
+      .select({ activityId: activityLogs.activityId })
+      .from(activityLogs)
+      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date))),
   ]);
+
+  const viciosCounts = new Map<string, number>();
+  for (const l of viciosLogs) viciosCounts.set(l.activityId, (viciosCounts.get(l.activityId) ?? 0) + 1);
 
   const events = [...dayEvents.events].sort((a, b) => a.start - b.start);
   const doneToday = events.filter((e) => e.done).length;
@@ -398,6 +411,55 @@ export default async function RutinasPage({
             </a>
           </Card>
 
+          <Card title="Vicios" count={vicios.length} flush>
+            {vicios.length === 0 ? (
+              <p className="px-3.5 py-3 text-xs text-ink-muted">
+                Sin nada por acá todavía — agregá uno abajo (queda como hábito &quot;Recurrente&quot;, con
+                contador en vez de un simple hecho/no hecho).
+              </p>
+            ) : (
+              <div className="flex flex-col divide-y divide-line">
+                {vicios.map((v) => {
+                  const count = viciosCounts.get(v.id) ?? 0;
+                  return (
+                    <div key={v.id} className="flex items-center gap-2.5 px-3.5 py-2">
+                      <span className="flex-1 truncate text-sm text-ink">{v.name}</span>
+                      <form action={decrementLog}>
+                        <input type="hidden" name="activityId" value={v.id} />
+                        <input type="hidden" name="date" value={date} />
+                        <button
+                          type="submit"
+                          disabled={count === 0}
+                          className="focus-ring flex h-5 w-5 items-center justify-center rounded border border-line text-[11px] text-ink-dim hover:border-line-strong hover:text-ink disabled:opacity-30"
+                        >
+                          −
+                        </button>
+                      </form>
+                      <span className="w-5 text-center text-sm font-semibold tabular-nums text-ink">{count}</span>
+                      <form action={incrementLog}>
+                        <input type="hidden" name="activityId" value={v.id} />
+                        <input type="hidden" name="date" value={date} />
+                        <button
+                          type="submit"
+                          className="focus-ring flex h-5 w-5 items-center justify-center rounded border border-line text-[11px] text-ink-dim hover:border-line-strong hover:text-ink"
+                        >
+                          +
+                        </button>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <QuickCapture
+              action={createActivity}
+              name="name"
+              placeholder="Nuevo vicio a contar…"
+              hidden={{ frequency: "recurrente" }}
+              submitLabel="+"
+            />
+          </Card>
+
           <Card title="Por categoría" action={<span>hoy</span>}>
             {categoryLegend.length === 0 ? (
               <p className="text-xs text-ink-muted">Ninguna tarea de hoy tiene categoría.</p>
@@ -494,9 +556,9 @@ function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       >
         {ev.badge}
       </span>
-      {ev.kind === "block" && ev.itemType === "task" && (
+      {ev.kind === "block" && ev.itemType === "task" && ev.itemId && (
         <form action={toggleTaskStatus} className="shrink-0">
-          <input type="hidden" name="id" value={ev.refId} />
+          <input type="hidden" name="id" value={ev.itemId} />
           <input type="hidden" name="nextStatus" value={ev.done ? "pendiente" : "completada"} />
           <button
             type="submit"
@@ -508,15 +570,27 @@ function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
           </button>
         </form>
       )}
-      {ev.kind === "habit" && (
+      {(ev.kind === "habit" || (ev.kind === "block" && ev.itemType === "habito")) && ev.itemId && (
         <form action={toggleLogToday} className="shrink-0">
-          <input type="hidden" name="activityId" value={ev.refId} />
+          <input type="hidden" name="activityId" value={ev.itemId} />
           <input type="hidden" name="date" value={date} />
           <button
             type="submit"
             className={`focus-ring flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
               ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent hover:text-ink-dim"
             }`}
+          >
+            ✓
+          </button>
+        </form>
+      )}
+      {ev.kind === "block" && ev.itemType === "cita" && ev.itemId && (
+        <form action={completeAppointment} className="shrink-0">
+          <input type="hidden" name="id" value={ev.itemId} />
+          <button
+            type="submit"
+            title="Marcar cumplida"
+            className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-success/40 hover:text-success"
           >
             ✓
           </button>

@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { todayISO } from "@/lib/date/bogota";
-import { Segmented, EmptyState, cx } from "@/components/ui";
-import { toggleLogToday } from "./actions";
+import { Segmented, EmptyState, Button, cx } from "@/components/ui";
+import { toggleLogToday, incrementLog, decrementLog } from "./actions";
 
 const FREQ_TABS: { id: string; label: string }[] = [
   { id: "diaria", label: "Diarios" },
@@ -42,6 +42,12 @@ export default async function HabitosPage({
   const doneToday = new Set(todayLogs.map((l) => l.activityId));
   const doneCount = habits.filter((h) => doneToday.has(h.id)).length;
   const pct = habits.length ? Math.round((doneCount / habits.length) * 100) : 0;
+
+  // "Recurrentes" (ej. vicios) es contador, no booleano: cada fila de
+  // activityLogs es una ocurrencia — el conteo del día es cuántas filas hay
+  // para ese hábito, no si hay al menos una.
+  const countByHabit = new Map<string, number>();
+  for (const l of todayLogs) countByHabit.set(l.activityId, (countByHabit.get(l.activityId) ?? 0) + 1);
 
   const byCategory = new Map<string, typeof habits>();
   for (const h of habits) {
@@ -89,6 +95,34 @@ export default async function HabitosPage({
                 </h2>
                 <div className="flex flex-col gap-1.5">
                   {list.map((h) => {
+                    if (freq === "recurrente") {
+                      const count = countByHabit.get(h.id) ?? 0;
+                      return (
+                        <div
+                          key={h.id}
+                          className="flex items-center gap-3 rounded-ui border border-line bg-surface px-3.5 py-2"
+                        >
+                          <span className="flex-1 text-sm text-ink">{h.name}</span>
+                          <form action={decrementLog}>
+                            <input type="hidden" name="activityId" value={h.id} />
+                            <input type="hidden" name="date" value={date} />
+                            <Button type="submit" variant="secondary" size="sm" disabled={count === 0}>
+                              −
+                            </Button>
+                          </form>
+                          <span className="w-6 text-center text-sm font-semibold tabular-nums text-ink">
+                            {count}
+                          </span>
+                          <form action={incrementLog}>
+                            <input type="hidden" name="activityId" value={h.id} />
+                            <input type="hidden" name="date" value={date} />
+                            <Button type="submit" variant="secondary" size="sm">
+                              +
+                            </Button>
+                          </form>
+                        </div>
+                      );
+                    }
                     const done = doneToday.has(h.id);
                     return (
                       <div

@@ -115,6 +115,7 @@ export async function completeAppointment(formData: FormData) {
   await setStatusAndUnsync(id, userId, "completada");
   revalidatePath("/dashboard/citas");
   revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
 }
 
 export async function cancelAppointment(formData: FormData) {

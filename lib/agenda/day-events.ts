@@ -20,8 +20,13 @@ import { addDaysISO } from "@/lib/date/bogota";
 export type AgendaEvent = {
   key: string;
   kind: "block" | "habit" | "plan";
-  refId: string; // agenda_items.id (block) | activities.id (habit) | plan_blocks.id (plan)
+  refId: string; // agenda_items.id (block) | activities.id (habit) | plan_blocks.id (plan) — identifica ESTE horario
   itemType: string; // task | nota | cita | habito | habit | plan
+  // El id de la cosa real detrás del bloque — tasks.id / appointments.id /
+  // activities.id según itemType — para poder marcarla (distinto de refId,
+  // que es el id del AGENDAMIENTO, no de la tarea/cita/hábito en sí). null
+  // para nota y plan (plan se marca con refId + setCheck, no un itemId).
+  itemId: string | null;
   start: number; // minutos desde 00:00
   duration: number;
   title: string;
@@ -158,6 +163,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         kind: "plan",
         refId: b.blockId,
         itemType: "plan",
+        itemId: null,
         start: 0,
         duration: Math.max(1, firstBlockStart),
         title: b.text,
@@ -180,6 +186,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         kind: "plan",
         refId: b.blockId,
         itemType: "plan",
+        itemId: null,
         start,
         duration: Math.max(1, endMinutes - start),
         title: b.text,
@@ -238,6 +245,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         kind: "block" as const,
         refId: b.id,
         itemType: b.itemType,
+        itemId: b.itemId,
         start: toMinutes(b.blockTime),
         duration: b.duration,
         title,
@@ -260,6 +268,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
     kind: "habit",
     refId: h.id,
     itemType: "habit",
+    itemId: h.id,
     start: h.start,
     duration: HABIT_DURATION,
     title: h.name,
