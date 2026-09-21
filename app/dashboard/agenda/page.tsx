@@ -425,6 +425,7 @@ export default async function AgendaPage({
 
         {/* Panel lateral */}
         <div className="flex flex-col gap-4">
+          <div id="agenda-backlog">
           <Card title="Sin agendar" count={backlog.length} flush>
             {backlog.length === 0 ? (
               <p className="px-3.5 py-4 text-xs text-ink-muted">
@@ -452,6 +453,7 @@ export default async function AgendaPage({
               </div>
             )}
           </Card>
+          </div>
 
           {citas.length > 0 && (
             <Card title="Citas por agendar" flush>

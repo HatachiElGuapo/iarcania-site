@@ -119,6 +119,7 @@ export function DayGrid({
     { key: string; mode: "move" | "resize"; y: number; start: number; dur: number } | null
   >(null);
   const didDrag = useRef(false);
+  const lastPointer = useRef({ x: 0, y: 0 });
 
   const display = events.map((e) =>
     draft && draft.key === e.key ? { ...e, start: draft.start, duration: draft.duration } : e,
@@ -187,6 +188,7 @@ export function DayGrid({
 
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current;
+    lastPointer.current = { x: e.clientX, y: e.clientY };
     if (!d) return;
     if (Math.abs(e.clientY - d.y) > 3) didDrag.current = true;
     const delta = Math.round((e.clientY - d.y) / PX_PER_MIN / SNAP) * SNAP;
@@ -202,7 +204,23 @@ export function DayGrid({
     drag.current = null;
     const df = draftRef.current;
     setDraft(null);
-    if (d && df) commit(d.key, df.start, df.duration, d.mode);
+    if (!d || !df) return;
+
+    // Soltado sobre "Sin agendar" (fuera de la grilla, mismo pointer capture
+    // — se detecta por posición, no por drop target real) y es una tarea:
+    // desagendarla en vez de moverla.
+    const ev = events.find((e) => e.key === d.key);
+    if (ev?.kind === "block" && ev.itemType === "task") {
+      const overBacklog = document
+        .elementFromPoint(lastPointer.current.x, lastPointer.current.y)
+        ?.closest("#agenda-backlog");
+      if (overBacklog) {
+        remove(ev);
+        return;
+      }
+    }
+
+    commit(d.key, df.start, df.duration, d.mode);
   }
 
   // Soltar una tarea de "Sin agendar" (native HTML5 drag and drop, ver
