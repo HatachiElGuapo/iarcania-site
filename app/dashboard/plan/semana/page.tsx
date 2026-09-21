@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { loadPlanContext, type PlanContext } from "@/lib/plan/load";
 import { PLAN_KINDS, kindInfo } from "@/lib/plan/kinds";
 import { todayISO } from "@/lib/date/bogota";
-import { PageHeader, Segmented, Card, Select, Input, Textarea, Labeled, Button, EmptyState } from "@/components/ui";
+import { Segmented, Card, Select, Input, Textarea, Labeled, Button, EmptyState } from "@/components/ui";
 import { upsertBlock, deleteBlock } from "./actions";
 import { replaceQueueItems } from "../fases/actions";
 
@@ -16,33 +16,27 @@ export default async function PlanSemanaPage() {
 
   const ctx = await loadPlanContext(userId);
   if (!ctx) {
-    return (
-      <div className="p-8">
-        <PageHeader icon="🗺️" title="Plan · Semana" />
-        <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>
-      </div>
-    );
+    return <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>;
   }
 
   const today = todayISO();
   const currentPhase = ctx.phases.find((p) => p.startDate <= today && today <= p.endDate) ?? null;
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="🗺️"
-        title="Plan · Plantilla semanal"
-        subtitle="Editá la plantilla que se repite cada semana — un cambio acá afecta a todas las semanas, no un solo día. Los 7 días están acá abajo, las pestañas solo saltan a cada uno."
-        tabs={
-          <Segmented
-            options={WEEKDAY_SHORT.map((label, i) => ({
-              label,
-              href: `#${WEEKDAY_ANCHORS[i]}`,
-              active: false,
-            }))}
-          />
-        }
-      />
+    <>
+      <p className="mb-3 text-meta text-ink-dim">
+        Editá la plantilla que se repite cada semana — un cambio acá afecta a todas las semanas, no un solo
+        día.
+      </p>
+      <div className="mb-5">
+        <Segmented
+          options={WEEKDAY_SHORT.map((label, i) => ({
+            label,
+            href: `#${WEEKDAY_ANCHORS[i]}`,
+            active: false,
+          }))}
+        />
+      </div>
 
       <div className="flex flex-col gap-8">
         {WEEKDAY_LABELS.map((label, weekday) => (
@@ -52,7 +46,7 @@ export default async function PlanSemanaPage() {
           </section>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 

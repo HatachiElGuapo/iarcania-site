@@ -5,7 +5,7 @@ import { planChecks } from "@/lib/db/schema/plan";
 import { loadPlanContext, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, computeQueueProgress } from "@/lib/plan/resolve";
 import { todayISO, diffDaysISO } from "@/lib/date/bogota";
-import { PageHeader, Card, Input, Textarea, Labeled, Button, Progress, EmptyState } from "@/components/ui";
+import { Card, Input, Textarea, Labeled, Button, Progress, EmptyState } from "@/components/ui";
 import { updatePhase, replaceQueueItems } from "./actions";
 
 export default async function PlanFasesPage() {
@@ -14,12 +14,7 @@ export default async function PlanFasesPage() {
 
   const ctx = await loadPlanContext(userId);
   if (!ctx) {
-    return (
-      <div className="p-8">
-        <PageHeader icon="🗺️" title="Plan · Fases" />
-        <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>
-      </div>
-    );
+    return <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>;
   }
 
   const globalQueues = ctx.queues.filter((q) => q.global);
@@ -70,12 +65,10 @@ export default async function PlanFasesPage() {
   });
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="🗺️"
-        title="Plan · Fases"
-        subtitle="Una tarea por línea. Al guardar se reescribe toda la lista de esa cola, en ese orden."
-      />
+    <>
+      <p className="mb-5 text-meta text-ink-dim">
+        Una tarea por línea. Al guardar se reescribe toda la lista de esa cola, en ese orden.
+      </p>
 
       {globalQueues.length > 0 && (
         <Card title="Colas globales" className="mb-5">
@@ -194,6 +187,6 @@ export default async function PlanFasesPage() {
           </Card>
         ))}
       </div>
-    </div>
+    </>
   );
 }

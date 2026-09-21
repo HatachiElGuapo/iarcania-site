@@ -6,7 +6,7 @@ import { loadPlanContext, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, type ResolvedBlock } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO, diffDaysISO } from "@/lib/date/bogota";
-import { PageHeader, Button, Card, Stepper, Badge, EmptyState } from "@/components/ui";
+import { Button, Card, Stepper, Badge, EmptyState } from "@/components/ui";
 import { setCheck, setOverride, removeForDay, clearOverride } from "./actions";
 
 function capitalize(s: string) {
@@ -40,13 +40,10 @@ export default async function PlanPage({
   const ctx = await loadPlanContext(userId);
   if (!ctx) {
     return (
-      <div className="p-8">
-        <PageHeader icon="🗺️" title="Plan" />
-        <EmptyState icon="🗺️">
-          Todavía no hay ningún plan importado. Corré <code>scripts/seed-plan.ts</code> para traer el plan de
-          la casa.
-        </EmptyState>
-      </div>
+      <EmptyState icon="🗺️">
+        Todavía no hay ningún plan importado. Corré <code>scripts/seed-plan.ts</code> para traer el plan de la
+        casa.
+      </EmptyState>
     );
   }
 
@@ -56,19 +53,16 @@ export default async function PlanPage({
   if (!day) {
     const outOfRangeBefore = date < ctx.plan.startDate;
     return (
-      <div className="p-8">
-        <PageHeader
-          icon="🗺️"
-          title="Plan diario"
-          actions={
-            <Stepper
-              prevHref={`/dashboard/plan?date=${addDaysISO(date, -1)}`}
-              nextHref={`/dashboard/plan?date=${addDaysISO(date, 1)}`}
-              label={isToday ? "Hoy" : date}
-              current={isToday}
-            />
-          }
-        />
+      <>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-meta text-ink-dim">{isToday ? "Hoy" : date}</div>
+          <Stepper
+            prevHref={`/dashboard/plan?date=${addDaysISO(date, -1)}`}
+            nextHref={`/dashboard/plan?date=${addDaysISO(date, 1)}`}
+            label={isToday ? "Hoy" : date}
+            current={isToday}
+          />
+        </div>
         <EmptyState icon="🗺️">
           {outOfRangeBefore
             ? `El plan todavía no arranca — empieza el ${ctx.plan.startDate}.`
@@ -78,7 +72,7 @@ export default async function PlanPage({
             Ir a ese día →
           </a>
         </EmptyState>
-      </div>
+      </>
     );
   }
 
@@ -131,40 +125,34 @@ export default async function PlanPage({
   );
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="🗺️"
-        title="Plan diario"
-        subtitle={
-          <>
-            {dateLong}
-            {day.phase && <> · {day.phase.name}</>}
-            {weekLabel && <> · {weekLabel}</>}
-            {day.isHoliday && (
-              <>
-                {" "}
-                <Badge tone="warm">Festivo</Badge>
-              </>
-            )}
-            {day.phase?.goal && <> · {day.phase.goal}</>}
-          </>
-        }
-        actions={
-          <>
-            <Stepper
-              prevHref={`/dashboard/plan?date=${addDaysISO(date, -1)}`}
-              nextHref={`/dashboard/plan?date=${addDaysISO(date, 1)}`}
-              label={isToday ? "Hoy" : date}
-              current={isToday}
-            />
-            {!isToday && (
-              <Button variant="secondary" href={`/dashboard/plan?date=${todayISO()}`}>
-                Hoy
-              </Button>
-            )}
-          </>
-        }
-      />
+    <>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="text-meta text-ink-muted">
+          {dateLong}
+          {day.phase && <> · {day.phase.name}</>}
+          {weekLabel && <> · {weekLabel}</>}
+          {day.isHoliday && (
+            <>
+              {" "}
+              <Badge tone="warm">Festivo</Badge>
+            </>
+          )}
+          {day.phase?.goal && <> · {day.phase.goal}</>}
+        </div>
+        <div className="flex items-center gap-2">
+          <Stepper
+            prevHref={`/dashboard/plan?date=${addDaysISO(date, -1)}`}
+            nextHref={`/dashboard/plan?date=${addDaysISO(date, 1)}`}
+            label={isToday ? "Hoy" : date}
+            current={isToday}
+          />
+          {!isToday && (
+            <Button variant="secondary" href={`/dashboard/plan?date=${todayISO()}`}>
+              Hoy
+            </Button>
+          )}
+        </div>
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
         <Card className="flex-1 min-w-[160px]">
@@ -341,6 +329,6 @@ export default async function PlanPage({
           );
         })}
       </div>
-    </div>
+    </>
   );
 }

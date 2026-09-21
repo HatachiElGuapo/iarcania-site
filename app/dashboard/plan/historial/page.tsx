@@ -6,7 +6,7 @@ import { loadPlanContext, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { PLAN_KINDS, kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO } from "@/lib/date/bogota";
-import { PageHeader, Card, Progress, MetricCard, EmptyState, Badge } from "@/components/ui";
+import { Card, Progress, MetricCard, EmptyState, Badge } from "@/components/ui";
 
 const DAYS = 30;
 
@@ -20,12 +20,7 @@ export default async function PlanHistorialPage() {
 
   const ctx = await loadPlanContext(userId);
   if (!ctx) {
-    return (
-      <div className="p-8">
-        <PageHeader icon="🗺️" title="Plan · Historial" />
-        <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>
-      </div>
-    );
+    return <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>;
   }
 
   const to = todayISO();
@@ -96,8 +91,10 @@ export default async function PlanHistorialPage() {
   const overallPct = totalBlocks ? Math.round((totalDone / totalBlocks) * 100) : 0;
 
   return (
-    <div className="p-8">
-      <PageHeader icon="🗺️" title="Plan · Historial" subtitle={`Últimos ${DAYS} días (${from} — ${to})`} />
+    <>
+      <p className="mb-5 text-meta text-ink-dim">
+        Últimos {DAYS} días ({from} — {to})
+      </p>
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MetricCard value={`${overallPct}%`} label="Bloques hechos" pct={overallPct} tone="accent" />
@@ -193,6 +190,6 @@ export default async function PlanHistorialPage() {
           </div>
         )}
       </Card>
-    </div>
+    </>
   );
 }
