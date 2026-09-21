@@ -30,6 +30,14 @@ export function addDaysISO(dateISO: string, delta: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Días completos entre dos fechas "YYYY-MM-DD" (b - a), mismo ancla de
+// mediodía + offset fijo que el resto del archivo.
+export function diffDaysISO(a: string, b: string): number {
+  const da = new Date(`${a}T12:00:00${BOGOTA_OFFSET}`);
+  const db = new Date(`${b}T12:00:00${BOGOTA_OFFSET}`);
+  return Math.round((db.getTime() - da.getTime()) / 86400000);
+}
+
 // Día de la semana de una fecha "YYYY-MM-DD", 0 = lunes … 6 = domingo (el
 // orden que usa Plan) — distinto de Date#getUTCDay(), donde 0 = domingo.
 export function weekdayMon0(dateISO: string): number {

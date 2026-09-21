@@ -30,6 +30,17 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard/actividades", label: "Actividades", icon: "✅" },
       { href: "/dashboard/agenda", label: "Agenda", icon: "📅" },
+      {
+        href: "/dashboard/plan",
+        label: "Plan diario",
+        icon: "🗺️",
+        tabLabel: "Día",
+        children: [
+          { href: "/dashboard/plan/semana", label: "Semana" },
+          { href: "/dashboard/plan/fases", label: "Fases" },
+          { href: "/dashboard/plan/historial", label: "Historial" },
+        ],
+      },
       { href: "/dashboard/ideas", label: "Ideas", icon: "💡" },
       { href: "/dashboard/citas", label: "Citas", icon: "🏥" },
       { href: "/dashboard/eventos", label: "Eventos", icon: "🎉" },
