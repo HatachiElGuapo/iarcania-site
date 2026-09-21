@@ -1,8 +1,10 @@
 import { auth } from "@/lib/auth";
 import { loadPlanContext } from "@/lib/plan/load";
 import { PLAN_KINDS, kindInfo } from "@/lib/plan/kinds";
-import { PageHeader, Segmented, Card, Select, Input, Labeled, Button, EmptyState } from "@/components/ui";
+import { todayISO } from "@/lib/date/bogota";
+import { PageHeader, Segmented, Card, Select, Input, Textarea, Labeled, Button, EmptyState } from "@/components/ui";
 import { upsertBlock, deleteBlock } from "./actions";
+import { replaceQueueItems } from "../fases/actions";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const WEEKDAY_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -30,6 +32,15 @@ export default async function PlanSemanaPage({
   const blocksForDay = ctx.blocks
     .filter((b) => b.weekday === weekday)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const today = todayISO();
+  const currentPhase = ctx.phases.find((p) => p.startDate <= today && today <= p.endDate) ?? null;
+  const queueItemsFor = (queueId: string, global: boolean) =>
+    ctx.queueItems
+      .filter((i) => i.queueId === queueId && i.phaseId === (global ? null : (currentPhase?.id ?? null)))
+      .sort((a, b) => a.position - b.position)
+      .map((i) => i.text)
+      .join("\n");
 
   return (
     <div className="p-8">
@@ -143,6 +154,38 @@ export default async function PlanSemanaPage({
                           Eliminar
                         </Button>
                       </form>
+
+                      {queue && (
+                        <form
+                          action={replaceQueueItems}
+                          className="mt-2.5 flex flex-col gap-1.5 border-t border-line pt-2.5"
+                        >
+                          <input type="hidden" name="queueId" value={queue.id} />
+                          {!queue.global && <input type="hidden" name="phaseId" value={currentPhase?.id ?? ""} />}
+                          <Labeled
+                            label={`Próximas tareas de "${queue.name}"${currentPhase && !queue.global ? ` (${currentPhase.name})` : queue.global ? " (no se reinicia por fase)" : ""}`}
+                          >
+                            {!queue.global && !currentPhase ? (
+                              <p className="text-meta text-ink-dim">
+                                Hoy no cae dentro de ninguna fase — no hay a qué fase agregarle tareas.
+                              </p>
+                            ) : (
+                              <Textarea
+                                name="lines"
+                                defaultValue={queueItemsFor(queue.id, queue.global)}
+                                className="min-h-[100px] w-full"
+                              />
+                            )}
+                          </Labeled>
+                          {(queue.global || currentPhase) && (
+                            <div>
+                              <Button type="submit" variant="secondary" size="sm">
+                                Guardar lista
+                              </Button>
+                            </div>
+                          )}
+                        </form>
+                      )}
                     </details>
                   );
                 })}
