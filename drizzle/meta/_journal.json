@@ -218,6 +218,13 @@
       "when": 1790016428445,
       "tag": "0030_vengeful_mister_fear",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790021486946,
+      "tag": "0031_mature_quasimodo",
+      "breakpoints": true
     }
   ]
 }

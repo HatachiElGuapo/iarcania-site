@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./auth";
+import { activities } from "./habitos";
 
 // Vocabulario compartido por plan_blocks.kind (NOT NULL) y plan_events.kind
 // (nullable — 3 eventos del seed, como el cumpleaños de Miguel, no traen
@@ -134,6 +135,10 @@ export const planBlocks = pgTable(
     isMinimum: boolean("is_minimum").notNull().default(false),
     queueId: uuid("queue_id").references(() => planQueues.id, { onDelete: "set null" }),
     holidayText: text("holiday_text"),
+    // Une este bloque a un hábito de Hábitos (activities) — Agenda lo pinta
+    // una sola vez, con el texto/hora del Plan y el check del hábito.
+    // set null al borrar la actividad: el bloque de Plan sigue existiendo.
+    activityId: uuid("activity_id").references(() => activities.id, { onDelete: "set null" }),
   },
   (t) => ({
     planPersonWeekdayIdx: index("plan_blocks_person_weekday_idx").on(t.personId, t.weekday),
