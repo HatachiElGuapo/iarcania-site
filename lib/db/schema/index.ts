@@ -24,3 +24,4 @@ export * from "./guiones";
 export * from "./crm";
 export * from "./agencia";
 export * from "./marco";
+export * from "./plan";

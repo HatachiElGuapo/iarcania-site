@@ -1,0 +1,2196 @@
+{
+ "people": [
+  {
+   "id": "miguel",
+   "name": "Miguel",
+   "days": {
+    "lun": [
+     {
+      "id": "b1",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b2",
+      "t": "04:00",
+      "e": "04:20",
+      "x": "Saltos (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b3",
+      "t": "04:20",
+      "e": "04:40",
+      "x": "Meditar (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b4",
+      "t": "04:40",
+      "e": "05:00",
+      "x": "Baño (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b5",
+      "t": "05:00",
+      "e": "05:20",
+      "x": "Vestirme",
+      "k": "rutina"
+     },
+     {
+      "id": "b6",
+      "t": "05:20",
+      "e": "05:40",
+      "x": "Escritura",
+      "k": "rutina"
+     },
+     {
+      "id": "b7",
+      "t": "05:40",
+      "e": "06:00",
+      "x": "Planificación del día",
+      "k": "rutina"
+     },
+     {
+      "id": "b71",
+      "t": "06:00",
+      "e": "08:00",
+      "x": "Video: auditoría",
+      "k": "ingresos",
+      "q": "v_aud",
+      "min": true
+     },
+     {
+      "id": "b76",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Contactar negocios",
+      "k": "ingresos",
+      "q": "prosp",
+      "hx": "Festivo: armar lista de prospectos (sin contactar)",
+      "min": true
+     },
+     {
+      "id": "b77",
+      "t": "10:00",
+      "e": "12:00",
+      "x": "Construir IArcanIA",
+      "k": "ingresos",
+      "q": "build"
+     },
+     {
+      "id": "b78",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b91",
+      "t": "14:00",
+      "e": "15:00",
+      "x": "Seguimiento",
+      "k": "ingresos",
+      "q": "seg"
+     },
+     {
+      "id": "b92",
+      "t": "15:00",
+      "e": "17:00",
+      "x": "Aseo general (incluye taza y lavamanos)",
+      "k": "juntos"
+     },
+     {
+      "id": "b8",
+      "t": "18:00",
+      "e": "18:40",
+      "x": "Cocinar y cenar",
+      "k": "casa"
+     },
+     {
+      "id": "b9",
+      "t": "18:40",
+      "e": "19:40",
+      "x": "40/40/40: cambiarse, agenda de hábitos, leer",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b10",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina",
+      "min": true
+     }
+    ],
+    "mar": [
+     {
+      "id": "b11",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b12",
+      "t": "04:00",
+      "e": "04:20",
+      "x": "Saltos (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b13",
+      "t": "04:20",
+      "e": "04:40",
+      "x": "Meditar (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b14",
+      "t": "04:40",
+      "e": "05:00",
+      "x": "Baño (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b15",
+      "t": "05:00",
+      "e": "05:20",
+      "x": "Vestirme",
+      "k": "rutina"
+     },
+     {
+      "id": "b16",
+      "t": "05:20",
+      "e": "05:40",
+      "x": "Escritura",
+      "k": "rutina"
+     },
+     {
+      "id": "b17",
+      "t": "05:40",
+      "e": "06:00",
+      "x": "Planificación del día",
+      "k": "rutina"
+     },
+     {
+      "id": "b72",
+      "t": "06:00",
+      "e": "08:00",
+      "x": "Video: educación",
+      "k": "ingresos",
+      "q": "v_edu",
+      "min": true
+     },
+     {
+      "id": "b79",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Contactar negocios",
+      "k": "ingresos",
+      "q": "prosp",
+      "hx": "Festivo: armar lista de prospectos (sin contactar)",
+      "min": true
+     },
+     {
+      "id": "b80",
+      "t": "10:00",
+      "e": "12:00",
+      "x": "Construir IArcanIA",
+      "k": "ingresos",
+      "q": "build"
+     },
+     {
+      "id": "b81",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b93",
+      "t": "14:00",
+      "e": "15:00",
+      "x": "Seguimiento",
+      "k": "ingresos",
+      "q": "seg"
+     },
+     {
+      "id": "b94",
+      "t": "15:00",
+      "e": "15:45",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b95",
+      "t": "16:00",
+      "e": "18:00",
+      "x": "Gimnasio con mamá",
+      "k": "juntos"
+     },
+     {
+      "id": "b18",
+      "t": "18:00",
+      "e": "18:40",
+      "x": "Cocinar y cenar",
+      "k": "casa"
+     },
+     {
+      "id": "b19",
+      "t": "18:40",
+      "e": "19:40",
+      "x": "40/40/40: cambiarse, agenda de hábitos, leer",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b20",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina",
+      "min": true
+     }
+    ],
+    "mie": [
+     {
+      "id": "b21",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b22",
+      "t": "04:00",
+      "e": "04:20",
+      "x": "Saltos (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b23",
+      "t": "04:20",
+      "e": "04:40",
+      "x": "Meditar (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b24",
+      "t": "04:40",
+      "e": "05:00",
+      "x": "Baño (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b25",
+      "t": "05:00",
+      "e": "05:20",
+      "x": "Vestirme",
+      "k": "rutina"
+     },
+     {
+      "id": "b26",
+      "t": "05:20",
+      "e": "05:40",
+      "x": "Escritura",
+      "k": "rutina"
+     },
+     {
+      "id": "b27",
+      "t": "05:40",
+      "e": "06:00",
+      "x": "Planificación del día",
+      "k": "rutina"
+     },
+     {
+      "id": "b73",
+      "t": "06:00",
+      "e": "08:00",
+      "x": "Video: detrás de cámaras",
+      "k": "ingresos",
+      "q": "v_det",
+      "min": true
+     },
+     {
+      "id": "b82",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Contactar negocios",
+      "k": "ingresos",
+      "q": "prosp",
+      "hx": "Festivo: armar lista de prospectos (sin contactar)",
+      "min": true
+     },
+     {
+      "id": "b83",
+      "t": "10:00",
+      "e": "12:00",
+      "x": "Construir IArcanIA",
+      "k": "ingresos",
+      "q": "build"
+     },
+     {
+      "id": "b84",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b96",
+      "t": "14:00",
+      "e": "16:00",
+      "x": "Clientes",
+      "k": "ingresos",
+      "q": "cli"
+     },
+     {
+      "id": "b97",
+      "t": "16:00",
+      "e": "17:00",
+      "x": "Seguimiento",
+      "k": "ingresos",
+      "q": "seg"
+     },
+     {
+      "id": "b98",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario + taza y lavamanos",
+      "k": "juntos"
+     },
+     {
+      "id": "b28",
+      "t": "18:00",
+      "e": "18:40",
+      "x": "Cocinar y cenar",
+      "k": "casa"
+     },
+     {
+      "id": "b29",
+      "t": "18:40",
+      "e": "19:40",
+      "x": "40/40/40: cambiarse, agenda de hábitos, leer",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b30",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina",
+      "min": true
+     }
+    ],
+    "jue": [
+     {
+      "id": "b31",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b32",
+      "t": "04:00",
+      "e": "04:20",
+      "x": "Saltos (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b33",
+      "t": "04:20",
+      "e": "04:40",
+      "x": "Meditar (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b34",
+      "t": "04:40",
+      "e": "05:00",
+      "x": "Baño (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b35",
+      "t": "05:00",
+      "e": "05:20",
+      "x": "Vestirme",
+      "k": "rutina"
+     },
+     {
+      "id": "b36",
+      "t": "05:20",
+      "e": "05:40",
+      "x": "Escritura",
+      "k": "rutina"
+     },
+     {
+      "id": "b37",
+      "t": "05:40",
+      "e": "06:00",
+      "x": "Planificación del día",
+      "k": "rutina"
+     },
+     {
+      "id": "b74",
+      "t": "06:00",
+      "e": "08:00",
+      "x": "Video: oferta y precios",
+      "k": "ingresos",
+      "q": "v_ofe",
+      "min": true
+     },
+     {
+      "id": "b85",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Contactar negocios",
+      "k": "ingresos",
+      "q": "prosp",
+      "hx": "Festivo: armar lista de prospectos (sin contactar)",
+      "min": true
+     },
+     {
+      "id": "b86",
+      "t": "10:00",
+      "e": "12:00",
+      "x": "Construir IArcanIA",
+      "k": "ingresos",
+      "q": "build"
+     },
+     {
+      "id": "b87",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b99",
+      "t": "14:00",
+      "e": "16:00",
+      "x": "Clientes",
+      "k": "ingresos",
+      "q": "cli"
+     },
+     {
+      "id": "b100",
+      "t": "16:00",
+      "e": "17:00",
+      "x": "Gimnasio",
+      "k": "cuidado"
+     },
+     {
+      "id": "b101",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b38",
+      "t": "18:00",
+      "e": "18:40",
+      "x": "Cocinar y cenar",
+      "k": "casa"
+     },
+     {
+      "id": "b39",
+      "t": "18:40",
+      "e": "19:40",
+      "x": "40/40/40: cambiarse, agenda de hábitos, leer",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b40",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina",
+      "min": true
+     }
+    ],
+    "vie": [
+     {
+      "id": "b41",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b42",
+      "t": "04:00",
+      "e": "04:20",
+      "x": "Saltos (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b43",
+      "t": "04:20",
+      "e": "04:40",
+      "x": "Meditar (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b44",
+      "t": "04:40",
+      "e": "05:00",
+      "x": "Baño (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b45",
+      "t": "05:00",
+      "e": "05:20",
+      "x": "Vestirme",
+      "k": "rutina"
+     },
+     {
+      "id": "b46",
+      "t": "05:20",
+      "e": "05:40",
+      "x": "Escritura",
+      "k": "rutina"
+     },
+     {
+      "id": "b47",
+      "t": "05:40",
+      "e": "06:00",
+      "x": "Planificación del día",
+      "k": "rutina"
+     },
+     {
+      "id": "b75",
+      "t": "06:00",
+      "e": "08:00",
+      "x": "Cola de temas y puntos clave de la próxima semana",
+      "k": "ingresos"
+     },
+     {
+      "id": "b88",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Contactar negocios",
+      "k": "ingresos",
+      "q": "prosp",
+      "hx": "Festivo: armar lista de prospectos (sin contactar)",
+      "min": true
+     },
+     {
+      "id": "b89",
+      "t": "10:00",
+      "e": "12:00",
+      "x": "Construir IArcanIA",
+      "k": "ingresos",
+      "q": "build"
+     },
+     {
+      "id": "b90",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b102",
+      "t": "14:00",
+      "e": "16:00",
+      "x": "Recorte corto IG/TikTok de la semana",
+      "k": "ingresos"
+     },
+     {
+      "id": "b103",
+      "t": "16:00",
+      "e": "17:00",
+      "x": "Revisión semanal: ingresos vs 60.000/día, pipeline y documentar en el runbook",
+      "k": "ingresos"
+     },
+     {
+      "id": "b104",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario + taza y lavamanos",
+      "k": "juntos"
+     },
+     {
+      "id": "b48",
+      "t": "18:00",
+      "e": "18:40",
+      "x": "Cocinar y cenar",
+      "k": "casa"
+     },
+     {
+      "id": "b49",
+      "t": "18:40",
+      "e": "19:40",
+      "x": "40/40/40: cambiarse, agenda de hábitos, leer",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b50",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina",
+      "min": true
+     }
+    ],
+    "sab": [
+     {
+      "id": "b51",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b52",
+      "t": "04:00",
+      "e": "04:20",
+      "x": "Saltos (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b53",
+      "t": "04:20",
+      "e": "04:40",
+      "x": "Meditar (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b54",
+      "t": "04:40",
+      "e": "05:00",
+      "x": "Baño (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b55",
+      "t": "05:00",
+      "e": "05:20",
+      "x": "Vestirme",
+      "k": "rutina"
+     },
+     {
+      "id": "b56",
+      "t": "05:20",
+      "e": "05:40",
+      "x": "Escritura",
+      "k": "rutina"
+     },
+     {
+      "id": "b57",
+      "t": "05:40",
+      "e": "06:00",
+      "x": "Planificación del día",
+      "k": "rutina"
+     },
+     {
+      "id": "b105",
+      "t": "06:00",
+      "e": "08:00",
+      "x": "Grabar Void Stoic",
+      "k": "descanso",
+      "q": "vs"
+     },
+     {
+      "id": "b106",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Void Stoic: edición y guion",
+      "k": "descanso",
+      "q": "vsp"
+     },
+     {
+      "id": "b109",
+      "t": "10:00",
+      "e": "12:00",
+      "x": "Favores y visitas",
+      "k": "casa"
+     },
+     {
+      "id": "b110",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b111",
+      "t": "14:00",
+      "e": "15:00",
+      "x": "Baño a profundidad",
+      "k": "casa",
+      "p": true
+     },
+     {
+      "id": "b112",
+      "t": "15:00",
+      "e": "17:00",
+      "x": "Libre",
+      "k": "descanso"
+     },
+     {
+      "id": "b113",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b58",
+      "t": "18:00",
+      "e": "18:40",
+      "x": "Cocinar y cenar",
+      "k": "casa"
+     },
+     {
+      "id": "b59",
+      "t": "18:40",
+      "e": "19:40",
+      "x": "40/40/40: cambiarse, agenda de hábitos, leer",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b60",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina",
+      "min": true
+     }
+    ],
+    "dom": [
+     {
+      "id": "b61",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b62",
+      "t": "04:00",
+      "e": "04:20",
+      "x": "Saltos (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b63",
+      "t": "04:20",
+      "e": "04:40",
+      "x": "Meditar (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b64",
+      "t": "04:40",
+      "e": "05:00",
+      "x": "Baño (20/20/20)",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b65",
+      "t": "05:00",
+      "e": "05:20",
+      "x": "Vestirme",
+      "k": "rutina"
+     },
+     {
+      "id": "b66",
+      "t": "05:20",
+      "e": "05:40",
+      "x": "Escritura",
+      "k": "rutina"
+     },
+     {
+      "id": "b67",
+      "t": "05:40",
+      "e": "06:00",
+      "x": "Planificación del día",
+      "k": "rutina"
+     },
+     {
+      "id": "b107",
+      "t": "06:00",
+      "e": "08:00",
+      "x": "Grabar Void Stoic",
+      "k": "descanso",
+      "q": "vs"
+     },
+     {
+      "id": "b108",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Void Stoic: edición y guion",
+      "k": "descanso",
+      "q": "vsp"
+     },
+     {
+      "id": "b114",
+      "t": "10:00",
+      "e": "11:00",
+      "x": "Planear la semana: revisar este calendario y la agenda de papel",
+      "k": "rutina"
+     },
+     {
+      "id": "b115",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo (sin turnos)",
+      "k": "comida"
+     },
+     {
+      "id": "b116",
+      "t": "14:00",
+      "e": "17:00",
+      "x": "Libre",
+      "k": "descanso"
+     },
+     {
+      "id": "b117",
+      "t": "17:00",
+      "e": "17:20",
+      "x": "Taza y lavamanos",
+      "k": "casa"
+     },
+     {
+      "id": "b68",
+      "t": "18:00",
+      "e": "18:40",
+      "x": "Cocinar y cenar",
+      "k": "casa"
+     },
+     {
+      "id": "b69",
+      "t": "18:40",
+      "e": "19:40",
+      "x": "40/40/40: cambiarse, agenda de hábitos, leer",
+      "k": "rutina",
+      "min": true
+     },
+     {
+      "id": "b70",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina",
+      "min": true
+     }
+    ]
+   },
+   "notes": [
+    "Gimnasio: la membresía permite 2 veces por semana (martes y jueves)",
+    "Desde las 18:00 no está disponible",
+    "Umbral para abrir frentes nuevos: 60.000 diarios con IArcanIA"
+   ]
+  },
+  {
+   "id": "diana",
+   "name": "Diana",
+   "days": {
+    "lun": [
+     {
+      "id": "b118",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b119",
+      "t": "04:00",
+      "e": "05:00",
+      "x": "20-20-20 con aceite e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b120",
+      "t": "05:00",
+      "e": "05:30",
+      "x": "Desayuno",
+      "k": "comida"
+     },
+     {
+      "id": "b121",
+      "t": "06:00",
+      "e": "06:30",
+      "x": "Baño, filtro solar e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b122",
+      "t": "06:30",
+      "e": "06:45",
+      "x": "Remojar verduras y tubérculos",
+      "k": "comida"
+     },
+     {
+      "id": "b181",
+      "t": "08:00",
+      "e": "12:00",
+      "x": "Preparar prendas del bazar",
+      "k": "ingresos"
+     },
+     {
+      "id": "b123",
+      "t": "08:30",
+      "e": "08:45",
+      "x": "Nueves",
+      "k": "comida"
+     },
+     {
+      "id": "b126",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b182",
+      "t": "14:00",
+      "e": "15:00",
+      "x": "Trabajo",
+      "k": "ingresos"
+     },
+     {
+      "id": "b183",
+      "t": "14:45",
+      "e": "15:00",
+      "x": "Onces",
+      "k": "comida"
+     },
+     {
+      "id": "b184",
+      "t": "15:00",
+      "e": "17:00",
+      "x": "Aseo general",
+      "k": "juntos"
+     },
+     {
+      "id": "b185",
+      "t": "17:15",
+      "e": "17:45",
+      "x": "Cena",
+      "k": "comida"
+     },
+     {
+      "id": "b186",
+      "t": "18:00",
+      "e": "19:30",
+      "x": "Bazar",
+      "k": "ingresos"
+     },
+     {
+      "id": "b124",
+      "t": "19:00",
+      "e": "19:30",
+      "x": "Skincare de noche",
+      "k": "cuidado"
+     },
+     {
+      "id": "b125",
+      "t": "20:00",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina"
+     }
+    ],
+    "mar": [
+     {
+      "id": "b127",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b128",
+      "t": "04:00",
+      "e": "05:00",
+      "x": "20-20-20 con aceite e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b129",
+      "t": "05:00",
+      "e": "05:30",
+      "x": "Desayuno",
+      "k": "comida"
+     },
+     {
+      "id": "b130",
+      "t": "06:00",
+      "e": "06:30",
+      "x": "Baño, filtro solar e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b131",
+      "t": "06:30",
+      "e": "06:45",
+      "x": "Remojar verduras y tubérculos",
+      "k": "comida"
+     },
+     {
+      "id": "b187",
+      "t": "08:00",
+      "e": "12:00",
+      "x": "Confirmar pagos del bazar y trabajo",
+      "k": "ingresos"
+     },
+     {
+      "id": "b132",
+      "t": "08:30",
+      "e": "08:45",
+      "x": "Nueves",
+      "k": "comida"
+     },
+     {
+      "id": "b135",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b188",
+      "t": "14:00",
+      "e": "15:00",
+      "x": "Trabajo",
+      "k": "ingresos"
+     },
+     {
+      "id": "b189",
+      "t": "15:00",
+      "e": "15:45",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b190",
+      "t": "15:45",
+      "e": "16:00",
+      "x": "Onces",
+      "k": "comida"
+     },
+     {
+      "id": "b191",
+      "t": "16:00",
+      "e": "18:00",
+      "x": "Gimnasio con Miguel",
+      "k": "juntos"
+     },
+     {
+      "id": "b192",
+      "t": "18:15",
+      "e": "18:45",
+      "x": "Cena",
+      "k": "comida"
+     },
+     {
+      "id": "b133",
+      "t": "19:00",
+      "e": "19:30",
+      "x": "Skincare de noche",
+      "k": "cuidado"
+     },
+     {
+      "id": "b134",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina"
+     }
+    ],
+    "mie": [
+     {
+      "id": "b136",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b137",
+      "t": "04:00",
+      "e": "05:00",
+      "x": "20-20-20 con aceite e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b138",
+      "t": "05:00",
+      "e": "05:30",
+      "x": "Desayuno",
+      "k": "comida"
+     },
+     {
+      "id": "b139",
+      "t": "06:00",
+      "e": "07:30",
+      "x": "Lavado profundo de cabello, mascarilla y exfoliación",
+      "k": "cuidado"
+     },
+     {
+      "id": "b140",
+      "t": "06:30",
+      "e": "06:45",
+      "x": "Remojar verduras y tubérculos",
+      "k": "comida"
+     },
+     {
+      "id": "b193",
+      "t": "07:30",
+      "e": "08:00",
+      "x": "Salir a la casa",
+      "k": "casa",
+      "p": true
+     },
+     {
+      "id": "b194",
+      "t": "08:00",
+      "e": "16:00",
+      "x": "Empacar y despachar desde la casa",
+      "k": "ingresos"
+     },
+     {
+      "id": "b141",
+      "t": "08:30",
+      "e": "08:45",
+      "x": "Nueves",
+      "k": "comida"
+     },
+     {
+      "id": "b144",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b195",
+      "t": "15:30",
+      "e": "15:45",
+      "x": "Onces",
+      "k": "comida"
+     },
+     {
+      "id": "b196",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b197",
+      "t": "18:15",
+      "e": "18:45",
+      "x": "Cena",
+      "k": "comida"
+     },
+     {
+      "id": "b142",
+      "t": "19:00",
+      "e": "19:30",
+      "x": "Skincare de noche",
+      "k": "cuidado"
+     },
+     {
+      "id": "b143",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina"
+     }
+    ],
+    "jue": [
+     {
+      "id": "b145",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b146",
+      "t": "04:00",
+      "e": "05:00",
+      "x": "20-20-20 con aceite e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b147",
+      "t": "05:00",
+      "e": "05:30",
+      "x": "Desayuno",
+      "k": "comida"
+     },
+     {
+      "id": "b148",
+      "t": "06:00",
+      "e": "06:30",
+      "x": "Baño, filtro solar e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b149",
+      "t": "06:30",
+      "e": "06:45",
+      "x": "Remojar verduras y tubérculos",
+      "k": "comida"
+     },
+     {
+      "id": "b198",
+      "t": "08:00",
+      "e": "12:00",
+      "x": "Fotos y etiquetado",
+      "k": "ingresos"
+     },
+     {
+      "id": "b150",
+      "t": "08:30",
+      "e": "08:45",
+      "x": "Nueves",
+      "k": "comida"
+     },
+     {
+      "id": "b153",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b199",
+      "t": "14:00",
+      "e": "15:30",
+      "x": "Lavar ropa",
+      "k": "casa",
+      "p": true
+     },
+     {
+      "id": "b200",
+      "t": "15:30",
+      "e": "15:45",
+      "x": "Onces",
+      "k": "comida"
+     },
+     {
+      "id": "b201",
+      "t": "15:45",
+      "e": "17:00",
+      "x": "Trabajo",
+      "k": "ingresos"
+     },
+     {
+      "id": "b202",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b203",
+      "t": "18:15",
+      "e": "18:45",
+      "x": "Cena",
+      "k": "comida"
+     },
+     {
+      "id": "b151",
+      "t": "19:00",
+      "e": "19:30",
+      "x": "Skincare de noche",
+      "k": "cuidado"
+     },
+     {
+      "id": "b152",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina"
+     }
+    ],
+    "vie": [
+     {
+      "id": "b154",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b155",
+      "t": "04:00",
+      "e": "05:00",
+      "x": "20-20-20 con aceite e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b156",
+      "t": "05:00",
+      "e": "05:30",
+      "x": "Desayuno",
+      "k": "comida"
+     },
+     {
+      "id": "b157",
+      "t": "06:00",
+      "e": "06:30",
+      "x": "Baño, filtro solar e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b158",
+      "t": "06:30",
+      "e": "06:45",
+      "x": "Remojar verduras y tubérculos",
+      "k": "comida"
+     },
+     {
+      "id": "b204",
+      "t": "08:00",
+      "e": "12:00",
+      "x": "Fotos, etiquetado y carga a la página",
+      "k": "ingresos"
+     },
+     {
+      "id": "b159",
+      "t": "08:30",
+      "e": "08:45",
+      "x": "Nueves",
+      "k": "comida"
+     },
+     {
+      "id": "b162",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b205",
+      "t": "14:00",
+      "e": "17:00",
+      "x": "Trabajo",
+      "k": "ingresos"
+     },
+     {
+      "id": "b206",
+      "t": "15:30",
+      "e": "15:45",
+      "x": "Onces",
+      "k": "comida"
+     },
+     {
+      "id": "b207",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b208",
+      "t": "18:15",
+      "e": "18:45",
+      "x": "Cena",
+      "k": "comida"
+     },
+     {
+      "id": "b160",
+      "t": "19:00",
+      "e": "19:30",
+      "x": "Skincare de noche",
+      "k": "cuidado"
+     },
+     {
+      "id": "b161",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina"
+     }
+    ],
+    "sab": [
+     {
+      "id": "b163",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b164",
+      "t": "04:00",
+      "e": "05:00",
+      "x": "20-20-20 con aceite e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b165",
+      "t": "05:00",
+      "e": "05:30",
+      "x": "Desayuno",
+      "k": "comida"
+     },
+     {
+      "id": "b166",
+      "t": "06:00",
+      "e": "07:30",
+      "x": "Lavado profundo de cabello, mascarilla y exfoliación",
+      "k": "cuidado"
+     },
+     {
+      "id": "b167",
+      "t": "06:30",
+      "e": "06:45",
+      "x": "Remojar verduras y tubérculos",
+      "k": "comida"
+     },
+     {
+      "id": "b209",
+      "t": "08:00",
+      "e": "10:00",
+      "x": "Prendas del bazar en Estados",
+      "k": "ingresos"
+     },
+     {
+      "id": "b168",
+      "t": "08:30",
+      "e": "08:45",
+      "x": "Nueves",
+      "k": "comida"
+     },
+     {
+      "id": "b210",
+      "t": "10:00",
+      "e": "11:30",
+      "x": "Mercado",
+      "k": "casa",
+      "p": true
+     },
+     {
+      "id": "b171",
+      "t": "12:00",
+      "e": "14:00",
+      "x": "Almuerzo por turnos",
+      "k": "juntos"
+     },
+     {
+      "id": "b211",
+      "t": "14:00",
+      "e": "17:00",
+      "x": "Tarde libre",
+      "k": "descanso",
+      "p": true
+     },
+     {
+      "id": "b212",
+      "t": "15:30",
+      "e": "15:45",
+      "x": "Onces",
+      "k": "comida"
+     },
+     {
+      "id": "b213",
+      "t": "17:00",
+      "e": "18:00",
+      "x": "Aseo diario",
+      "k": "juntos"
+     },
+     {
+      "id": "b214",
+      "t": "18:15",
+      "e": "18:45",
+      "x": "Cena",
+      "k": "comida"
+     },
+     {
+      "id": "b169",
+      "t": "19:00",
+      "e": "19:30",
+      "x": "Skincare de noche",
+      "k": "cuidado"
+     },
+     {
+      "id": "b170",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina"
+     }
+    ],
+    "dom": [
+     {
+      "id": "b172",
+      "t": "03:40",
+      "e": "04:00",
+      "x": "Despertar, cama y agua",
+      "k": "rutina"
+     },
+     {
+      "id": "b173",
+      "t": "04:00",
+      "e": "05:00",
+      "x": "20-20-20 con aceite e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b174",
+      "t": "05:00",
+      "e": "05:30",
+      "x": "Desayuno",
+      "k": "comida"
+     },
+     {
+      "id": "b175",
+      "t": "06:00",
+      "e": "06:30",
+      "x": "Baño, filtro solar e hidratante",
+      "k": "cuidado"
+     },
+     {
+      "id": "b176",
+      "t": "06:30",
+      "e": "06:45",
+      "x": "Remojar verduras y tubérculos",
+      "k": "comida"
+     },
+     {
+      "id": "b215",
+      "t": "08:00",
+      "e": "08:30",
+      "x": "Prendas del bazar en Estados",
+      "k": "ingresos"
+     },
+     {
+      "id": "b177",
+      "t": "08:30",
+      "e": "08:45",
+      "x": "Nueves",
+      "k": "comida"
+     },
+     {
+      "id": "b216",
+      "t": "10:00",
+      "e": "11:00",
+      "x": "Planear la semana y revisar el cabello",
+      "k": "cuidado"
+     },
+     {
+      "id": "b180",
+      "t": "12:30",
+      "e": "13:30",
+      "x": "Almuerzo (sin turnos)",
+      "k": "comida"
+     },
+     {
+      "id": "b217",
+      "t": "15:30",
+      "e": "15:45",
+      "x": "Onces",
+      "k": "comida"
+     },
+     {
+      "id": "b218",
+      "t": "18:15",
+      "e": "18:45",
+      "x": "Cena",
+      "k": "comida"
+     },
+     {
+      "id": "b178",
+      "t": "19:00",
+      "e": "19:30",
+      "x": "Skincare de noche",
+      "k": "cuidado"
+     },
+     {
+      "id": "b219",
+      "t": "19:00",
+      "e": "19:40",
+      "x": "Uñas",
+      "k": "cuidado"
+     },
+     {
+      "id": "b179",
+      "t": "19:40",
+      "e": null,
+      "x": "Dormir",
+      "k": "rutina"
+     }
+    ]
+   },
+   "notes": [
+    "Bañada antes de las 8:00 todos los días",
+    "Cita 30 sep 13:40, medicina familiar en Bomberos"
+   ]
+  }
+ ],
+ "queues": {
+  "build": {
+   "n": "Construir IArcanIA (10–12)",
+   "cyc": false,
+   "fb": "Colchón: terminar lo pendiente de la fase"
+  },
+  "prosp": {
+   "n": "Contactar negocios (8–10)",
+   "cyc": true
+  },
+  "seg": {
+   "n": "Seguimiento",
+   "cyc": true
+  },
+  "cli": {
+   "n": "Clientes (mié y jue 14–16)",
+   "cyc": true
+  },
+  "v_aud": {
+   "n": "Video lunes: auditoría",
+   "cyc": true
+  },
+  "v_edu": {
+   "n": "Video martes: educación",
+   "cyc": true
+  },
+  "v_det": {
+   "n": "Video miércoles: detrás de cámaras",
+   "cyc": true
+  },
+  "v_ofe": {
+   "n": "Video jueves: oferta y precios",
+   "cyc": true
+  },
+  "vs": {
+   "n": "Void Stoic: grabación",
+   "cyc": false,
+   "fb": "Void Stoic: guion del próximo episodio",
+   "glob": true,
+   "items": [
+    "Los Cinco: síntesis de Cinco Elementos",
+    "Grandes Libros: Hábitos Atómicos",
+    "Grandes Libros: Drácula",
+    "Divina Comedia 1: El Umbral",
+    "Grandes Historias: Breath of the Wild",
+    "Divina Comedia 2",
+    "Grandes Historias: Berserk",
+    "Grandes Historias: Iroh",
+    "Divina Comedia 3",
+    "Grandes Historias: Monster",
+    "Grandes Historias: Scarface",
+    "Divina Comedia 4",
+    "Grandes Historias: Dishonored",
+    "Divina Comedia 5"
+   ]
+  },
+  "vsp": {
+   "n": "Void Stoic: edición y guion",
+   "cyc": true
+  }
+ },
+ "phases": [
+  {
+   "id": "f1",
+   "n": "Fase 1: primer cliente fundador",
+   "a": "2026-09-21",
+   "b": "2026-10-18",
+   "meta": "1 cliente fundador firmado y 10 auditorías gratis hechas",
+   "q": {
+    "build": [
+     "Plantilla Agente Base: workflow n8n parametrizado por cliente",
+     "Documentar en el runbook cómo clonar el Agente Base",
+     "Escribir alcance de Agente Base y Agente + Panel: qué incluye y qué no",
+     "Probar el Agente Base con un número de prueba como si fuera cliente",
+     "Propuesta comercial en PDF con precios y programa fundador",
+     "Contrato simple: alcance, mensualidad y costos de IA a cargo del cliente",
+     "Formulario de auditoría gratis conectado al skill de auditoría",
+     "Página de aterrizaje de IArcanIA con el formulario",
+     "Demo de spa: agente que agenda citas por WhatsApp con datos ficticios",
+     "Grabar en pantalla la demo del spa para usarla en ventas",
+     "Checklist de onboarding: datos que se le piden al cliente",
+     "Plantilla de métricas antes/después para el caso fundador",
+     "Agregar ANTHROPIC_API_KEY y probar Escanear en el dashboard",
+     "Registrarse en el programa de afiliados de n8n y otras herramientas",
+     "Documentar en el runbook todo lo hecho en la fase"
+    ],
+    "prosp": [
+     "Spas: lista de 30 en Kennedy y Castilla con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Spas: 10 mensajes más a la lista",
+     "Spas: visitar 3 en persona con la auditoría",
+     "Spas: segundo contacto a los que no respondieron",
+     "Spas: agendar las auditorías de la próxima semana",
+     "Academias de artes marciales y fitness: lista de 30 en Kennedy y Bosa con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Academias de artes marciales y fitness: 10 mensajes más a la lista",
+     "Academias de artes marciales y fitness: visitar 3 en persona con la auditoría",
+     "Academias de artes marciales y fitness: segundo contacto a los que no respondieron",
+     "Academias de artes marciales y fitness: agendar las auditorías de la próxima semana",
+     "Talleres mecánicos: lista de 30 en Kennedy con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Talleres mecánicos: 10 mensajes más a la lista",
+     "Talleres mecánicos: visitar 3 en persona con la auditoría",
+     "Talleres mecánicos: segundo contacto a los que no respondieron",
+     "Talleres mecánicos: agendar las auditorías de la próxima semana",
+     "Inmobiliarias pequeñas: lista de 30 en Kennedy y Fontibón con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Inmobiliarias pequeñas: 10 mensajes más a la lista",
+     "Inmobiliarias pequeñas: visitar 3 en persona con la auditoría",
+     "Inmobiliarias pequeñas: segundo contacto a los que no respondieron",
+     "Inmobiliarias pequeñas: agendar las auditorías de la próxima semana"
+    ],
+    "seg": [
+     "Hacer una auditoría agendada con el skill de auditoría",
+     "Enviar reporte HTML de la auditoría con la oferta fundador",
+     "Seguimiento a propuestas abiertas: llamar o escribir"
+    ],
+    "cli": [
+     "Auditoría en vivo con un prospecto (grabarla para el video del lunes)",
+     "Preparar propuesta personalizada para el prospecto más caliente",
+     "Reunión de cierre con prospecto: programa fundador"
+    ],
+    "v_aud": [
+     "Auditoría: spa, cuántas citas se pierden por no contestar WhatsApp",
+     "Auditoría: academia, renovaciones de mensualidad que se escapan",
+     "Auditoría: taller mecánico, cotizaciones que nadie sigue",
+     "Auditoría: inmobiliaria, leads de Facebook sin respuesta"
+    ],
+    "v_edu": [
+     "Qué es un agente de WhatsApp, en un minuto",
+     "Por qué responder en 5 minutos vende más",
+     "Chatbot de botones vs agente con IA",
+     "Cuánto le cuesta a tu negocio contestar tarde"
+    ],
+    "v_det": [
+     "El bug del agente que decía ✅ sin hacer nada",
+     "Por qué saqué todo de la nube y monté mi servidor en casa",
+     "Construyendo el agente del spa",
+     "Cómo separo los datos de cada cliente"
+    ],
+    "v_ofe": [
+     "Cuánto cuesta un agente de WhatsApp: precios reales",
+     "Programa fundador: 10 cupos, 25% los primeros 3 meses",
+     "Agente Base vs Agente + Panel",
+     "Por qué el cliente paga su propio consumo de IA"
+    ],
+    "vsp": [
+     "Editar el episodio grabado hoy",
+     "Publicar el episodio editado y preparar puntos clave del siguiente"
+    ]
+   }
+  },
+  {
+   "id": "f2",
+   "n": "Fase 2: tres fundadores",
+   "a": "2026-10-19",
+   "b": "2026-11-29",
+   "meta": "3 fundadores pagando mensualidad y afiliados activos",
+   "q": {
+    "build": [
+     "Fundador 1: conectar su WhatsApp al Agente Base",
+     "Fundador 1: cargar servicios, precios y horarios",
+     "Fundador 1: pruebas con el cliente y ajustes",
+     "Fundador 1: salida en vivo y medición base",
+     "Fundador 2: conectar WhatsApp y cargar datos",
+     "Fundador 2: pruebas, ajustes y salida en vivo",
+     "Fundador 3: conectar WhatsApp y cargar datos",
+     "Fundador 3: pruebas, ajustes y salida en vivo",
+     "Agente de leads de IArcanIA: diseño del flujo de calificación",
+     "Agente de leads: construir y conectar al número de IArcanIA",
+     "Reporte mensual automático de resultados para cada cliente",
+     "Primer testimonio en video del fundador 1",
+     "Caso de éxito 1: métricas antes/después en una página",
+     "Mini-curso: índice a partir del runbook",
+     "Mini-curso: guion de las lecciones 1 a 3",
+     "Documentar en el runbook todo lo hecho en la fase"
+    ],
+    "prosp": [
+     "Spas: lista de 30 en Kennedy y Castilla con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Spas: 10 mensajes más a la lista",
+     "Spas: visitar 3 en persona con la auditoría",
+     "Spas: segundo contacto a los que no respondieron",
+     "Spas: agendar las auditorías de la próxima semana",
+     "Academias: lista de 30 en Kennedy, Bosa y Fontibón con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Academias: 10 mensajes más a la lista",
+     "Academias: visitar 3 en persona con la auditoría",
+     "Academias: segundo contacto a los que no respondieron",
+     "Academias: agendar las auditorías de la próxima semana",
+     "Talleres mecánicos: lista de 30 en Kennedy y Fontibón con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Talleres mecánicos: 10 mensajes más a la lista",
+     "Talleres mecánicos: visitar 3 en persona con la auditoría",
+     "Talleres mecánicos: segundo contacto a los que no respondieron",
+     "Talleres mecánicos: agendar las auditorías de la próxima semana",
+     "Inmobiliarias: lista de 30 en Kennedy y Fontibón con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Inmobiliarias: 10 mensajes más a la lista",
+     "Inmobiliarias: visitar 3 en persona con la auditoría",
+     "Inmobiliarias: segundo contacto a los que no respondieron",
+     "Inmobiliarias: agendar las auditorías de la próxima semana",
+     "Tiendas de barrio y artesanías: lista de 30 en Kennedy con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Tiendas de barrio y artesanías: 10 mensajes más a la lista",
+     "Tiendas de barrio y artesanías: visitar 3 en persona con la auditoría",
+     "Tiendas de barrio y artesanías: segundo contacto a los que no respondieron",
+     "Tiendas de barrio y artesanías: agendar las auditorías de la próxima semana",
+     "Restaurantes con domicilios: lista de 30 en Kennedy con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Restaurantes con domicilios: 10 mensajes más a la lista",
+     "Restaurantes con domicilios: visitar 3 en persona con la auditoría",
+     "Restaurantes con domicilios: segundo contacto a los que no respondieron",
+     "Restaurantes con domicilios: agendar las auditorías de la próxima semana"
+    ],
+    "seg": [
+     "Hacer una auditoría agendada",
+     "Enviar reporte y propuesta",
+     "Seguimiento a propuestas abiertas",
+     "Revisar métricas de los clientes activos"
+    ],
+    "cli": [
+     "Soporte y ajustes a clientes activos",
+     "Reunión de cierre con prospecto",
+     "Revisión de resultados con un fundador (¿aplica expansión?)"
+    ],
+    "v_aud": [
+     "Auditoría: academia de artes marciales",
+     "Caso real: primera semana del fundador 1",
+     "Auditoría: taller mecánico",
+     "Caso real: resultados del primer mes",
+     "Auditoría: tienda de barrio",
+     "Auditoría: restaurante con domicilios"
+    ],
+    "v_edu": [
+     "3 tareas que tu negocio ya puede automatizar",
+     "Qué necesita saber un agente de tu negocio",
+     "Mitos de la IA para dueños de negocio",
+     "Cómo medir si la automatización funciona",
+     "WhatsApp Business vs un agente",
+     "Lo que un agente NO debe hacer"
+    ],
+    "v_det": [
+     "Conectando el WhatsApp del primer cliente",
+     "Lo que salió mal el día de lanzamiento",
+     "Cómo armo el reporte mensual para clientes",
+     "Mi semana: cómo reparto las horas",
+     "El agente que atiende mis propios leads",
+     "Cómo documento todo en un runbook"
+    ],
+    "v_ofe": [
+     "Qué pasa si el agente no da resultados",
+     "Referidos: un mes gratis por cliente",
+     "Quedan X cupos del programa fundador",
+     "Cuánto se recupera la inversión: números de un cliente",
+     "Nivel Agente + Panel: qué ves en el dashboard",
+     "Por qué no trabajo con cualquier negocio"
+    ],
+    "vsp": [
+     "Editar el episodio grabado hoy",
+     "Publicar el episodio editado y preparar puntos clave del siguiente"
+    ]
+   }
+  },
+  {
+   "id": "f3",
+   "n": "Fase 3: cierre de año y mini-curso",
+   "a": "2026-11-30",
+   "b": "2027-01-10",
+   "meta": "Mini-curso publicado en Hotmart y 5 clientes activos",
+   "q": {
+    "build": [
+     "Mini-curso: guion de las lecciones 4 a 6",
+     "Mini-curso: grabar lecciones 1 y 2",
+     "Mini-curso: grabar lecciones 3 y 4",
+     "Mini-curso: grabar lecciones 5 y 6",
+     "Mini-curso: editar y armar en Hotmart",
+     "Mini-curso: página de venta y precio",
+     "Mini-curso: publicar",
+     "Caso de éxito 2 en una página",
+     "Definir umbral y precio del Nivel Elite",
+     "Plan de enero: metas y cola de temas",
+     "Documentar en el runbook todo lo hecho en la fase"
+    ],
+    "prosp": [
+     "Pedir un referido a cada cliente activo",
+     "Contactar a los que dijeron 'en enero' y dejar fecha",
+     "Lista de 30 negocios nuevos para enero",
+     "Mensajes de fin de año a prospectos tibios",
+     "Revisar pipeline y limpiar los que no avanzan"
+    ],
+    "seg": [
+     "Seguimiento a propuestas abiertas",
+     "Revisar métricas de clientes activos",
+     "Hacer una auditoría agendada"
+    ],
+    "cli": [
+     "Soporte y ajustes a clientes activos",
+     "Revisión de resultados con un cliente",
+     "Implementación de cliente nuevo"
+    ],
+    "v_aud": [
+     "Auditoría: negocio en temporada de diciembre",
+     "Caso real: fundador 2",
+     "Auditoría: inmobiliaria",
+     "Caso real: fundador 3",
+     "Auditoría pedida por un seguidor",
+     "Balance del año: lo que aprendí auditando negocios"
+    ],
+    "v_edu": [
+     "Cómo preparar tu negocio para enero con automatización",
+     "Qué automatizar primero con poco presupuesto",
+     "Errores comunes al usar IA en ventas",
+     "Lo que viene en IA para negocios en 2027",
+     "Cómo responder en temporada alta sin contratar",
+     "Resumen: 5 lecciones de 2026"
+    ],
+    "v_det": [
+     "Cómo grabé el mini-curso",
+     "Mis números del año, sin filtro",
+     "Cómo planeo 2027",
+     "Lo que dejé de hacer para enfocarme",
+     "Mi setup de trabajo",
+     "El servidor después de 3 meses"
+    ],
+    "v_ofe": [
+     "Lanzamiento del mini-curso",
+     "Precio del mini-curso y qué incluye",
+     "Últimos cupos fundador de 2026",
+     "Cómo funciona el Nivel Elite",
+     "Oferta de enero",
+     "Preguntas frecuentes sobre precios"
+    ],
+    "vsp": [
+     "Editar el episodio grabado hoy",
+     "Publicar el episodio editado y preparar puntos clave del siguiente"
+    ]
+   }
+  },
+  {
+   "id": "f4",
+   "n": "Fase 4: diez fundadores y primer contratado",
+   "a": "2027-01-11",
+   "b": "2027-03-28",
+   "meta": "10 clientes y contratar a quien construya los agentes cuando la mensualidad total lo pague",
+   "q": {
+    "build": [
+     "Manual de construcción del Agente Base para un tercero",
+     "Definir perfil, pago y prueba técnica del constructor",
+     "Publicar la vacante",
+     "Entrevistas a candidatos",
+     "Prueba técnica pagada al finalista",
+     "Onboarding del constructor con el runbook",
+     "Revisar la primera entrega del constructor",
+     "Automatizar el reporte mensual para todos los clientes",
+     "Agente de leads: mejoras según datos reales",
+     "Nivel Elite: primer cliente candidato",
+     "Afiliados: revisar ingresos y ajustar contenido",
+     "Documentar en el runbook todo lo hecho en la fase",
+     "Solo si un cliente compra el servicio especial: aislar user_id por teléfono en las 30 tools del MCP"
+    ],
+    "prosp": [
+     "Academias: lista de 30 en Kennedy, Bosa y Fontibón con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Academias: 10 mensajes más a la lista",
+     "Academias: visitar 3 en persona con la auditoría",
+     "Academias: segundo contacto a los que no respondieron",
+     "Academias: agendar las auditorías de la próxima semana",
+     "Talleres mecánicos: lista de 30 en Kennedy y Fontibón con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Talleres mecánicos: 10 mensajes más a la lista",
+     "Talleres mecánicos: visitar 3 en persona con la auditoría",
+     "Talleres mecánicos: segundo contacto a los que no respondieron",
+     "Talleres mecánicos: agendar las auditorías de la próxima semana",
+     "Inmobiliarias: lista de 30 en Kennedy y Chapinero con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Inmobiliarias: 10 mensajes más a la lista",
+     "Inmobiliarias: visitar 3 en persona con la auditoría",
+     "Inmobiliarias: segundo contacto a los que no respondieron",
+     "Inmobiliarias: agendar las auditorías de la próxima semana",
+     "Spas: lista de 30 en Kennedy y Chapinero con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Spas: 10 mensajes más a la lista",
+     "Spas: visitar 3 en persona con la auditoría",
+     "Spas: segundo contacto a los que no respondieron",
+     "Spas: agendar las auditorías de la próxima semana",
+     "Nicho del mejor caso de éxito: lista de 30 en toda Bogotá con WhatsApp y primeros 10 mensajes ofreciendo auditoría gratis",
+     "Nicho del mejor caso de éxito: 10 mensajes más a la lista",
+     "Nicho del mejor caso de éxito: visitar 3 en persona con la auditoría",
+     "Nicho del mejor caso de éxito: segundo contacto a los que no respondieron",
+     "Nicho del mejor caso de éxito: agendar las auditorías de la próxima semana"
+    ],
+    "seg": [
+     "Hacer una auditoría agendada",
+     "Enviar reporte y propuesta",
+     "Seguimiento a propuestas abiertas",
+     "Revisar métricas de clientes activos"
+    ],
+    "cli": [
+     "Soporte y ajustes a clientes activos",
+     "Reunión de cierre con prospecto",
+     "Revisión de resultados: expansión o referidos"
+    ],
+    "v_aud": [
+     "Auditoría en vivo con un seguidor",
+     "Caso real: cliente con más resultados",
+     "Auditoría: nicho nuevo",
+     "Caso real: antes y después en números"
+    ],
+    "v_edu": [
+     "Cómo elegir qué automatizar este año",
+     "Cuánto cuesta NO automatizar",
+     "Qué hace un agente que un empleado no alcanza",
+     "Cómo entrenar a tu equipo con un agente"
+    ],
+    "v_det": [
+     "Contratando a mi primera persona",
+     "Cómo delego sin perder calidad",
+     "Mi semana con 10 clientes",
+     "El error que me costó un cliente"
+    ],
+    "v_ofe": [
+     "Cupos de febrero",
+     "Nivel Elite: cómo se desbloquea",
+     "Garantía y resultados",
+     "Planes para negocios con varias sedes"
+    ],
+    "vsp": [
+     "Editar el episodio grabado hoy",
+     "Publicar el episodio editado y preparar puntos clave del siguiente"
+    ]
+   }
+  },
+  {
+   "id": "f5",
+   "n": "Fase 5: delegar y comunidad",
+   "a": "2027-03-29",
+   "b": "2027-06-30",
+   "meta": "El constructor entrega solo; lanzar la comunidad de pago si ya hay audiencia",
+   "q": {
+    "build": [
+     "Comunidad: validar interés con la audiencia",
+     "Comunidad: estructura, precio y plataforma",
+     "Comunidad: contenido de las primeras 4 semanas",
+     "Comunidad: lanzamiento a lista de espera",
+     "Segundo contratado: ventas o soporte (si los números dan)",
+     "Revisar precios de los niveles con datos reales",
+     "Plan del segundo semestre de 2027",
+     "Documentar en el runbook todo lo hecho en la fase"
+    ],
+    "prosp": [
+     "Referidos de clientes activos",
+     "Contactar prospectos del nicho del mejor caso",
+     "Alianzas con proveedores del nicho",
+     "Seguimiento a leads del agente",
+     "Agendar auditorías de la semana"
+    ],
+    "seg": [
+     "Seguimiento a propuestas abiertas",
+     "Revisar métricas de clientes activos",
+     "Hacer una auditoría agendada"
+    ],
+    "cli": [
+     "Revisar entregas del constructor",
+     "Reunión de cierre con prospecto",
+     "Revisión de resultados con clientes"
+    ],
+    "v_aud": [
+     "Auditoría en vivo",
+     "Caso real de cliente"
+    ],
+    "v_edu": [
+     "Educación para dueños de negocio: tema de la cola"
+    ],
+    "v_det": [
+     "Detrás de cámaras: tema de la cola"
+    ],
+    "v_ofe": [
+     "Oferta y precios: tema de la cola"
+    ],
+    "vsp": [
+     "Editar el episodio grabado hoy",
+     "Publicar el episodio editado y preparar puntos clave del siguiente"
+    ]
+   }
+  }
+ ],
+ "hol": [
+  "2026-10-12",
+  "2026-11-02",
+  "2026-11-16",
+  "2026-12-08",
+  "2026-12-25",
+  "2027-01-01",
+  "2027-01-11",
+  "2027-03-22",
+  "2027-03-25",
+  "2027-03-26",
+  "2027-05-01",
+  "2027-05-10",
+  "2027-05-31",
+  "2027-06-07"
+ ],
+ "events": [
+  {
+   "d": "2026-09-30",
+   "p": "diana",
+   "t": "13:00",
+   "e": "13:40",
+   "x": "Salir a la cita",
+   "k": "cita"
+  },
+  {
+   "d": "2026-09-30",
+   "p": "diana",
+   "t": "13:40",
+   "e": "15:00",
+   "x": "Medicina familiar en Bomberos",
+   "k": "cita"
+  },
+  {
+   "d": "2026-11-26",
+   "p": "miguel",
+   "x": "Cumpleaños de Miguel"
+  },
+  {
+   "d": "2026-12-24",
+   "x": "Nochebuena"
+  },
+  {
+   "d": "2026-12-31",
+   "x": "Fin de año"
+  },
+  {
+   "m": 20,
+   "p": "diana",
+   "t": "15:45",
+   "e": "17:00",
+   "x": "Tinte (y corte cada dos meses)",
+   "k": "cuidado"
+  }
+ ],
+ "range": [
+  "2026-09-21",
+  "2027-06-30"
+ ],
+ "seq": 220
+}
