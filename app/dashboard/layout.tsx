@@ -3,10 +3,16 @@ import { auth } from "@/lib/auth";
 import { Wordmark } from "@/components/brand/logo";
 import { NavLinks } from "@/components/app/nav-links";
 import { LogoutButton } from "@/components/app/logout-button";
+import { BottomNav } from "@/components/app/bottom-nav";
 
 // Shell del dashboard — migrado al sistema visual nuevo (4c). Sidebar 220px
 // sobre surface-sunken, borde `line`, item activo con dorado (ver NavLinks).
 // El fondo del área de contenido lo pinta el <body> (globals.css).
+//
+// Móvil (<768px, ver docs de diseño "App Movil"): el sidebar se oculta
+// (`hidden md:flex`, el layout de escritorio queda intacto desde `md` hacia
+// arriba) y en su lugar aparece <BottomNav>, fijo abajo. Cada página decide
+// su propio padding — este layout no fuerza nada por breakpoint.
 export default async function DashboardLayout({
   children,
 }: {
@@ -17,7 +23,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-canvas">
-      <aside className="flex w-[220px] shrink-0 flex-col border-r border-line bg-surface-sunken print:hidden">
+      <aside className="hidden w-[220px] shrink-0 flex-col border-r border-line bg-surface-sunken print:hidden md:flex">
         <div className="border-b border-line p-6">
           <Wordmark size={18} />
           <div className="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-ink-dim">
@@ -36,6 +42,7 @@ export default async function DashboardLayout({
         </div>
       </aside>
       <main className="min-w-0 flex-1">{children}</main>
+      <BottomNav />
     </div>
   );
 }

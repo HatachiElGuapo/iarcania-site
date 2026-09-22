@@ -25,10 +25,13 @@ import {
   catInfo,
 } from "@/components/ui";
 import { QuickAddPanel } from "@/components/ui/quick-add-panel";
+import { SectionHeader } from "@/components/ui/section-header";
+import { ListCard } from "@/components/ui/list-card";
 import { toggleTaskStatus, createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { setCheck } from "./plan/actions";
 import { completeAppointment } from "./citas/actions";
+import { NewTaskSheet } from "./new-task-sheet";
 
 const PRIORITY_COLOR: Record<string, string> = {
   alta: "text-danger",
@@ -48,6 +51,19 @@ const HABIT_LOOKBACK_DAYS = 90;
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Móvil · eyebrow de <SectionHeader> ("Martes 22 de septiembre", sin año —
+// distinto de `dateLong`, que sí lo lleva, para el subtítulo de escritorio).
+function fmtDayEyebrow(iso: string) {
+  return capitalize(
+    new Date(`${iso}T12:00:00-05:00`).toLocaleDateString("es-CO", {
+      timeZone: "America/Bogota",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }),
+  );
 }
 
 function fmtDayShort(iso: string) {
@@ -94,13 +110,14 @@ function weekCells(dates: Set<string> | undefined, upTo: string) {
 export default async function RutinasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; compose?: string }>;
 }) {
   const session = await auth();
   const userId = session!.user.id;
   const today = todayISO();
-  const { date: dateParam } = await searchParams;
+  const { date: dateParam, compose } = await searchParams;
   const date = dateParam && dateParam <= today ? dateParam : today;
+  const composeOpen = compose === "1";
   const isToday = date === today;
   const now = new Date();
   const weekEnd = addDaysISO(date, 7);
@@ -226,8 +243,29 @@ export default async function RutinasPage({
   const nowTime = now.toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "numeric", minute: "2-digit" });
 
   return (
-    <div className="flex flex-col gap-4 p-8">
-      <PageHeader
+    <>
+      <MobileHoy
+        dateEyebrow={fmtDayEyebrow(date)}
+        title={isToday ? "Hoy" : fmtDayShort(date)}
+        isToday={isToday}
+        date={date}
+        doneToday={doneToday}
+        totalToday={totalToday}
+        pctToday={pctToday}
+        composeOpen={composeOpen}
+        overdueCount={overdueTasks.length}
+        upcomingAppointments={upcomingAppointments}
+        planPending={planPending}
+        events={events}
+        habitsView={habitsView}
+        habitsDoneToday={habitsDoneToday}
+        vicios={vicios}
+        viciosCounts={viciosCounts}
+        bestStreak={bestStreak}
+        upcomingTasks={upcomingTasks}
+      />
+      <div className="hidden flex-col gap-4 p-8 md:flex">
+        <PageHeader
         icon="🌅"
         title={`Buen día${session!.user?.name ? `, ${session!.user.name}` : ""}`}
         subtitle={`${dateLong} · ${nowTime} · Bogotá`}
@@ -591,7 +629,8 @@ export default async function RutinasPage({
           </div>
         </Card>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -701,5 +740,395 @@ function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         </a>
       )}
     </div>
+  );
+}
+
+// ── Móvil · "Hoy" (pantalla 01 del diseño "App Movil") ──────────────────
+// Mismos datos que la vista de escritorio de arriba (`events`, `habitsView`,
+// `vicios`…, ya calculados en <RutinasPage>) y las mismas Server Actions —
+// solo cambia cómo se pintan: una sola columna, filas <ListCard> con
+// objetivo táctil de 44px, texto a 15px. Oculto desde `md` (el layout de
+// escritorio no se toca).
+
+type MobileHoyProps = {
+  dateEyebrow: string;
+  title: string;
+  isToday: boolean;
+  date: string;
+  doneToday: number;
+  totalToday: number;
+  pctToday: number;
+  composeOpen: boolean;
+  overdueCount: number;
+  upcomingAppointments: { id: string; title: string; type: string; datetime: Date }[];
+  planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[];
+  events: AgendaEvent[];
+  habitsView: {
+    id: string;
+    name: string;
+    horaSugerida: string | null;
+    done: boolean;
+    streak: number;
+    week: { done: boolean }[];
+  }[];
+  habitsDoneToday: number;
+  vicios: { id: string; name: string }[];
+  viciosCounts: Map<string, number>;
+  bestStreak: number;
+  upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
+};
+
+function MobileHoy({
+  dateEyebrow,
+  title,
+  isToday,
+  date,
+  doneToday,
+  totalToday,
+  pctToday,
+  composeOpen,
+  overdueCount,
+  upcomingAppointments,
+  planPending,
+  events,
+  habitsView,
+  habitsDoneToday,
+  vicios,
+  viciosCounts,
+  bestStreak,
+  upcomingTasks,
+}: MobileHoyProps) {
+  return (
+    <div className="flex flex-col gap-6 p-4 pb-28 md:hidden">
+      <SectionHeader
+        eyebrow={dateEyebrow}
+        title={title}
+        action={
+          <Stepper
+            prevHref={`/dashboard?date=${addDaysISO(date, -1)}`}
+            nextHref={isToday ? undefined : `/dashboard?date=${addDaysISO(date, 1)}`}
+            label={isToday ? "Hoy" : fmtDayShort(date)}
+            current={isToday}
+          />
+        }
+        progress={{ value: `${doneToday} / ${totalToday}`, pct: pctToday }}
+      />
+
+      {(overdueCount > 0 || upcomingAppointments.length > 0) && (
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+          {overdueCount > 0 && (
+            <a
+              href="/dashboard/actividades?tiempo=vencidas"
+              className="flex min-h-11 shrink-0 items-center rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 text-[13px] text-danger"
+            >
+              ⚠ {overdueCount} vencida{overdueCount !== 1 ? "s" : ""}
+            </a>
+          )}
+          {upcomingAppointments.map((a) => (
+            <a
+              key={a.id}
+              href="/dashboard/citas"
+              className="flex min-h-11 shrink-0 items-center rounded-ui border border-accent-warm/25 bg-accent-warm/[0.06] px-3.5 text-[13px] text-accent-warm"
+            >
+              {APPT_ICON[a.type] ?? "📌"} {a.title} —{" "}
+              {a.datetime.toLocaleString("es-CO", {
+                timeZone: "America/Bogota",
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {planPending.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-danger">
+            Plan · sin marcar
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {planPending.map((b) => {
+              const kind = kindInfo(b.kind);
+              return (
+                <ListCard key={`${b.date}-${b.blockId}`} tone="surface-2">
+                  <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{fmtDayShort(b.date)}</span>
+                  <span className="shrink-0 text-[15px]">{kind.icon}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{b.text}</span>
+                  <form action={setCheck} className="shrink-0">
+                    <input type="hidden" name="date" value={b.date} />
+                    <input type="hidden" name="blockId" value={b.blockId} />
+                    <input type="hidden" name="status" value="done" />
+                    <button
+                      type="submit"
+                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
+                    >
+                      ✓
+                    </button>
+                  </form>
+                  <form action={setCheck} className="shrink-0">
+                    <input type="hidden" name="date" value={b.date} />
+                    <input type="hidden" name="blockId" value={b.blockId} />
+                    <input type="hidden" name="status" value="skipped" />
+                    <button
+                      type="submit"
+                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
+                    >
+                      ✗
+                    </button>
+                  </form>
+                </ListCard>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Mi día</div>
+          <NewTaskSheet
+            action={createTask}
+            date={date}
+            openSignal={composeOpen}
+            trigger={<button className="text-[13px] text-accent">+ Tarea</button>}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {events.length === 0 ? (
+            <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
+          ) : (
+            events.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} />)
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Hábitos</div>
+          <span className="text-[11px] text-ink-dim">
+            {habitsDoneToday} / {habitsView.length}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {habitsView.length === 0 ? (
+            <EmptyState icon="🔥">Aún no sigues ningún hábito diario.</EmptyState>
+          ) : (
+            habitsView.map((h) => <MobileHabitRow key={h.id} h={h} date={date} />)
+          )}
+        </div>
+        <QuickAddPanel
+          trigger={<button className="self-start text-[12px] text-accent">+ Nuevo hábito</button>}
+          title="Nuevo hábito"
+          action={createActivity}
+          name="name"
+          placeholder="Nombre del hábito…"
+          hidden={{ frequency: "diaria" }}
+          extras={<Input type="time" name="horaSugerida" />}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Vicios</div>
+        {vicios.length === 0 ? (
+          <p className="text-[13px] text-ink-muted">
+            Sin nada por acá todavía — agregá uno abajo (queda como hábito &quot;Recurrente&quot;, con contador
+            en vez de un simple hecho/no hecho).
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {vicios.map((v) => (
+              <MobileVicioRow key={v.id} v={v} count={viciosCounts.get(v.id) ?? 0} date={date} />
+            ))}
+          </div>
+        )}
+        <QuickCapture
+          action={createActivity}
+          name="name"
+          placeholder="Nuevo vicio a contar…"
+          hidden={{ frequency: "recurrente" }}
+          submitLabel="+"
+          className="rounded-ui-lg border border-line bg-surface-sunken"
+        />
+      </div>
+
+      <div className="flex items-center gap-3 rounded-ui-lg border border-line bg-surface-2 px-3.5 py-3.5">
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-medium text-ink">Mi racha</div>
+          <div className="mt-0.5 text-[11px] text-ink-dim">mejor racha: {bestStreak} días</div>
+        </div>
+        <Badge tone="warm">🔥 {bestStreak}</Badge>
+      </div>
+
+      {upcomingTasks.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+              Próximos 7 días
+            </div>
+            <a href="/dashboard/actividades?tiempo=semana" className="text-[11px] text-ink-dim">
+              Ver todas →
+            </a>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {upcomingTasks.map((t) => {
+              const cat = t.category ? catInfo(t.category) : null;
+              return (
+                <ListCard key={t.id} accent={cat?.color}>
+                  <span className="w-12 shrink-0 whitespace-nowrap text-[11px] text-ink-dim">
+                    {fmtDayShort(t.dueDate!)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{t.title}</span>
+                  <span className={`text-[13px] font-semibold ${PRIORITY_COLOR[t.priority]}`}>●</span>
+                </ListCard>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
+  const primary = primaryActionFor(ev, date);
+
+  const row = (
+    <ListCard accent={ev.accent}>
+      <span
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
+          ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+        }`}
+      >
+        ✓
+      </span>
+      <span className="w-11 shrink-0 text-[11px] tabular-nums text-ink-dim">
+        {ev.autoTime ? "—" : fmtTime(ev.start)}
+      </span>
+      <span className="shrink-0 text-[16px]">{ev.icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className={`truncate text-[15px] leading-tight ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
+          {ev.title}
+        </div>
+        {ev.habitChecks && ev.habitChecks.length > 0 && (
+          <div className="mt-0.5 flex flex-wrap gap-1.5">
+            {ev.habitChecks.map((h) => (
+              <span key={h.name} className={`text-[10px] ${h.done ? "text-success" : "text-ink-dim"}`}>
+                {h.done ? "✓" : "○"} {h.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {ev.badge && (
+        <span
+          className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+          style={{ background: `${ev.accent}22`, color: ev.accent }}
+        >
+          {ev.badge}
+        </span>
+      )}
+    </ListCard>
+  );
+
+  return (
+    <div className="flex items-center gap-2">
+      {primary ? (
+        <form action={primary.action} className="min-w-0 flex-1">
+          {Object.entries(primary.fields).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+          <button type="submit" className="contents">
+            {row}
+          </button>
+        </form>
+      ) : (
+        <div className="min-w-0 flex-1">{row}</div>
+      )}
+      {ev.kind === "plan" && (
+        <form action={setCheck} className="shrink-0">
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="blockId" value={ev.refId} />
+          <input type="hidden" name="status" value="skipped" />
+          <button
+            type="submit"
+            title="Saltado"
+            className="focus-ring flex h-11 w-11 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
+          >
+            ✗
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function MobileHabitRow({
+  h,
+  date,
+}: {
+  h: { id: string; name: string; horaSugerida: string | null; done: boolean; streak: number; week: { done: boolean }[] };
+  date: string;
+}) {
+  return (
+    <form action={toggleLogToday}>
+      <input type="hidden" name="activityId" value={h.id} />
+      <input type="hidden" name="date" value={date} />
+      <button type="submit" className="contents">
+        <ListCard>
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+              h.done ? "border-accent bg-accent text-white" : "border-line-strong"
+            }`}
+          >
+            {h.done ? "✓" : ""}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className={`truncate text-[15px] ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
+              {h.name}
+            </div>
+            <div className="mt-0.5 text-[11px] text-ink-dim">{h.horaSugerida ?? "cualquier hora"}</div>
+          </div>
+          <span className="flex shrink-0 gap-[2px]">
+            {h.week.map((c, i) => (
+              <span key={i} className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`} />
+            ))}
+          </span>
+          <Badge tone="warm">🔥 {h.streak}</Badge>
+        </ListCard>
+      </button>
+    </form>
+  );
+}
+
+function MobileVicioRow({ v, count, date }: { v: { id: string; name: string }; count: number; date: string }) {
+  return (
+    <ListCard>
+      <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{v.name}</span>
+      <form action={decrementLog}>
+        <input type="hidden" name="activityId" value={v.id} />
+        <input type="hidden" name="date" value={date} />
+        <button
+          type="submit"
+          disabled={count === 0}
+          className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[14px] text-ink-dim disabled:opacity-30"
+        >
+          −
+        </button>
+      </form>
+      <span className="w-6 shrink-0 text-center text-[15px] font-semibold tabular-nums text-ink">{count}</span>
+      <form action={incrementLog}>
+        <input type="hidden" name="activityId" value={v.id} />
+        <input type="hidden" name="date" value={date} />
+        <button
+          type="submit"
+          className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[14px] text-ink-dim"
+        >
+          +
+        </button>
+      </form>
+    </ListCard>
   );
 }

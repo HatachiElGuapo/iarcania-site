@@ -8,6 +8,7 @@
 // las páginas que no las usan (el sistema es server-first: 5e):
 //   import { Form, FormField, FormActions, FormBanner } from "@/components/ui/form";
 //   import { Modal } from "@/components/ui/modal";
+//   import { Sheet } from "@/components/ui/sheet";
 //   import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 //   import { QuickAddPanel } from "@/components/ui/quick-add-panel";
 //   import { ToastProvider, useToast } from "@/components/ui/toast";
@@ -22,7 +23,10 @@ export { cx } from "./cx";
 export { catInfo } from "./category";
 
 export { PageHeader } from "./page-header";
+export { SectionHeader } from "./section-header";
 export { Section } from "./section";
+export { ListCard } from "./list-card";
+export { Fab } from "./fab";
 export { Button } from "./button";
 export { Card } from "./card";
 export { Table, TableHead, TableRow } from "./table";
