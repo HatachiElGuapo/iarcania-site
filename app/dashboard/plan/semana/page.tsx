@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { loadPlanContext, type PlanContext } from "@/lib/plan/load";
+import { loadPlanContextForUser, type PlanContext } from "@/lib/plan/load";
 import { PLAN_KINDS, kindInfo } from "@/lib/plan/kinds";
 import { todayISO } from "@/lib/date/bogota";
 import { Segmented, Card, Select, Input, Textarea, Labeled, Button, EmptyState } from "@/components/ui";
@@ -14,7 +14,7 @@ export default async function PlanSemanaPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const ctx = await loadPlanContext(userId);
+  const ctx = await loadPlanContextForUser(userId);
   if (!ctx) {
     return <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>;
   }

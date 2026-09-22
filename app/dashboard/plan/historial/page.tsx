@@ -2,7 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { planChecks } from "@/lib/db/schema/plan";
-import { loadPlanContext, toPlanData } from "@/lib/plan/load";
+import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { PLAN_KINDS, kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO } from "@/lib/date/bogota";
@@ -18,7 +18,7 @@ export default async function PlanHistorialPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const ctx = await loadPlanContext(userId);
+  const ctx = await loadPlanContextForUser(userId);
   if (!ctx) {
     return <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>;
   }

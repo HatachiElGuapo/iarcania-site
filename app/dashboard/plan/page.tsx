@@ -2,7 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { planChecks } from "@/lib/db/schema/plan";
-import { loadPlanContext, toPlanData } from "@/lib/plan/load";
+import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, type ResolvedBlock } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO, diffDaysISO } from "@/lib/date/bogota";
@@ -37,7 +37,7 @@ export default async function PlanPage({
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO();
   const isToday = date === todayISO();
 
-  const ctx = await loadPlanContext(userId);
+  const ctx = await loadPlanContextForUser(userId);
   if (!ctx) {
     return (
       <EmptyState icon="🗺️">

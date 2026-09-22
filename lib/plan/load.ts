@@ -35,6 +35,20 @@ export async function loadPlanContext(userId: string): Promise<PlanContext | nul
   return loadPlanContextById(plan.id);
 }
 
+// Como loadPlanContext, pero también resuelve para quien NO es el dueño
+// del plan — cualquier persona con su propia columna (planPeople.userId,
+// ej. Diana en el plan de Miguel). Antes las páginas de Plan llamaban
+// loadPlanContext(userId) directo, que solo mira plans.ownerId: para
+// cualquier persona enlazada que no fuera la dueña, esto devolvía null
+// ("no hay plan") aunque sí tuviera una columna en el plan de la casa.
+export async function loadPlanContextForUser(userId: string): Promise<PlanContext | null> {
+  const owned = await loadPlanContext(userId);
+  if (owned) return owned;
+  const person = await findPlanPersonForUser(userId);
+  if (!person) return null;
+  return loadPlanContextById(person.planId);
+}
+
 export async function loadPlanContextById(planId: string): Promise<PlanContext> {
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId)).limit(1);
   if (!plan) throw new Error("Plan no encontrado");

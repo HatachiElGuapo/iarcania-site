@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { plans, planBlocks, planChecks, planOverrides, planBlockActivities } from "@/lib/db/schema/plan";
+import { plans, planPeople, planBlocks, planChecks, planOverrides, planBlockActivities } from "@/lib/db/schema/plan";
 import { activityLogs } from "@/lib/db/schema/habitos";
-import { loadPlanContext, toPlanData } from "@/lib/plan/load";
+import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 
 async function requireUserId() {
@@ -15,13 +15,26 @@ async function requireUserId() {
   return session.user.id;
 }
 
+// Un plan es de la CASA, no de una sola persona: el dueño (plans.ownerId)
+// puede marcar cualquier bloque, pero cada persona enlazada por su propia
+// cuenta (planPeople.userId, ej. Diana) también tiene que poder marcar los
+// bloques de SU columna — antes esto exigía ser el dueño del plan sin
+// excepción, así que cualquiera que no fuera el dueño se encontraba con
+// "Bloque no encontrado" al marcar lo que fuera, aunque el bloque existiera.
 async function requireOwnedBlock(blockId: string, userId: string) {
   const [row] = await db
-    .select({ id: planBlocks.id, planId: planBlocks.planId, personId: planBlocks.personId })
+    .select({ id: planBlocks.id, planId: planBlocks.planId, personId: planBlocks.personId, ownerId: plans.ownerId })
     .from(planBlocks)
     .innerJoin(plans, eq(plans.id, planBlocks.planId))
-    .where(and(eq(planBlocks.id, blockId), eq(plans.ownerId, userId)));
+    .where(eq(planBlocks.id, blockId));
   if (!row) throw new Error("Bloque no encontrado");
+  if (row.ownerId === userId) return row;
+
+  const [person] = await db
+    .select({ id: planPeople.id })
+    .from(planPeople)
+    .where(and(eq(planPeople.id, row.personId), eq(planPeople.userId, userId)));
+  if (!person) throw new Error("No autorizado para este bloque");
   return row;
 }
 
@@ -83,7 +96,7 @@ export async function setCheck(formData: FormData) {
   }
   if (status !== "done" && status !== "skipped") throw new Error("Estado inválido");
 
-  const ctx = await loadPlanContext(userId);
+  const ctx = await loadPlanContextForUser(userId);
   if (!ctx) throw new Error("No hay plan");
   const [day] = resolvePlan(toPlanData(ctx), date, date);
   const resolved = day?.blocksByPerson[block.personId]?.find((b) => b.blockId === blockId);
@@ -182,13 +195,22 @@ export async function moveBlockForDay(input: {
   const [block] = await db
     .select({
       planId: planBlocks.planId,
+      personId: planBlocks.personId,
       startTime: planBlocks.startTime,
       endTime: planBlocks.endTime,
+      ownerId: plans.ownerId,
     })
     .from(planBlocks)
     .innerJoin(plans, eq(plans.id, planBlocks.planId))
-    .where(and(eq(planBlocks.id, input.blockId), eq(plans.ownerId, userId)));
+    .where(eq(planBlocks.id, input.blockId));
   if (!block) throw new Error("Bloque no encontrado");
+  if (block.ownerId !== userId) {
+    const [person] = await db
+      .select({ id: planPeople.id })
+      .from(planPeople)
+      .where(and(eq(planPeople.id, block.personId), eq(planPeople.userId, userId)));
+    if (!person) throw new Error("No autorizado para este bloque");
+  }
 
   const startTime = normalizeTime(input.startTime);
   const durationMinutes =
