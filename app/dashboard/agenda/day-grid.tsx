@@ -19,7 +19,13 @@ export type { AgendaEvent };
 
 const PX_PER_MIN = 1.6; // 10 min = 16 px, 1 h = 96 px, día completo = 2304 px
 const SNAP = 10; // el arrastre ajusta a 10 min aunque las marcas sean de 20
-const GUTTER = 46; // ancho de la columna de horas
+const GUTTER = 46; // ancho de la columna de horas — también sirve de carril
+// libre para hacer scroll vertical sin agarrar un evento (los eventos tienen
+// touchAction:none para poder arrastrarlos; el resto de la rejilla es
+// touchAction:pan-y). RIGHT_MARGIN hace lo mismo del otro lado — antes eran
+// 8px, casi nada en una pantalla angosta, donde un evento sin solapar ocupa
+// prácticamente todo el ancho y no dejaba dónde deslizar el dedo.
+const RIGHT_MARGIN = 32;
 const MIN_DUR = 20; // mínimo de actividad de la app
 const MARK_STEP = 20; // una etiqueta cada 20 min
 const V_START = 0;
@@ -315,7 +321,7 @@ export function DayGrid({
         {dropAt != null && (
           <div
             className="pointer-events-none absolute z-30 border-t-2 border-dashed border-accent"
-            style={{ top: dropAt * PX_PER_MIN, left: GUTTER - 4, right: 8 }}
+            style={{ top: dropAt * PX_PER_MIN, left: GUTTER - 4, right: RIGHT_MARGIN }}
           >
             <span className="absolute -top-2.5 -left-1 rounded-[3px] bg-accent px-1 text-[9px] font-semibold text-white">
               {fmt(dropAt)}
@@ -341,7 +347,7 @@ export function DayGrid({
               </div>
               <div
                 className={`absolute ${onHour ? "border-t border-line" : "border-t border-dotted"}`}
-                style={{ top: y, left: GUTTER, right: 8, ...(onHour ? null : { borderColor: "#1C1C21" }) }}
+                style={{ top: y, left: GUTTER, right: RIGHT_MARGIN, ...(onHour ? null : { borderColor: "#1C1C21" }) }}
               />
             </div>
           );
@@ -351,7 +357,7 @@ export function DayGrid({
         {isToday && nowMinutes >= vStart && nowMinutes <= vEnd && (
           <div
             className="pointer-events-none absolute z-30"
-            style={{ top: (nowMinutes - vStart) * PX_PER_MIN, left: GUTTER - 4, right: 8 }}
+            style={{ top: (nowMinutes - vStart) * PX_PER_MIN, left: GUTTER - 4, right: RIGHT_MARGIN }}
           >
             <div className="border-t border-accent-warm" />
             <span className="absolute -top-2 -left-1 rounded-[3px] bg-accent-warm px-1 text-[9px] font-semibold text-canvas">
@@ -370,7 +376,7 @@ export function DayGrid({
         )}
 
         {/* Eventos */}
-        <div className="absolute" style={{ left: GUTTER, right: 8, top: 0, bottom: 0 }}>
+        <div className="absolute" style={{ left: GUTTER, right: RIGHT_MARGIN, top: 0, bottom: 0 }}>
           {display.map((ev) => {
             const li = lanes.get(ev.key) ?? { lane: 0, lanes: 1 };
             const top = (ev.start - vStart) * PX_PER_MIN;
