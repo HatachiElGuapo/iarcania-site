@@ -523,27 +523,60 @@ export default async function RutinasPage({
   );
 }
 
-// Una fila de "Tu día" — el control de marcar cambia según el tipo:
-// tarea (toggleTaskStatus), hábito (toggleLogToday) o Plan (setCheck,
-// hecho/saltado). Citas y notas no tienen check acá, solo enlazan.
+type RowAction = (formData: FormData) => void | Promise<void>;
+
+// El toggle "principal" de cada fila — el que se dispara clickeando en
+// cualquier parte de la fila, no solo un cuadradito chico. Plan además
+// tiene "saltado" (✗) como control aparte, porque hecho/saltado no son
+// opuestos de un solo booleano.
+function primaryActionFor(
+  ev: AgendaEvent,
+  date: string,
+): { action: RowAction; fields: Record<string, string> } | null {
+  if (ev.kind === "block" && ev.itemType === "task" && ev.itemId) {
+    return { action: toggleTaskStatus, fields: { id: ev.itemId, nextStatus: ev.done ? "pendiente" : "completada" } };
+  }
+  if ((ev.kind === "habit" || (ev.kind === "block" && ev.itemType === "habito")) && ev.itemId) {
+    return { action: toggleLogToday, fields: { activityId: ev.itemId, date } };
+  }
+  if (ev.kind === "block" && ev.itemType === "cita" && ev.itemId) {
+    return { action: completeAppointment, fields: { id: ev.itemId } };
+  }
+  if (ev.kind === "plan") {
+    return { action: setCheck, fields: { date, blockId: ev.refId, status: ev.done ? "" : "done" } };
+  }
+  return null;
+}
+
+// Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
+// de un <button type="submit"> que ocupa toda la fila — clickear en
+// cualquier parte marca/desmarca, no solo un cuadradito. El control de
+// "saltado" de Plan y el link de editar quedan aparte, afuera del botón
+// grande, para no perder ese click más chico.
 function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
-  return (
-    <div className="flex items-center gap-2.5 px-3.5 py-2.5">
-      <span className="w-11 shrink-0 text-meta tabular-nums text-ink-dim">
+  const primary = primaryActionFor(ev, date);
+
+  const content = (
+    <>
+      <span
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
+          ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+        }`}
+      >
+        ✓
+      </span>
+      <span className="w-14 shrink-0 text-meta tabular-nums text-ink-dim">
         {ev.autoTime ? "—" : fmtTime(ev.start)}
       </span>
-      <span className="shrink-0 text-meta">{ev.icon}</span>
+      <span className="shrink-0 text-[17px]">{ev.icon}</span>
       <div className="min-w-0 flex-1">
-        <span className={`block truncate text-sm ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
+        <span className={`block truncate text-body ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}
         </span>
         {ev.habitChecks && ev.habitChecks.length > 0 && (
-          <span className="mt-0.5 flex flex-wrap gap-1">
+          <span className="mt-0.5 flex flex-wrap gap-1.5">
             {ev.habitChecks.map((h) => (
-              <span
-                key={h.name}
-                className={`text-[9px] ${h.done ? "text-success" : "text-ink-dim"}`}
-              >
+              <span key={h.name} className={`text-[10px] ${h.done ? "text-success" : "text-ink-dim"}`}>
                 {h.done ? "✓" : "○"} {h.name}
               </span>
             ))}
@@ -551,83 +584,47 @@ function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         )}
       </div>
       <span
-        className="shrink-0 rounded-full px-1.5 text-[9px]"
+        className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
         style={{ background: `${ev.accent}22`, color: ev.accent }}
       >
         {ev.badge}
       </span>
-      {ev.kind === "block" && ev.itemType === "task" && ev.itemId && (
-        <form action={toggleTaskStatus} className="shrink-0">
-          <input type="hidden" name="id" value={ev.itemId} />
-          <input type="hidden" name="nextStatus" value={ev.done ? "pendiente" : "completada"} />
+    </>
+  );
+
+  return (
+    <div className="flex items-center gap-2 px-3.5 py-1">
+      {primary ? (
+        <form action={primary.action} className="min-w-0 flex-1">
+          {Object.entries(primary.fields).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
           <button
             type="submit"
-            className={`focus-ring flex h-5 w-5 items-center justify-center rounded border text-[10px] ${
-              ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent hover:text-ink-dim"
-            }`}
+            className="focus-ring flex w-full items-center gap-3 rounded-ui py-2.5 text-left transition-colors duration-120 hover:bg-surface-2"
           >
-            ✓
+            {content}
           </button>
         </form>
-      )}
-      {(ev.kind === "habit" || (ev.kind === "block" && ev.itemType === "habito")) && ev.itemId && (
-        <form action={toggleLogToday} className="shrink-0">
-          <input type="hidden" name="activityId" value={ev.itemId} />
-          <input type="hidden" name="date" value={date} />
-          <button
-            type="submit"
-            className={`focus-ring flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
-              ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent hover:text-ink-dim"
-            }`}
-          >
-            ✓
-          </button>
-        </form>
-      )}
-      {ev.kind === "block" && ev.itemType === "cita" && ev.itemId && (
-        <form action={completeAppointment} className="shrink-0">
-          <input type="hidden" name="id" value={ev.itemId} />
-          <button
-            type="submit"
-            title="Marcar cumplida"
-            className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-success/40 hover:text-success"
-          >
-            ✓
-          </button>
-        </form>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
       )}
       {ev.kind === "plan" && (
-        <div className="flex shrink-0 items-center gap-1">
-          <form action={setCheck}>
-            <input type="hidden" name="date" value={date} />
-            <input type="hidden" name="blockId" value={ev.refId} />
-            <input type="hidden" name="status" value={ev.done ? "" : "done"} />
-            <button
-              type="submit"
-              className={`focus-ring rounded-ui border px-1.5 py-0.5 text-[11px] ${
-                ev.done
-                  ? "border-success/40 bg-success/12 text-success"
-                  : "border-line text-ink-dim hover:border-line-strong hover:text-ink"
-              }`}
-            >
-              ✓
-            </button>
-          </form>
-          <form action={setCheck}>
-            <input type="hidden" name="date" value={date} />
-            <input type="hidden" name="blockId" value={ev.refId} />
-            <input type="hidden" name="status" value="skipped" />
-            <button
-              type="submit"
-              className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-danger/40 hover:text-danger"
-            >
-              ✗
-            </button>
-          </form>
-        </div>
+        <form action={setCheck} className="shrink-0">
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="blockId" value={ev.refId} />
+          <input type="hidden" name="status" value="skipped" />
+          <button
+            type="submit"
+            title="Saltado"
+            className="focus-ring rounded-ui border border-line px-2 py-1 text-[12px] text-ink-dim hover:border-danger/40 hover:text-danger"
+          >
+            ✗
+          </button>
+        </form>
       )}
       {ev.editHref && ev.kind !== "plan" && (
-        <a href={ev.editHref} className="shrink-0 text-meta text-ink-dim hover:text-ink">
+        <a href={ev.editHref} className="shrink-0 px-1 text-meta text-ink-dim hover:text-ink">
           ⋯
         </a>
       )}
