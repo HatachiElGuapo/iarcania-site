@@ -8,6 +8,7 @@ import { kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO, diffDaysISO } from "@/lib/date/bogota";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setCheck, setOverride, removeForDay, clearOverride } from "./actions";
+import { PlanBlockMenu } from "./block-menu";
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -242,20 +243,7 @@ export default async function PlanPage({
                         </ListCard>
                       </button>
                     </form>
-                    <form action={setCheck} className="shrink-0">
-                      <input type="hidden" name="date" value={date} />
-                      <input type="hidden" name="blockId" value={b.blockId} />
-                      <input type="hidden" name="status" value={isSkipped ? "" : "skipped"} />
-                      <button
-                        type="submit"
-                        title="Saltado"
-                        className={`focus-ring flex h-11 w-11 items-center justify-center rounded-ui border text-[13px] ${
-                          isSkipped ? "border-danger/40 bg-danger/12 text-danger" : "border-line text-ink-dim"
-                        }`}
-                      >
-                        ✗
-                      </button>
-                    </form>
+                    <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} isSkipped={isSkipped} />
                   </div>
                 );
               })}

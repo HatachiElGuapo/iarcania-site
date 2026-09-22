@@ -6,8 +6,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { plans, planPeople, planBlocks, planChecks, planOverrides, planBlockActivities } from "@/lib/db/schema/plan";
 import { activityLogs } from "@/lib/db/schema/habitos";
+import { tasks } from "@/lib/db/schema/trabajo";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
+import { addDaysISO } from "@/lib/date/bogota";
 
 async function requireUserId() {
   const session = await auth();
@@ -230,6 +232,32 @@ export async function moveBlockForDay(input: {
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/agenda");
+}
+
+// Saca un bloque de Plan de HOY sin que se pierda: lo quita del día (como
+// removeForDay) y lo deja como una tarea real con vencimiento mañana, para
+// que aparezca en el "Mi día"/Hoy de mañana en vez de quedar como
+// incumplido y desaparecer. `text` es el texto YA RESUELTO que se estaba
+// mostrando (la cola pudo haber puesto cualquier cosa ahí) — lo manda quien
+// llama porque ya lo tiene a mano al renderizar el bloque; recalcularlo acá
+// significaría cargar el plan completo otra vez para lo mismo.
+export async function moveBlockToTomorrow(input: { date: string; blockId: string; text: string }) {
+  const userId = await requireUserId();
+  if (!input?.date || !input?.blockId || !input?.text?.trim()) throw new Error("Faltan datos");
+
+  const block = await requireOwnedBlock(input.blockId, userId);
+
+  await db
+    .insert(planOverrides)
+    .values({ planId: block.planId, date: input.date, blockId: input.blockId, text: null, removed: true })
+    .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { removed: true } });
+
+  await db.insert(tasks).values({ userId, title: input.text.trim(), dueDate: addDaysISO(input.date, 1) });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/actividades");
 }
 
 // Vuelve un bloque a lo que diga la plantilla ese día (quita el override).
