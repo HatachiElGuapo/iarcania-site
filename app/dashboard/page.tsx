@@ -24,6 +24,7 @@ import {
   Input,
   catInfo,
 } from "@/components/ui";
+import { QuickAddPanel } from "@/components/ui/quick-add-panel";
 import { toggleTaskStatus, createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { setCheck } from "./plan/actions";
@@ -97,7 +98,7 @@ export default async function RutinasPage({
   const weekEnd = addDaysISO(date, 7);
   const lookbackStart = addDaysISO(date, -HABIT_LOOKBACK_DAYS);
 
-  const [dayEvents, dailyHabits, habitLogs, overdueTasks, upcomingAppointments, upcomingTasks, dayTaskCategories, vicios, viciosLogs] =
+  const [dayEvents, dailyHabits, habitLogs, overdueTasks, upcomingAppointments, upcomingTasks, vicios, viciosLogs] =
     await Promise.all([
     buildDayEvents(userId, date),
     db
@@ -131,10 +132,6 @@ export default async function RutinasPage({
         ),
       )
       .orderBy(tasks.dueDate, tasks.timeDue),
-    db
-      .select({ category: tasks.category })
-      .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.dueDate, date), ne(tasks.status, "archivada"))),
     db
       .select({ id: activities.id, name: activities.name })
       .from(activities)
@@ -196,19 +193,6 @@ export default async function RutinasPage({
     }
   }
 
-  const catCounts: Record<string, number> = {};
-  for (const t of dayTaskCategories) if (t.category) catCounts[t.category] = (catCounts[t.category] ?? 0) + 1;
-  const maxCatCount = Math.max(1, ...Object.values(catCounts));
-  const categoryLegend = Object.entries(catCounts)
-    .map(([key, count]) => ({
-      key,
-      label: catInfo(key).label,
-      color: catInfo(key).color,
-      count,
-      pct: Math.round((count / maxCatCount) * 100),
-    }))
-    .sort((a, b) => b.count - a.count);
-
   const dateLong = capitalize(
     new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-CO", {
       timeZone: "America/Bogota",
@@ -237,7 +221,35 @@ export default async function RutinasPage({
             <Button variant="secondary" href={`/dashboard/agenda?date=${date}`}>
               Agenda del día
             </Button>
-            <Button href="#nueva-tarea">+ Nueva tarea</Button>
+            <QuickAddPanel
+              trigger={
+                <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-ui bg-accent px-3.5 py-2 text-body font-medium text-white transition-colors duration-120 hover:bg-accent/90">
+                  + Nueva tarea
+                </button>
+              }
+              title="Nueva tarea"
+              action={createTask}
+              placeholder="Nueva tarea para hoy…"
+              hidden={{ dueDate: date }}
+              extras={
+                <>
+                  <Select name="priority" defaultValue="media">
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                  </Select>
+                  <Select name="category" defaultValue="">
+                    <option value="">Sin categoría</option>
+                    {Object.entries(CATS).map(([key, c]) => (
+                      <option key={key} value={key}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input type="time" name="timeDue" />
+                </>
+              }
+            />
           </>
         }
       />
@@ -356,18 +368,13 @@ export default async function RutinasPage({
       )}
 
       <div className="grid items-start gap-4" style={{ gridTemplateColumns: "1.35fr 1fr" }}>
-        <Card title="Tu día" count={`${doneToday} / ${totalToday}`} flush>
-          <div className="flex flex-col divide-y divide-line">
-            {events.length === 0 ? (
-              <EmptyState icon="🗒️">
-                No tienes nada para este día todavía. Agrégalo con la barra de abajo.
-              </EmptyState>
-            ) : (
-              events.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
-            )}
-          </div>
-          <div id="nueva-tarea" className="flex flex-col gap-1 border-t border-line">
-            <QuickCapture
+        <Card
+          title="Tu día"
+          count={`${doneToday} / ${totalToday}`}
+          action={
+            <QuickAddPanel
+              trigger={<button className="text-accent hover:underline">+ Tarea</button>}
+              title="Nueva tarea"
               action={createTask}
               placeholder="Nueva tarea para hoy…"
               hidden={{ dueDate: date }}
@@ -390,25 +397,40 @@ export default async function RutinasPage({
                 </>
               }
             />
-            <QuickCapture
-              action={createActivity}
-              name="name"
-              placeholder="Nuevo hábito diario…"
-              hidden={{ frequency: "diaria" }}
-              submitLabel="+"
-              extras={<Input type="time" name="horaSugerida" />}
-            />
+          }
+          flush
+        >
+          <div className="flex flex-col divide-y divide-line">
+            {events.length === 0 ? (
+              <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
+            ) : (
+              events.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
+            )}
           </div>
         </Card>
 
         <div className="flex flex-col gap-4">
-          <Card title="Hábitos" action={<span>{bestStreak} días de racha</span>}>
+          <Card
+            title="Hábitos"
+            action={<span>{bestStreak} días de racha</span>}
+          >
             <p className="mb-2 text-meta text-ink-dim">
               Los de hoy ya están en &ldquo;Tu día&rdquo;, mezclados con el resto por hora.
             </p>
-            <a href="/dashboard/habitos/rachas" className="text-meta text-accent hover:underline">
-              Ver rachas de cada hábito →
-            </a>
+            <div className="flex items-center gap-3">
+              <QuickAddPanel
+                trigger={<button className="text-meta text-accent hover:underline">+ Nuevo hábito</button>}
+                title="Nuevo hábito"
+                action={createActivity}
+                name="name"
+                placeholder="Nombre del hábito…"
+                hidden={{ frequency: "diaria" }}
+                extras={<Input type="time" name="horaSugerida" />}
+              />
+              <a href="/dashboard/habitos/rachas" className="text-meta text-accent hover:underline">
+                Ver rachas de cada hábito →
+              </a>
+            </div>
           </Card>
 
           <Card title="Vicios" count={vicios.length} flush>
@@ -458,28 +480,6 @@ export default async function RutinasPage({
               hidden={{ frequency: "recurrente" }}
               submitLabel="+"
             />
-          </Card>
-
-          <Card title="Por categoría" action={<span>hoy</span>}>
-            {categoryLegend.length === 0 ? (
-              <p className="text-xs text-ink-muted">Ninguna tarea de hoy tiene categoría.</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {categoryLegend.map((c) => (
-                  <div key={c.key} className="flex items-center gap-2.5 text-meta text-ink-muted">
-                    <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: c.color }} />
-                    <span className="flex-1 truncate">{c.label}</span>
-                    <span className="h-1 max-w-[90px] flex-1 overflow-hidden rounded-full bg-line">
-                      <span
-                        className="block h-full rounded-full"
-                        style={{ width: `${c.pct}%`, background: c.color }}
-                      />
-                    </span>
-                    <span className="min-w-[26px] text-right text-meta text-ink-dim">{c.count}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </Card>
         </div>
       </div>

@@ -9,6 +9,7 @@
 //   import { Form, FormField, FormActions, FormBanner } from "@/components/ui/form";
 //   import { Modal } from "@/components/ui/modal";
 //   import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+//   import { QuickAddPanel } from "@/components/ui/quick-add-panel";
 //   import { ToastProvider, useToast } from "@/components/ui/toast";
 //   import { SubNav } from "@/components/ui/sub-nav";
 //
