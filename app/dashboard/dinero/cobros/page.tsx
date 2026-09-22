@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { agencyClients, agencyPayments } from "@/lib/db/schema/agencia";
 import { Badge, EmptyState, Labeled, Input, Select, Button, cx } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ListCard } from "@/components/ui/list-card";
 import { todayISO } from "@/lib/date/bogota";
 import { effectivePaymentStatus, isOwed } from "@/lib/agencia/payment-status";
 import {
@@ -76,7 +77,15 @@ export default async function CobrosPage({
     .reduce((s, p) => s + p.amount, 0);
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      <MobileCobros
+        clients={clients}
+        payments={payments}
+        today={today}
+        owedTotal={owedTotal}
+        vencidoTotal={vencidoTotal}
+      />
+      <div className="hidden flex-col gap-6 md:flex">
       {owedTotal > 0 && (
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-ui-lg border border-accent-warm/25 bg-accent-warm/[0.06] px-4 py-3">
           <span>
@@ -159,6 +168,100 @@ export default async function CobrosPage({
           <Button type="submit">Crear</Button>
         </form>
       </details>
+      </div>
+    </>
+  );
+}
+
+// Móvil · pantalla 03 "Dinero" del diseño — resumen "por cobrar" +
+// lista plana de cobros pendientes, con la acción real de todos los días
+// (marcar pagado) a un toque. La gestión de clientes/cobros en detalle
+// (crear cliente, agregar cobro, eliminar…) queda desktop-only por ahora,
+// igual que en el propio diseño (que tampoco la muestra en móvil).
+function MobileCobros({
+  clients,
+  payments,
+  today,
+  owedTotal,
+  vencidoTotal,
+}: {
+  clients: Client[];
+  payments: Payment[];
+  today: string;
+  owedTotal: number;
+  vencidoTotal: number;
+}) {
+  const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
+  const pending = payments
+    .filter((p) => isOwed(p, today))
+    .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
+  const clientsOwing = new Set(pending.map((p) => p.clientId)).size;
+
+  return (
+    <div className="flex flex-col gap-5 md:hidden">
+      <div className="rounded-ui-lg border border-line bg-surface-2 p-4">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Por cobrar
+        </div>
+        <div className="mt-1 font-display text-[30px] font-bold leading-none tabular-nums text-accent-warm">
+          ${owedTotal.toLocaleString("es-CO")}
+        </div>
+        <div className="mt-3 flex gap-3 border-t border-line pt-3">
+          <div className="flex-1">
+            <div className="text-[15px] font-medium tabular-nums text-danger">
+              ${vencidoTotal.toLocaleString("es-CO")}
+            </div>
+            <div className="mt-0.5 text-[11px] text-ink-dim">vencido</div>
+          </div>
+          <div className="flex-1">
+            <div className="text-[15px] font-medium tabular-nums text-ink">{pending.length}</div>
+            <div className="mt-0.5 text-[11px] text-ink-dim">cobros</div>
+          </div>
+          <div className="flex-1">
+            <div className="text-[15px] font-medium tabular-nums text-ink">{clientsOwing}</div>
+            <div className="mt-0.5 text-[11px] text-ink-dim">clientes</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Pendientes
+        </div>
+        {pending.length === 0 ? (
+          <EmptyState icon="🤝">No tienes cobros pendientes — todo al día.</EmptyState>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {pending.map((p) => {
+              const eff = effectivePaymentStatus(p, today);
+              return (
+                <ListCard key={p.id} accent={eff === "vencido" ? "#F87171" : "#E8A33D"}>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] text-ink">{clientName(p.clientId)}</div>
+                    <div className={cx("mt-0.5 text-[11px]", eff === "vencido" ? "text-danger" : "text-accent-warm")}>
+                      {eff === "vencido" ? "Vencido" : "Pendiente"} · {p.dueDate ?? "sin fecha"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right text-[15px] font-medium tabular-nums text-ink">
+                    ${p.amount.toLocaleString("es-CO")}
+                  </div>
+                  <form action={markAgencyPaymentPaid} className="shrink-0">
+                    <input type="hidden" name="id" value={p.id} />
+                    <input type="hidden" name="paidDate" value={today} />
+                    <button
+                      type="submit"
+                      title="Marcar pagado"
+                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-ui border border-success/30 text-[14px] text-success"
+                    >
+                      ✓
+                    </button>
+                  </form>
+                </ListCard>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { marcoDocuments } from "@/lib/db/schema/marco";
-import { PageHeader, EmptyState, Labeled, Input, Textarea, Button } from "@/components/ui";
+import { PageHeader, SectionHeader, EmptyState, Labeled, Input, Textarea, Button } from "@/components/ui";
 import { Marked } from "./marked";
 import { PrintButton } from "./print-button";
 import { updateMarcoDocument } from "./actions";
@@ -27,25 +27,33 @@ export default async function MarcoPage() {
     .orderBy(asc(marcoDocuments.sortOrder));
 
   return (
-    <div className="p-8 print:p-0">
-      <PageHeader
-        icon="📜"
-        title="Marco"
-        subtitle="Tus documentos de referencia — para leer y para imprimir"
-        actions={<PrintButton />}
-      />
+    <div className="p-4 pb-28 print:p-0 md:p-8 md:pb-8">
+      <div className="hidden md:block">
+        <PageHeader
+          icon="📜"
+          title="Marco"
+          subtitle="Tus documentos de referencia — para leer y para imprimir"
+          actions={<PrintButton />}
+        />
+      </div>
+      <div className="mb-5 flex items-center justify-between gap-3 md:hidden">
+        <SectionHeader title="Marco" eyebrow="🗿 lectura, no edición" />
+        <div className="pt-0.5 print:hidden">
+          <PrintButton />
+        </div>
+      </div>
 
       {docs.length === 0 ? (
         <EmptyState icon="📜">Todavía no has escrito ningún documento de Marco.</EmptyState>
       ) : (
-        <div className="flex flex-col gap-10 print:gap-8">
+        <div className="flex flex-col gap-10 print:gap-8 md:gap-10">
           {docs.map((doc) => (
             <article
               key={doc.id}
-              className="flex flex-col gap-4 print:break-inside-avoid print:px-10 print:py-6"
+              className="flex flex-col gap-4 rounded-ui-lg border border-line bg-surface p-4 print:break-inside-avoid print:border-0 print:bg-transparent print:px-10 print:py-6 md:border-0 md:bg-transparent md:p-0"
             >
               <div className="print:break-inside-avoid print:break-after-avoid">
-                <h1 className="font-display text-2xl font-bold text-ink print:text-3xl">
+                <h1 className="font-display text-xl font-bold text-ink print:text-3xl md:text-2xl">
                   {doc.title}
                 </h1>
                 <p className="mt-1 text-meta text-ink-dim print:hidden">
@@ -53,7 +61,7 @@ export default async function MarcoPage() {
                 </p>
               </div>
 
-              <div className="text-lg leading-relaxed text-ink print:text-xl print:leading-loose">
+              <div className="text-[15px] leading-relaxed text-ink print:text-xl print:leading-loose md:text-lg">
                 {doc.format === "lista" ? (
                   <>
                     {doc.intro && (

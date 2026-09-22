@@ -1,3 +1,7 @@
+import { eq, and } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db/client";
+import { marcoDocuments } from "@/lib/db/schema/marco";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ListCard } from "@/components/ui/list-card";
 import { NAV_GROUPS } from "@/components/app/nav-groups";
@@ -5,11 +9,21 @@ import { NAV_GROUPS } from "@/components/app/nav-groups";
 // Móvil · pantalla 04 del diseño ("Más"): todo lo que no entra en el tab
 // bar. Reusa NAV_GROUPS (misma fuente que el sidebar de escritorio, sin
 // duplicar la lista de secciones) agrupado igual que el sidebar, salvo Hoy,
-// Dinero y Cuerpo que ya tienen su propio tab. Sin datos propios — es solo
-// navegación, no vuelve a tocar Server Actions.
-const HIDDEN_HREFS = new Set(["/dashboard", "/dashboard/dinero", "/dashboard/cuerpo"]);
+// Dinero y Cuerpo que ya tienen su propio tab. Marco sale del grupo
+// "Inicio" y se pinta aparte como la tarjeta "Fondo" del diseño, con un
+// vistazo real a la Misión (mismo dato que /dashboard/marco, de solo
+// lectura acá).
+const HIDDEN_HREFS = new Set(["/dashboard", "/dashboard/dinero", "/dashboard/cuerpo", "/dashboard/marco"]);
 
-export default function MasPage() {
+export default async function MasPage() {
+  const session = await auth();
+  const userId = session!.user.id;
+  const [mision] = await db
+    .select({ content: marcoDocuments.content })
+    .from(marcoDocuments)
+    .where(and(eq(marcoDocuments.userId, userId), eq(marcoDocuments.slug, "mision")))
+    .limit(1);
+
   return (
     <div className="flex flex-col gap-6 p-4 pb-28 md:p-8 md:pb-8">
       <SectionHeader title="Más" eyebrow="Todo lo demás" />
@@ -48,6 +62,19 @@ export default function MasPage() {
             </div>
           );
         })}
+
+        <div className="flex flex-col gap-2">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Fondo</div>
+          <a href="/dashboard/marco" className="rounded-ui-lg border border-line bg-surface-2 p-[15px]">
+            <div className="mb-1.5 flex items-center gap-[9px]">
+              <span className="text-[17px]">🗿</span>
+              <span className="text-[15px] font-medium text-ink">Marco</span>
+            </div>
+            <p className="line-clamp-3 text-[13px] leading-relaxed text-ink-muted">
+              {mision?.content ?? "Misión, principios y reglas. Lo que decides una vez para no volver a decidirlo cada día."}
+            </p>
+          </a>
+        </div>
       </div>
     </div>
   );

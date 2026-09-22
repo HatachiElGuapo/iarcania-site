@@ -14,6 +14,7 @@ import {
   Input,
   Select,
   Button,
+  ListCard,
 } from "@/components/ui";
 import { recordMovement, deleteExpense, deleteIncome } from "../actions";
 import { todayISO, currentMonthRangeISO as monthRange } from "@/lib/date/bogota";
@@ -143,43 +144,73 @@ export default async function GastosPage() {
             formularios de arriba.
           </EmptyState>
         ) : (
-          <Table>
-            <TableHead cols={COLS}>
-              <span>Fecha</span>
-              <span>Tipo</span>
-              <span>Categoría / Fuente</span>
-              <span>Descripción</span>
-              <span className="text-right">Monto</span>
-              <span className="text-right">Acción</span>
-            </TableHead>
-            {rows.map((r) => (
-              <TableRow key={`${r.kind}-${r.id}`} cols={COLS}>
-                <span className="text-meta tabular-nums text-ink-dim">{r.date.slice(5)}</span>
-                <span>
-                  <Badge tone={r.kind === "gasto" ? "danger" : "success"}>
-                    {r.kind === "gasto" ? "Gasto" : "Ingreso"}
-                  </Badge>
-                </span>
-                <span className="text-meta text-ink-muted">{r.label}</span>
-                <span className="truncate text-ink" title={r.description ?? undefined}>
-                  {r.description ?? "—"}
-                </span>
-                <span
-                  className={`text-right tabular-nums ${r.kind === "gasto" ? "text-danger" : "text-success"}`}
-                >
-                  {r.kind === "gasto" ? "−" : "+"}${r.amount.toLocaleString("es-CO")}
-                </span>
-                <span className="flex justify-end text-meta text-ink-dim">
-                  <form action={r.kind === "gasto" ? deleteExpense : deleteIncome}>
+          <>
+            <div className="hidden md:block">
+              <Table>
+                <TableHead cols={COLS}>
+                  <span>Fecha</span>
+                  <span>Tipo</span>
+                  <span>Categoría / Fuente</span>
+                  <span>Descripción</span>
+                  <span className="text-right">Monto</span>
+                  <span className="text-right">Acción</span>
+                </TableHead>
+                {rows.map((r) => (
+                  <TableRow key={`${r.kind}-${r.id}`} cols={COLS}>
+                    <span className="text-meta tabular-nums text-ink-dim">{r.date.slice(5)}</span>
+                    <span>
+                      <Badge tone={r.kind === "gasto" ? "danger" : "success"}>
+                        {r.kind === "gasto" ? "Gasto" : "Ingreso"}
+                      </Badge>
+                    </span>
+                    <span className="text-meta text-ink-muted">{r.label}</span>
+                    <span className="truncate text-ink" title={r.description ?? undefined}>
+                      {r.description ?? "—"}
+                    </span>
+                    <span
+                      className={`text-right tabular-nums ${r.kind === "gasto" ? "text-danger" : "text-success"}`}
+                    >
+                      {r.kind === "gasto" ? "−" : "+"}${r.amount.toLocaleString("es-CO")}
+                    </span>
+                    <span className="flex justify-end text-meta text-ink-dim">
+                      <form action={r.kind === "gasto" ? deleteExpense : deleteIncome}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <button type="submit" className="hover:text-danger">
+                          Eliminar
+                        </button>
+                      </form>
+                    </span>
+                  </TableRow>
+                ))}
+              </Table>
+            </div>
+            <div className="flex flex-col gap-1.5 md:hidden">
+              {rows.map((r) => (
+                <ListCard key={`${r.kind}-${r.id}`} accent={r.kind === "gasto" ? "#F87171" : "#4ADE80"}>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] text-ink">{r.description || r.label}</div>
+                    <div className="mt-0.5 text-[11px] text-ink-dim">
+                      {r.label} · {r.date.slice(5)}
+                    </div>
+                  </div>
+                  <div
+                    className={`shrink-0 text-[15px] font-medium tabular-nums ${r.kind === "gasto" ? "text-danger" : "text-success"}`}
+                  >
+                    {r.kind === "gasto" ? "−" : "+"}${r.amount.toLocaleString("es-CO")}
+                  </div>
+                  <form action={r.kind === "gasto" ? deleteExpense : deleteIncome} className="shrink-0">
                     <input type="hidden" name="id" value={r.id} />
-                    <button type="submit" className="hover:text-danger">
-                      Eliminar
+                    <button
+                      type="submit"
+                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
+                    >
+                      ×
                     </button>
                   </form>
-                </span>
-              </TableRow>
-            ))}
-          </Table>
+                </ListCard>
+              ))}
+            </div>
+          </>
         )}
       </Section>
     </div>

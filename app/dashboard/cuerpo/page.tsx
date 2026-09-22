@@ -13,6 +13,7 @@ import {
   Labeled,
   Input,
   Select,
+  ListCard,
 } from "@/components/ui";
 import { createExercise, logSet, upsertBodyMetrics } from "./actions";
 import { todayISO } from "@/lib/date/bogota";
@@ -63,26 +64,46 @@ export default async function CuerpoPage() {
         {todayLogs.length === 0 ? (
           <EmptyState icon="🏋️">Todavía no has registrado nada hoy. Anota una serie o un cardio desde la lista de ejercicios de abajo.</EmptyState>
         ) : (
-          <Table>
-            <TableHead cols={LOG_COLS}>
-              <span>Ejercicio</span>
-              <span>Serie</span>
-              <span>Reps</span>
-              <span>Peso kg</span>
-              <span>Dur. min</span>
-              <span>Dist. km</span>
-            </TableHead>
-            {todayLogs.map((log) => (
-              <TableRow key={log.id} cols={LOG_COLS}>
-                <span className="truncate text-ink">{log.exerciseName}</span>
-                <span className="text-meta text-ink-muted">{log.setNumber ?? "—"}</span>
-                <span className="text-meta text-ink-muted">{log.reps ?? "—"}</span>
-                <span className="text-meta text-ink-muted">{log.weight ?? "—"}</span>
-                <span className="text-meta text-ink-muted">{log.durationMin ?? "—"}</span>
-                <span className="text-meta text-ink-muted">{log.distanceKm ?? "—"}</span>
-              </TableRow>
-            ))}
-          </Table>
+          <>
+            <div className="hidden md:block">
+              <Table>
+                <TableHead cols={LOG_COLS}>
+                  <span>Ejercicio</span>
+                  <span>Serie</span>
+                  <span>Reps</span>
+                  <span>Peso kg</span>
+                  <span>Dur. min</span>
+                  <span>Dist. km</span>
+                </TableHead>
+                {todayLogs.map((log) => (
+                  <TableRow key={log.id} cols={LOG_COLS}>
+                    <span className="truncate text-ink">{log.exerciseName}</span>
+                    <span className="text-meta text-ink-muted">{log.setNumber ?? "—"}</span>
+                    <span className="text-meta text-ink-muted">{log.reps ?? "—"}</span>
+                    <span className="text-meta text-ink-muted">{log.weight ?? "—"}</span>
+                    <span className="text-meta text-ink-muted">{log.durationMin ?? "—"}</span>
+                    <span className="text-meta text-ink-muted">{log.distanceKm ?? "—"}</span>
+                  </TableRow>
+                ))}
+              </Table>
+            </div>
+            <div className="flex flex-col gap-1.5 md:hidden">
+              {todayLogs.map((log) => (
+                <ListCard key={log.id}>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] text-ink">{log.exerciseName}</div>
+                    <div className="mt-0.5 text-[11px] text-ink-dim">
+                      {log.setNumber != null && `serie ${log.setNumber}`}
+                      {log.reps != null && ` · ${log.reps} reps`}
+                      {log.weight != null && ` · ${log.weight} kg`}
+                      {log.durationMin != null && ` · ${log.durationMin} min`}
+                      {log.distanceKm != null && ` · ${log.distanceKm} km`}
+                    </div>
+                  </div>
+                </ListCard>
+              ))}
+            </div>
+          </>
         )}
       </Section>
 
@@ -95,11 +116,11 @@ export default async function CuerpoPage() {
               <form
                 key={exercise.id}
                 action={logSet}
-                className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-line bg-surface p-4"
+                className="flex flex-col gap-3 rounded-ui-lg border border-line bg-surface p-4 sm:flex-row sm:flex-wrap sm:items-end"
               >
                 <input type="hidden" name="exerciseId" value={exercise.id} />
                 <input type="hidden" name="date" value={date} />
-                <div className="mr-auto">
+                <div className="sm:mr-auto">
                   <p className="font-medium text-ink">{exercise.name}</p>
                   <p className="text-xs text-ink-dim">
                     {TYPE_LABEL[exercise.type]}
@@ -107,25 +128,27 @@ export default async function CuerpoPage() {
                   </p>
                 </div>
                 {exercise.type === "cardio" ? (
-                  <>
-                    <Labeled label="Duración (min)">
-                      <Input type="number" step="0.1" name="durationMin" className="w-28" />
+                  <div className="flex gap-3">
+                    <Labeled label="Duración (min)" className="flex-1 sm:flex-none">
+                      <Input type="number" step="0.1" name="durationMin" className="min-h-11 w-full sm:w-28" />
                     </Labeled>
-                    <Labeled label="Distancia (km)">
-                      <Input type="number" step="0.01" name="distanceKm" className="w-28" />
+                    <Labeled label="Distancia (km)" className="flex-1 sm:flex-none">
+                      <Input type="number" step="0.01" name="distanceKm" className="min-h-11 w-full sm:w-28" />
                     </Labeled>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <Labeled label="Reps">
-                      <Input type="number" name="reps" className="w-20" />
+                  <div className="flex gap-3">
+                    <Labeled label="Reps" className="flex-1 sm:flex-none">
+                      <Input type="number" name="reps" className="min-h-11 w-full sm:w-20" />
                     </Labeled>
-                    <Labeled label="Peso (kg)">
-                      <Input type="number" step="0.1" name="weight" className="w-24" />
+                    <Labeled label="Peso (kg)" className="flex-1 sm:flex-none">
+                      <Input type="number" step="0.1" name="weight" className="min-h-11 w-full sm:w-24" />
                     </Labeled>
-                  </>
+                  </div>
                 )}
-                <Button type="submit">Registrar</Button>
+                <Button type="submit" className="min-h-11 w-full sm:w-auto">
+                  Registrar
+                </Button>
               </form>
             ))}
           </div>

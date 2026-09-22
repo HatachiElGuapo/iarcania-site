@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { todayISO, addDaysISO, currentMonthRangeISO, BOGOTA_OFFSET } from "@/lib/date/bogota";
 import { computeDailyStreak } from "@/lib/habitos/streak";
-import { Table, TableHead, TableRow, EmptyState, cx } from "@/components/ui";
+import { Table, TableHead, TableRow, EmptyState, cx, ListCard } from "@/components/ui";
 
 function currentWeekRange(today: string) {
   const dow = new Date(`${today}T12:00:00${BOGOTA_OFFSET}`).getDay();
@@ -86,40 +86,66 @@ export default async function RachasPage() {
       {habits.length === 0 ? (
         <EmptyState icon="🔥">Sin hábitos activos. Las rachas aparecen cuando empiezas a marcar.</EmptyState>
       ) : (
-        <Table>
-          <TableHead cols={COLS}>
-            <span>Hábito</span>
-            <span>Frecuencia</span>
-            <span className="text-right">Racha</span>
-          </TableHead>
-          {habits.map((h) => {
-            let indicator: string;
-            let tone = "text-ink-dim";
-            if (h.frequency === "diaria") {
-              const streak = computeDailyStreak(datesByActivity.get(h.id) ?? [], today);
-              indicator = streak > 0 ? `🔥 ${streak} día${streak === 1 ? "" : "s"}` : "—";
-              if (streak > 0) tone = "text-accent-warm";
-            } else if (h.frequency === "semanal") {
-              const ok = doneThisWeek.has(h.id);
-              indicator = ok ? "✓ esta semana" : "—";
-              if (ok) tone = "text-success";
-            } else if (h.frequency === "mensual") {
-              const ok = doneThisMonth.has(h.id);
-              indicator = ok ? "✓ este mes" : "—";
-              if (ok) tone = "text-success";
-            } else {
-              indicator = "∞";
-            }
-            return (
-              <TableRow key={h.id} cols={COLS}>
-                <span className="truncate text-ink">{h.name}</span>
-                <span className="text-meta text-ink-muted">{h.frequency}</span>
-                <span className={cx("text-right text-sm font-semibold", tone)}>{indicator}</span>
-              </TableRow>
-            );
-          })}
-        </Table>
+        <>
+          <div className="hidden md:block">
+            <Table>
+              <TableHead cols={COLS}>
+                <span>Hábito</span>
+                <span>Frecuencia</span>
+                <span className="text-right">Racha</span>
+              </TableHead>
+              {habits.map((h) => {
+                const { indicator, tone } = streakIndicator(h, today, datesByActivity, doneThisWeek, doneThisMonth);
+                return (
+                  <TableRow key={h.id} cols={COLS}>
+                    <span className="truncate text-ink">{h.name}</span>
+                    <span className="text-meta text-ink-muted">{h.frequency}</span>
+                    <span className={cx("text-right text-sm font-semibold", tone)}>{indicator}</span>
+                  </TableRow>
+                );
+              })}
+            </Table>
+          </div>
+          <div className="flex flex-col gap-1.5 md:hidden">
+            {habits.map((h) => {
+              const { indicator, tone } = streakIndicator(h, today, datesByActivity, doneThisWeek, doneThisMonth);
+              return (
+                <ListCard key={h.id}>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] text-ink">{h.name}</div>
+                    <div className="mt-0.5 text-[11px] text-ink-dim">{h.frequency}</div>
+                  </div>
+                  <span className={cx("shrink-0 text-[14px] font-semibold", tone)}>{indicator}</span>
+                </ListCard>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+function streakIndicator(
+  h: { id: string; frequency: string },
+  today: string,
+  datesByActivity: Map<string, string[]>,
+  doneThisWeek: Set<string>,
+  doneThisMonth: Set<string>,
+): { indicator: string; tone: string } {
+  if (h.frequency === "diaria") {
+    const streak = computeDailyStreak(datesByActivity.get(h.id) ?? [], today);
+    return streak > 0
+      ? { indicator: `🔥 ${streak} día${streak === 1 ? "" : "s"}`, tone: "text-accent-warm" }
+      : { indicator: "—", tone: "text-ink-dim" };
+  }
+  if (h.frequency === "semanal") {
+    const ok = doneThisWeek.has(h.id);
+    return ok ? { indicator: "✓ esta semana", tone: "text-success" } : { indicator: "—", tone: "text-ink-dim" };
+  }
+  if (h.frequency === "mensual") {
+    const ok = doneThisMonth.has(h.id);
+    return ok ? { indicator: "✓ este mes", tone: "text-success" } : { indicator: "—", tone: "text-ink-dim" };
+  }
+  return { indicator: "∞", tone: "text-ink-dim" };
 }

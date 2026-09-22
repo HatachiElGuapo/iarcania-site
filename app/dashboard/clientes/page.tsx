@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { clients, projects, payments, invoices } from "@/lib/db/schema/clientes";
 import {
   PageHeader,
+  SectionHeader,
   MetricCard,
   Badge,
   EmptyState,
@@ -86,28 +87,47 @@ export default async function ClientesPage({
     ...visible.filter((c) => c.status === "inactivo"),
   ];
 
+  const subtitle =
+    allClients.length > 0
+      ? `${allClients.length} cliente${allClients.length !== 1 ? "s" : ""} · ${activos} activo${activos !== 1 ? "s" : ""}`
+      : undefined;
+
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="👥"
-        title="Clientes"
-        subtitle={
-          allClients.length > 0
-            ? `${allClients.length} cliente${allClients.length !== 1 ? "s" : ""} · ${activos} activo${activos !== 1 ? "s" : ""}`
-            : undefined
-        }
-        actions={
-          hiddenCount > 0 || showInactive ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              href={showInactive ? "/dashboard/clientes" : "/dashboard/clientes?inactivos=1"}
-            >
-              {showInactive ? "Ocultar inactivos" : `Ver inactivos (${hiddenCount})`}
-            </Button>
-          ) : undefined
-        }
-      />
+    <div className="p-4 pb-28 md:p-8 md:pb-8">
+      <div className="hidden md:block">
+        <PageHeader
+          icon="👥"
+          title="Clientes"
+          subtitle={subtitle}
+          actions={
+            hiddenCount > 0 || showInactive ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                href={showInactive ? "/dashboard/clientes" : "/dashboard/clientes?inactivos=1"}
+              >
+                {showInactive ? "Ocultar inactivos" : `Ver inactivos (${hiddenCount})`}
+              </Button>
+            ) : undefined
+          }
+        />
+      </div>
+      <div className="mb-5 md:hidden">
+        <SectionHeader
+          title="Clientes"
+          eyebrow={subtitle}
+          action={
+            hiddenCount > 0 || showInactive ? (
+              <a
+                href={showInactive ? "/dashboard/clientes" : "/dashboard/clientes?inactivos=1"}
+                className="text-[12px] text-ink-dim"
+              >
+                {showInactive ? "Ocultar inactivos" : `Inactivos (${hiddenCount})`}
+              </a>
+            ) : undefined
+          }
+        />
+      </div>
 
       <div className="flex flex-col gap-6">
         {allClients.length > 0 && (

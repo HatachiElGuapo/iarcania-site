@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { choreTypes, choreLogs } from "@/lib/db/schema/hogar";
 import {
   PageHeader,
+  SectionHeader,
   Card,
   Table,
   TableHead,
@@ -104,12 +105,17 @@ export default async function HogarPage() {
   const gridCols = `minmax(0,1fr) repeat(${days.length}, 1fr)`;
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="🏠"
-        title="Hogar"
-        subtitle={`${types.length} quehaceres · ${doneToday} con actividad hoy`}
-      />
+    <div className="p-4 pb-28 md:p-8 md:pb-8">
+      <div className="hidden md:block">
+        <PageHeader
+          icon="🏠"
+          title="Hogar"
+          subtitle={`${types.length} quehaceres · ${doneToday} con actividad hoy`}
+        />
+      </div>
+      <div className="mb-5 md:hidden">
+        <SectionHeader title="Hogar" eyebrow={`${types.length} quehaceres · ${doneToday} con actividad hoy`} />
+      </div>
 
       <div className="flex flex-col gap-3">
         {types.map((chore) => (
@@ -142,32 +148,34 @@ export default async function HogarPage() {
       </details>
 
       <Section title="Últimos 7 días" className="mt-8">
-        <Table>
-          <TableHead cols={gridCols}>
-            <span>Quehacer</span>
-            {days.map((d) => (
-              <span key={d.date} className="text-center">
-                {d.label}
-              </span>
+        <div className="overflow-x-auto">
+          <Table className="min-w-[520px]">
+            <TableHead cols={gridCols}>
+              <span>Quehacer</span>
+              {days.map((d) => (
+                <span key={d.date} className="text-center">
+                  {d.label}
+                </span>
+              ))}
+            </TableHead>
+            {types.map((chore) => (
+              <TableRow key={chore.id} cols={gridCols}>
+                <span className="truncate text-ink-muted">
+                  {chore.icon} {chore.name}
+                </span>
+                {days.map((d) => {
+                  const logs = weekByTypeDate.get(`${chore.id}|${d.date}`) ?? [];
+                  const names = [...new Set(logs.map((l) => l.doneBy).filter(Boolean))];
+                  return (
+                    <span key={d.date} className="text-center text-meta text-ink-dim">
+                      {names.length > 0 ? names.join("+") : "·"}
+                    </span>
+                  );
+                })}
+              </TableRow>
             ))}
-          </TableHead>
-          {types.map((chore) => (
-            <TableRow key={chore.id} cols={gridCols}>
-              <span className="truncate text-ink-muted">
-                {chore.icon} {chore.name}
-              </span>
-              {days.map((d) => {
-                const logs = weekByTypeDate.get(`${chore.id}|${d.date}`) ?? [];
-                const names = [...new Set(logs.map((l) => l.doneBy).filter(Boolean))];
-                return (
-                  <span key={d.date} className="text-center text-meta text-ink-dim">
-                    {names.length > 0 ? names.join("+") : "·"}
-                  </span>
-                );
-              })}
-            </TableRow>
-          ))}
-        </Table>
+          </Table>
+        </div>
       </Section>
     </div>
   );

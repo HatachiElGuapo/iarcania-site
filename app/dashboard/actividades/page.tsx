@@ -6,6 +6,7 @@ import { CATS } from "@/lib/constants/cats";
 import { todayISO, addDaysISO } from "@/lib/date/bogota";
 import {
   PageHeader,
+  SectionHeader,
   Button,
   Card,
   Table,
@@ -18,6 +19,7 @@ import {
   QuickCapture,
   Select,
   Input,
+  ListCard,
   catInfo,
   cx,
 } from "@/components/ui";
@@ -109,7 +111,7 @@ export default async function ActividadesPage({
       .orderBy(asc(tasks.dueDate));
 
     return (
-      <div className="p-8">
+      <div className="p-4 pb-28 md:p-8 md:pb-8">
         <PageHeader
           icon="✅"
           title="Archivadas"
@@ -233,23 +235,35 @@ export default async function ActividadesPage({
   }
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="✅"
-        title="Actividades"
-        subtitle={`${tabCounts["todas"] ?? 0} activas · ${tabCounts["vencidas"] ?? 0} vencidas · ${completedThisMonth} completadas este mes`}
-        actions={
-          <>
-            <Button variant="secondary" href={qs({ archivadas: "1" })}>
-              Ver archivadas ({archivedCount})
-            </Button>
-            <Button href="#nueva-tarea">+ Nueva tarea</Button>
-          </>
-        }
-      />
+    <div className="p-4 pb-28 md:p-8 md:pb-8">
+      <div className="hidden md:block">
+        <PageHeader
+          icon="✅"
+          title="Actividades"
+          subtitle={`${tabCounts["todas"] ?? 0} activas · ${tabCounts["vencidas"] ?? 0} vencidas · ${completedThisMonth} completadas este mes`}
+          actions={
+            <>
+              <Button variant="secondary" href={qs({ archivadas: "1" })}>
+                Ver archivadas ({archivedCount})
+              </Button>
+              <Button href="#nueva-tarea">+ Nueva tarea</Button>
+            </>
+          }
+        />
+      </div>
+      <div className="mb-5 md:hidden">
+        <SectionHeader
+          title="Actividades"
+          action={
+            <a href={qs({ archivadas: "1" })} className="text-[12px] text-ink-dim">
+              Archivadas ({archivedCount})
+            </a>
+          }
+        />
+      </div>
 
       {/* Tabs de tiempo */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3.5">
+      <div className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-line px-4 pb-3.5 md:mx-0 md:flex-wrap md:px-0">
         {TIEMPO_TABS.map((t) => {
           const active = tiempo === t.id;
           return (
@@ -257,7 +271,7 @@ export default async function ActividadesPage({
               key={t.id}
               href={qs({ tiempo: t.id === "todas" ? undefined : t.id })}
               className={cx(
-                "inline-flex items-center gap-1.5 rounded-ui border px-3 py-1.5 text-xs transition-colors duration-120",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-ui border px-3 py-1.5 text-xs transition-colors duration-120",
                 active
                   ? "border-line-strong bg-surface-2 text-ink"
                   : "border-line bg-surface text-ink-muted hover:text-ink",
@@ -271,7 +285,7 @@ export default async function ActividadesPage({
       </div>
 
       {/* Leyenda de categorías (filtro) */}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
         {Object.keys(CATS).map((key) => {
           const c = catInfo(key);
           const active = cat === key;
@@ -279,7 +293,7 @@ export default async function ActividadesPage({
             <a
               key={key}
               href={qs({ cat: active ? undefined : key })}
-              className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-meta transition-colors duration-120"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-meta transition-colors duration-120"
               style={{
                 borderColor: active ? c.color : `${c.color}2e`,
                 background: active ? `${c.color}24` : `${c.color}12`,
@@ -337,84 +351,124 @@ export default async function ActividadesPage({
                     {items.length} tarea{items.length !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <Table>
-                  <TableHead cols={COLS}>
-                    <span />
-                    <span>Tarea</span>
-                    <span>Categoría</span>
-                    <span>Prioridad</span>
-                    <span>Vence</span>
-                    <span className="text-right">Acciones</span>
-                  </TableHead>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHead cols={COLS}>
+                      <span />
+                      <span>Tarea</span>
+                      <span>Categoría</span>
+                      <span>Prioridad</span>
+                      <span>Vence</span>
+                      <span className="text-right">Acciones</span>
+                    </TableHead>
+                    {items.map((t) => {
+                      const isOverdue = !!t.dueDate && t.dueDate < today && t.status !== "completada";
+                      const isDone = t.status === "completada";
+                      const c = t.category ? catInfo(t.category) : null;
+                      const m = rowMeta(t);
+                      return (
+                        <TableRow
+                          key={t.id}
+                          cols={COLS}
+                          category={t.category}
+                          accentColor={isOverdue ? "#F87171" : isDone ? "#262629" : undefined}
+                        >
+                          <form action={toggleTaskStatus}>
+                            <input type="hidden" name="id" value={t.id} />
+                            <input type="hidden" name="nextStatus" value={isDone ? "pendiente" : "completada"} />
+                            <button
+                              type="submit"
+                              aria-label="Cambiar estado"
+                              className={cx(
+                                "flex h-4 w-4 items-center justify-center rounded-[4px] border text-[9px] text-white",
+                                isDone ? "border-accent bg-accent" : "border-line-strong",
+                              )}
+                            >
+                              {isDone ? "✓" : ""}
+                            </button>
+                          </form>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className={cx("min-w-0 truncate", isDone ? "text-ink-dim line-through" : "text-ink")}>
+                              {t.title}
+                            </span>
+                            {m && <span className="shrink-0 text-[10.5px] text-ink-dim">{m}</span>}
+                          </span>
+                          {c ? (
+                            <span className="flex items-center gap-1.5 text-meta" style={{ color: c.color }}>
+                              <CategoryDot category={t.category} />
+                              {c.label}
+                            </span>
+                          ) : (
+                            <span className="text-meta text-ink-dim">—</span>
+                          )}
+                          <span>
+                            <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
+                              {t.priority}
+                            </Badge>
+                          </span>
+                          <span className={cx("text-meta tabular-nums", isOverdue ? "text-danger" : "text-ink-dim")}>
+                            {t.dueDate ? shortDate(t.dueDate, year) : "sin fecha"}
+                          </span>
+                          <span className="flex justify-end gap-2.5 text-meta text-ink-dim">
+                            <a href={`/dashboard/agenda?pre=${t.id}`} className="hover:text-ink">
+                              Agenda
+                            </a>
+                            <form action={archiveTask}>
+                              <input type="hidden" name="id" value={t.id} />
+                              <button type="submit" className="hover:text-ink">
+                                Archivar
+                              </button>
+                            </form>
+                            <form action={deleteTask}>
+                              <input type="hidden" name="id" value={t.id} />
+                              <button type="submit" className="hover:text-danger">
+                                Eliminar
+                              </button>
+                            </form>
+                          </span>
+                        </TableRow>
+                      );
+                    })}
+                  </Table>
+                </div>
+                <div className="flex flex-col gap-1.5 md:hidden">
                   {items.map((t) => {
                     const isOverdue = !!t.dueDate && t.dueDate < today && t.status !== "completada";
                     const isDone = t.status === "completada";
                     const c = t.category ? catInfo(t.category) : null;
                     const m = rowMeta(t);
                     return (
-                      <TableRow
-                        key={t.id}
-                        cols={COLS}
-                        category={t.category}
-                        accentColor={isOverdue ? "#F87171" : isDone ? "#262629" : undefined}
-                      >
-                        <form action={toggleTaskStatus}>
-                          <input type="hidden" name="id" value={t.id} />
-                          <input type="hidden" name="nextStatus" value={isDone ? "pendiente" : "completada"} />
-                          <button
-                            type="submit"
-                            aria-label="Cambiar estado"
-                            className={cx(
-                              "flex h-4 w-4 items-center justify-center rounded-[4px] border text-[9px] text-white",
-                              isDone ? "border-accent bg-accent" : "border-line-strong",
-                            )}
-                          >
-                            {isDone ? "✓" : ""}
-                          </button>
-                        </form>
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className={cx("min-w-0 truncate", isDone ? "text-ink-dim line-through" : "text-ink")}>
-                            {t.title}
-                          </span>
-                          {m && <span className="shrink-0 text-[10.5px] text-ink-dim">{m}</span>}
-                        </span>
-                        {c ? (
-                          <span className="flex items-center gap-1.5 text-meta" style={{ color: c.color }}>
-                            <CategoryDot category={t.category} />
-                            {c.label}
-                          </span>
-                        ) : (
-                          <span className="text-meta text-ink-dim">—</span>
-                        )}
-                        <span>
-                          <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
-                            {t.priority}
-                          </Badge>
-                        </span>
-                        <span className={cx("text-meta tabular-nums", isOverdue ? "text-danger" : "text-ink-dim")}>
-                          {t.dueDate ? shortDate(t.dueDate, year) : "sin fecha"}
-                        </span>
-                        <span className="flex justify-end gap-2.5 text-meta text-ink-dim">
-                          <a href={`/dashboard/agenda?pre=${t.id}`} className="hover:text-ink">
-                            Agenda
-                          </a>
-                          <form action={archiveTask}>
-                            <input type="hidden" name="id" value={t.id} />
-                            <button type="submit" className="hover:text-ink">
-                              Archivar
-                            </button>
-                          </form>
-                          <form action={deleteTask}>
-                            <input type="hidden" name="id" value={t.id} />
-                            <button type="submit" className="hover:text-danger">
-                              Eliminar
-                            </button>
-                          </form>
-                        </span>
-                      </TableRow>
+                      <form key={t.id} action={toggleTaskStatus}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <input type="hidden" name="nextStatus" value={isDone ? "pendiente" : "completada"} />
+                        <button type="submit" className="contents">
+                          <ListCard accent={isOverdue ? "#F87171" : (c?.color ?? undefined)}>
+                            <span
+                              className={cx(
+                                "flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px]",
+                                isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent",
+                              )}
+                            >
+                              ✓
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className={cx("truncate text-[15px]", isDone ? "text-ink-dim line-through" : "text-ink")}>
+                                {t.title}
+                              </div>
+                              <div className="mt-0.5 text-[11px] text-ink-dim">
+                                {c ? c.label : "sin categoría"}
+                                {m ? ` · ${m}` : t.dueDate ? ` · ${shortDate(t.dueDate, year)}` : ""}
+                              </div>
+                            </div>
+                            <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
+                              {t.priority}
+                            </Badge>
+                          </ListCard>
+                        </button>
+                      </form>
                     );
                   })}
-                </Table>
+                </div>
               </div>
             );
           })

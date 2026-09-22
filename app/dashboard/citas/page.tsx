@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { appointments } from "@/lib/db/schema/citas";
 import { eventTypes } from "@/lib/db/schema/eventos";
 import { EVENT_TYPE_CATS } from "@/lib/constants/event-type-cats";
-import { PageHeader, Section, Badge, EmptyState, Button, Labeled, Input, Select, cx } from "@/components/ui";
+import { PageHeader, SectionHeader, Section, Badge, EmptyState, Button, Labeled, Input, Select, cx } from "@/components/ui";
 import {
   createAppointment,
   completeAppointment,
@@ -54,12 +54,20 @@ export default async function CitasPage() {
   const pasadas = allCitas.filter((c) => c.status !== "pendiente" || c.datetime < now);
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="🏥"
-        title="Citas"
-        subtitle={`${proximas.length} próxima${proximas.length !== 1 ? "s" : ""} · ${allCitas.length} en total`}
-      />
+    <div className="p-4 pb-28 md:p-8 md:pb-8">
+      <div className="hidden md:block">
+        <PageHeader
+          icon="🏥"
+          title="Citas"
+          subtitle={`${proximas.length} próxima${proximas.length !== 1 ? "s" : ""} · ${allCitas.length} en total`}
+        />
+      </div>
+      <div className="mb-5 md:hidden">
+        <SectionHeader
+          title="Citas"
+          eyebrow={`${proximas.length} próxima${proximas.length !== 1 ? "s" : ""} · ${allCitas.length} en total`}
+        />
+      </div>
 
       {allCitas.length === 0 ? (
         <EmptyState icon="🏥">Turnos médicos, reuniones, lo que tenga fecha y hora fija. Todavía no has registrado ninguna cita — agenda la primera abajo.</EmptyState>

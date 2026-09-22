@@ -6,7 +6,7 @@ import { loadPlanContext, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, type ResolvedBlock } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO, diffDaysISO } from "@/lib/date/bogota";
-import { Button, Card, Stepper, Badge, EmptyState } from "@/components/ui";
+import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setCheck, setOverride, removeForDay, clearOverride } from "./actions";
 
 function capitalize(s: string) {
@@ -85,6 +85,13 @@ export default async function PlanPage({
   const overrideByBlockId = new Map(
     ctx.overrides.filter((o) => o.date === date).map((o) => [o.blockId, o]),
   );
+
+  // Móvil ("Rutinas"): solo la columna del propio usuario — sin la grilla
+  // familiar completa. `ctx.people` ya viene cargado para el día, así que
+  // esto es una búsqueda en memoria, no una consulta nueva.
+  const myPersonId = ctx.people.find((p) => p.userId === userId)?.id ?? null;
+  const myBlocks = myPersonId ? (day.blocksByPerson[myPersonId] ?? []) : [];
+  const myDoneCount = myBlocks.filter((b) => checkByBlockId.get(b.blockId)?.status === "done").length;
 
   // Semana X de Y dentro de la fase activa.
   let weekLabel: string | null = null;
@@ -192,7 +199,72 @@ export default async function PlanPage({
         </Card>
       )}
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${ctx.people.length}, minmax(0,1fr))` }}>
+      <div className="flex flex-col gap-2 md:hidden">
+        {myBlocks.length === 0 ? (
+          <EmptyState icon="🗺️">Nada agendado este día para vos.</EmptyState>
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-[11px] text-ink-dim">
+              <span>Bloques</span>
+              <span>
+                {myDoneCount} / {myBlocks.length}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {myBlocks.map((b) => {
+                const check = checkByBlockId.get(b.blockId);
+                const kind = kindInfo(b.kind);
+                const isDone = check?.status === "done";
+                const isSkipped = check?.status === "skipped";
+                return (
+                  <div key={b.blockId} className="flex items-center gap-2">
+                    <form action={setCheck} className="min-w-0 flex-1">
+                      <input type="hidden" name="date" value={date} />
+                      <input type="hidden" name="blockId" value={b.blockId} />
+                      <input type="hidden" name="status" value={isDone ? "" : "done"} />
+                      <button type="submit" className="contents">
+                        <ListCard accent={kind.color}>
+                          <span
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
+                              isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+                            }`}
+                          >
+                            ✓
+                          </span>
+                          <span className="w-11 shrink-0 text-[11px] tabular-nums text-ink-dim">{b.startTime}</span>
+                          <span className="shrink-0 text-[16px]">{kind.icon}</span>
+                          <span
+                            className={`min-w-0 flex-1 truncate text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
+                          >
+                            {b.text}
+                          </span>
+                          {b.isMinimum && <Badge tone="warm">Mínimo</Badge>}
+                        </ListCard>
+                      </button>
+                    </form>
+                    <form action={setCheck} className="shrink-0">
+                      <input type="hidden" name="date" value={date} />
+                      <input type="hidden" name="blockId" value={b.blockId} />
+                      <input type="hidden" name="status" value={isSkipped ? "" : "skipped"} />
+                      <button
+                        type="submit"
+                        title="Saltado"
+                        className={`focus-ring flex h-11 w-11 items-center justify-center rounded-ui border text-[13px] ${
+                          isSkipped ? "border-danger/40 bg-danger/12 text-danger" : "border-line text-ink-dim"
+                        }`}
+                      >
+                        ✗
+                      </button>
+                    </form>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="hidden gap-4 md:grid" style={{ gridTemplateColumns: `repeat(${ctx.people.length}, minmax(0,1fr))` }}>
         {ctx.people.map((person) => {
           const blocks = day.blocksByPerson[person.id] ?? [];
           return (
