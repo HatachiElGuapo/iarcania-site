@@ -25,7 +25,6 @@ import {
   catInfo,
 } from "@/components/ui";
 import { QuickAddPanel } from "@/components/ui/quick-add-panel";
-import { ToggleRow } from "@/components/app/optimistic-toggle-row";
 import { toggleTaskStatus, createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { setCheck } from "./plan/actions";
@@ -457,30 +456,39 @@ export default async function RutinasPage({
                 <EmptyState icon="🔥">Aún no sigues ningún hábito diario — creá el primero abajo.</EmptyState>
               ) : (
                 habitsView.map((h) => (
-                  <ToggleRow
-                    key={h.id}
-                    boxed
-                    circle
-                    label={h.name}
-                    sublabel={h.horaSugerida ?? "cualquier hora"}
-                    initialDone={h.done}
-                    action={toggleLogToday}
-                    fieldsOn={{ activityId: h.id, date }}
-                    fieldsOff={{ activityId: h.id, date }}
-                    meta={
-                      <>
-                        <span className="flex shrink-0 gap-[2px]">
-                          {h.week.map((c, i) => (
-                            <span
-                              key={i}
-                              className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
-                            />
-                          ))}
+                  <form key={h.id} action={toggleLogToday}>
+                    <input type="hidden" name="activityId" value={h.id} />
+                    <input type="hidden" name="date" value={date} />
+                    <button
+                      type="submit"
+                      className="focus-ring flex w-full items-center gap-2.5 rounded-ui-lg border border-line bg-surface px-3.5 py-2.5 text-left transition-colors duration-120 hover:border-line-strong"
+                    >
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                          h.done ? "border-accent bg-accent text-white" : "border-line-strong"
+                        }`}
+                      >
+                        {h.done ? "✓" : ""}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate text-sm ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
+                          {h.name}
                         </span>
-                        <Badge tone="warm">🔥 {h.streak}</Badge>
-                      </>
-                    }
-                  />
+                        <span className="mt-0.5 block truncate text-[10px] text-ink-dim">
+                          {h.horaSugerida ?? "cualquier hora"}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 gap-[2px]">
+                        {h.week.map((c, i) => (
+                          <span
+                            key={i}
+                            className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
+                          />
+                        ))}
+                      </span>
+                      <Badge tone="warm">🔥 {h.streak}</Badge>
+                    </button>
+                  </form>
                 ))
               )}
             </div>
