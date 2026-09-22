@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 // Fila de tarea/hábito con feedback instantáneo — sin useOptimistic (requiere
 // React 19, este proyecto está en 18.3) pero con el mismo efecto: estado
@@ -8,6 +8,13 @@ import { useState, useTransition } from "react";
 // startTransition, y si falla se revierte. revalidatePath en la acción
 // termina de sincronizar con el estado real sin parpadeo (cuando la acción
 // tiene éxito el valor optimista y el real ya coinciden).
+//
+// `initialDone` puede cambiar sin que este componente se desmonte: si el
+// mismo hábito se marca desde OTRO control (p. ej. la fila de "Tu día"),
+// revalidatePath refresca esta página y llega un `initialDone` nuevo por
+// props — pero React solo usa el valor inicial de useState en el montaje,
+// así que sin este efecto el checkbox se queda pegado en lo que tenía la
+// primera vez que se pintó, ignorando cualquier cambio hecho desde afuera.
 //
 // RSC no permite pasar funciones de un Server Component a un Client
 // Component como props salvo Server Actions ("Functions cannot be passed
@@ -46,6 +53,10 @@ export function ToggleRow({
 }) {
   const [done, setDone] = useState(initialDone);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setDone(initialDone);
+  }, [initialDone]);
 
   function toggle() {
     const next = !done;
