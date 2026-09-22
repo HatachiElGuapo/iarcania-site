@@ -25,6 +25,7 @@ import {
   catInfo,
 } from "@/components/ui";
 import { QuickAddPanel } from "@/components/ui/quick-add-panel";
+import { ToggleRow } from "@/components/app/optimistic-toggle-row";
 import { toggleTaskStatus, createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { setCheck } from "./plan/actions";
@@ -79,6 +80,14 @@ function computeStreak(dates: Set<string> | undefined, from: string): number {
   return streak;
 }
 
+function weekCells(dates: Set<string> | undefined, upTo: string) {
+  const cells: { done: boolean }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    cells.push({ done: dates?.has(addDaysISO(upTo, -i)) ?? false });
+  }
+  return cells;
+}
+
 // Home del dashboard — arquetipo 6 (Panel resumen) del sistema IArcanIA.
 // "Tu día" es UNA lista mezclada por hora (tareas + hábitos + Plan + citas
 // ya agendadas), la misma que arma /dashboard/agenda (lib/agenda/day-
@@ -102,7 +111,7 @@ export default async function RutinasPage({
     await Promise.all([
     buildDayEvents(userId, date),
     db
-      .select({ id: activities.id, name: activities.name })
+      .select({ id: activities.id, name: activities.name, horaSugerida: activities.horaSugerida })
       .from(activities)
       .where(and(eq(activities.userId, userId), eq(activities.isActive, true), eq(activities.frequency, "diaria"))),
     db
@@ -160,6 +169,19 @@ export default async function RutinasPage({
   const bestStreak = dailyHabits.length
     ? Math.max(...dailyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date)))
     : 0;
+
+  const habitsView = dailyHabits.map((h) => {
+    const dates = logsByHabit.get(h.id);
+    return {
+      id: h.id,
+      name: h.name,
+      horaSugerida: h.horaSugerida,
+      done: dates?.has(date) ?? false,
+      streak: computeStreak(dates, date),
+      week: weekCells(dates, date),
+    };
+  });
+  const habitsDoneToday = habitsView.filter((h) => h.done).length;
 
   // Plan: bloques de los últimos PLAN_PENDING_LOOKBACK_DAYS días ANTERIORES
   // a hoy real que quedaron sin marcar (ni hecho ni saltado) — para que no
@@ -412,12 +434,57 @@ export default async function RutinasPage({
         <div className="flex flex-col gap-4">
           <Card
             title="Hábitos"
-            action={<span>{bestStreak} días de racha</span>}
+            count={`${habitsDoneToday} / ${habitsView.length}`}
+            action={
+              <a href="/dashboard/habitos/rachas" className="text-accent hover:underline">
+                Ver rachas →
+              </a>
+            }
+            flush
           >
-            <p className="mb-2 text-meta text-ink-dim">
-              Los de hoy ya están en &ldquo;Tu día&rdquo;, mezclados con el resto por hora.
-            </p>
-            <div className="flex items-center gap-3">
+            <div className="px-3.5 pt-3">
+              <div className="h-1.5 overflow-hidden rounded-full bg-line">
+                <div
+                  className="h-full rounded-full bg-accent-warm"
+                  style={{
+                    width: habitsView.length ? `${Math.round((habitsDoneToday / habitsView.length) * 100)}%` : "0%",
+                  }}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5 p-3.5">
+              {habitsView.length === 0 ? (
+                <EmptyState icon="🔥">Aún no sigues ningún hábito diario — creá el primero abajo.</EmptyState>
+              ) : (
+                habitsView.map((h) => (
+                  <ToggleRow
+                    key={h.id}
+                    boxed
+                    circle
+                    label={h.name}
+                    sublabel={h.horaSugerida ?? "cualquier hora"}
+                    initialDone={h.done}
+                    action={toggleLogToday}
+                    fieldsOn={{ activityId: h.id, date }}
+                    fieldsOff={{ activityId: h.id, date }}
+                    meta={
+                      <>
+                        <span className="flex shrink-0 gap-[2px]">
+                          {h.week.map((c, i) => (
+                            <span
+                              key={i}
+                              className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
+                            />
+                          ))}
+                        </span>
+                        <Badge tone="warm">🔥 {h.streak}</Badge>
+                      </>
+                    }
+                  />
+                ))
+              )}
+            </div>
+            <div className="border-t border-line bg-surface-sunken px-3.5 py-2.5">
               <QuickAddPanel
                 trigger={<button className="text-meta text-accent hover:underline">+ Nuevo hábito</button>}
                 title="Nuevo hábito"
@@ -427,9 +494,6 @@ export default async function RutinasPage({
                 hidden={{ frequency: "diaria" }}
                 extras={<Input type="time" name="horaSugerida" />}
               />
-              <a href="/dashboard/habitos/rachas" className="text-meta text-accent hover:underline">
-                Ver rachas de cada hábito →
-              </a>
             </div>
           </Card>
 
