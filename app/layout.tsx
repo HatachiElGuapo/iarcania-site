@@ -42,9 +42,20 @@ export const metadata: Metadata = {
   },
 };
 
+// maximum-scale=1 + user-scalable=no: instalada como PWA en iOS
+// (`display: standalone`), el WKWebView a veces reanuda la app desde un
+// estado "congelado" con el zoom de la última vez en vez de cargar la
+// página de cero — si esa instancia quedó zoomeada una vez, vuelve
+// zoomeada siempre. Bloquear la escala a 1 evita que se renderice en
+// cualquier otro valor, sin importar qué haya quedado cacheado. (Un
+// primer intento de este mismo fix se revirtió porque se aplicó con el
+// usuario YA atrapado en zoom, sin poder volver atrás — esta vez se
+// aplica en 100%, así que no debería repetirse.)
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#0F0F11",
 };
 
