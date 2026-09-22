@@ -42,9 +42,18 @@ export const metadata: Metadata = {
   },
 };
 
+// maximumScale/userScalable en 1/false: sin esto, iOS Safari hace zoom
+// automático al enfocar cualquier <input> con font-size menor a 16px (la
+// mayoría de los del sistema van en 13.5px — ver `fontSize.body` en
+// tailwind.config.ts) y el zoom se queda pegado al volver — es lo que se
+// vio como "zoom" al entrar a Agenda. Esto también desactiva el pellizco
+// para zoomear a mano; para un dashboard con controles táctiles propios
+// (no texto largo para leer) es el trade-off correcto.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#0F0F11",
 };
 
