@@ -9,11 +9,17 @@ import { NAV_GROUPS } from "@/components/app/nav-groups";
 // Móvil · pantalla 04 del diseño ("Más"): todo lo que no entra en el tab
 // bar. Reusa NAV_GROUPS (misma fuente que el sidebar de escritorio, sin
 // duplicar la lista de secciones) agrupado igual que el sidebar, salvo Hoy,
-// Dinero y Cuerpo que ya tienen su propio tab. Marco sale del grupo
+// Agenda, Dinero y Cuerpo que ya tienen su propio tab. Marco sale del grupo
 // "Inicio" y se pinta aparte como la tarjeta "Fondo" del diseño, con un
 // vistazo real a la Misión (mismo dato que /dashboard/marco, de solo
 // lectura acá).
-const HIDDEN_HREFS = new Set(["/dashboard", "/dashboard/dinero", "/dashboard/cuerpo", "/dashboard/marco"]);
+const HIDDEN_HREFS = new Set([
+  "/dashboard",
+  "/dashboard/agenda",
+  "/dashboard/dinero",
+  "/dashboard/cuerpo",
+  "/dashboard/marco",
+]);
 
 export default async function MasPage() {
   const session = await auth();

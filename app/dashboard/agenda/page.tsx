@@ -4,7 +4,7 @@ import { createBlock, updateBlock } from "./actions";
 import { todayISO, addDaysISO as addDays, nowHHMM } from "@/lib/date/bogota";
 import { DayGrid } from "./day-grid";
 import { DraggableTask } from "./draggable-task";
-import { PageHeader, Button, Card, Stepper, ItemList, ItemRow, Input, Select } from "@/components/ui";
+import { PageHeader, SectionHeader, Button, Card, Stepper, ItemList, ItemRow, Input, Select } from "@/components/ui";
 
 function toMinutes(hhmm: string) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -52,28 +52,52 @@ export default async function AgendaPage({
   const editBlock = edit ? agendaItemsRaw.find((b) => b.id === edit) ?? null : null;
 
   return (
-    <div className="p-8">
-      <PageHeader
-        icon="📅"
-        title="Agenda"
-        subtitle={`${dateLong} · ${gridCount} bloque${gridCount !== 1 ? "s" : ""} · libre ${fmtDur(freeMinutes)}`}
-        actions={
-          <>
+    <div className="p-4 pb-28 md:p-8 md:pb-8">
+      <div className="hidden md:block">
+        <PageHeader
+          icon="📅"
+          title="Agenda"
+          subtitle={`${dateLong} · ${gridCount} bloque${gridCount !== 1 ? "s" : ""} · libre ${fmtDur(freeMinutes)}`}
+          actions={
+            <>
+              <Stepper
+                prevHref={`/dashboard/agenda?date=${addDays(date, -1)}`}
+                nextHref={`/dashboard/agenda?date=${addDays(date, 1)}`}
+                label={isToday ? "Hoy" : date}
+                current={isToday}
+              />
+              {!isToday && (
+                <Button variant="secondary" href={`/dashboard/agenda?date=${todayISO()}`}>
+                  Hoy
+                </Button>
+              )}
+              <Button href="#agregar-bloque">+ Bloque</Button>
+            </>
+          }
+        />
+      </div>
+      <div className="mb-4 flex flex-col gap-3 md:hidden">
+        <SectionHeader
+          title="Agenda"
+          eyebrow={dateLong}
+          action={
             <Stepper
               prevHref={`/dashboard/agenda?date=${addDays(date, -1)}`}
               nextHref={`/dashboard/agenda?date=${addDays(date, 1)}`}
               label={isToday ? "Hoy" : date}
               current={isToday}
             />
-            {!isToday && (
-              <Button variant="secondary" href={`/dashboard/agenda?date=${todayISO()}`}>
-                Hoy
-              </Button>
-            )}
-            <Button href="#agregar-bloque">+ Bloque</Button>
-          </>
-        }
-      />
+          }
+        />
+        <div className="flex items-center justify-between text-[11px] text-ink-dim">
+          <span>
+            {gridCount} bloque{gridCount !== 1 ? "s" : ""} · libre {fmtDur(freeMinutes)}
+          </span>
+          <a href="#agregar-bloque" className="text-[12px] font-medium text-accent">
+            + Bloque
+          </a>
+        </div>
+      </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_300px]">
         <div className="flex flex-col gap-4">
