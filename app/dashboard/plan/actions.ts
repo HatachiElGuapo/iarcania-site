@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { plans, planBlocks, planChecks, planOverrides } from "@/lib/db/schema/plan";
+import { plans, planBlocks, planChecks, planOverrides, planBlockActivities } from "@/lib/db/schema/plan";
+import { activityLogs } from "@/lib/db/schema/habitos";
 import { loadPlanContext, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 
@@ -24,6 +25,39 @@ async function requireOwnedBlock(blockId: string, userId: string) {
   return row;
 }
 
+// Un bloque de Plan puede tener uno o más hábitos enlazados
+// (plan_block_activities) — la card "Hábitos" del dashboard (racha, franja
+// de la semana) lee activity_logs, no plan_checks, así que sin esto marcar
+// "hecho" en un bloque enlazado desde "Tu día"/Plan nunca hacía avanzar la
+// racha de ese hábito. Mantiene los dos en sync: "hecho" asegura un log de
+// hoy por cada hábito enlazado (sin duplicar si ya había uno), cualquier
+// otro estado (saltado, o quitar la marca) lo borra.
+async function syncLinkedHabitLogs(userId: string, blockId: string, date: string, done: boolean) {
+  const links = await db
+    .select({ activityId: planBlockActivities.activityId })
+    .from(planBlockActivities)
+    .where(eq(planBlockActivities.blockId, blockId));
+  if (!links.length) return;
+  const activityIds = links.map((l) => l.activityId);
+
+  if (!done) {
+    await db
+      .delete(activityLogs)
+      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, activityIds)));
+    return;
+  }
+
+  const existing = await db
+    .select({ activityId: activityLogs.activityId })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, activityIds)));
+  const alreadyLogged = new Set(existing.map((e) => e.activityId));
+  const missing = activityIds.filter((id) => !alreadyLogged.has(id));
+  if (missing.length) {
+    await db.insert(activityLogs).values(missing.map((activityId) => ({ userId, activityId, date })));
+  }
+}
+
 // Marca/desmarca un bloque para UN día — status vacío = quita la marca.
 // resolved_text se calcula acá (con el resolver, sobre el plan completo) y
 // queda fijo: si luego se reordena una cola o se edita el bloque, el
@@ -40,7 +74,11 @@ export async function setCheck(formData: FormData) {
 
   if (!status) {
     await db.delete(planChecks).where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+    await syncLinkedHabitLogs(userId, blockId, date, false);
     revalidatePath("/dashboard/plan");
+    revalidatePath("/dashboard/plan/historial");
+    revalidatePath("/dashboard/agenda");
+    revalidatePath("/dashboard");
     return;
   }
   if (status !== "done" && status !== "skipped") throw new Error("Estado inválido");
@@ -66,6 +104,7 @@ export async function setCheck(formData: FormData) {
       target: [planChecks.date, planChecks.blockId],
       set: { status, resolvedText: resolved.text, note, checkedAt: new Date() },
     });
+  await syncLinkedHabitLogs(userId, blockId, date, status === "done");
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/plan/historial");
