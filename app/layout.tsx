@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
@@ -19,9 +19,33 @@ const outfit = Outfit({
   variable: "--font-body",
 });
 
+// PWA: manifest + íconos (public/icons/, generados de el ojo arcano de
+// assets/logo.svg — ver public/icons/icon-source.svg) para que "Agregar a
+// inicio" dé un ícono y una ventana sin barra de navegador, tanto en iOS
+// (que no exige HTTPS para esto) como en Android (que sí, además del
+// manifest — ver docs/mobile-pwa.md para el resto de los requisitos).
 export const metadata: Metadata = {
   title: "IArcanIA",
   description: "Automatización con IA para PYMEs colombianas",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "IArcanIA",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#0F0F11",
 };
 
 export default function RootLayout({

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">
+  <rect width="72" height="72" fill="#0F0F11"/>
+
+  <path d="M36 14 Q58 36 36 58 Q14 36 36 14 Z" fill="none" stroke="#F1F0F7" stroke-width="1.6"/>
+
+  <circle cx="36" cy="36" r="14" fill="none" stroke="#9896B0" stroke-width="0.8"/>
+
+  <g stroke="#C4B5FD" stroke-width="1.1" opacity="0.8">
+    <line x1="36" y1="24" x2="36" y2="20"/>
+    <line x1="36" y1="48" x2="36" y2="52"/>
+    <line x1="24" y1="36" x2="20" y2="36"/>
+    <line x1="48" y1="36" x2="52" y2="36"/>
+    <line x1="27.9" y1="27.9" x2="25.1" y2="25.1"/>
+    <line x1="44.1" y1="44.1" x2="46.9" y2="46.9"/>
+    <line x1="44.1" y1="27.9" x2="46.9" y2="25.1"/>
+    <line x1="27.9" y1="44.1" x2="25.1" y2="46.9"/>
+  </g>
+
+  <circle cx="36" cy="36" r="6.5" fill="#F1F0F7"/>
+  <circle cx="36" cy="36" r="2.8" fill="#0F0F11"/>
+
+  <g stroke="#E8A33D" stroke-width="1.2" stroke-linecap="round">
+    <line x1="36" y1="14" x2="36" y2="10"/>
+    <line x1="36" y1="58" x2="36" y2="62"/>
+    <line x1="14" y1="36" x2="10" y2="36"/>
+    <line x1="58" y1="36" x2="62" y2="36"/>
+  </g>
+</svg>
