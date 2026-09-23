@@ -82,6 +82,25 @@ export async function updateBlockContent(formData: FormData) {
   revalidatePath(`/dashboard/plan/bloque/${id}`);
 }
 
+// Vincula/desvincula el guion y el recurso (guía/SOP) de este bloque — ver
+// <ResourceLinksForm>.
+export async function linkBlockResources(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const scriptId = String(formData.get("scriptId") || "") || null;
+  const recursoId = String(formData.get("recursoId") || "") || null;
+  if (!id) throw new Error("Falta el bloque");
+
+  await requireOwnedBlock(id, userId);
+  await db
+    .update(planBlocks)
+    .set({ scriptId, recursoId })
+    .where(eq(planBlocks.id, id));
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath(`/dashboard/plan/bloque/${id}`);
+}
+
 // Un bloque de Plan puede tener uno o más hábitos enlazados
 // (plan_block_activities) — la card "Hábitos" del dashboard (racha, franja
 // de la semana) lee activity_logs, no plan_checks, así que sin esto marcar

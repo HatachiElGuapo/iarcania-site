@@ -54,6 +54,22 @@ Responde SOLO en JSON sin backticks:
 {"hook":"lo que va primero — qué muestra o cómo arranca","body":"el desarrollo — problema, tensión y explicación","cta":"el cierre con perspectiva"}`;
 }
 
+// Wizard del Módulo Estudio (modo IA del editor): 6 respuestas
+// estructuradas en vez de texto libre. Devuelve hook/body/cta.
+function wizardSystemPrompt(canal: string) {
+  const canalLabel = canal === "voidstoic" ? "Void Stoic" : "IArcanIA";
+  const canalDesc =
+    canal === "voidstoic"
+      ? "filosofía práctica de Miguel Aguilar — síntesis de Marco Aurelio, Musashi, Frankl y Taoísmo. Tono introspectivo, honesto, sin motivación vacía, desde experiencia propia."
+      : "automatización e IA de Miguel Aguilar (25, Bogotá). Construye agentes con n8n, Supabase y Claude. Tono directo, sin hype, muestra cosas reales.";
+  return `Eres el asistente de guiones de Miguel Aguilar. Canal: ${canalLabel} — ${canalDesc}
+
+El usuario respondió 6 preguntas guiadas. Con eso, escribe un guión que suene como habla Miguel, no como marketing. Respeta la duración indicada (corto ≈ 60-90s, medio ≈ 2-3 min, largo ≈ 5-8 min).
+
+Responde SOLO en JSON sin backticks:
+{"hook":"gancho de los primeros segundos","body":"desarrollo — problema, idea central y material del usuario, en sus palabras","cta":"cierre con la acción pedida, sin sonar a anuncio"}`;
+}
+
 function preguntasSystemPrompt(modo: string) {
   if (modo === "pantalla") {
     return `Eres el asistente de guiones de Miguel Aguilar, fundador de IArcanIA. Miguel tiene 25 años, es desarrollador independiente en Bogotá, construye automatizaciones con n8n, Supabase y agentes de IA. Su estilo es directo, sin hype, muestra cosas reales que construyó.
@@ -77,11 +93,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const { idea, canal, formato, libre_text, modo, q1, q2, q3 } = await req.json();
+  const { idea, canal, formato, libre_text, modo, q1, q2, q3, wizard } =
+    await req.json();
 
   try {
     if (libre_text) {
       const json = await callAnthropic(libreSystemPrompt(), libre_text, 1200);
+      return NextResponse.json(json);
+    }
+
+    if (wizard && typeof wizard === "object") {
+      const w = wizard as Record<string, string>;
+      const userContent = [
+        `Idea principal: ${w.idea || "—"}`,
+        `Audiencia: ${w.audiencia || "—"}`,
+        `Qué debe sentir: ${w.sentir || "—"}`,
+        `Qué debe hacer después: ${w.accion || "—"}`,
+        `Datos o historias: ${w.material || "—"}`,
+        `Duración: ${w.duracion || "medio"}`,
+      ].join("\n");
+      const json = await callAnthropic(
+        wizardSystemPrompt(canal || "iarcania"),
+        userContent,
+        1500,
+      );
       return NextResponse.json(json);
     }
 

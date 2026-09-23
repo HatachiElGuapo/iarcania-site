@@ -117,6 +117,24 @@ export async function updateActivityContent(formData: FormData) {
   revalidatePath(`/dashboard/habitos/${id}`);
 }
 
+// Vincula/desvincula el guion y el recurso (guía/SOP) de este hábito — ver
+// <ResourceLinksForm>.
+export async function linkActivityResources(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const scriptId = String(formData.get("scriptId") || "") || null;
+  const recursoId = String(formData.get("recursoId") || "") || null;
+  if (!id) throw new Error("Falta el hábito");
+
+  await db
+    .update(activities)
+    .set({ scriptId, recursoId })
+    .where(and(eq(activities.id, id), eq(activities.userId, userId)));
+
+  revalidateAll();
+  revalidatePath(`/dashboard/habitos/${id}`);
+}
+
 export async function updateActivity(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");

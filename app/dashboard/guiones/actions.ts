@@ -40,15 +40,23 @@ export async function createScript(formData: FormData) {
   revalidatePath("/dashboard/planner");
 }
 
+const CANALES = ["iarcania", "voidstoic"];
+const MODOS = ["libre", "bloques", "ia"];
+
 export async function updateScript(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");
   const title = String(formData.get("title") || "").trim();
   const status = String(formData.get("status") || "borrador");
+  const canalRaw = String(formData.get("canal") || "").trim();
+  const canal = CANALES.includes(canalRaw) ? canalRaw : undefined;
+  const modoRaw = String(formData.get("modoPreferido") || "").trim();
+  const modoPreferido = MODOS.includes(modoRaw) ? modoRaw : undefined;
   const hook = String(formData.get("hook") || "").trim() || null;
   const body = String(formData.get("body") || "").trim() || null;
   const cta = String(formData.get("cta") || "").trim() || null;
   const notes = String(formData.get("notes") || "").trim() || null;
+  const notasIa = String(formData.get("notasIa") || "").trim() || null;
   const fechaGrabacion = String(formData.get("fechaGrabacion") || "").trim() || null;
   const fechaPublicacionRaw = String(formData.get("fechaPublicacion") || "").trim();
   const fechaPublicacion = fechaPublicacionRaw ? new Date(fechaPublicacionRaw) : null;
@@ -57,7 +65,19 @@ export async function updateScript(formData: FormData) {
 
   await db
     .update(scripts)
-    .set({ title, status, hook, body, cta, notes, fechaGrabacion, fechaPublicacion })
+    .set({
+      title,
+      status,
+      ...(canal ? { canal } : {}),
+      ...(modoPreferido ? { modoPreferido } : {}),
+      hook,
+      body,
+      cta,
+      notes,
+      notasIa,
+      fechaGrabacion,
+      fechaPublicacion,
+    })
     .where(and(eq(scripts.id, id), eq(scripts.userId, userId)));
 
   revalidatePath("/dashboard/guiones");

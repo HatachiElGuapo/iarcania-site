@@ -12,6 +12,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./auth";
+import { scripts } from "./guiones";
+import { recursos } from "./recursos";
 
 // Núcleo limpio del sistema de hábitos del original — decisión explícita
 // del usuario de dejar fuera lo que el propio os.js dejó a medias
@@ -37,6 +39,14 @@ export const activities = pgTable(
     // se va afinando con el tiempo, sin fecha — ej. el guion de la rutina
     // de la mañana, escrito de a poco antes de dormir.
     notes: text("notes"),
+    // Guion o recurso (guía/SOP) vinculado — para "llamarlos" desde el
+    // hábito, ej. abrir la guía de grabación antes de un bloque de rutina.
+    scriptId: uuid("script_id").references(() => scripts.id, {
+      onDelete: "set null",
+    }),
+    recursoId: uuid("recurso_id").references(() => recursos.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

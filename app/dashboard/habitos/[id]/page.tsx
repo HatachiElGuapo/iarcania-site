@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 import { Textarea, Button } from "@/components/ui";
 import { SectionHeader } from "@/components/ui/section-header";
-import { getActivityDetail, updateActivityContent } from "../actions";
+import { listScriptOptions, listRecursoOptions } from "@/lib/recursos-picker";
+import { ResourceLinksForm } from "../../resource-links";
+import { getActivityDetail, updateActivityContent, linkActivityResources } from "../actions";
 
 const FREQ_LABEL: Record<string, string> = {
   diaria: "Diario",
@@ -22,6 +25,13 @@ export default async function HabitDetailPage({ params }: { params: Promise<{ id
   const habit = await getActivityDetail(id);
   if (!habit) notFound();
 
+  const session = await auth();
+  const userId = session!.user.id;
+  const [scriptOptions, recursoOptions] = await Promise.all([
+    listScriptOptions(userId),
+    listRecursoOptions(),
+  ]);
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 pb-28 md:p-8 md:pb-8">
       <SectionHeader
@@ -32,6 +42,15 @@ export default async function HabitDetailPage({ params }: { params: Promise<{ id
             ← Hábitos
           </Link>
         }
+      />
+
+      <ResourceLinksForm
+        action={linkActivityResources}
+        hiddenFields={{ id: habit.id }}
+        scriptId={habit.scriptId}
+        recursoId={habit.recursoId}
+        scripts={scriptOptions}
+        recursos={recursoOptions}
       />
 
       <form action={updateActivityContent} className="flex flex-col gap-3">

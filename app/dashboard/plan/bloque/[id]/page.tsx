@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { Textarea, Button } from "@/components/ui";
 import { SectionHeader } from "@/components/ui/section-header";
 import { kindInfo } from "@/lib/plan/kinds";
-import { getBlockDetail, updateBlockContent } from "../../actions";
+import { listScriptOptions, listRecursoOptions } from "@/lib/recursos-picker";
+import { ResourceLinksForm } from "../../../resource-links";
+import { getBlockDetail, updateBlockContent, linkBlockResources } from "../../actions";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
@@ -18,6 +21,12 @@ export default async function BlockDetailPage({ params }: { params: Promise<{ id
   if (!block) notFound();
 
   const kind = kindInfo(block.kind);
+  const session = await auth();
+  const userId = session!.user.id;
+  const [scriptOptions, recursoOptions] = await Promise.all([
+    listScriptOptions(userId),
+    listRecursoOptions(),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 pb-28 md:p-8 md:pb-8">
@@ -29,6 +38,15 @@ export default async function BlockDetailPage({ params }: { params: Promise<{ id
             ← Rutinas
           </a>
         }
+      />
+
+      <ResourceLinksForm
+        action={linkBlockResources}
+        hiddenFields={{ id: block.id }}
+        scriptId={block.scriptId}
+        recursoId={block.recursoId}
+        scripts={scriptOptions}
+        recursos={recursoOptions}
       />
 
       <form action={updateBlockContent} className="flex flex-col gap-3">

@@ -126,6 +126,23 @@ export async function cancelAppointment(formData: FormData) {
   revalidatePath("/dashboard/agenda");
 }
 
+// Vincula/desvincula el guion y el recurso (guía/SOP) de esta cita — ver
+// <ResourceLinksForm>.
+export async function linkAppointmentResources(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const scriptId = String(formData.get("scriptId") || "") || null;
+  const recursoId = String(formData.get("recursoId") || "") || null;
+  if (!id) throw new Error("Falta la cita");
+
+  await db
+    .update(appointments)
+    .set({ scriptId, recursoId })
+    .where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
+
+  revalidatePath("/dashboard/citas");
+}
+
 export async function deleteAppointment(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");

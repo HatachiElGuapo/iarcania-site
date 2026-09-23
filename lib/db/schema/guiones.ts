@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   text,
+  integer,
   date,
   timestamp,
   jsonb,
@@ -31,6 +32,13 @@ export const scripts = pgTable(
     body: text("body"),
     cta: text("cta"),
     notes: text("notes"),
+    // Modo de edición preferido de este guión (Módulo Estudio): en el
+    // cliente cambia solo la UX de escritura — los 3 modos colapsan igual a
+    // hook/body/cta. 'libre' | 'bloques' | 'ia'
+    modoPreferido: text("modo_preferido").notNull().default("bloques"),
+    // Respuestas del wizard IA / notas de la última generación. Se guarda
+    // aparte de `notes` (texto plano de producción) para no pisarlo.
+    notasIa: text("notas_ia"),
     fechaGrabacion: date("fecha_grabacion"),
     fechaPublicacion: timestamp("fecha_publicacion", { withTimezone: true }),
     // Columnas de Planner (planner.html) — mismo `scripts` que Guiones, no
@@ -101,6 +109,39 @@ export const scriptDerivados = pgTable(
     estadoCheck: check(
       "script_derivados_estado_chk",
       sql`${t.estado} IN ('idea','grabando','editando','publicado')`,
+    ),
+  }),
+);
+
+// Slides de un guión (Módulo Estudio). Deck visual que acompaña a la
+// grabación / se muestra a la audiencia. `orden` es 0-based y contiguo
+// (las server actions lo re-normalizan en cada mutación). `tipo` define el
+// layout — ver lib/guiones/slides.ts y app/dashboard/guiones/slide-view.tsx.
+export const scriptSlides = pgTable(
+  "script_slides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scriptId: uuid("script_id")
+      .notNull()
+      .references(() => scripts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    orden: integer("orden").notNull().default(0),
+    // 'portada' | 'punto' | 'cita' | 'dato' | 'cierre'
+    tipo: text("tipo").notNull().default("punto"),
+    textoPrincipal: text("texto_principal").notNull(),
+    textoSecundario: text("texto_secundario"),
+    notas: text("notas"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    scriptIdx: index("script_slides_script_idx").on(t.scriptId),
+    tipoCheck: check(
+      "script_slides_tipo_chk",
+      sql`${t.tipo} IN ('portada','punto','cita','dato','cierre')`,
     ),
   }),
 );

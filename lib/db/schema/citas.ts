@@ -10,6 +10,8 @@ import {
 import { sql } from "drizzle-orm";
 import { users } from "./auth";
 import { eventTypes } from "./eventos";
+import { scripts } from "./guiones";
+import { recursos } from "./recursos";
 
 export const appointments = pgTable(
   "appointments",
@@ -32,6 +34,14 @@ export const appointments = pgTable(
     // 'pendiente' | 'completada' | 'cancelada'
     status: text("status").notNull().default("pendiente"),
     eventTypeId: uuid("event_type_id").references(() => eventTypes.id, {
+      onDelete: "set null",
+    }),
+    // Guion o recurso (guía/SOP) vinculado — para "llamarlos" desde la
+    // cita, ej. abrir el guion antes de una reunión de grabación.
+    scriptId: uuid("script_id").references(() => scripts.id, {
+      onDelete: "set null",
+    }),
+    recursoId: uuid("recurso_id").references(() => recursos.id, {
       onDelete: "set null",
     }),
     createdAt: timestamp("created_at", { withTimezone: true })

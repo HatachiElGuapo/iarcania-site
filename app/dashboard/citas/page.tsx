@@ -5,11 +5,14 @@ import { appointments } from "@/lib/db/schema/citas";
 import { eventTypes } from "@/lib/db/schema/eventos";
 import { EVENT_TYPE_CATS } from "@/lib/constants/event-type-cats";
 import { PageHeader, SectionHeader, Section, Badge, EmptyState, Button, Labeled, Input, Select, cx } from "@/components/ui";
+import { listScriptOptions, listRecursoOptions } from "@/lib/recursos-picker";
+import { ResourceLinksForm } from "../resource-links";
 import {
   createAppointment,
   completeAppointment,
   cancelAppointment,
   deleteAppointment,
+  linkAppointmentResources,
 } from "./actions";
 
 type Appointment = InferSelectModel<typeof appointments>;
@@ -45,9 +48,11 @@ export default async function CitasPage() {
   const userId = session!.user.id;
   const now = new Date();
 
-  const [allCitas, types] = await Promise.all([
+  const [allCitas, types, scriptOptions, recursoOptions] = await Promise.all([
     db.select().from(appointments).where(eq(appointments.userId, userId)).orderBy(asc(appointments.datetime)),
     db.select().from(eventTypes).where(eq(eventTypes.userId, userId)).orderBy(asc(eventTypes.name)),
+    listScriptOptions(userId),
+    listRecursoOptions(),
   ]);
 
   const proximas = allCitas.filter((c) => c.status === "pendiente" && c.datetime >= now);
@@ -77,7 +82,14 @@ export default async function CitasPage() {
             <Section title="Próximas">
               <div className="flex flex-col gap-2">
                 {proximas.map((c) => (
-                  <CitaCard key={c.id} cita={c} fmtFecha={fmtFecha} fmtHora={fmtHora} />
+                  <CitaCard
+                    key={c.id}
+                    cita={c}
+                    fmtFecha={fmtFecha}
+                    fmtHora={fmtHora}
+                    scriptOptions={scriptOptions}
+                    recursoOptions={recursoOptions}
+                  />
                 ))}
               </div>
             </Section>
@@ -89,7 +101,14 @@ export default async function CitasPage() {
               </summary>
               <div className="mt-3 flex flex-col gap-2">
                 {pasadas.map((c) => (
-                  <CitaCard key={c.id} cita={c} fmtFecha={fmtFecha} fmtHora={fmtHora} />
+                  <CitaCard
+                    key={c.id}
+                    cita={c}
+                    fmtFecha={fmtFecha}
+                    fmtHora={fmtHora}
+                    scriptOptions={scriptOptions}
+                    recursoOptions={recursoOptions}
+                  />
                 ))}
               </div>
             </details>
@@ -167,10 +186,14 @@ function CitaCard({
   cita,
   fmtFecha,
   fmtHora,
+  scriptOptions,
+  recursoOptions,
 }: {
   cita: Appointment;
   fmtFecha: (d: Date) => string;
   fmtHora: (d: Date) => string;
+  scriptOptions: { id: string; title: string; canal: string }[];
+  recursoOptions: { id: string; titulo: string; tipo: string }[];
 }) {
   const isPendiente = cita.status === "pendiente";
   const st = STATUS[cita.status] ?? { label: cita.status, tone: "neutral" as const };
@@ -197,6 +220,22 @@ function CitaCard({
         </div>
         <Badge tone={st.tone}>{st.label}</Badge>
       </div>
+
+      <details className="mt-3">
+        <summary className="cursor-pointer text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-dim hover:text-ink-muted">
+          Guion / guía {(cita.scriptId || cita.recursoId) && "· vinculado"}
+        </summary>
+        <div className="mt-2">
+          <ResourceLinksForm
+            action={linkAppointmentResources}
+            hiddenFields={{ id: cita.id }}
+            scriptId={cita.scriptId}
+            recursoId={cita.recursoId}
+            scripts={scriptOptions}
+            recursos={recursoOptions}
+          />
+        </div>
+      </details>
 
       <div className="mt-3 flex flex-wrap gap-2">
         {isPendiente && (
