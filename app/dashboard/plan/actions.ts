@@ -305,21 +305,21 @@ export async function moveBlockForDay(input: {
 // el bloque; recalcularlo acá significaría cargar el plan completo otra
 // vez para lo mismo.
 //
-// Si el bloque viene de una cola (queueId) Y esa misma cola tiene otro
-// bloque programado mañana (ej. "Contactar negocios" se repite todos los
-// días con la misma cola) — pedido explícito: que REEMPLACE el turno de
-// mañana, no que se sume aparte. Se sobreescribe el texto de ESE bloque
-// para mañana con override, así ocupa el mismo lugar: nada duplicado, y
-// se puede marcar hecho/saltado desde el bloque normal de mañana como
-// cualquier otro día (no queda una tarea aparte y desconectada del
-// historial de Fases). El item que le tocaba naturalmente a la cola mañana
-// se pierde ese turno (mismo comportamiento de siempre: la cola avanza un
-// paso por día exista o no el override).
+// Si el bloque viene de una cola (queueId), se busca el PRÓXIMO turno real
+// de esa cola dentro de los siguientes 7 días (no solo mañana — pedido
+// explícito, después de ver que un bloque semanal como "Video lunes"
+// empujado al martes no tenía nada que reemplazar ahí y terminaba sumando
+// una tarea suelta sin quitar nada). Dentro de una semana siempre aparece
+// al menos una vez más (su propia recurrencia semanal, si no antes por
+// otro bloque de la misma cola) — se sobreescribe el texto de ESE bloque,
+// así ocupa el mismo lugar en vez de sumarse aparte. El item que le tocaba
+// naturalmente a la cola ese día se pierde ese turno (mismo comportamiento
+// de siempre: la cola avanza un paso por día exista o no el override).
 //
-// Si NO hay un bloque de esa cola mañana (ej. "Video: auditoría" de los
-// lunes — el martes es una cola distinta, "Video: educación"), no hay
-// turno que reemplazar: se cae al comportamiento anterior, una tarea
-// suelta con vencimiento mañana.
+// Si el bloque NO viene de ninguna cola (texto fijo, ej. "Hacer cena"), no
+// hay forma confiable de saber cuál es "el mismo bloque" en otro día sin
+// una cola que los conecte — ahí se mantiene el comportamiento anterior:
+// una tarea suelta con vencimiento mañana.
 export async function moveBlockToTomorrow(input: { date: string; blockId: string; text: string }) {
   const userId = await requireUserId();
   if (!input?.date || !input?.blockId || !input?.text?.trim()) throw new Error("Faltan datos");
@@ -328,20 +328,26 @@ export async function moveBlockToTomorrow(input: { date: string; blockId: string
   const text = input.text.trim();
   const tomorrow = addDaysISO(input.date, 1);
 
-  let tomorrowBlockId: string | null = null;
+  let nextTurn: { date: string; blockId: string } | null = null;
   if (block.queueId) {
-    const [tomorrowBlock] = await db
-      .select({ id: planBlocks.id })
-      .from(planBlocks)
-      .where(
-        and(
-          eq(planBlocks.planId, block.planId),
-          eq(planBlocks.personId, block.personId),
-          eq(planBlocks.queueId, block.queueId),
-          eq(planBlocks.weekday, weekdayMon0(tomorrow)),
-        ),
-      );
-    tomorrowBlockId = tomorrowBlock?.id ?? null;
+    for (let offset = 1; offset <= 7; offset++) {
+      const candidateDate = addDaysISO(input.date, offset);
+      const [candidateBlock] = await db
+        .select({ id: planBlocks.id })
+        .from(planBlocks)
+        .where(
+          and(
+            eq(planBlocks.planId, block.planId),
+            eq(planBlocks.personId, block.personId),
+            eq(planBlocks.queueId, block.queueId),
+            eq(planBlocks.weekday, weekdayMon0(candidateDate)),
+          ),
+        );
+      if (candidateBlock) {
+        nextTurn = { date: candidateDate, blockId: candidateBlock.id };
+        break;
+      }
+    }
   }
 
   await db.transaction(async (tx) => {
@@ -350,10 +356,10 @@ export async function moveBlockToTomorrow(input: { date: string; blockId: string
       .values({ planId: block.planId, date: input.date, blockId: input.blockId, text: null, removed: true })
       .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { removed: true } });
 
-    if (tomorrowBlockId) {
+    if (nextTurn) {
       await tx
         .insert(planOverrides)
-        .values({ planId: block.planId, date: tomorrow, blockId: tomorrowBlockId, text, removed: false })
+        .values({ planId: block.planId, date: nextTurn.date, blockId: nextTurn.blockId, text, removed: false })
         .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { text, removed: false } });
     } else {
       await tx.insert(tasks).values({ userId, title: text, dueDate: tomorrow });
