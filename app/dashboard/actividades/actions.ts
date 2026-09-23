@@ -95,18 +95,16 @@ export async function updateTaskNotes(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-// Vincula/desvincula el guion y el recurso (guía/SOP) de esta tarea — ver
-// <ResourceLinksForm>.
-export async function linkTaskResources(formData: FormData) {
+// Vincula/desvincula el guion de esta tarea — ver <ScriptLinkPanel>.
+export async function linkTaskScript(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");
   const scriptId = String(formData.get("scriptId") || "") || null;
-  const recursoId = String(formData.get("recursoId") || "") || null;
   if (!id) throw new Error("Falta la tarea");
 
   await db
     .update(tasks)
-    .set({ scriptId, recursoId })
+    .set({ scriptId })
     .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 
   revalidatePath("/dashboard/actividades");

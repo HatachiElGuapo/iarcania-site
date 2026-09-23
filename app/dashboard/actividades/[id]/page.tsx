@@ -3,9 +3,9 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { Textarea, Button } from "@/components/ui";
 import { SectionHeader } from "@/components/ui/section-header";
-import { listScriptOptions, listRecursoOptions } from "@/lib/recursos-picker";
-import { ResourceLinksForm } from "../../resource-links";
-import { getTaskDetail, updateTaskNotes, linkTaskResources } from "../actions";
+import { listScriptOptions } from "@/lib/scripts-picker";
+import { ScriptLinkPanel } from "../../script-link";
+import { getTaskDetail, updateTaskNotes, linkTaskScript } from "../actions";
 
 // Página de contenido de una tarea — distinta de la nota rápida del panel
 // "⋯" ("qué hiciste hoy"): esto es un lugar para escribir/afinar algo con
@@ -20,10 +20,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
 
   const session = await auth();
   const userId = session!.user.id;
-  const [scriptOptions, recursoOptions] = await Promise.all([
-    listScriptOptions(userId),
-    listRecursoOptions(),
-  ]);
+  const scriptOptions = await listScriptOptions(userId);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 pb-28 md:p-8 md:pb-8">
@@ -37,13 +34,11 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
         }
       />
 
-      <ResourceLinksForm
-        action={linkTaskResources}
+      <ScriptLinkPanel
+        action={linkTaskScript}
         hiddenFields={{ id: task.id }}
         scriptId={task.scriptId}
-        recursoId={task.recursoId}
         scripts={scriptOptions}
-        recursos={recursoOptions}
       />
 
       <form action={updateTaskNotes} className="flex flex-col gap-3">

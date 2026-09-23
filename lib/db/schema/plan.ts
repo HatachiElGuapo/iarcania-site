@@ -15,7 +15,6 @@ import { sql } from "drizzle-orm";
 import { users } from "./auth";
 import { activities } from "./habitos";
 import { scripts } from "./guiones";
-import { recursos } from "./recursos";
 
 // Vocabulario compartido por plan_blocks.kind (NOT NULL) y plan_events.kind
 // (nullable — 3 eventos del seed, como el cumpleaños de Miguel, no traen
@@ -142,12 +141,9 @@ export const planBlocks = pgTable(
     // tiempo, sin fecha — ej. el guion de un bloque de contenido, escrito
     // de a poco antes de dormir en vez de una tarea puntual del día.
     notes: text("notes"),
-    // Guion o recurso (guía/SOP) vinculado — para "llamarlos" desde el
-    // bloque, ej. abrir el guion del video que toca grabar en este bloque.
+    // Guion vinculado — para "llamarlo" desde el bloque, ej. abrir el guion
+    // del video que toca grabar en este bloque.
     scriptId: uuid("script_id").references(() => scripts.id, {
-      onDelete: "set null",
-    }),
-    recursoId: uuid("recurso_id").references(() => recursos.id, {
       onDelete: "set null",
     }),
   },

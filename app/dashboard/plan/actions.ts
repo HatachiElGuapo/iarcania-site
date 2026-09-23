@@ -82,19 +82,17 @@ export async function updateBlockContent(formData: FormData) {
   revalidatePath(`/dashboard/plan/bloque/${id}`);
 }
 
-// Vincula/desvincula el guion y el recurso (guía/SOP) de este bloque — ver
-// <ResourceLinksForm>.
-export async function linkBlockResources(formData: FormData) {
+// Vincula/desvincula el guion de este bloque — ver <ScriptLinkPanel>.
+export async function linkBlockScript(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");
   const scriptId = String(formData.get("scriptId") || "") || null;
-  const recursoId = String(formData.get("recursoId") || "") || null;
   if (!id) throw new Error("Falta el bloque");
 
   await requireOwnedBlock(id, userId);
   await db
     .update(planBlocks)
-    .set({ scriptId, recursoId })
+    .set({ scriptId })
     .where(eq(planBlocks.id, id));
 
   revalidatePath("/dashboard/plan");

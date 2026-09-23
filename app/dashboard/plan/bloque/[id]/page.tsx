@@ -3,9 +3,9 @@ import { auth } from "@/lib/auth";
 import { Textarea, Button } from "@/components/ui";
 import { SectionHeader } from "@/components/ui/section-header";
 import { kindInfo } from "@/lib/plan/kinds";
-import { listScriptOptions, listRecursoOptions } from "@/lib/recursos-picker";
-import { ResourceLinksForm } from "../../../resource-links";
-import { getBlockDetail, updateBlockContent, linkBlockResources } from "../../actions";
+import { listScriptOptions } from "@/lib/scripts-picker";
+import { ScriptLinkPanel } from "../../../script-link";
+import { getBlockDetail, updateBlockContent, linkBlockScript } from "../../actions";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
@@ -23,10 +23,7 @@ export default async function BlockDetailPage({ params }: { params: Promise<{ id
   const kind = kindInfo(block.kind);
   const session = await auth();
   const userId = session!.user.id;
-  const [scriptOptions, recursoOptions] = await Promise.all([
-    listScriptOptions(userId),
-    listRecursoOptions(),
-  ]);
+  const scriptOptions = await listScriptOptions(userId);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 pb-28 md:p-8 md:pb-8">
@@ -40,13 +37,11 @@ export default async function BlockDetailPage({ params }: { params: Promise<{ id
         }
       />
 
-      <ResourceLinksForm
-        action={linkBlockResources}
+      <ScriptLinkPanel
+        action={linkBlockScript}
         hiddenFields={{ id: block.id }}
         scriptId={block.scriptId}
-        recursoId={block.recursoId}
         scripts={scriptOptions}
-        recursos={recursoOptions}
       />
 
       <form action={updateBlockContent} className="flex flex-col gap-3">

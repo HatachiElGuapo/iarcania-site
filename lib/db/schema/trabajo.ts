@@ -14,7 +14,6 @@ import { sql } from "drizzle-orm";
 import { users } from "./auth";
 import { lifeAreas, lifeProjects } from "./brujula";
 import { scripts } from "./guiones";
-import { recursos } from "./recursos";
 
 export const tasks = pgTable(
   "tasks",
@@ -42,12 +41,9 @@ export const tasks = pgTable(
     areaId: uuid("area_id").references(() => lifeAreas.id, {
       onDelete: "set null",
     }),
-    // Guion o recurso (guía/SOP) vinculado — para "llamarlos" desde la
-    // tarea, ej. abrir el guion de un video que hay que grabar hoy.
+    // Guion vinculado — para "llamarlo" desde la tarea, ej. abrir el guion
+    // de un video que hay que grabar hoy.
     scriptId: uuid("script_id").references(() => scripts.id, {
-      onDelete: "set null",
-    }),
-    recursoId: uuid("recurso_id").references(() => recursos.id, {
       onDelete: "set null",
     }),
     createdAt: timestamp("created_at", { withTimezone: true })
