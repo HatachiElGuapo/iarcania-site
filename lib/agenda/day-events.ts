@@ -55,6 +55,15 @@ export const DAY_START = 0;
 export const DAY_END = 24 * 60;
 const HABIT_DURATION = 20;
 const HABIT_FALLBACK_START = 6 * 60;
+// Tarea con dueDate = hoy pero sin agendar como bloque real (agenda_items):
+// antes solo aparecía en "Sin agendar", nunca en "Mi día"/Tu día — crearla
+// con fecha (y a veces hora) se sentía como que no pasaba nada, porque la
+// lista mezclada solo leía agenda_items, no tasks.due_date. Se pinta igual
+// que un hábito sin materializar: a su hora si la puso, si no a un horario
+// por defecto — DISTINTO al de los hábitos (mediodía en vez de la mañana)
+// para que no se apilen en el mismo instante.
+const TASK_DURATION = 30;
+const TASK_FALLBACK_START = 12 * 60;
 
 export function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
@@ -84,7 +93,15 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
     // se filtraran, blockEvents perdería el título (queda "(sin título)") y
     // el check de "hecho" nunca se vería en la lista.
     db
-      .select({ id: tasks.id, title: tasks.title, category: tasks.category, status: tasks.status })
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        category: tasks.category,
+        status: tasks.status,
+        dueDate: tasks.dueDate,
+        timeDue: tasks.timeDue,
+        timeEnd: tasks.timeEnd,
+      })
       .from(tasks)
       .where(and(eq(tasks.userId, userId), ne(tasks.status, "archivada")))
       .orderBy(tasks.title),
@@ -211,6 +228,22 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
   const pendingTasks = allTasks.filter((t) => t.status !== "completada");
   const backlog = pendingTasks.filter((t) => !scheduledTaskIds.has(t.id));
 
+  // Tareas con vencimiento HOY que todavía no tienen un bloque real — se
+  // pintan igual que un hábito sin materializar (ver TASK_FALLBACK_START):
+  // a su hora si la tiene, si no a un horario por defecto. Sin esto,
+  // ponerle fecha (y hasta hora) a una tarea nueva no la hacía aparecer en
+  // "Mi día" — solo quedaba en "Sin agendar".
+  let taskCursor = TASK_FALLBACK_START;
+  const dueTodayTasks = allTasks
+    .filter((t) => t.dueDate === date && !scheduledTaskIds.has(t.id))
+    .map((t) => {
+      const hasTime = !!t.timeDue && /^\d{1,2}:\d{2}$/.test(t.timeDue);
+      const start = hasTime ? toMinutes(t.timeDue as string) : taskCursor;
+      if (!hasTime) taskCursor += TASK_DURATION;
+      const duration = hasTime && t.timeEnd ? Math.max(1, toMinutes(t.timeEnd) - toMinutes(t.timeDue as string)) : TASK_DURATION;
+      return { ...t, start, duration, autoTime: !hasTime };
+    });
+
   // Hábitos ya materializados como bloque real para este día: no se dibuja su
   // versión virtual. Los enlazados a un bloque de Plan tampoco — se pintan
   // ahí, no aparte.
@@ -280,11 +313,29 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
     editHref: null,
   }));
 
-  const events = [...blockEvents, ...habitEvents, ...planBlockEvents];
+  const taskEvents: AgendaEvent[] = dueTodayTasks.map((t) => ({
+    key: `task-${t.id}`,
+    kind: "block",
+    refId: t.id,
+    itemType: "task",
+    itemId: t.id,
+    start: t.start,
+    duration: t.duration,
+    title: t.title,
+    accent: t.category ? catInfo(t.category).color : TYPE_META.task.accent,
+    icon: TYPE_META.task.icon,
+    badge: t.autoTime ? "Tarea · sin hora" : "Tarea",
+    done: t.status === "completada",
+    autoTime: t.autoTime,
+    editHref: `/dashboard/agenda?date=${date}&pre=${t.id}#agregar-bloque`,
+  }));
+
+  const events = [...blockEvents, ...habitEvents, ...planBlockEvents, ...taskEvents];
 
   const habitMinutes = habitEvents.reduce((sum, h) => sum + h.duration, 0);
   const planMinutes = planBlockEvents.reduce((sum, b) => sum + b.duration, 0);
-  const totalScheduled = blocks.reduce((sum, b) => sum + b.duration, 0) + habitMinutes + planMinutes;
+  const taskMinutes = taskEvents.reduce((sum, t) => sum + t.duration, 0);
+  const totalScheduled = blocks.reduce((sum, b) => sum + b.duration, 0) + habitMinutes + planMinutes + taskMinutes;
   const freeMinutes = Math.max(0, DAY_END - DAY_START - totalScheduled);
 
   const occByKey = new Map<string, { label: string; color: string; minutes: number }>();
@@ -308,6 +359,10 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
   }
   if (habitMinutes > 0) bump("habitos", "Hábitos", CATS.habitos.color, habitMinutes);
   for (const p of planBlockEvents) bump(`plan-${p.badge}`, `Plan · ${p.badge}`, p.accent, p.duration);
+  for (const t of dueTodayTasks) {
+    const c = t.category ? catInfo(t.category) : null;
+    bump(t.category ?? "sin-categoria", c?.label ?? "Sin categoría", c?.color ?? "#5A5870", t.duration);
+  }
   const occupancy = [...occByKey.entries()].map(([key, v]) => ({ key, ...v })).sort((a, b) => b.minutes - a.minutes);
 
   return {
