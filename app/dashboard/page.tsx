@@ -1011,12 +1011,22 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       </span>
       <span className="shrink-0 text-[16px]">{ev.icon}</span>
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-[15px] leading-tight ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
+        <div
+          className={`line-clamp-2 text-[15px] leading-tight ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}
+        >
           {ev.title}
         </div>
-        {ev.habitChecks && ev.habitChecks.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap gap-1.5">
-            {ev.habitChecks.map((h) => (
+        {(ev.badge || (ev.habitChecks && ev.habitChecks.length > 0)) && (
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {ev.badge && (
+              <span
+                className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+                style={{ background: `${ev.accent}22`, color: ev.accent }}
+              >
+                {ev.badge}
+              </span>
+            )}
+            {ev.habitChecks?.map((h) => (
               <span key={h.name} className={`text-[10px] ${h.done ? "text-success" : "text-ink-dim"}`}>
                 {h.done ? "✓" : "○"} {h.name}
               </span>
@@ -1024,14 +1034,6 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
           </div>
         )}
       </div>
-      {ev.badge && (
-        <span
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
-          style={{ background: `${ev.accent}22`, color: ev.accent }}
-        >
-          {ev.badge}
-        </span>
-      )}
     </ListCard>
   );
 
@@ -1053,24 +1055,10 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} isSkipped={false} />
       )}
       {ev.itemType === "task" && ev.itemId && (
-        <TaskHabitMenu
-          kind="task"
-          id={ev.itemId}
-          date={date}
-          startTime={ev.autoTime ? "" : fmtTime(ev.start)}
-          title={ev.title}
-          detailHref="/dashboard/actividades"
-        />
+        <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
       )}
       {(ev.itemType === "habit" || ev.itemType === "habito") && ev.itemId && (
-        <TaskHabitMenu
-          kind="habit"
-          id={ev.itemId}
-          date={date}
-          startTime={ev.autoTime ? "" : fmtTime(ev.start)}
-          title={ev.title}
-          detailHref="/dashboard/habitos"
-        />
+        <TaskHabitMenu kind="habit" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
       )}
     </div>
   );

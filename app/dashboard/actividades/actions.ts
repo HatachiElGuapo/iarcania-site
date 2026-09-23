@@ -12,6 +12,20 @@ async function requireUserId() {
   return session.user.id;
 }
 
+// Lectura para el panel de "Mi día" (<TaskHabitMenu>): antes "Ver detalle"
+// mandaba a /dashboard/actividades, una lista general que no resalta ni
+// muestra nada de ESA tarea puntual — pedido explícito de mostrar la info
+// ahí mismo. No hay ruta de detalle por tarea todavía, así que el panel la
+// pide y la pinta él mismo.
+export async function getTaskDetail(id: string) {
+  const userId = await requireUserId();
+  const [row] = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+  return row ?? null;
+}
+
 export async function createTask(formData: FormData) {
   const userId = await requireUserId();
   const title = String(formData.get("title") || "").trim();

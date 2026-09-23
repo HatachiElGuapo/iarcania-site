@@ -20,6 +20,17 @@ function revalidateAll() {
   revalidatePath("/dashboard/agenda");
 }
 
+// Lectura para el panel de "Mi día" (<TaskHabitMenu>) — mismo motivo que
+// getTaskDetail en actividades/actions.ts.
+export async function getActivityDetail(id: string) {
+  const userId = await requireUserId();
+  const [row] = await db
+    .select()
+    .from(activities)
+    .where(and(eq(activities.id, id), eq(activities.userId, userId)));
+  return row ?? null;
+}
+
 export async function createActivity(formData: FormData) {
   const userId = await requireUserId();
   const name = String(formData.get("name") || "").trim();

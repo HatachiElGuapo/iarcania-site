@@ -235,11 +235,11 @@ export default async function PlanPage({
                           <span className="w-11 shrink-0 text-[11px] tabular-nums text-ink-dim">{b.startTime}</span>
                           <span className="shrink-0 text-[16px]">{kind.icon}</span>
                           <span
-                            className={`min-w-0 flex-1 truncate text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
+                            className={`line-clamp-2 min-w-0 flex-1 text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
                           >
                             {b.text}
                           </span>
-                          {b.isMinimum && <Badge tone="warm">Mínimo</Badge>}
+                          {b.isMinimum && <Badge tone="warm" className="shrink-0">Mínimo</Badge>}
                         </ListCard>
                       </button>
                     </form>
