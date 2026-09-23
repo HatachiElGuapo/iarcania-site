@@ -1,4 +1,5 @@
 import { and, eq, lt, ne, gte, lte, gt } from "drizzle-orm";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { tasks } from "@/lib/db/schema/trabajo";
@@ -341,13 +342,13 @@ export default async function RutinasPage({
       {(overdueTasks.length > 0 || upcomingAppointments.length > 0) && (
         <div className="flex flex-wrap items-center gap-2.5">
           {overdueTasks.length > 0 && (
-            <a
+            <Link
               href="/dashboard/actividades?tiempo=vencidas"
               className="rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 py-1.5 text-xs text-danger transition-colors duration-120 hover:border-danger/50"
             >
               ⚠ {overdueTasks.length} tarea{overdueTasks.length !== 1 ? "s" : ""} vencida
               {overdueTasks.length !== 1 ? "s" : ""}
-            </a>
+            </Link>
           )}
           {upcomingAppointments.map((a, i) => (
             <a
@@ -475,9 +476,9 @@ export default async function RutinasPage({
             title="Hábitos"
             count={`${habitsDoneToday} / ${habitsView.length}`}
             action={
-              <a href="/dashboard/habitos/rachas" className="text-accent hover:underline">
+              <Link href="/dashboard/habitos/rachas" className="text-accent hover:underline">
                 Ver rachas →
-              </a>
+              </Link>
             }
             flush
           >
@@ -605,9 +606,9 @@ export default async function RutinasPage({
               : ""
           }`}
           action={
-            <a href="/dashboard/actividades?tiempo=semana" className="hover:text-ink">
+            <Link href="/dashboard/actividades?tiempo=semana" className="hover:text-ink">
               Ver todas →
-            </a>
+            </Link>
           }
         >
           <div className="grid gap-x-6 gap-y-1" style={{ gridTemplateColumns: "1fr 1fr" }}>
@@ -814,12 +815,12 @@ function MobileHoy({
       {(overdueCount > 0 || upcomingAppointments.length > 0) && (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
           {overdueCount > 0 && (
-            <a
+            <Link
               href="/dashboard/actividades?tiempo=vencidas"
               className="flex min-h-11 shrink-0 items-center rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 text-[13px] text-danger"
             >
               ⚠ {overdueCount} vencida{overdueCount !== 1 ? "s" : ""}
-            </a>
+            </Link>
           )}
           {upcomingAppointments.map((a) => (
             <a
@@ -965,9 +966,9 @@ function MobileHoy({
             <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
               Próximos 7 días
             </div>
-            <a href="/dashboard/actividades?tiempo=semana" className="text-[11px] text-ink-dim">
+            <Link href="/dashboard/actividades?tiempo=semana" className="text-[11px] text-ink-dim">
               Ver todas →
-            </a>
+            </Link>
           </div>
           <div className="flex flex-col gap-1.5">
             {upcomingTasks.map((t) => {

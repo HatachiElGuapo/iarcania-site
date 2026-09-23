@@ -125,9 +125,16 @@ export function PlanBlockMenu({
             </div>
 
             <div className="flex flex-col gap-3 px-[18px] pb-2 pt-4">
+              <a
+                href={`/dashboard/plan/bloque/${blockId}`}
+                className="flex min-h-11 items-center justify-center rounded-ui border border-line text-[13px] font-medium text-ink-muted"
+              >
+                Abrir página del bloque →
+              </a>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                  Nota — ¿qué hiciste de verdad?
+                  Nota de hoy — ¿qué hiciste de verdad?
                 </label>
                 <textarea
                   value={note}

@@ -239,6 +239,13 @@
       "when": 1790026882243,
       "tag": "0033_pretty_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790166695592,
+      "tag": "0034_third_gwen_stacy",
+      "breakpoints": true
     }
   ]
 }

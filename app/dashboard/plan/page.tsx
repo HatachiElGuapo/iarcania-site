@@ -331,6 +331,9 @@ export default async function PlanPage({
                           Cambiar solo hoy
                         </summary>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <a href={`/dashboard/plan/bloque/${b.blockId}`} className="text-[10.5px] text-accent hover:underline">
+                            Abrir página del bloque →
+                          </a>
                           <form action={setOverride} className="flex flex-1 min-w-[180px] items-center gap-1.5">
                             <input type="hidden" name="date" value={date} />
                             <input type="hidden" name="blockId" value={b.blockId} />

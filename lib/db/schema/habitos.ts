@@ -32,6 +32,11 @@ export const activities = pgTable(
     horaSugerida: text("hora_sugerida"),
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
+    // Contenido persistente del hábito — distinto de activity_logs.notes
+    // (la nota de un día puntual, "qué hiciste hoy"). Este es un texto que
+    // se va afinando con el tiempo, sin fecha — ej. el guion de la rutina
+    // de la mañana, escrito de a poco antes de dormir.
+    notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -135,6 +135,11 @@ export const planBlocks = pgTable(
     isMinimum: boolean("is_minimum").notNull().default(false),
     queueId: uuid("queue_id").references(() => planQueues.id, { onDelete: "set null" }),
     holidayText: text("holiday_text"),
+    // Contenido persistente del bloque — distinto de plan_checks.note (la
+    // nota de un día puntual). Este es un texto que se va afinando con el
+    // tiempo, sin fecha — ej. el guion de un bloque de contenido, escrito
+    // de a poco antes de dormir en vez de una tarea puntual del día.
+    notes: text("notes"),
   },
   (t) => ({
     planPersonWeekdayIdx: index("plan_blocks_person_weekday_idx").on(t.personId, t.weekday),

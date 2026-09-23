@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { moveBlock, scheduleHabit, deleteBlock, createBlock } from "./actions";
 import { moveBlockForDay } from "../plan/actions";
 import type { AgendaEvent } from "@/lib/agenda/day-events";
@@ -488,9 +489,9 @@ export function DayGrid({
                           </a>
                         )}
                         {ev.kind === "habit" ? (
-                          <a href="/dashboard/habitos" className={`${btn} no-underline`}>
+                          <Link href="/dashboard/habitos" className={`${btn} no-underline`}>
                             Hábito
-                          </a>
+                          </Link>
                         ) : (
                           <button
                             type="button"

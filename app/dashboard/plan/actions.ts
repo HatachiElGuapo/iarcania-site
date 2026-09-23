@@ -53,6 +53,35 @@ export async function getPlanCheck(input: { blockId: string; date: string }) {
   return row ?? null;
 }
 
+// Bloque completo (para la página de detalle /dashboard/plan/bloque/[id]) —
+// incluye notes, el contenido persistente del bloque (distinto de la nota
+// del día en plan_checks.note).
+export async function getBlockDetail(blockId: string) {
+  const userId = await requireUserId();
+  await requireOwnedBlock(blockId, userId);
+  const [row] = await db.select().from(planBlocks).where(eq(planBlocks.id, blockId));
+  return row ?? null;
+}
+
+// Guarda el contenido persistente del bloque — la "página" del bloque, para
+// ir escribiendo/afinando algo sin fecha (ej. el guion de un bloque de
+// contenido), distinto de la nota del día (plan_checks.note, ver setCheck).
+export async function updateBlockContent(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const notes = String(formData.get("notes") || "");
+  if (!id) throw new Error("Falta el bloque");
+
+  await requireOwnedBlock(id, userId);
+  await db
+    .update(planBlocks)
+    .set({ notes: notes.trim() || null })
+    .where(eq(planBlocks.id, id));
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath(`/dashboard/plan/bloque/${id}`);
+}
+
 // Un bloque de Plan puede tener uno o más hábitos enlazados
 // (plan_block_activities) — la card "Hábitos" del dashboard (racha, franja
 // de la semana) lee activity_logs, no plan_checks, así que sin esto marcar

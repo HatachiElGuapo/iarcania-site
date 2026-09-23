@@ -180,26 +180,39 @@ export function TaskHabitMenu({
                 </div>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                  Nota — ¿qué hiciste de verdad?
-                </label>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="ej: 500 saltos, medité 5 min en vez de 20…"
-                  rows={2}
-                  className="focus-ring min-h-[64px] rounded-ui border border-line bg-canvas px-3 py-2 text-[15px] text-ink placeholder:text-ink-dim"
-                />
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={saveNote}
-                  className="flex min-h-11 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
-                >
-                  Guardar nota
-                </button>
-              </div>
+              <a
+                href={kind === "task" ? `/dashboard/actividades/${id}` : `/dashboard/habitos/${id}`}
+                className="flex min-h-11 items-center justify-center rounded-ui border border-line text-[13px] font-medium text-ink-muted"
+              >
+                {kind === "task" ? "Abrir tarea — escribir/leer con calma →" : "Abrir página del hábito →"}
+              </a>
+
+              {/* La nota rápida de "qué hiciste hoy" solo aplica a hábitos
+                  (algo que se repite). Una tarea no se repite — su nota ES
+                  su contenido, ya cubierto por "Abrir tarea" arriba; mostrar
+                  las dos acá sería el mismo campo dos veces. */}
+              {kind === "habit" && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                    Nota de hoy — ¿qué hiciste de verdad?
+                  </label>
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="ej: 500 saltos, medité 5 min en vez de 20…"
+                    rows={2}
+                    className="focus-ring min-h-[64px] rounded-ui border border-line bg-canvas px-3 py-2 text-[15px] text-ink placeholder:text-ink-dim"
+                  />
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={saveNote}
+                    className="flex min-h-11 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
+                  >
+                    Guardar nota
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 <input

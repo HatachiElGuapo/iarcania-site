@@ -99,6 +99,24 @@ export async function createActivity(formData: FormData) {
   revalidateAll();
 }
 
+// Contenido persistente del hábito (activities.notes) — la "página" del
+// hábito, para ir escribiendo/afinando algo sin fecha, distinto de la nota
+// del día (activity_logs.notes, ver updateActivityLog).
+export async function updateActivityContent(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const notes = String(formData.get("notes") || "");
+  if (!id) throw new Error("Falta el hábito");
+
+  await db
+    .update(activities)
+    .set({ notes: notes.trim() || null })
+    .where(and(eq(activities.id, id), eq(activities.userId, userId)));
+
+  revalidateAll();
+  revalidatePath(`/dashboard/habitos/${id}`);
+}
+
 export async function updateActivity(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");
