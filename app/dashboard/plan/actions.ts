@@ -40,6 +40,19 @@ async function requireOwnedBlock(blockId: string, userId: string) {
   return row;
 }
 
+// El check de HOY de este bloque, si existe — para que el panel sepa el
+// estado real (hecho/saltado/nada) en vez de asumirlo, y para precargar la
+// nota ("medité 5 en vez de 20").
+export async function getPlanCheck(input: { blockId: string; date: string }) {
+  const userId = await requireUserId();
+  await requireOwnedBlock(input.blockId, userId);
+  const [row] = await db
+    .select()
+    .from(planChecks)
+    .where(and(eq(planChecks.blockId, input.blockId), eq(planChecks.date, input.date)));
+  return row ?? null;
+}
+
 // Un bloque de Plan puede tener uno o más hábitos enlazados
 // (plan_block_activities) — la card "Hábitos" del dashboard (racha, franja
 // de la semana) lee activity_logs, no plan_checks, así que sin esto marcar

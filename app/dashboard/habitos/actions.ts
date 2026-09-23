@@ -31,6 +31,49 @@ export async function getActivityDetail(id: string) {
   return row ?? null;
 }
 
+// El log de HOY de este hábito, si existe — para precargar cantidad/nota
+// en el panel ("hice 500 saltos", "medité 5 en vez de 20").
+export async function getActivityLog(activityId: string, date: string) {
+  const userId = await requireUserId();
+  const [row] = await db
+    .select()
+    .from(activityLogs)
+    .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)))
+    .orderBy(desc(activityLogs.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
+// Guarda cantidad/nota del log de HOY — si no hay log todavía (el hábito
+// no estaba marcado), lo crea (equivale a marcarlo hecho). Si ya hay uno,
+// lo actualiza en vez de sumar otro — a diferencia de incrementLog (para
+// "recurrentes", donde cada click SÍ es una ocurrencia nueva), acá es un
+// solo valor por día que se corrige, no se acumula.
+export async function updateActivityLog(formData: FormData) {
+  const userId = await requireUserId();
+  const activityId = String(formData.get("activityId") || "");
+  const date = String(formData.get("date") || "");
+  const rawValue = Number(formData.get("value"));
+  const value = Number.isFinite(rawValue) && rawValue > 0 ? rawValue : 1;
+  const notes = String(formData.get("notes") || "").trim() || null;
+  if (!activityId || !date) throw new Error("Faltan datos");
+
+  const [existing] = await db
+    .select({ id: activityLogs.id })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)))
+    .orderBy(desc(activityLogs.createdAt))
+    .limit(1);
+
+  if (existing) {
+    await db.update(activityLogs).set({ value, notes }).where(eq(activityLogs.id, existing.id));
+  } else {
+    await db.insert(activityLogs).values({ userId, activityId, date, value, notes });
+  }
+
+  revalidateAll();
+}
+
 export async function createActivity(formData: FormData) {
   const userId = await requireUserId();
   const name = String(formData.get("name") || "").trim();

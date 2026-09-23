@@ -81,6 +81,20 @@ export async function updateTaskSchedule(formData: FormData) {
   revalidatePath("/dashboard/trabajo/tareas");
 }
 
+// Guarda la nota de una tarea desde el panel de "Mi día" — antes solo se
+// podía ver (getTaskDetail), no editar sin ir a Actividades.
+export async function updateTaskNotes(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const notes = String(formData.get("notes") || "").trim() || null;
+  if (!id) throw new Error("Falta la tarea");
+
+  await db.update(tasks).set({ notes }).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+
+  revalidatePath("/dashboard/actividades");
+  revalidatePath("/dashboard");
+}
+
 export async function toggleTaskStatus(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");

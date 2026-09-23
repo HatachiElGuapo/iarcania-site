@@ -1,37 +1,53 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { moveBlockForDay, moveBlockToTomorrow, setCheck } from "./actions";
+import { moveBlockForDay, moveBlockToTomorrow, setCheck, getPlanCheck } from "./actions";
 
-// Móvil · "⋯" de cada bloque de Rutinas — atrasar dentro del mismo día o
-// mandarlo a mañana sin que se pierda, con un toque (pedido explícito: "a
-// veces me puedo atrasar 2 horas y no por eso esa actividad debe
-// desaparecer"). Reusa moveBlockForDay tal cual (el mismo que usa arrastrar
-// en Agenda) — acá solo calculamos el nuevo horario a partir del actual en
-// vez de leerlo de un drag.
+// Móvil · "⋯" de cada bloque de Rutinas — atrasar dentro del mismo día,
+// mandarlo a mañana sin que se pierda, o anotar qué se hizo de verdad
+// ("500 saltos", "medité 5 en vez de 20" — pedido explícito). Reusa
+// moveBlockForDay tal cual (el mismo que usa arrastrar en Agenda) — acá
+// solo calculamos el nuevo horario a partir del actual en vez de leerlo de
+// un drag.
 function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = hhmm.split(":").map(Number);
   const total = Math.max(0, Math.min(23 * 60 + 50, h * 60 + m + minutes));
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+type CheckRow = { status: string; note: string | null };
+
 export function PlanBlockMenu({
   date,
   blockId,
   startTime,
   text,
-  isSkipped,
 }: {
   date: string;
   blockId: string;
   startTime: string;
   text: string;
-  isSkipped: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [check, setCheckState] = useState<CheckRow | null>(null);
+  const [loadingCheck, setLoadingCheck] = useState(false);
+  const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingCheck(true);
+    getPlanCheck({ blockId, date })
+      .then((row) => {
+        setCheckState(row);
+        setNote(row?.note ?? "");
+      })
+      .finally(() => setLoadingCheck(false));
+  }, [open, blockId, date]);
+
+  const isSkipped = check?.status === "skipped";
 
   function run(action: () => Promise<void>) {
     startTransition(async () => {
@@ -52,6 +68,18 @@ export function PlanBlockMenu({
       fd.set("date", date);
       fd.set("blockId", blockId);
       fd.set("status", isSkipped ? "" : "skipped");
+      return setCheck(fd);
+    });
+
+  // Guardar nota marca el bloque hecho (si no tenía ningún estado) o
+  // conserva el que ya tenía (saltado sigue saltado, con su nota).
+  const saveNote = () =>
+    run(() => {
+      const fd = new FormData();
+      fd.set("date", date);
+      fd.set("blockId", blockId);
+      fd.set("status", check?.status || "done");
+      fd.set("note", note);
       return setCheck(fd);
     });
 
@@ -82,14 +110,42 @@ export function PlanBlockMenu({
             <div className="flex justify-center pt-[11px]">
               <span className="h-1 w-[38px] rounded-full bg-line-strong" />
             </div>
-            <div className="flex items-center justify-between px-[18px] pt-4">
+            <div className="px-[18px] pt-4">
               <button type="button" onClick={() => setOpen(false)} className="focus-ring text-[14px] text-ink-muted">
                 Cancelar
               </button>
-              <span className="min-w-0 truncate px-2 text-[13px] text-ink-dim">{text}</span>
-              <span className="w-[62px]" />
             </div>
-            <div className="flex flex-col gap-2 px-[18px] pb-2 pt-4">
+            <div className="px-[18px] pt-2">
+              <div className="font-display text-[17px] font-bold leading-snug text-ink">{text}</div>
+              <div className="mt-1 text-[13px] tabular-nums text-ink-dim">
+                {startTime}
+                {isSkipped && " · saltado"}
+                {check?.status === "done" && !isSkipped && " · hecho"}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 px-[18px] pb-2 pt-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  Nota — ¿qué hiciste de verdad?
+                </label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={loadingCheck ? "Cargando…" : "ej: 500 saltos, medité 5 min en vez de 20…"}
+                  rows={2}
+                  className="focus-ring min-h-[64px] rounded-ui border border-line bg-canvas px-3 py-2 text-[15px] text-ink placeholder:text-ink-dim"
+                />
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={saveNote}
+                  className="flex min-h-11 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
+                >
+                  Guardar nota
+                </button>
+              </div>
+
               <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                 Atrasar hoy
               </div>

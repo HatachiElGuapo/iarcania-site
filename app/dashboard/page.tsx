@@ -1052,7 +1052,7 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         <div className="min-w-0 flex-1">{row}</div>
       )}
       {ev.kind === "plan" && (
-        <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} isSkipped={false} />
+        <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
       )}
       {ev.itemType === "task" && ev.itemId && (
         <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />

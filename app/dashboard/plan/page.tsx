@@ -216,7 +216,6 @@ export default async function PlanPage({
                 const check = checkByBlockId.get(b.blockId);
                 const kind = kindInfo(b.kind);
                 const isDone = check?.status === "done";
-                const isSkipped = check?.status === "skipped";
                 return (
                   <div key={b.blockId} className="flex items-center gap-2">
                     <form action={setCheck} className="min-w-0 flex-1">
@@ -243,7 +242,7 @@ export default async function PlanPage({
                         </ListCard>
                       </button>
                     </form>
-                    <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} isSkipped={isSkipped} />
+                    <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
                   </div>
                 );
               })}
