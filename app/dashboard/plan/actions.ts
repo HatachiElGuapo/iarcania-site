@@ -9,7 +9,7 @@ import { activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
-import { addDaysISO } from "@/lib/date/bogota";
+import { addDaysISO, weekdayMon0 } from "@/lib/date/bogota";
 
 async function requireUserId() {
   const session = await auth();
@@ -25,7 +25,13 @@ async function requireUserId() {
 // "Bloque no encontrado" al marcar lo que fuera, aunque el bloque existiera.
 async function requireOwnedBlock(blockId: string, userId: string) {
   const [row] = await db
-    .select({ id: planBlocks.id, planId: planBlocks.planId, personId: planBlocks.personId, ownerId: plans.ownerId })
+    .select({
+      id: planBlocks.id,
+      planId: planBlocks.planId,
+      personId: planBlocks.personId,
+      queueId: planBlocks.queueId,
+      ownerId: plans.ownerId,
+    })
     .from(planBlocks)
     .innerJoin(plans, eq(plans.id, planBlocks.planId))
     .where(eq(planBlocks.id, blockId));
@@ -293,25 +299,66 @@ export async function moveBlockForDay(input: {
   revalidatePath("/dashboard/agenda");
 }
 
-// Saca un bloque de Plan de HOY sin que se pierda: lo quita del día (como
-// removeForDay) y lo deja como una tarea real con vencimiento mañana, para
-// que aparezca en el "Mi día"/Hoy de mañana en vez de quedar como
-// incumplido y desaparecer. `text` es el texto YA RESUELTO que se estaba
-// mostrando (la cola pudo haber puesto cualquier cosa ahí) — lo manda quien
-// llama porque ya lo tiene a mano al renderizar el bloque; recalcularlo acá
-// significaría cargar el plan completo otra vez para lo mismo.
+// Saca un bloque de Plan de HOY sin que se pierda. `text` es el texto YA
+// RESUELTO que se estaba mostrando (la cola pudo haber puesto cualquier
+// cosa ahí) — lo manda quien llama porque ya lo tiene a mano al renderizar
+// el bloque; recalcularlo acá significaría cargar el plan completo otra
+// vez para lo mismo.
+//
+// Si el bloque viene de una cola (queueId) Y esa misma cola tiene otro
+// bloque programado mañana (ej. "Contactar negocios" se repite todos los
+// días con la misma cola) — pedido explícito: que REEMPLACE el turno de
+// mañana, no que se sume aparte. Se sobreescribe el texto de ESE bloque
+// para mañana con override, así ocupa el mismo lugar: nada duplicado, y
+// se puede marcar hecho/saltado desde el bloque normal de mañana como
+// cualquier otro día (no queda una tarea aparte y desconectada del
+// historial de Fases). El item que le tocaba naturalmente a la cola mañana
+// se pierde ese turno (mismo comportamiento de siempre: la cola avanza un
+// paso por día exista o no el override).
+//
+// Si NO hay un bloque de esa cola mañana (ej. "Video: auditoría" de los
+// lunes — el martes es una cola distinta, "Video: educación"), no hay
+// turno que reemplazar: se cae al comportamiento anterior, una tarea
+// suelta con vencimiento mañana.
 export async function moveBlockToTomorrow(input: { date: string; blockId: string; text: string }) {
   const userId = await requireUserId();
   if (!input?.date || !input?.blockId || !input?.text?.trim()) throw new Error("Faltan datos");
 
   const block = await requireOwnedBlock(input.blockId, userId);
+  const text = input.text.trim();
+  const tomorrow = addDaysISO(input.date, 1);
 
-  await db
-    .insert(planOverrides)
-    .values({ planId: block.planId, date: input.date, blockId: input.blockId, text: null, removed: true })
-    .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { removed: true } });
+  let tomorrowBlockId: string | null = null;
+  if (block.queueId) {
+    const [tomorrowBlock] = await db
+      .select({ id: planBlocks.id })
+      .from(planBlocks)
+      .where(
+        and(
+          eq(planBlocks.planId, block.planId),
+          eq(planBlocks.personId, block.personId),
+          eq(planBlocks.queueId, block.queueId),
+          eq(planBlocks.weekday, weekdayMon0(tomorrow)),
+        ),
+      );
+    tomorrowBlockId = tomorrowBlock?.id ?? null;
+  }
 
-  await db.insert(tasks).values({ userId, title: input.text.trim(), dueDate: addDaysISO(input.date, 1) });
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(planOverrides)
+      .values({ planId: block.planId, date: input.date, blockId: input.blockId, text: null, removed: true })
+      .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { removed: true } });
+
+    if (tomorrowBlockId) {
+      await tx
+        .insert(planOverrides)
+        .values({ planId: block.planId, date: tomorrow, blockId: tomorrowBlockId, text, removed: false })
+        .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { text, removed: false } });
+    } else {
+      await tx.insert(tasks).values({ userId, title: text, dueDate: tomorrow });
+    }
+  });
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/agenda");
