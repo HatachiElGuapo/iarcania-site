@@ -723,20 +723,15 @@ function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
       )}
       {ev.kind === "plan" && (
-        <form action={setCheck} className="shrink-0">
-          <input type="hidden" name="date" value={date} />
-          <input type="hidden" name="blockId" value={ev.refId} />
-          <input type="hidden" name="status" value="skipped" />
-          <button
-            type="submit"
-            title="Saltado"
-            className="focus-ring rounded-ui border border-line px-2 py-1 text-[12px] text-ink-dim hover:border-danger/40 hover:text-danger"
-          >
-            ✗
-          </button>
-        </form>
+        <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
       )}
-      {ev.editHref && ev.kind !== "plan" && (
+      {ev.itemType === "task" && ev.itemId && (
+        <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
+      )}
+      {(ev.itemType === "habit" || ev.itemType === "habito") && ev.itemId && (
+        <TaskHabitMenu kind="habit" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
+      )}
+      {ev.editHref && ev.kind !== "plan" && ev.itemType !== "task" && ev.itemType !== "habit" && ev.itemType !== "habito" && (
         <a href={ev.editHref} className="shrink-0 px-1 text-meta text-ink-dim hover:text-ink">
           ⋯
         </a>

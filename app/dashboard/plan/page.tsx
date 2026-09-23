@@ -9,6 +9,7 @@ import { todayISO, addDaysISO, diffDaysISO } from "@/lib/date/bogota";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setCheck, setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
+import { MoveToTomorrowButton } from "./move-to-tomorrow-button";
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -285,9 +286,7 @@ export default async function PlanPage({
                           <div className={isDone ? "text-body text-ink-dim line-through" : "text-body text-ink"}>
                             {b.text}
                           </div>
-                          {check?.status === "skipped" && check.note && (
-                            <div className="mt-0.5 text-meta text-ink-dim">Nota: {check.note}</div>
-                          )}
+                          {check?.note && <div className="mt-0.5 text-meta text-ink-dim">Nota: {check.note}</div>}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           <form action={setCheck}>
@@ -345,23 +344,22 @@ export default async function PlanPage({
                               Guardar
                             </Button>
                           </form>
-                          {isSkipped && (
-                            <form action={setCheck} className="flex items-center gap-1.5">
-                              <input type="hidden" name="date" value={date} />
-                              <input type="hidden" name="blockId" value={b.blockId} />
-                              <input type="hidden" name="status" value="skipped" />
-                              <input
-                                type="text"
-                                name="note"
-                                defaultValue={check?.note ?? ""}
-                                placeholder="Nota…"
-                                className="min-w-0 rounded-ui border border-line bg-canvas px-2 py-1 text-meta text-ink"
-                              />
-                              <Button type="submit" variant="secondary" size="sm">
-                                Nota
-                              </Button>
-                            </form>
-                          )}
+                          <form action={setCheck} className="flex items-center gap-1.5">
+                            <input type="hidden" name="date" value={date} />
+                            <input type="hidden" name="blockId" value={b.blockId} />
+                            <input type="hidden" name="status" value={check?.status || "done"} />
+                            <input
+                              type="text"
+                              name="note"
+                              defaultValue={check?.note ?? ""}
+                              placeholder="Nota — ¿qué hiciste?"
+                              className="min-w-0 flex-1 rounded-ui border border-line bg-canvas px-2 py-1 text-meta text-ink"
+                            />
+                            <Button type="submit" variant="secondary" size="sm">
+                              Nota
+                            </Button>
+                          </form>
+                          <MoveToTomorrowButton date={date} blockId={b.blockId} text={b.text} />
                           <form action={removeForDay}>
                             <input type="hidden" name="date" value={date} />
                             <input type="hidden" name="blockId" value={b.blockId} />
