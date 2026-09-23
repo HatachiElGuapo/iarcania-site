@@ -1,10 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { activities, activityLogs } from "@/lib/db/schema/habitos";
+import { activities, activityLogs, activityQueueItems } from "@/lib/db/schema/habitos";
+
+const FREQUENCIES = ["diaria", "semanal", "mensual", "unica", "recurrente", "trabajo"];
+
+function parseDiasSemana(formData: FormData): number[] | null {
+  const raw = formData.getAll("diasSemana").map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+  return raw.length ? raw.sort((a, b) => a - b) : null;
+}
 
 async function requireUserId() {
   const session = await auth();
@@ -81,9 +88,10 @@ export async function createActivity(formData: FormData) {
   const frequency = String(formData.get("frequency") || "diaria");
   const horaSugerida = String(formData.get("horaSugerida") || "") || null;
   const sortOrder = Number(formData.get("sortOrder")) || 0;
+  const diasSemana = frequency === "trabajo" ? parseDiasSemana(formData) : null;
 
   if (!name) throw new Error("El nombre es obligatorio");
-  if (!["diaria", "semanal", "mensual", "unica", "recurrente"].includes(frequency)) {
+  if (!FREQUENCIES.includes(frequency)) {
     throw new Error("Frecuencia inválida");
   }
 
@@ -94,6 +102,7 @@ export async function createActivity(formData: FormData) {
     frequency,
     horaSugerida,
     sortOrder,
+    diasSemana,
   });
 
   revalidateAll();
@@ -141,18 +150,126 @@ export async function updateActivity(formData: FormData) {
   const frequency = String(formData.get("frequency") || "diaria");
   const horaSugerida = String(formData.get("horaSugerida") || "") || null;
   const sortOrder = Number(formData.get("sortOrder")) || 0;
+  const diasSemana = frequency === "trabajo" ? parseDiasSemana(formData) : null;
 
   if (!name) throw new Error("El nombre es obligatorio");
-  if (!["diaria", "semanal", "mensual", "unica", "recurrente"].includes(frequency)) {
+  if (!FREQUENCIES.includes(frequency)) {
     throw new Error("Frecuencia inválida");
   }
 
   await db
     .update(activities)
-    .set({ name, category, frequency, horaSugerida, sortOrder })
+    .set({ name, category, frequency, horaSugerida, sortOrder, diasSemana })
     .where(and(eq(activities.id, id), eq(activities.userId, userId)));
 
   revalidateAll();
+}
+
+async function requireOwnedActivity(id: string, userId: string) {
+  const [row] = await db
+    .select({ id: activities.id })
+    .from(activities)
+    .where(and(eq(activities.id, id), eq(activities.userId, userId)));
+  if (!row) throw new Error("Hábito no encontrado");
+}
+
+async function requireOwnedItem(id: string, userId: string) {
+  const [row] = await db
+    .select({
+      id: activityQueueItems.id,
+      activityId: activityQueueItems.activityId,
+      position: activityQueueItems.position,
+    })
+    .from(activityQueueItems)
+    .innerJoin(activities, eq(activities.id, activityQueueItems.activityId))
+    .where(and(eq(activityQueueItems.id, id), eq(activities.userId, userId)));
+  if (!row) throw new Error("Item no encontrado");
+  return row;
+}
+
+// Agrega un item a la lista de una actividad "trabajo" (ej. un negocio más
+// para contactar) — al final, sin tocar el resto.
+export async function addActivityQueueItem(formData: FormData) {
+  const userId = await requireUserId();
+  const activityId = String(formData.get("activityId") || "");
+  const text = String(formData.get("text") || "").trim();
+  if (!text) throw new Error("Falta el texto del item");
+  await requireOwnedActivity(activityId, userId);
+
+  const [{ maxPos }] = await db
+    .select({ maxPos: sql<number>`coalesce(max(${activityQueueItems.position}), -1)` })
+    .from(activityQueueItems)
+    .where(eq(activityQueueItems.activityId, activityId));
+
+  await db.insert(activityQueueItems).values({ activityId, position: Number(maxPos) + 1, text });
+  revalidateAll();
+  revalidatePath(`/dashboard/habitos/${activityId}`);
+}
+
+// Edita el texto, la nota y el guion/libro vinculado de UN item.
+export async function updateActivityQueueItem(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const item = await requireOwnedItem(id, userId);
+
+  const text = String(formData.get("text") || "").trim();
+  const notes = String(formData.get("notes") || "").trim() || null;
+  const scriptId = String(formData.get("scriptId") || "") || null;
+  const bookId = String(formData.get("bookId") || "") || null;
+  if (!text) throw new Error("Falta el texto del item");
+
+  await db.update(activityQueueItems).set({ text, notes, scriptId, bookId }).where(eq(activityQueueItems.id, id));
+  revalidateAll();
+  revalidatePath(`/dashboard/habitos/${item.activityId}`);
+}
+
+// Borra UN item y renumera los que quedan (0..n-1 contiguo) para que la
+// posición (= veces cumplida % cantidad) siga siendo consistente.
+export async function deleteActivityQueueItem(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const item = await requireOwnedItem(id, userId);
+
+  await db.transaction(async (tx) => {
+    await tx.delete(activityQueueItems).where(eq(activityQueueItems.id, id));
+    const siblings = await tx
+      .select({ id: activityQueueItems.id })
+      .from(activityQueueItems)
+      .where(eq(activityQueueItems.activityId, item.activityId))
+      .orderBy(asc(activityQueueItems.position));
+    for (let i = 0; i < siblings.length; i++) {
+      await tx.update(activityQueueItems).set({ position: i }).where(eq(activityQueueItems.id, siblings[i].id));
+    }
+  });
+  revalidateAll();
+  revalidatePath(`/dashboard/habitos/${item.activityId}`);
+}
+
+// Mueve un item un puesto arriba/abajo — intercambia posición con el vecino.
+export async function moveActivityQueueItem(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const direction = String(formData.get("direction") || "");
+  const item = await requireOwnedItem(id, userId);
+
+  const siblings = await db
+    .select({ id: activityQueueItems.id, position: activityQueueItems.position })
+    .from(activityQueueItems)
+    .where(eq(activityQueueItems.activityId, item.activityId))
+    .orderBy(asc(activityQueueItems.position));
+
+  const idx = siblings.findIndex((s) => s.id === id);
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (idx < 0 || swapIdx < 0 || swapIdx >= siblings.length) return;
+
+  const a = siblings[idx];
+  const b = siblings[swapIdx];
+  await db.transaction(async (tx) => {
+    await tx.update(activityQueueItems).set({ position: b.position }).where(eq(activityQueueItems.id, a.id));
+    await tx.update(activityQueueItems).set({ position: a.position }).where(eq(activityQueueItems.id, b.id));
+  });
+  revalidateAll();
+  revalidatePath(`/dashboard/habitos/${item.activityId}`);
 }
 
 // Cambiar solo la hora sugerida — updateActivity de arriba exige mandar

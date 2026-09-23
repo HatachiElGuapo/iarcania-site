@@ -26,6 +26,16 @@ const FREQ_OPTIONS = [
   { value: "mensual", label: "Mensual" },
   { value: "unica", label: "Única" },
   { value: "recurrente", label: "Recurrente" },
+  { value: "trabajo", label: "Trabajo" },
+];
+const WEEKDAYS = [
+  { value: 0, label: "Lun" },
+  { value: 1, label: "Mar" },
+  { value: 2, label: "Mié" },
+  { value: 3, label: "Jue" },
+  { value: 4, label: "Vie" },
+  { value: 5, label: "Sáb" },
+  { value: 6, label: "Dom" },
 ];
 const COLS = "minmax(0,1fr) 140px 116px 80px 90px";
 
@@ -76,7 +86,12 @@ export default async function GestionHabitosPage({
               <span className="text-meta text-ink-muted">{a.category ?? "—"}</span>
               <span className="text-meta text-ink-muted">{a.frequency}</span>
               <span className="text-meta tabular-nums text-ink-dim">{a.horaSugerida ?? "—"}</span>
-              <span className="flex justify-end text-meta text-ink-dim">
+              <span className="flex justify-end gap-2.5 text-meta text-ink-dim">
+                {a.frequency === "trabajo" && (
+                  <a href={`/dashboard/habitos/${a.id}`} className="hover:text-ink">
+                    Items →
+                  </a>
+                )}
                 <a href={`${base}${base.includes("?") ? "&" : "?"}edit=${a.id}`} className="hover:text-ink">
                   Editar
                 </a>
@@ -113,6 +128,21 @@ export default async function GestionHabitosPage({
           <Labeled label="Hora sugerida">
             <Input type="time" name="horaSugerida" defaultValue={editing.horaSugerida ?? ""} className="w-32" />
           </Labeled>
+          {editing.frequency === "trabajo" && (
+            <div className="flex w-full flex-wrap gap-3">
+              {WEEKDAYS.map((d) => (
+                <label key={d.value} className="flex items-center gap-1.5 text-xs text-ink-muted">
+                  <input
+                    type="checkbox"
+                    name="diasSemana"
+                    value={d.value}
+                    defaultChecked={editing.diasSemana?.includes(d.value)}
+                  />
+                  {d.label}
+                </label>
+              ))}
+            </div>
+          )}
           <Button type="submit">Guardar</Button>
           {showArchived ? (
             <Button
@@ -160,6 +190,15 @@ export default async function GestionHabitosPage({
           <Labeled label="Hora sugerida">
             <Input type="time" name="horaSugerida" className="w-32" />
           </Labeled>
+          <div className="flex w-full flex-wrap items-center gap-3">
+            <span className="text-[10.5px] text-ink-dim">Días (solo para Trabajo):</span>
+            {WEEKDAYS.map((d) => (
+              <label key={d.value} className="flex items-center gap-1.5 text-xs text-ink-muted">
+                <input type="checkbox" name="diasSemana" value={d.value} />
+                {d.label}
+              </label>
+            ))}
+          </div>
           <Button type="submit">+ Nuevo hábito</Button>
         </form>
       )}

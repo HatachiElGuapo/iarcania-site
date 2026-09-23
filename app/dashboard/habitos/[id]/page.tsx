@@ -1,10 +1,16 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { and, eq, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db/client";
+import { activityLogs, activityQueueItems } from "@/lib/db/schema/habitos";
 import { Textarea, Button } from "@/components/ui";
 import { SectionHeader } from "@/components/ui/section-header";
 import { listScriptOptions } from "@/lib/scripts-picker";
+import { listBookOptions } from "@/lib/books-picker";
+import { currentWorkItem } from "@/lib/habitos/work-queue";
 import { ScriptLinkPanel } from "../../script-link";
+import { WorkItemsPanel } from "../work-items";
 import { getActivityDetail, updateActivityContent, linkActivityScript } from "../actions";
 
 const FREQ_LABEL: Record<string, string> = {
@@ -13,6 +19,7 @@ const FREQ_LABEL: Record<string, string> = {
   mensual: "Mensual",
   unica: "Única vez",
   recurrente: "Recurrente",
+  trabajo: "Trabajo",
 };
 
 // Página de contenido de un hábito — distinta de la nota del día
@@ -27,7 +34,25 @@ export default async function HabitDetailPage({ params }: { params: Promise<{ id
 
   const session = await auth();
   const userId = session!.user.id;
-  const scriptOptions = await listScriptOptions(userId);
+  const [scriptOptions, bookOptions] = await Promise.all([listScriptOptions(userId), listBookOptions(userId)]);
+
+  let workItems: { id: string; text: string; notes: string | null; scriptId: string | null; bookId: string | null }[] = [];
+  let currentItemId: string | null = null;
+  if (habit.frequency === "trabajo") {
+    const [items, [{ total }]] = await Promise.all([
+      db
+        .select()
+        .from(activityQueueItems)
+        .where(eq(activityQueueItems.activityId, habit.id))
+        .orderBy(activityQueueItems.position),
+      db
+        .select({ total: sql<number>`count(*)` })
+        .from(activityLogs)
+        .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, habit.id))),
+    ]);
+    workItems = items;
+    currentItemId = currentWorkItem(items, Number(total))?.id ?? null;
+  }
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 pb-28 md:p-8 md:pb-8">
@@ -40,6 +65,16 @@ export default async function HabitDetailPage({ params }: { params: Promise<{ id
           </Link>
         }
       />
+
+      {habit.frequency === "trabajo" && (
+        <WorkItemsPanel
+          activityId={habit.id}
+          items={workItems}
+          currentItemId={currentItemId}
+          scripts={scriptOptions}
+          books={bookOptions}
+        />
+      )}
 
       <ScriptLinkPanel
         action={linkActivityScript}
