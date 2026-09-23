@@ -67,6 +67,24 @@ export async function updateActivity(formData: FormData) {
   revalidateAll();
 }
 
+// Cambiar solo la hora sugerida — updateActivity de arriba exige mandar
+// todos los campos (nombre, categoría, frecuencia…) porque sobreescribe la
+// fila entera; esto es lo que usa el panel de "Mi día", que solo tiene a
+// mano la hora, no el resto del hábito.
+export async function updateActivityTime(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const horaSugerida = String(formData.get("horaSugerida") || "") || null;
+  if (!id) throw new Error("Falta el hábito");
+
+  await db
+    .update(activities)
+    .set({ horaSugerida })
+    .where(and(eq(activities.id, id), eq(activities.userId, userId)));
+
+  revalidateAll();
+}
+
 export async function archiveActivity(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");

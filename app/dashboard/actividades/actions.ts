@@ -45,6 +45,28 @@ export async function createTask(formData: FormData) {
   revalidatePath("/dashboard/trabajo/tareas");
 }
 
+// Cambiar la hora (y de paso la fecha, si hace falta) de una tarea ya
+// creada — antes solo se podía fijar al crearla, no había forma de
+// corregirla después.
+export async function updateTaskSchedule(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const dueDate = String(formData.get("dueDate") || "") || null;
+  const timeDue = String(formData.get("timeDue") || "") || null;
+  if (!id) throw new Error("Falta la tarea");
+
+  await db
+    .update(tasks)
+    .set({ dueDate, timeDue })
+    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+
+  revalidatePath("/dashboard/actividades");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard/trabajo");
+  revalidatePath("/dashboard/trabajo/tareas");
+}
+
 export async function toggleTaskStatus(formData: FormData) {
   const userId = await requireUserId();
   const id = String(formData.get("id") || "");

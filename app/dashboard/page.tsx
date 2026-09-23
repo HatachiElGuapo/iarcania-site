@@ -32,6 +32,8 @@ import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./ha
 import { setCheck } from "./plan/actions";
 import { completeAppointment } from "./citas/actions";
 import { NewTaskSheet } from "./new-task-sheet";
+import { PlanBlockMenu } from "./plan/block-menu";
+import { TaskHabitMenu } from "./day-row-menu";
 
 const PRIORITY_COLOR: Record<string, string> = {
   alta: "text-danger",
@@ -1048,18 +1050,27 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         <div className="min-w-0 flex-1">{row}</div>
       )}
       {ev.kind === "plan" && (
-        <form action={setCheck} className="shrink-0">
-          <input type="hidden" name="date" value={date} />
-          <input type="hidden" name="blockId" value={ev.refId} />
-          <input type="hidden" name="status" value="skipped" />
-          <button
-            type="submit"
-            title="Saltado"
-            className="focus-ring flex h-11 w-11 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
-          >
-            ✗
-          </button>
-        </form>
+        <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} isSkipped={false} />
+      )}
+      {ev.itemType === "task" && ev.itemId && (
+        <TaskHabitMenu
+          kind="task"
+          id={ev.itemId}
+          date={date}
+          startTime={ev.autoTime ? "" : fmtTime(ev.start)}
+          title={ev.title}
+          detailHref="/dashboard/actividades"
+        />
+      )}
+      {(ev.itemType === "habit" || ev.itemType === "habito") && ev.itemId && (
+        <TaskHabitMenu
+          kind="habit"
+          id={ev.itemId}
+          date={date}
+          startTime={ev.autoTime ? "" : fmtTime(ev.start)}
+          title={ev.title}
+          detailHref="/dashboard/habitos"
+        />
       )}
     </div>
   );
