@@ -64,6 +64,9 @@ export async function loadPlanContextById(planId: string): Promise<PlanContext> 
         phaseId: planQueueItems.phaseId,
         position: planQueueItems.position,
         text: planQueueItems.text,
+        notes: planQueueItems.notes,
+        scriptId: planQueueItems.scriptId,
+        bookId: planQueueItems.bookId,
       })
       .from(planQueueItems)
       .innerJoin(planQueues, eq(planQueues.id, planQueueItems.queueId))

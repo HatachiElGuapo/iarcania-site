@@ -15,6 +15,7 @@ import { sql } from "drizzle-orm";
 import { users } from "./auth";
 import { activities } from "./habitos";
 import { scripts } from "./guiones";
+import { books } from "./libros";
 
 // Vocabulario compartido por plan_blocks.kind (NOT NULL) y plan_events.kind
 // (nullable — 3 eventos del seed, como el cumpleaños de Miguel, no traen
@@ -109,6 +110,13 @@ export const planQueueItems = pgTable(
     phaseId: uuid("phase_id").references(() => planPhases.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     text: text("text").notNull(),
+    // Detalle libre del item — ideas, contexto, lo que haga falta.
+    notes: text("notes"),
+    // Guion o libro vinculado — para "llamarlos" desde el item de la cola,
+    // ej. el item "Agua" de Void Stoic apuntando al guion ya escrito, o un
+    // item basado en un libro de Libros.
+    scriptId: uuid("script_id").references(() => scripts.id, { onDelete: "set null" }),
+    bookId: uuid("book_id").references(() => books.id, { onDelete: "set null" }),
   },
   (t) => ({
     queuePhaseIdx: index("plan_queue_items_queue_phase_idx").on(t.queueId, t.phaseId, t.position),
