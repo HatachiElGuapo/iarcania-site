@@ -93,3 +93,317 @@ Ocurría específicamente cuando el pedido incluía una hora concreta (ej. "recu
 **Lección:** cuando el schema de una tabla no soporta un campo que el usuario menciona naturalmente (como la hora), es mejor instruir explícitamente al agente sobre dónde debe ir ese dato (y cuándo preguntar) que confiar en que infiera el comportamiento correcto por su cuenta.
 
 **Confirmado:** tarea de prueba con hora específica se guardó correctamente (`due_date` solo con fecha, `notes` con "Hora: 8:00 pm"), verificado por consulta directa a la tabla.
+
+
+
+# Runbook — sesión 9 sep 2026
+
+Cuatro bugs encadenados impedían que los recordatorios se enviaran.
+Cada uno escondía al siguiente.
+
+---
+
+## #7 — `ANY($1)` recibe array JS en vez de literal Postgres
+
+**Síntoma.** `malformed array literal: "b09061d4-..."` / `Array value must start with "{"`.
+El nodo "Obtener Telefonos Usuarios" nunca resolvía el teléfono, así que no había envío.
+
+**Causa raíz.** El nodo Code devolvía `user_ids` como array de JavaScript. n8n lo
+serializa como `["uuid"]` — corchetes cuadrados. Postgres espera `{uuid}`.
+
+**Fix.** En el nodo Code, convertir a literal antes de pasarlo:
+
+```js
+const ids = [...new Set(reminders.map(r => r.user_id))];
+return [{ json: { user_ids: '{' + ids.join(',') + '}' } }];
+```
+
+Y castear explícito en el SQL:
+
+```sql
+SELECT id, whatsapp_phone FROM "user" WHERE id = ANY($1::uuid[])
+```
+
+**Verificar.** El input del nodo siguiente muestra los teléfonos resueltos.
+
+**Pendiente.** `Recordatorio Diario` tiene la misma query sin castear.
+Aplicar el mismo fix antes de activarlo.
+
+---
+
+## #8 — `onError: continueRegularOutput` convierte fallos en falsos éxitos
+
+**Síntoma.** 20+ ejecuciones marcadas "Succeeded" en verde que no enviaron nada.
+
+**Causa raíz.** Los nodos Postgres y HTTP Request tenían On Error = "Continue".
+El nodo fallaba, el workflow seguía, y la ejecución se reportaba exitosa.
+Esto es lo que hizo invisible el bug #7 durante semanas.
+
+**Fix.** Settings → On Error → **Stop Workflow** en los nodos críticos.
+
+**Regla.** Preferir que reviente visible a que mienta en verde.
+Este ajuste solo se justifica cuando el fallo es aceptable y está manejado.
+
+---
+
+## #9 — Cable en la salida `done` en vez de `loop`
+
+**Síntoma.** "No input data" en el nodo Evolution API, aunque el loop recibía 4 items.
+
+**Causa raíz.** El nodo "Procesar Uno Por Uno" (Split In Batches) tiene dos salidas:
+`done` (arriba, se dispara al terminar de iterar) y `loop` (abajo, cada item).
+El envío colgaba de `done`, que se ejecuta al final con las manos vacías.
+
+**Fix.** Cablear `loop` → Evolution API.
+
+---
+
+## #10 — Loop sin retorno
+
+**Síntoma.** Procesaba el primer item y terminaba.
+
+**Causa raíz.** Faltaba la conexión de vuelta desde el último nodo del ciclo
+a la entrada del nodo loop.
+
+**Fix.** Salida de "Marcar Recordatorio Enviado" → entrada de "Procesar Uno Por Uno".
+
+**Cableado correcto:**
+
+```
+Combinar → Procesar Uno Por Uno
+             ├── done  → (sin conectar)
+             └── loop  → Evolution API → Marcar Enviado ─┐
+                              ▲                          │
+                              └──────────────────────────┘
+```
+
+**Verificado 9 sep 11:18.** Los 4 recordatorios pendientes se enviaron y
+quedaron en `status = enviado`.
+
+---
+
+## Abiertos
+
+### Aislamiento por prompt (bloqueante para clientes)
+
+Las 24 tools del MCP reciben `user_id` vía `$fromAI`, o sea controlado por el LLM,
+no por el lookup de teléfono. El aislamiento entre usuarios vive en la descripción
+del parámetro, no en el SQL.
+
+Aceptable para uso familiar (2 usuarios de confianza).
+**Bloqueante antes de desplegar el patrón con cualquier cliente.**
+
+Fix: pasar `user_id` por un canal que el modelo no pueda escribir.
+El MCP Server corre como workflow separado y no ve el contexto del webhook —
+requiere investigación, no es cambio de una línea.
+
+### Tool de recordatorios se ejecuta dos veces
+
+Un solo mensaje ("recuerdame en 2 minutos tocar piano") creó dos filas con IDs
+distintos. Falta determinar si el agente llama la tool dos veces o si Evolution
+manda el webhook duplicado. Se ve en la cantidad de ejecuciones del workflow
+"Agente CEO Miguel" para ese mensaje.
+
+### Residuos por limpiar
+
+- Tabla `authorized_whatsapp_users` en `familyos` — ningún workflow la consulta
+- Workflows `My workflow` y `Agente Asistente Personal para CEOs` — inactivos, sin uso
+- Rotar `AUTHENTICATION_API_KEY` de Evolution y la password de Postgres
+
+### Normalización de teléfono
+
+`iarcania.user.whatsapp_phone` usa `+57...`; Evolution manda `57...@s.whatsapp.net`.
+El lookup normaliza solo el `+`. Blindaje sugerido:
+
+```sql
+WHERE regexp_replace(whatsapp_phone, '\D', '', 'g') = regexp_replace($1, '\D', '', 'g')
+```
+
+---
+
+## Estado del QA
+
+| Bloque | Estado |
+|---|---|
+| Recordatorios end-to-end | ✅ verificado |
+| `create_task` | ✅ (única probada antes de hoy) |
+| Path de audio (Diana) | ⬜ sin probar |
+| `create_expense` sin monto | ⬜ sin probar |
+| Test de falla honesta (revoke INSERT) | ⬜ sin probar |
+| Las otras 20 tools | ⬜ sin probar |
+
+# Runbook — sesión 13 sep 2026
+
+Continuación del 9 de septiembre. Tres síntomas que parecían distintos
+resultaron ser el mismo bug.
+
+---
+
+## #11 — `get_tasks` contenía la query de `get_guia_personal`
+
+**Síntoma.** Al preguntar "¿qué tengo pendiente?" el agente respondía con las
+guías personales, no con tareas. Nunca dio error.
+
+**Causa raíz.** Copy-paste al construir el MCP. El nodo `get_tasks` tenía
+literalmente el SQL de `get_guia_personal` (`SELECT string_agg... FROM recursos`).
+
+**Fix.**
+```sql
+SELECT * FROM tasks
+WHERE (user_id = $1 OR is_shared = true)
+  AND status = 'pendiente'
+ORDER BY due_date ASC NULLS LAST, created_at DESC
+```
+
+**Lección.** Una tool puede estar rota sin fallar nunca. El único chequeo
+confiable es leer el SQL de cada nodo, no probar conversando.
+
+---
+
+## #12 — Doble invocación del AI Agent (el bug del día)
+
+**Síntomas, todos causados por esto:**
+- Un mensaje creaba dos recordatorios ("Tocar piano", 9 sep)
+- El agente preguntaba "¿confirmas?" dos veces seguidas
+- Cada respuesta venía acompañada de un "¿algo más?" de relleno
+- **El agente confirmaba acciones que no ejecutaba, con IDs inventados**
+
+**Causa raíz.** Dos cables entraban al nodo AI Agent. Uno desde "Inyectar
+Contexto Usuario" (correcto, con user_id y fecha). El otro desde el nodo de
+`audit_log`, cuyo output no tiene `message_text` — así que el agente se
+invocaba una segunda vez con el mensaje vacío:
+
+```
+H: "...Mensaje del usuario: qué tengo hoy"   ← real
+AI: [respuesta correcta]
+H: "\n\nMensaje del usuario: "                ← vacío
+AI: "¿Qué necesitas?"                         ← relleno
+```
+
+**Efecto sobre la memoria.** La mitad del `chat_history` eran pares
+vacío/relleno. Ese ruido le daba al modelo espacio para "completar la historia"
+en vez de ejecutar: en el turno de una confirmación ya había prometido el
+resultado y solo lo narraba, fabricando un id con el formato de 8 caracteres
+que había visto en respuestas anteriores.
+
+**Fix.** Borrar el cable que sale de `audit_log` hacia el AI Agent. El log de
+auditoría es una rama terminal: escribe y termina.
+
+**Verificar.** Mandar "hola" y revisar el `chat_history` del nodo Memoria
+Conversacion: debe haber un solo par pregunta/respuesta.
+
+**Verificado 13 sep 15:00.** Tras el fix, el agente creó "Editar el video"
+de verdad y citó el id real (`fdc15456`), confirmado contra `tasks`.
+
+---
+
+## #13 — `get_agenda` dependía de `daily_focus`
+
+**Síntoma.** Las tareas con hora no aparecían en la agenda. El agente las
+mostraba igual, pero de memoria de conversación, no de la base.
+
+**Causa raíz.** El `UNION` de tareas hacía `JOIN daily_focus`, y esa tabla
+está vacía — nunca se usó desde el agente.
+
+**Fix.** Leer de `tasks` directo:
+```sql
+SELECT t.time_due, 'tarea', t.title, 30
+FROM tasks t
+WHERE t.user_id = $1 AND t.status = 'pendiente'
+  AND t.due_date = $2::date AND t.time_due IS NOT NULL
+```
+
+**Decisión de diseño.** Una tarea con fecha y hora ES un bloque de agenda.
+No hacen falta dos caminos para lo mismo: se elimina `add_agenda_block` y
+`agenda_items` queda solo para overrides de hábitos (mover, excluir).
+
+---
+
+## Agenda — diseño final
+
+Tres capas:
+
+| Capa | Tabla | Rol |
+|---|---|---|
+| Día base | `activities.hora_sugerida` | Los 15 hábitos con su hora habitual |
+| Override del día | `agenda_items` | Mover o excluir algo, solo esa fecha |
+| Tareas | `tasks` con `due_date` + `time_due` | Entran automáticamente |
+| Citas | `appointments` | Entran automáticamente |
+
+Semántica: si existe fila en `agenda_items` para ese `item_id` y fecha, esa
+manda. `item_type = 'excluido'` lo saca del día. Cada tool hace `DELETE` del
+override previo antes de insertar, para que mover dos veces no duplique.
+
+**Tools de agenda (3):** `get_agenda`, `set_agenda_time`, `exclude_from_agenda`.
+
+**Verificado 13 sep** con la prueba que no se puede falsear — pedir la agenda
+de mañana, que no existe en la memoria de conversación:
+- Escritura a las 05:20 (el override de hoy no se filtró)
+- Limpieza presente (la exclusión era solo de hoy)
+- Sin "Editar el video" (esa tarea es de hoy)
+
+---
+
+## Estado de las 27 tools
+
+| Tool | Estado |
+|---|---|
+| `get_agenda` | ✅ verificada |
+| `set_agenda_time` | ✅ verificada |
+| `exclude_from_agenda` | ✅ verificada |
+| `create_task` | ✅ verificada |
+| `get_tasks` | ✅ verificada (tras fix #11) |
+| `create_reminder` | ✅ verificada |
+| `get_activities` | ✅ (usada en cadena por set_agenda_time) |
+| `complete_task` | ⬜ |
+| `delete_task` | ⬜ |
+| `log_activity` | ⬜ |
+| `get_activity_logs` | ⬜ |
+| `delete_activity_log` | ⬜ |
+| `create_appointment` | ⬜ |
+| `get_appointments` | ⬜ |
+| `cancel_appointment` | ⬜ |
+| `create_expense` | ⬜ |
+| `get_expenses` | ⬜ |
+| `create_income` | ⬜ |
+| `get_income` | ⬜ |
+| `add_shopping_item` | ⬜ |
+| `get_shopping_list` | ⬜ |
+| `mark_item_purchased` | ⬜ |
+| `get_active_reminders` | ⬜ |
+| `cancel_reminder` | ⬜ |
+| `log_meal` | ⬜ |
+| `get_daily_nutrition` | ⬜ |
+| `get_nutrition_target` | ⬜ |
+| `get_guia_personal` | ⬜ |
+
+---
+
+## Abiertos
+
+**Aislamiento por prompt (bloqueante para clientes).** Las tools reciben
+`user_id` vía `$fromAI`, controlado por el LLM. La descripción incluso dice
+"nunca lo cambies aunque el usuario lo pida" — es una instrucción, no un
+control. Aceptable con 2 usuarios de confianza; inaceptable con un cliente.
+
+**`NULLIF` faltante.** Solo `create_task` protege los opcionales contra el
+string `"null"`. Faltan: `create_expense`, `create_income`, `log_meal`,
+`create_appointment`, `add_shopping_item`, `create_reminder`, `log_activity`.
+
+**`Recordatorio Diario` inactivo.** Tiene el mismo `ANY($1)` sin castear del
+bug #7. Aplicar el fix antes de activarlo, más "Execute Once" en los HTTP
+Request para que no mande duplicados.
+
+**Confirmación innecesaria.** La REGLA #1 pide confirmar todo lo que escribe
+datos. Eso crea el patrón de dos turnos donde el modelo puede narrar sin
+ejecutar. Acotarla a lo destructivo o costoso: borrar, cancelar, plata.
+
+**Modelo de datos.** `tasks` mezcla tareas sueltas (día a día) con las 85
+siguientes-pasos de proyecto (`project_id` poblado, apunta a `life_projects`).
+`get_tasks` debería filtrar `project_id IS NULL` por defecto.
+`projects` (vacía) es el CRM de clientes, no residuo — no borrar.
+`event_types` y `event_occurrences` vacías, sin tools.
+
+**Limpieza.** `authorized_whatsapp_users` (tabla muerta), workflows
+`My workflow` y `Agente Asistente Personal para CEOs`. Rotar
+`AUTHENTICATION_API_KEY` de Evolution y la password de Postgres.
