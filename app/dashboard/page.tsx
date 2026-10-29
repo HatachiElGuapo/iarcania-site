@@ -49,7 +49,6 @@ const APPT_ICON: Record<string, string> = {
   otro: "📌",
 };
 
-const PLAN_PENDING_LOOKBACK_DAYS = 14;
 const HABIT_LOOKBACK_DAYS = 90;
 
 function capitalize(s: string) {
@@ -202,33 +201,35 @@ export default async function RutinasPage({
   });
   const habitsDoneToday = habitsView.filter((h) => h.done).length;
 
-  // Plan: bloques de los últimos PLAN_PENDING_LOOKBACK_DAYS días ANTERIORES
-  // a hoy real que quedaron sin marcar (ni hecho ni saltado) — para que no
-  // se pierdan silenciosamente al pasar de día sin cerrarlos. (El resto de
-  // los bloques de Plan de HOY ya vienen mezclados en `events` arriba.)
+  // Plan: bloques de AYER (y solo ayer) que quedaron sin marcar (ni hecho
+  // ni saltado) — para cerrarlos rápido antes de que se pierda el rastro.
+  // Con el cursor de la cola (ver resolve.ts), un bloque sin marcar YA NO
+  // se pierde — el mismo item sigue tocando al día siguiente — así que ya
+  // no hace falta mirar varios días atrás, alcanza con el último. Nunca
+  // antes de plans.start_date: si el plan se reinició desde hoy, ayer es
+  // de la versión vieja y no hay nada que resolver ahí.
   const planPerson = await findPlanPersonForUser(userId);
   let planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[] = [];
+  const yesterday = addDaysISO(today, -1);
   if (planPerson) {
-    const pendingFrom = addDaysISO(today, -PLAN_PENDING_LOOKBACK_DAYS);
     const planCtx = await loadPlanContextById(planPerson.planId);
-    const resolvedRange = resolvePlan(toPlanData(planCtx), pendingFrom, today, today);
-    const checksRange = await db
-      .select({ blockId: planChecks.blockId, date: planChecks.date })
-      .from(planChecks)
-      .where(
-        and(
-          eq(planChecks.planId, planPerson.planId),
-          eq(planChecks.personId, planPerson.personId),
-          gte(planChecks.date, pendingFrom),
-          lte(planChecks.date, today),
-        ),
-      );
-    const checkedKeys = new Set(checksRange.map((c) => `${c.date}:${c.blockId}`));
-    for (const day of resolvedRange) {
-      if (day.date >= today) continue; // solo días ANTERIORES a hoy real
-      for (const b of day.blocksByPerson[planPerson.personId] ?? []) {
-        if (!checkedKeys.has(`${day.date}:${b.blockId}`)) {
-          planPending.push({ blockId: b.blockId, date: day.date, startTime: b.startTime, text: b.text, kind: b.kind });
+    if (yesterday >= planCtx.plan.startDate) {
+      const resolvedYesterday = resolvePlan(toPlanData(planCtx), yesterday, yesterday);
+      const checksYesterday = await db
+        .select({ blockId: planChecks.blockId })
+        .from(planChecks)
+        .where(
+          and(
+            eq(planChecks.planId, planPerson.planId),
+            eq(planChecks.personId, planPerson.personId),
+            eq(planChecks.date, yesterday),
+          ),
+        );
+      const checkedBlockIds = new Set(checksYesterday.map((c) => c.blockId));
+      const [day] = resolvedYesterday;
+      for (const b of day?.blocksByPerson[planPerson.personId] ?? []) {
+        if (!checkedBlockIds.has(b.blockId)) {
+          planPending.push({ blockId: b.blockId, date: yesterday, startTime: b.startTime, text: b.text, kind: b.kind });
         }
       }
     }
@@ -385,10 +386,7 @@ export default async function RutinasPage({
             </a>
           }
         >
-          <p className="mb-2.5 text-meta text-ink-dim">
-            De los últimos {PLAN_PENDING_LOOKBACK_DAYS} días — ni hecho ni saltado. Marcalos para no perder el
-            rastro.
-          </p>
+          <p className="mb-2.5 text-meta text-ink-dim">De ayer — ni hecho ni saltado. Marcalos para no perder el rastro.</p>
           <div className="flex flex-col gap-1.5">
             {planPending.map((b) => {
               const kind = kindInfo(b.kind);

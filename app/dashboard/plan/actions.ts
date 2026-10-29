@@ -20,7 +20,7 @@ import { activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
-import { addDaysISO, weekdayMon0 } from "@/lib/date/bogota";
+import { addDaysISO, weekdayMon0, todayISO } from "@/lib/date/bogota";
 
 async function requireUserId() {
   const session = await auth();
@@ -555,4 +555,29 @@ export async function clearOverride(formData: FormData) {
   await db.delete(planOverrides).where(and(eq(planOverrides.date, date), eq(planOverrides.blockId, blockId)));
 
   revalidatePath("/dashboard/plan");
+}
+
+// "Reiniciar desde hoy": pone plans.start_date en hoy (America/Bogota).
+// Solo el dueño del plan — no tiene que ver con el cursor de las colas
+// (eso vive aparte, en plan_queue_cursors, y no se toca acá), es nada más
+// la fecha desde la que el dashboard busca "sin marcar de ayer" (ver
+// app/dashboard/page.tsx) y desde la que arrancan /plan/historial y
+// /plan/fases. Pensado para cuando se quiere cortar limpio con todo lo
+// de antes sin borrar el historial ya guardado.
+export async function resetPlanStartDate(formData: FormData) {
+  const userId = await requireUserId();
+  const planId = String(formData.get("planId") || "");
+  if (!planId) throw new Error("Falta el plan");
+
+  const [plan] = await db.select({ ownerId: plans.ownerId }).from(plans).where(eq(plans.id, planId));
+  if (!plan) throw new Error("Plan no encontrado");
+  if (plan.ownerId !== userId) throw new Error("No autorizado para este plan");
+
+  await db.update(plans).set({ startDate: todayISO() }).where(eq(plans.id, planId));
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard/plan/historial");
+  revalidatePath("/dashboard/plan/fases");
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
 }

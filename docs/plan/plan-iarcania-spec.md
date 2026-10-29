@@ -60,7 +60,7 @@ Solo el dueño del plan edita. `plan_people.user_id` permite, más adelante, que
 
 ## Server Actions
 
-`setCheck(date, blockId, status | null, note?)`, `setOverride(date, blockId, text)`, `removeForDay(date, blockId)`, `clearOverride(date, blockId)`, `upsertBlock(...)`, `deleteBlock(id)`, `updatePhase(...)`, `replaceQueueItems(queueId, phaseId, lines[])`, `setQueueCursor(queueId, phaseId, itemNumber)`.
+`setCheck(date, blockId, status | null, note?)`, `setOverride(date, blockId, text)`, `removeForDay(date, blockId)`, `clearOverride(date, blockId)`, `upsertBlock(...)`, `deleteBlock(id)`, `updatePhase(...)`, `replaceQueueItems(queueId, phaseId, lines[])`, `setQueueCursor(queueId, phaseId, itemNumber)`, `resetPlanStartDate(planId)`.
 
 Todas validan que el plan pertenezca a la sesión.
 
@@ -76,6 +76,8 @@ Botón en la vista del día, en Rutinas y en el dashboard (⋯ de cada bloque, o
 ## Integraciones
 
 - **Agenda:** mostrar los bloques resueltos del día en la Agenda existente. Aprovechar para cerrar los pendientes: rango de 00:00 a 24:00 cada 10 minutos y que las tareas creadas aparezcan en Agenda.
+- **Dashboard · "Plan · sin marcar":** con el cursor de la cola, un bloque sin marcar YA NO se pierde (el mismo item sigue tocando al día siguiente — ver `isProjected`/regla de `today` arriba), así que esta sección mira solo AYER, no una ventana de varios días. Nunca antes de `plans.start_date` (si se reinició el plan, ayer puede ser de la versión vieja y no hay nada que resolver ahí). Si ayer no tiene nada sin marcar, la sección no se muestra.
+- **"Reiniciar desde hoy" (`resetPlanStartDate`, botón en `/dashboard/plan`):** pone `plans.start_date` en hoy (America/Bogota). Solo el dueño del plan, con confirmación (irreversible desde la UI). No toca `plan_checks` (el historial ya guardado queda igual) ni `plan_queue_cursors` (la posición de las colas es independiente) — solo mueve el límite desde el que `/plan/historial`, `/plan/fases` y el "sin marcar de ayer" del dashboard resuelven.
 - **Agente CEO (siguiente paso, no ahora):** tool `get_plan_dia(fecha, persona)` que llame al mismo resolver, para preguntar por WhatsApp "qué me toca ahora".
 
 ## Import

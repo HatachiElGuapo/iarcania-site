@@ -1,7 +1,7 @@
 import { and, eq, gte, lte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { planChecks } from "@/lib/db/schema/plan";
+import { planChecks, plans } from "@/lib/db/schema/plan";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, type ResolvedBlock } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
@@ -10,6 +10,7 @@ import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components
 import { setCheck, setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
 import { MoveBlockButtons } from "./move-to-tomorrow-button";
+import { ResetPlanStartButton } from "./reset-plan-start-button";
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -40,6 +41,7 @@ export default async function PlanPage({
   const isToday = date === todayISO();
 
   const ctx = await loadPlanContextForUser(userId);
+  const isOwner = !!ctx && (await db.select({ ownerId: plans.ownerId }).from(plans).where(eq(plans.id, ctx.plan.id)))[0]?.ownerId === userId;
   if (!ctx) {
     return (
       <EmptyState icon="🗺️">
@@ -74,6 +76,11 @@ export default async function PlanPage({
             Ir a ese día →
           </a>
         </EmptyState>
+        {isOwner && (
+          <div className="mt-3">
+            <ResetPlanStartButton planId={ctx.plan.id} />
+          </div>
+        )}
       </>
     );
   }
@@ -160,6 +167,7 @@ export default async function PlanPage({
               Hoy
             </Button>
           )}
+          {isOwner && <ResetPlanStartButton planId={ctx.plan.id} />}
         </div>
       </div>
 
