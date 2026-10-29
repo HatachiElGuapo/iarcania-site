@@ -32,8 +32,9 @@ de día `‹ fecha ›` que no va al futuro.
 Lista de tareas personales agrupada por vencimiento (vencidas / hoy / semana
 / adelante / sin fecha), con filtro por categoría.
 - **Tablas**: `trabajo.tasks`.
-- **Escritura** (`actividades/actions.ts`): `createTask`, `toggleTaskStatus`, `archiveTask`, `unarchiveTask`, `deleteTask`.
+- **Escritura** (`actividades/actions.ts`): `createTask`, `toggleTaskStatus`, `archiveTask`, `unarchiveTask`, `deleteTask`, `rescheduleTask`, `rescheduleOverdueTasks`.
 - **Sub-vistas**: `?tiempo=` (todas / hoy / semana / vencidas / completadas), `?cat=`, `?archivadas=1` (vista de archivadas).
+- **Reagendar vencidas**: cada tarea vencida trae un menú "Reagendar" (hoy / mañana / elegir fecha / sin fecha — `rescheduleTask`, un `<details>` con `<form>`s, sin JS). Con `?tiempo=vencidas` y sin filtro de categoría, arriba de la lista hay además una acción en bloque "Mover las N vencidas a…" (`rescheduleOverdueTasks`, componente cliente con `confirm()` porque mueve TODAS las vencidas de una). Las dos guardan `"Fecha original: AAAA-MM-DD"` en `notes` la primera vez que se reagenda una tarea con fecha (mismo formato que el script del servidor) — `withOriginalDateNote` en `lib/trabajo/reschedule.ts`, pura y testeada aparte para no depender de `@/lib/db/client`; si ya hay una línea "Fecha original:" no la pisa, así una tarea movida varias veces sigue mostrando la primera fecha real.
 
 ### Agenda — `/dashboard/agenda` 📅
 Rejilla horaria fija 00:00–24:00 de un día: bloques de agenda, tareas con

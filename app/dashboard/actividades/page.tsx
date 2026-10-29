@@ -29,7 +29,9 @@ import {
   archiveTask,
   unarchiveTask,
   deleteTask,
+  rescheduleTask,
 } from "./actions";
+import { BulkRescheduleOverdueButton } from "./bulk-reschedule-button";
 
 type Task = InferSelectModel<typeof tasks>;
 
@@ -55,6 +57,49 @@ function capitalize(s: string) {
 
 function shortDate(iso: string, year: string) {
   return iso.replace(`${year}-`, "");
+}
+
+// Menú "Reagendar" de una fila — solo <details>/<form>, sin JS: hoy /
+// mañana / elegir fecha / sin fecha (backlog). rescheduleTask guarda
+// "Fecha original: …" en notes la primera vez que se mueve una tarea con
+// fecha — ver actions.ts.
+function ReagendarMenu({ taskId, today }: { taskId: string; today: string }) {
+  const tomorrow = addDaysISO(today, 1);
+  return (
+    <details className="relative inline-block text-left">
+      <summary className="cursor-pointer list-none hover:text-ink">Reagendar</summary>
+      <div className="absolute right-0 top-full z-20 mt-1 flex w-56 flex-col gap-1 rounded-ui border border-line bg-surface-2 p-2 shadow-lg">
+        <form action={rescheduleTask}>
+          <input type="hidden" name="id" value={taskId} />
+          <input type="hidden" name="dueDate" value={today} />
+          <button type="submit" className="flex w-full rounded-ui px-2 py-1.5 text-left text-meta text-ink hover:bg-surface">
+            Hoy
+          </button>
+        </form>
+        <form action={rescheduleTask}>
+          <input type="hidden" name="id" value={taskId} />
+          <input type="hidden" name="dueDate" value={tomorrow} />
+          <button type="submit" className="flex w-full rounded-ui px-2 py-1.5 text-left text-meta text-ink hover:bg-surface">
+            Mañana
+          </button>
+        </form>
+        <form action={rescheduleTask} className="flex gap-1">
+          <input type="hidden" name="id" value={taskId} />
+          <input type="date" name="dueDate" defaultValue={today} className="min-w-0 flex-1 rounded-ui border border-line bg-canvas px-1.5 text-meta text-ink" />
+          <button type="submit" className="shrink-0 rounded-ui border border-line px-2 text-meta text-ink-muted hover:text-ink">
+            Mover
+          </button>
+        </form>
+        <form action={rescheduleTask}>
+          <input type="hidden" name="id" value={taskId} />
+          <input type="hidden" name="dueDate" value="" />
+          <button type="submit" className="flex w-full rounded-ui px-2 py-1.5 text-left text-meta text-ink-muted hover:bg-surface hover:text-ink">
+            Sin fecha (backlog)
+          </button>
+        </form>
+      </div>
+    </details>
+  );
 }
 
 function tiempoWhere(tiempo: string, today: string, weekEnd: string): SQL[] {
@@ -313,6 +358,15 @@ export default async function ActividadesPage({
         )}
       </div>
 
+      {/* Solo sin filtro de categoría: la acción en bloque mueve TODAS las
+          vencidas del usuario (rescheduleOverdueTasks no filtra por cat),
+          así que el conteo mostrado tiene que ser el mismo que se mueve. */}
+      {tiempo === "vencidas" && !cat && (tabCounts["vencidas"] ?? 0) > 0 && (
+        <div className="mt-3">
+          <BulkRescheduleOverdueButton count={tabCounts["vencidas"] ?? 0} today={today} tomorrow={addDaysISO(today, 1)} />
+        </div>
+      )}
+
       {/* Grupos */}
       <div className="mt-4 flex flex-col gap-4">
         {rows.length === 0 ? (
@@ -413,6 +467,7 @@ export default async function ActividadesPage({
                             <a href={`/dashboard/agenda?pre=${t.id}`} className="hover:text-ink">
                               Agenda
                             </a>
+                            {isOverdue && <ReagendarMenu taskId={t.id} today={today} />}
                             <form action={archiveTask}>
                               <input type="hidden" name="id" value={t.id} />
                               <button type="submit" className="hover:text-ink">
@@ -438,34 +493,41 @@ export default async function ActividadesPage({
                     const c = t.category ? catInfo(t.category) : null;
                     const m = rowMeta(t);
                     return (
-                      <form key={t.id} action={toggleTaskStatus}>
-                        <input type="hidden" name="id" value={t.id} />
-                        <input type="hidden" name="nextStatus" value={isDone ? "pendiente" : "completada"} />
-                        <button type="submit" className="contents">
-                          <ListCard accent={isOverdue ? "#F87171" : (c?.color ?? undefined)}>
-                            <span
-                              className={cx(
-                                "flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px]",
-                                isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent",
-                              )}
-                            >
-                              ✓
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className={cx("truncate text-[15px]", isDone ? "text-ink-dim line-through" : "text-ink")}>
-                                {t.title}
+                      <div key={t.id} className="relative">
+                        <form action={toggleTaskStatus}>
+                          <input type="hidden" name="id" value={t.id} />
+                          <input type="hidden" name="nextStatus" value={isDone ? "pendiente" : "completada"} />
+                          <button type="submit" className="contents">
+                            <ListCard accent={isOverdue ? "#F87171" : (c?.color ?? undefined)}>
+                              <span
+                                className={cx(
+                                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px]",
+                                  isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent",
+                                )}
+                              >
+                                ✓
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className={cx("truncate text-[15px]", isDone ? "text-ink-dim line-through" : "text-ink")}>
+                                  {t.title}
+                                </div>
+                                <div className="mt-0.5 text-[11px] text-ink-dim">
+                                  {c ? c.label : "sin categoría"}
+                                  {m ? ` · ${m}` : t.dueDate ? ` · ${shortDate(t.dueDate, year)}` : ""}
+                                </div>
                               </div>
-                              <div className="mt-0.5 text-[11px] text-ink-dim">
-                                {c ? c.label : "sin categoría"}
-                                {m ? ` · ${m}` : t.dueDate ? ` · ${shortDate(t.dueDate, year)}` : ""}
-                              </div>
-                            </div>
-                            <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
-                              {t.priority}
-                            </Badge>
-                          </ListCard>
-                        </button>
-                      </form>
+                              <Badge tone={PRIORITY_TONE[t.priority as keyof typeof PRIORITY_TONE] ?? "neutral"}>
+                                {t.priority}
+                              </Badge>
+                            </ListCard>
+                          </button>
+                        </form>
+                        {isOverdue && (
+                          <div className="absolute bottom-1 right-2.5 text-[11px]">
+                            <ReagendarMenu taskId={t.id} today={today} />
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
