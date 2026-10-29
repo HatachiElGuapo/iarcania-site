@@ -15,7 +15,7 @@ import { catInfo } from "@/components/ui/category";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
-import { addDaysISO } from "@/lib/date/bogota";
+import { addDaysISO, todayISO } from "@/lib/date/bogota";
 
 export type AgendaEvent = {
   key: string;
@@ -42,6 +42,10 @@ export type AgendaEvent = {
   // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
   // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
   endLabel?: string;
+  // Solo bloques de Plan con cola: true = este texto es una proyección
+  // (cursor+1, +2… — ver resolve.ts), no la posición real todavía. Pasa
+  // al navegar a días futuros en Agenda.
+  projected?: boolean;
 };
 
 const TYPE_META: Record<string, { icon: string; label: string; accent: string }> = {
@@ -135,7 +139,12 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
   let linkedActivityIds = new Set<string>();
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
-    const resolvedRange = resolvePlan(toPlanData(planCtx), yesterday, date);
+    // `today` real (no la `date` que se esté viendo) separa pasado de
+    // proyección — ver comentario en resolve.ts. Si `date` es futura (se
+    // navegó adelante en Agenda), sus items se ven proyectados
+    // (cursor+1, +2…); si `date` es pasada, todo queda congelado en la
+    // posición real (nada que proyectar hacia atrás).
+    const resolvedRange = resolvePlan(toPlanData(planCtx), yesterday, date, todayISO());
     const todayResolved = resolvedRange.find((d) => d.date === date) ?? null;
     const before = resolvedRange.find((d) => d.date === yesterday) ?? null;
     const todaysBlocks = todayResolved?.blocksByPerson[planPerson.personId] ?? [];
@@ -215,6 +224,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         editHref: `/dashboard/plan?date=${date}`,
         habitChecks: buildHabitChecks(b.blockId, doneHabitIds),
         endLabel: b.endTime ? undefined : "24:00",
+        projected: b.isProjected,
       };
     });
 

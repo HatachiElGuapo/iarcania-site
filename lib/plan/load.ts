@@ -8,6 +8,7 @@ import {
   planPhases,
   planQueues,
   planQueueItems,
+  planQueueCursors,
   planBlocks,
   planHolidays,
   planEvents,
@@ -21,6 +22,7 @@ export type PlanContext = {
   phases: (typeof planPhases.$inferSelect)[];
   queues: (typeof planQueues.$inferSelect)[];
   queueItems: (typeof planQueueItems.$inferSelect)[];
+  queueCursors: (typeof planQueueCursors.$inferSelect)[];
   blocks: (typeof planBlocks.$inferSelect)[];
   holidays: string[];
   events: (typeof planEvents.$inferSelect)[];
@@ -53,7 +55,7 @@ export async function loadPlanContextById(planId: string): Promise<PlanContext> 
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId)).limit(1);
   if (!plan) throw new Error("Plan no encontrado");
 
-  const [people, phases, queues, queueItems, blocks, holidayRows, events, overrides] = await Promise.all([
+  const [people, phases, queues, queueItems, queueCursors, blocks, holidayRows, events, overrides] = await Promise.all([
     db.select().from(planPeople).where(eq(planPeople.planId, plan.id)).orderBy(asc(planPeople.sortOrder)),
     db.select().from(planPhases).where(eq(planPhases.planId, plan.id)).orderBy(asc(planPhases.sortOrder)),
     db.select().from(planQueues).where(eq(planQueues.planId, plan.id)),
@@ -72,6 +74,15 @@ export async function loadPlanContextById(planId: string): Promise<PlanContext> 
       .innerJoin(planQueues, eq(planQueues.id, planQueueItems.queueId))
       .where(eq(planQueues.planId, plan.id))
       .orderBy(asc(planQueueItems.position)),
+    db
+      .select({
+        queueId: planQueueCursors.queueId,
+        phaseId: planQueueCursors.phaseId,
+        position: planQueueCursors.position,
+      })
+      .from(planQueueCursors)
+      .innerJoin(planQueues, eq(planQueues.id, planQueueCursors.queueId))
+      .where(eq(planQueues.planId, plan.id)),
     db.select().from(planBlocks).where(eq(planBlocks.planId, plan.id)),
     db.select({ date: planHolidays.date }).from(planHolidays).where(eq(planHolidays.planId, plan.id)),
     db.select().from(planEvents).where(eq(planEvents.planId, plan.id)),
@@ -84,6 +95,7 @@ export async function loadPlanContextById(planId: string): Promise<PlanContext> 
     phases,
     queues,
     queueItems: queueItems as (typeof planQueueItems.$inferSelect)[],
+    queueCursors,
     blocks,
     holidays: holidayRows.map((h) => h.date),
     events,
@@ -113,6 +125,7 @@ export function toPlanData(ctx: PlanContext): PlanData {
     phases: ctx.phases.map((p) => ({ id: p.id, name: p.name, startDate: p.startDate, endDate: p.endDate, goal: p.goal })),
     queues: ctx.queues.map((q) => ({ id: q.id, key: q.key, name: q.name, cyclic: q.cyclic, global: q.global, fallback: q.fallback })),
     queueItems: ctx.queueItems.map((i) => ({ queueId: i.queueId, phaseId: i.phaseId, position: i.position, text: i.text })),
+    queueCursors: ctx.queueCursors.map((c) => ({ queueId: c.queueId, phaseId: c.phaseId, position: c.position })),
     blocks: ctx.blocks.map((b) => ({
       id: b.id,
       personId: b.personId,
@@ -142,6 +155,7 @@ export function toPlanData(ctx: PlanContext): PlanData {
       blockId: o.blockId,
       text: o.text,
       removed: o.removed,
+      deferredQueueItem: o.deferredQueueItem,
       startTime: o.startTime,
       durationMinutes: o.durationMinutes,
     })),

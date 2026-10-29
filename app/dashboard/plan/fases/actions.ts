@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { plans, planPhases, planQueues, planQueueItems } from "@/lib/db/schema/plan";
+import { plans, planPhases, planQueues, planQueueItems, planQueueCursors } from "@/lib/db/schema/plan";
 
 async function requireUserId() {
   const session = await auth();
@@ -235,6 +235,55 @@ export async function moveQueueItem(formData: FormData) {
     await tx.update(planQueueItems).set({ position: b.position }).where(eq(planQueueItems.id, a.id));
     await tx.update(planQueueItems).set({ position: a.position }).where(eq(planQueueItems.id, b.id));
   });
+  revalidateAll();
+}
+
+// Fija a mano la posición de una cola (o cola+fase) — "ir al item N". El
+// cursor (plan_queue_cursors) ya no se calcula contando ocurrencias desde
+// plan.start_date (ver resolve.ts), así que después de la migración
+// arranca en 0 para toda cola existente: esta es la forma de corregirlo
+// una vez a la posición real, y de ahí en más solo avanza al marcar
+// (hecho/saltado) o al mover items de lugar.
+export async function setQueueCursor(formData: FormData) {
+  const userId = await requireUserId();
+  const planId = await requireOwnedPlanId(userId);
+  const queueId = String(formData.get("queueId") || "");
+  const phaseId = String(formData.get("phaseId") || "") || null;
+  const itemNumber = Number(formData.get("itemNumber") || "");
+  if (!queueId || !Number.isInteger(itemNumber) || itemNumber < 1) throw new Error("Número de item inválido");
+
+  const [queue] = await db
+    .select({ id: planQueues.id })
+    .from(planQueues)
+    .where(and(eq(planQueues.id, queueId), eq(planQueues.planId, planId)));
+  if (!queue) throw new Error("Cola no encontrada");
+
+  const position = itemNumber - 1; // UI es 1-indexed ("item 1" = posición 0)
+
+  // Los índices únicos de plan_queue_cursors son parciales (uno para
+  // phase_id IS NOT NULL, otro para phase_id IS NULL — ver schema/plan.ts)
+  // porque Postgres no trata dos NULL como iguales. ON CONFLICT con un
+  // índice parcial necesita repetir ese mismo predicado en targetWhere.
+  if (phaseId) {
+    await db
+      .insert(planQueueCursors)
+      .values({ queueId, phaseId, position })
+      .onConflictDoUpdate({
+        target: [planQueueCursors.queueId, planQueueCursors.phaseId],
+        targetWhere: sql`${planQueueCursors.phaseId} IS NOT NULL`,
+        set: { position },
+      });
+  } else {
+    await db
+      .insert(planQueueCursors)
+      .values({ queueId, phaseId: null, position })
+      .onConflictDoUpdate({
+        target: [planQueueCursors.queueId],
+        targetWhere: sql`${planQueueCursors.phaseId} IS NULL`,
+        set: { position },
+      });
+  }
+
   revalidateAll();
 }
 

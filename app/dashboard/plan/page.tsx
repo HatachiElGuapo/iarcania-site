@@ -9,7 +9,7 @@ import { todayISO, addDaysISO, diffDaysISO } from "@/lib/date/bogota";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setCheck, setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
-import { MoveToTomorrowButton } from "./move-to-tomorrow-button";
+import { MoveBlockButtons } from "./move-to-tomorrow-button";
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -362,7 +362,7 @@ export default async function PlanPage({
                               Nota
                             </Button>
                           </form>
-                          <MoveToTomorrowButton date={date} blockId={b.blockId} text={b.text} />
+                          <MoveBlockButtons date={date} blockId={b.blockId} text={b.text} />
                           <form action={removeForDay}>
                             <input type="hidden" name="date" value={date} />
                             <input type="hidden" name="blockId" value={b.blockId} />

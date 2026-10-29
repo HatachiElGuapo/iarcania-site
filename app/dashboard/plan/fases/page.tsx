@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { planChecks, planBlocks } from "@/lib/db/schema/plan";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
-import { resolvePlan, computeQueueProgress } from "@/lib/plan/resolve";
+import { resolvePlan } from "@/lib/plan/resolve";
 import { todayISO, diffDaysISO } from "@/lib/date/bogota";
 import { Card, Input, Textarea, Select, Labeled, Button, Progress, EmptyState } from "@/components/ui";
 import { listScriptOptions, type ScriptOption } from "@/lib/scripts-picker";
@@ -19,6 +19,7 @@ import {
   deleteQueueItem,
   moveQueueItem,
   replaceQueueItems,
+  setQueueCursor,
 } from "./actions";
 
 export default async function PlanFasesPage() {
@@ -45,7 +46,13 @@ export default async function PlanFasesPage() {
   const planData = toPlanData(ctx);
   const planStarted = today >= planData.startDate;
   const resolvedSoFar = planStarted ? resolvePlan(planData, planData.startDate, today) : [];
-  const queueProgress = planStarted ? computeQueueProgress(planData, today) : new Map<string, number>();
+  // Posición real de cada cola — ya no se calcula, es lo que haya en
+  // plan_queue_cursors (0 si no hay fila todavía).
+  const queueProgress = new Map<string, number>();
+  for (const c of ctx.queueCursors) {
+    const key = c.phaseId ? `${c.phaseId}:${c.queueId}` : c.queueId;
+    queueProgress.set(key, c.position);
+  }
 
   // Un solo query de plan_checks (con join a plan_blocks para saber la cola
   // de cada uno) alcanza para las dos cosas: el % de bloques hechos por
@@ -316,12 +323,24 @@ function QueueList({
       )}
 
       {total > 0 && (
-        <Progress
-          label={`${doneCount} hecho${doneCount !== 1 ? "s" : ""} de ${total}`}
-          pct={Math.min(100, Math.round((progressDone / total) * 100))}
-          value={progressDone > total ? `pos. ${progressDone}/${total} (repitió)` : `pos. ${progressDone}/${total}`}
-          tone="warm"
-        />
+        <>
+          <Progress
+            label={`${doneCount} hecho${doneCount !== 1 ? "s" : ""} de ${total}`}
+            pct={Math.min(100, Math.round((progressDone / total) * 100))}
+            value={progressDone > total ? `pos. ${progressDone}/${total} (repitió)` : `pos. ${progressDone}/${total}`}
+            tone="warm"
+          />
+          <form action={setQueueCursor} className="flex items-end gap-1.5">
+            <input type="hidden" name="queueId" value={queueId} />
+            {phaseId && <input type="hidden" name="phaseId" value={phaseId} />}
+            <Labeled label="Ir al item N (corregir posición)">
+              <Input type="number" name="itemNumber" min={1} max={total} defaultValue={progressDone + 1} className="w-20" required />
+            </Labeled>
+            <Button type="submit" variant="secondary" size="sm">
+              Fijar
+            </Button>
+          </form>
+        </>
       )}
 
       <form action={addQueueItem} className="flex gap-1.5">

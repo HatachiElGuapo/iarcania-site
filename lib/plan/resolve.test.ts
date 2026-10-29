@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { resolvePlan, computeQueueProgress, type PlanData } from "./resolve";
+import { resolvePlan, type PlanData } from "./resolve";
 
 const WEEKDAY_KEYS = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"] as const;
 
@@ -87,6 +87,7 @@ function loadPlanData(): PlanData {
     phases: seed.phases.map((ph) => ({ id: ph.id, name: ph.n, startDate: ph.a, endDate: ph.b, goal: ph.meta ?? null })),
     queues,
     queueItems,
+    queueCursors: [],
     blocks,
     holidays: seed.hol,
     events: seed.events.map((e, i) => ({
@@ -110,23 +111,28 @@ function blockAt(plan: PlanData, date: string, personId: string, startTime: stri
   return block!;
 }
 
-test("2026-09-22, Miguel 10:00 → primer item de la cola build (fase 1)", () => {
-  const plan = loadPlanData();
+test("2026-09-22, Miguel 10:00 → segundo item de la cola build (fase 1), con el cursor ya en 1", () => {
+  // Ya no se cuenta desde plan.startDate: la cola arranca en lo que diga
+  // plan_queue_cursors. Acá se simula que el 2026-09-21 (primera ocurrencia
+  // del bloque) ya se marcó, avanzando la posición a 1.
+  const base = loadPlanData();
+  const plan = { ...base, queueCursors: [{ queueId: "build", phaseId: "f1", position: 1 }] };
   const block = blockAt(plan, "2026-09-22", "miguel", "10:00");
   assert.equal(block.text, "Documentar en el runbook cómo clonar el Agente Base");
 });
 
-test("2026-10-12 (festivo), Miguel 08:00 → texto de festivo y el contador de prospección no avanza", () => {
-  const plan = loadPlanData();
+test("2026-10-12 (festivo), Miguel 08:00 → texto de festivo, cursor sin tocar", () => {
+  // La cola ya NO se cuenta desde plan.startDate — arranca en lo que diga
+  // plan_queue_cursors (acá, el item 15, simulando que se marcó esa
+  // cantidad de veces antes). Si el festivo avanzara el cursor, el día
+  // siguiente mostraría el item 16 en vez del 15.
+  const base = loadPlanData();
+  const plan = { ...base, queueCursors: [{ queueId: "prosp", phaseId: "f1", position: 15 }] };
+
   const holiday = blockAt(plan, "2026-10-12", "miguel", "08:00");
   assert.equal(holiday.text, "Festivo: armar lista de prospectos (sin contactar)");
   assert.equal(holiday.isHoliday, true);
 
-  // Del 2026-09-21 (lunes) al 2026-10-09 hay 15 ocurrencias del bloque de
-  // "prosp" (lun-vie, sin festivos de por medio) → consumen los items 0-14
-  // de la lista de 20. El 2026-10-12 es festivo y no cuenta. Si NO consumió
-  // un item, el 2026-10-13 (siguiente día hábil) usa el item 15; si lo
-  // hubiera consumido de más, usaría el 16.
   const next = blockAt(plan, "2026-10-13", "miguel", "08:00");
   assert.equal(
     next.text,
@@ -134,8 +140,37 @@ test("2026-10-12 (festivo), Miguel 08:00 → texto de festivo y el contador de p
   );
 });
 
-test("2027-01-16, Miguel 06:00 → fallback de Void Stoic (lista global agotada)", () => {
-  const plan = loadPlanData();
+test("sin marcar nada, el mismo item de la cola sigue tocando día tras día", () => {
+  const base = loadPlanData();
+  const plan = { ...base, queueCursors: [{ queueId: "prosp", phaseId: "f1", position: 3 }] };
+
+  const day1 = blockAt(plan, "2026-09-21", "miguel", "08:00").text;
+  const day2 = blockAt(plan, "2026-09-22", "miguel", "08:00").text;
+  assert.equal(day1, day2); // ninguno de los dos días está marcado → mismo item
+});
+
+test("Agenda/semana: dentro de un mismo rango resuelto, las ocurrencias futuras proyectan cursor+1, +2…", () => {
+  const base = loadPlanData();
+  const plan = { ...base, queueCursors: [{ queueId: "prosp", phaseId: "f1", position: 3 }] };
+
+  // today = 2026-09-21 (lunes): esa fecha usa la posición real (3, no
+  // proyectada); 2026-09-22 (martes, otra ocurrencia del mismo bloque de
+  // "prosp") cae DESPUÉS de today → se proyecta como si se hubiera
+  // marcado el lunes, mostrando el item 4.
+  const days = resolvePlan(plan, "2026-09-21", "2026-09-22", "2026-09-21");
+  const d1 = days[0].blocksByPerson.miguel.find((b) => b.startTime === "08:00")!;
+  const d2 = days[1].blocksByPerson.miguel.find((b) => b.startTime === "08:00")!;
+  assert.equal(d1.isProjected, false);
+  assert.equal(d2.isProjected, true);
+  assert.notEqual(d1.text, d2.text);
+});
+
+test("Void Stoic agotada (cursor en el largo de la lista) → fallback", () => {
+  // La cola ya no se agota por el paso del tiempo, sino por cuántas veces
+  // se marcó — simula eso sembrando el cursor en el largo exacto de la
+  // lista (14 items: 0-13 ya usados, la 14 no existe → fallback).
+  const base = loadPlanData();
+  const plan = { ...base, queueCursors: [{ queueId: "vs", phaseId: null, position: 14 }] };
   const block = blockAt(plan, "2027-01-16", "miguel", "06:00");
   assert.equal(block.text, "Void Stoic: guion del próximo episodio");
 });
@@ -164,7 +199,9 @@ test("override con startTime mueve el bloque solo ese día, conservando (o no) e
   // 10:00, debe seguir durando 20 min (10:00–10:20), no quedar abierto.
   const withMove = {
     ...plan,
-    overrides: [{ date: "2026-09-21", blockId: "b1", text: null, removed: false, startTime: "10:00", durationMinutes: 20 }],
+    overrides: [
+      { date: "2026-09-21", blockId: "b1", text: null, removed: false, deferredQueueItem: false, startTime: "10:00", durationMinutes: 20 },
+    ],
   };
   const moved = blockAt(withMove, "2026-09-21", "miguel", "10:00");
   assert.equal(moved.text, "Despertar, cama y agua");
@@ -174,21 +211,39 @@ test("override con startTime mueve el bloque solo ese día, conservando (o no) e
   // durationMinutes null porque el original es abierto, debe SEGUIR abierto.
   const withMoveOpen = {
     ...plan,
-    overrides: [{ date: "2026-09-21", blockId: "b10", text: null, removed: false, startTime: "22:00", durationMinutes: null }],
+    overrides: [
+      { date: "2026-09-21", blockId: "b10", text: null, removed: false, deferredQueueItem: false, startTime: "22:00", durationMinutes: null },
+    ],
   };
   const movedOpen = blockAt(withMoveOpen, "2026-09-21", "miguel", "22:00");
   assert.equal(movedOpen.text, "Dormir");
   assert.equal(movedOpen.endTime, null);
 });
 
-test("computeQueueProgress: 5 ocurrencias de 'build' (lun-vie) al 2026-09-25", () => {
-  const plan = loadPlanData();
-  const progress = computeQueueProgress(plan, "2026-09-25");
-  assert.equal(progress.get("f1:build"), 5);
-});
+test("mover: ocultar con deferredQueueItem no consume la posición de la cola", () => {
+  const base = loadPlanData();
+  const plan = {
+    ...base,
+    queueCursors: [{ queueId: "prosp", phaseId: "f1", position: 3 }],
+    overrides: [
+      {
+        date: "2026-09-21",
+        blockId: "b76", // "Contactar negocios" lun 08:00, cola prosp — ver docs/plan/plan-seed.json
+        text: null,
+        removed: true,
+        deferredQueueItem: true,
+        startTime: null,
+        durationMinutes: null,
+      },
+    ],
+  };
+  const [day] = resolvePlan(plan, "2026-09-21", "2026-09-21");
+  const hidden = day.blocksByPerson.miguel.find((b) => b.startTime === "08:00");
+  assert.equal(hidden, undefined); // la ocurrencia de hoy no se muestra…
 
-test("computeQueueProgress antes de plan.startDate da vacío", () => {
-  const plan = loadPlanData();
-  const progress = computeQueueProgress(plan, "2026-09-20"); // un día antes de empezar
-  assert.equal(progress.size, 0);
+  // …pero el item sigue siendo el mismo (posición 3) al día siguiente, el
+  // mismo que habría tocado HOY si no se hubiera ocultado.
+  const next = blockAt({ ...plan, overrides: [] }, "2026-09-22", "miguel", "08:00");
+  const wouldHaveShownToday = blockAt({ ...plan, overrides: [] }, "2026-09-21", "miguel", "08:00");
+  assert.equal(next.text, wouldHaveShownToday.text);
 });

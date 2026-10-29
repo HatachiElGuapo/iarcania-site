@@ -123,6 +123,39 @@ export const planQueueItems = pgTable(
   }),
 );
 
+// Posición actual de cada (cola, fase) — reemplaza el conteo histórico
+// desde plan.start_date que tenía el resolver viejo. Solo avanza cuando se
+// marca (hecho/saltado) una actividad de esa cola (ver setCheck en
+// actions.ts), no por el paso de los días: si no se marca nada, el mismo
+// item sigue tocando al día siguiente. Sin fila = posición 0 — no se
+// hace backfill automático al migrar (no hay forma confiable de saber
+// dónde estaba cada cola); /plan/fases trae "ir al item N" para corregirla
+// a mano una vez.
+export const planQueueCursors = pgTable(
+  "plan_queue_cursors",
+  {
+    queueId: uuid("queue_id")
+      .notNull()
+      .references(() => planQueues.id, { onDelete: "cascade" }),
+    // null si la cola es global (plan_queues.global = true) — mismo
+    // agrupamiento que plan_queue_items.phase_id.
+    phaseId: uuid("phase_id").references(() => planPhases.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => ({
+    // Postgres no trata dos NULL como iguales, así que un unique index
+    // compuesto normal no evita dos filas globales (phase_id null) para
+    // la misma cola — de ahí los dos índices parciales, mismo patrón que
+    // sameGroup() en fases/actions.ts.
+    phaseGroupUidx: uniqueIndex("plan_queue_cursors_phase_group_uidx")
+      .on(t.queueId, t.phaseId)
+      .where(sql`${t.phaseId} IS NOT NULL`),
+    globalGroupUidx: uniqueIndex("plan_queue_cursors_global_group_uidx")
+      .on(t.queueId)
+      .where(sql`${t.phaseId} IS NULL`),
+  }),
+);
+
 export const planBlocks = pgTable(
   "plan_blocks",
   {
@@ -237,6 +270,13 @@ export const planBlockActivities = pgTable(
 // día. `startTime` no nulo = se arrastró en Agenda ese día — `duration_
 // minutes` guarda la duración original del bloque (null si el bloque es
 // abierto, ej. Dormir, para que siga abierto en el nuevo horario).
+//
+// `deferred_queue_item`: distingue un removed "de verdad no quiero esto"
+// (removeForDay — el item de la cola se sacrifica, el resolver sigue
+// avanzando normal) de un removed por "Mover" (mañana/elegir fecha): ahí
+// el item no se pierde, solo se oculta ESTA ocurrencia sin que el
+// resolver la cuente como consumida, para que el mismo item aparezca
+// entero en la fecha elegida. Solo tiene sentido con removed=true.
 export const planOverrides = pgTable(
   "plan_overrides",
   {
@@ -249,6 +289,7 @@ export const planOverrides = pgTable(
       .references(() => planBlocks.id, { onDelete: "cascade" }),
     text: text("text"),
     removed: boolean("removed").notNull().default(false),
+    deferredQueueItem: boolean("deferred_queue_item").notNull().default(false),
     startTime: text("start_time"),
     durationMinutes: integer("duration_minutes"),
   },

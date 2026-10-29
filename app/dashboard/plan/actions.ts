@@ -1,10 +1,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, gte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { plans, planPeople, planBlocks, planChecks, planOverrides, planBlockActivities } from "@/lib/db/schema/plan";
+import {
+  plans,
+  planPeople,
+  planBlocks,
+  planChecks,
+  planOverrides,
+  planBlockActivities,
+  planQueues,
+  planQueueItems,
+  planQueueCursors,
+  planPhases,
+} from "@/lib/db/schema/plan";
 import { activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
@@ -30,6 +41,8 @@ async function requireOwnedBlock(blockId: string, userId: string) {
       planId: planBlocks.planId,
       personId: planBlocks.personId,
       queueId: planBlocks.queueId,
+      weekday: planBlocks.weekday,
+      holidayText: planBlocks.holidayText,
       ownerId: plans.ownerId,
     })
     .from(planBlocks)
@@ -138,6 +151,47 @@ async function syncLinkedHabitLogs(userId: string, blockId: string, date: string
   }
 }
 
+// La cola solo avanza cuando SE MARCA una actividad (hecho o saltado) —
+// pedido explícito: si un día no se marca nada, al día siguiente sigue
+// tocando la misma. El cursor vive en plan_queue_cursors, agrupado igual
+// que plan_queue_items (phaseId null = cola global). `delta` +1 al marcar
+// por primera vez, -1 al desmarcar (simétrico, reversible) — setCheck es
+// quien decide cuándo llamar esto.
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function shiftQueueCursor(tx: DbTx, blockId: string, date: string, delta: number) {
+  const [block] = await tx.select({ queueId: planBlocks.queueId }).from(planBlocks).where(eq(planBlocks.id, blockId));
+  if (!block?.queueId) return;
+
+  const [queue] = await tx
+    .select({ id: planQueues.id, global: planQueues.global })
+    .from(planQueues)
+    .where(eq(planQueues.id, block.queueId));
+  if (!queue) return;
+
+  let phaseId: string | null = null;
+  if (!queue.global) {
+    const [phase] = await tx
+      .select({ id: planPhases.id })
+      .from(planPhases)
+      .where(and(lte(planPhases.startDate, date), gte(planPhases.endDate, date)));
+    phaseId = phase?.id ?? null;
+  }
+
+  const groupFilter = phaseId
+    ? and(eq(planQueueCursors.queueId, queue.id), eq(planQueueCursors.phaseId, phaseId))
+    : and(eq(planQueueCursors.queueId, queue.id), isNull(planQueueCursors.phaseId));
+
+  const [existing] = await tx.select({ position: planQueueCursors.position }).from(planQueueCursors).where(groupFilter);
+  const next = Math.max(0, (existing?.position ?? 0) + delta);
+
+  if (existing) {
+    await tx.update(planQueueCursors).set({ position: next }).where(groupFilter);
+  } else if (next > 0) {
+    await tx.insert(planQueueCursors).values({ queueId: queue.id, phaseId, position: next });
+  }
+}
+
 // Marca/desmarca un bloque para UN día — status vacío = quita la marca.
 // resolved_text se calcula acá (con el resolver, sobre el plan completo) y
 // queda fijo: si luego se reordena una cola o se edita el bloque, el
@@ -153,7 +207,14 @@ export async function setCheck(formData: FormData) {
   const block = await requireOwnedBlock(blockId, userId);
 
   if (!status) {
-    await db.delete(planChecks).where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+    await db.transaction(async (tx) => {
+      const [existed] = await tx
+        .select({ blockId: planChecks.blockId })
+        .from(planChecks)
+        .where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+      await tx.delete(planChecks).where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+      if (existed) await shiftQueueCursor(tx, blockId, date, -1);
+    });
     await syncLinkedHabitLogs(userId, blockId, date, false);
     revalidatePath("/dashboard/plan");
     revalidatePath("/dashboard/plan/historial");
@@ -169,21 +230,30 @@ export async function setCheck(formData: FormData) {
   const resolved = day?.blocksByPerson[block.personId]?.find((b) => b.blockId === blockId);
   if (!resolved) throw new Error("El bloque no aplica ese día");
 
-  await db
-    .insert(planChecks)
-    .values({
-      planId: block.planId,
-      date,
-      blockId,
-      personId: block.personId,
-      status,
-      resolvedText: resolved.text,
-      note,
-    })
-    .onConflictDoUpdate({
-      target: [planChecks.date, planChecks.blockId],
-      set: { status, resolvedText: resolved.text, note, checkedAt: new Date() },
-    });
+  await db.transaction(async (tx) => {
+    const [existed] = await tx
+      .select({ blockId: planChecks.blockId })
+      .from(planChecks)
+      .where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+
+    await tx
+      .insert(planChecks)
+      .values({
+        planId: block.planId,
+        date,
+        blockId,
+        personId: block.personId,
+        status,
+        resolvedText: resolved.text,
+        note,
+      })
+      .onConflictDoUpdate({
+        target: [planChecks.date, planChecks.blockId],
+        set: { status, resolvedText: resolved.text, note, checkedAt: new Date() },
+      });
+
+    if (!existed) await shiftQueueCursor(tx, blockId, date, 1);
+  });
   await syncLinkedHabitLogs(userId, blockId, date, status === "done");
 
   revalidatePath("/dashboard/plan");
@@ -205,7 +275,10 @@ export async function setOverride(formData: FormData) {
   await db
     .insert(planOverrides)
     .values({ planId: block.planId, date, blockId, text, removed: false })
-    .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { text, removed: false } });
+    .onConflictDoUpdate({
+      target: [planOverrides.date, planOverrides.blockId],
+      set: { text, removed: false, deferredQueueItem: false },
+    });
 
   revalidatePath("/dashboard/plan");
 }
@@ -222,7 +295,10 @@ export async function removeForDay(formData: FormData) {
   await db
     .insert(planOverrides)
     .values({ planId: block.planId, date, blockId, text: null, removed: true })
-    .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { removed: true } });
+    .onConflictDoUpdate({
+      target: [planOverrides.date, planOverrides.blockId],
+      set: { removed: true, deferredQueueItem: false },
+    });
 
   revalidatePath("/dashboard/plan");
 }
@@ -292,77 +368,99 @@ export async function moveBlockForDay(input: {
     .values({ planId: block.planId, date: input.date, blockId: input.blockId, startTime, durationMinutes, removed: false })
     .onConflictDoUpdate({
       target: [planOverrides.date, planOverrides.blockId],
-      set: { startTime, durationMinutes, removed: false },
+      set: { startTime, durationMinutes, removed: false, deferredQueueItem: false },
     });
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/agenda");
 }
 
-// Saca un bloque de Plan de HOY sin que se pierda. `text` es el texto YA
-// RESUELTO que se estaba mostrando (la cola pudo haber puesto cualquier
-// cosa ahí) — lo manda quien llama porque ya lo tiene a mano al renderizar
-// el bloque; recalcularlo acá significaría cargar el plan completo otra
-// vez para lo mismo.
+// Primera fecha >= `from` en que cae el weekday de un bloque — nunca pasa
+// de 7 días porque el weekday se repite cada semana.
+function nextOccurrenceOnOrAfter(weekday: number, from: string): string {
+  for (let offset = 0; offset < 7; offset++) {
+    const d = addDaysISO(from, offset);
+    if (weekdayMon0(d) === weekday) return d;
+  }
+  return from; // inalcanzable
+}
+
+// Saca un bloque de Plan de HOY (o de varios días) sin que se pierda.
+// `text` es el texto YA RESUELTO que se estaba mostrando (la cola pudo
+// haber puesto cualquier cosa ahí) — lo manda quien llama porque ya lo
+// tiene a mano al renderizar el bloque.
 //
-// Si el bloque viene de una cola (queueId), se busca el PRÓXIMO turno real
-// de esa cola dentro de los siguientes 7 días (no solo mañana — pedido
-// explícito, después de ver que un bloque semanal como "Video lunes"
-// empujado al martes no tenía nada que reemplazar ahí y terminaba sumando
-// una tarea suelta sin quitar nada). Dentro de una semana siempre aparece
-// al menos una vez más (su propia recurrencia semanal, si no antes por
-// otro bloque de la misma cola) — se sobreescribe el texto de ESE bloque,
-// así ocupa el mismo lugar en vez de sumarse aparte. El item que le tocaba
-// naturalmente a la cola ese día se pierde ese turno (mismo comportamiento
-// de siempre: la cola avanza un paso por día exista o no el override).
+// Si el bloque viene de una cola (queueId): la cola solo avanza cuando se
+// MARCA una actividad (ver shiftQueueCursor en setCheck) — así que alcanza
+// con ocultar esta ocurrencia con un override "deferred" (no cuenta como
+// consumida, regla 4 del resolver) para que el mismo item reaparezca
+// entero en la fecha de llegada, sin reemplazar ni perder el item que le
+// tocaría naturalmente ahí.
+//
+// La fecha de llegada es la primera ocurrencia del weekday de ESTE bloque
+// en o después de `targetDate` (mañana, o la fecha elegida). Si entre hoy
+// y esa fecha hay ocurrencias de OTRO bloque de la misma cola (ej. una
+// cola compartida por varios días de la semana), también hay que ocultarlas
+// — si no, consumirían la cola de todos modos y el item movido terminaría
+// mostrándose en un lugar distinto al que pidió el usuario. Los días
+// festivos con holiday_text no se tocan: ya no consumen la cola de por sí.
 //
 // Si el bloque NO viene de ninguna cola (texto fijo, ej. "Hacer cena"), no
-// hay forma confiable de saber cuál es "el mismo bloque" en otro día sin
-// una cola que los conecte — ahí se mantiene el comportamiento anterior:
-// una tarea suelta con vencimiento mañana.
-export async function moveBlockToTomorrow(input: { date: string; blockId: string; text: string }) {
+// hay cola que corra — se mantiene el comportamiento anterior: una tarea
+// suelta con vencimiento en la fecha elegida.
+export async function moveBlock(input: { date: string; blockId: string; text: string; targetDate: string }) {
   const userId = await requireUserId();
-  if (!input?.date || !input?.blockId || !input?.text?.trim()) throw new Error("Faltan datos");
+  if (!input?.date || !input?.blockId || !input?.text?.trim() || !input?.targetDate) throw new Error("Faltan datos");
+  if (input.targetDate < input.date) throw new Error("La fecha elegida no puede ser anterior a hoy");
 
   const block = await requireOwnedBlock(input.blockId, userId);
   const text = input.text.trim();
-  const tomorrow = addDaysISO(input.date, 1);
 
-  let nextTurn: { date: string; blockId: string } | null = null;
-  if (block.queueId) {
-    for (let offset = 1; offset <= 7; offset++) {
-      const candidateDate = addDaysISO(input.date, offset);
-      const [candidateBlock] = await db
-        .select({ id: planBlocks.id })
-        .from(planBlocks)
-        .where(
-          and(
-            eq(planBlocks.planId, block.planId),
-            eq(planBlocks.personId, block.personId),
-            eq(planBlocks.queueId, block.queueId),
-            eq(planBlocks.weekday, weekdayMon0(candidateDate)),
-          ),
-        );
-      if (candidateBlock) {
-        nextTurn = { date: candidateDate, blockId: candidateBlock.id };
-        break;
-      }
+  if (!block.queueId) {
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(planOverrides)
+        .values({ planId: block.planId, date: input.date, blockId: input.blockId, text: null, removed: true })
+        .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { removed: true, deferredQueueItem: false } });
+      await tx.insert(tasks).values({ userId, title: text, dueDate: input.targetDate });
+    });
+    revalidatePath("/dashboard/plan");
+    revalidatePath("/dashboard/agenda");
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/actividades");
+    return;
+  }
+
+  const landingDate = nextOccurrenceOnOrAfter(block.weekday, input.targetDate);
+
+  const siblingBlocks = await db
+    .select({ id: planBlocks.id, weekday: planBlocks.weekday, holidayText: planBlocks.holidayText })
+    .from(planBlocks)
+    .where(
+      and(eq(planBlocks.planId, block.planId), eq(planBlocks.personId, block.personId), eq(planBlocks.queueId, block.queueId)),
+    );
+
+  const toDefer: { date: string; blockId: string }[] = [];
+  let d = input.date;
+  while (d < landingDate) {
+    const weekday = weekdayMon0(d);
+    for (const sib of siblingBlocks) {
+      if (sib.weekday !== weekday) continue;
+      if (sib.holidayText) continue; // festivo con texto propio no consume la cola — no hace falta ocultarlo
+      toDefer.push({ date: d, blockId: sib.id });
     }
+    d = addDaysISO(d, 1);
   }
 
   await db.transaction(async (tx) => {
-    await tx
-      .insert(planOverrides)
-      .values({ planId: block.planId, date: input.date, blockId: input.blockId, text: null, removed: true })
-      .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { removed: true } });
-
-    if (nextTurn) {
+    for (const { date, blockId } of toDefer) {
       await tx
         .insert(planOverrides)
-        .values({ planId: block.planId, date: nextTurn.date, blockId: nextTurn.blockId, text, removed: false })
-        .onConflictDoUpdate({ target: [planOverrides.date, planOverrides.blockId], set: { text, removed: false } });
-    } else {
-      await tx.insert(tasks).values({ userId, title: text, dueDate: tomorrow });
+        .values({ planId: block.planId, date, blockId, text: null, removed: true, deferredQueueItem: true })
+        .onConflictDoUpdate({
+          target: [planOverrides.date, planOverrides.blockId],
+          set: { removed: true, deferredQueueItem: true },
+        });
     }
   });
 
@@ -370,6 +468,79 @@ export async function moveBlockToTomorrow(input: { date: string; blockId: string
   revalidatePath("/dashboard/agenda");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/actividades");
+}
+
+// "Mover al final de la cola": reordena plan_queue_items (misma fase/
+// agrupamiento) poniendo este item último y renumerando — mismo patrón de
+// deleteQueueItem en fases/actions.ts. NO toca el cursor: como las
+// posiciones de los demás bajan un lugar, el cursor (que queda igual)
+// pasa a apuntar al que antes era el siguiente item. Solo hace falta
+// ocultar la ocurrencia de HOY (deferred, no consume) para que esa nueva
+// posición se vea de inmediato.
+export async function moveBlockToEndOfQueue(input: { date: string; blockId: string }) {
+  const userId = await requireUserId();
+  if (!input?.date || !input?.blockId) throw new Error("Faltan datos");
+
+  const block = await requireOwnedBlock(input.blockId, userId);
+  if (!block.queueId) throw new Error("Este bloque no viene de una cola");
+
+  const [queue] = await db
+    .select({ global: planQueues.global, cyclic: planQueues.cyclic })
+    .from(planQueues)
+    .where(eq(planQueues.id, block.queueId));
+  if (!queue) throw new Error("Cola no encontrada");
+
+  let phaseId: string | null = null;
+  if (!queue.global) {
+    const [phase] = await db
+      .select({ id: planPhases.id })
+      .from(planPhases)
+      .where(and(lte(planPhases.startDate, input.date), gte(planPhases.endDate, input.date)));
+    phaseId = phase?.id ?? null;
+  }
+  const groupFilter = phaseId
+    ? and(eq(planQueueItems.queueId, block.queueId), eq(planQueueItems.phaseId, phaseId))
+    : and(eq(planQueueItems.queueId, block.queueId), isNull(planQueueItems.phaseId));
+
+  // El item "actual" (posición del cursor) es el que se va al final — no
+  // hace falta saber cuál texto es: el resolver ya lo mostró hoy, y el
+  // cursor sigue igual después de reordenar (ver comentario arriba).
+  const cursorFilter = phaseId
+    ? and(eq(planQueueCursors.queueId, block.queueId), eq(planQueueCursors.phaseId, phaseId))
+    : and(eq(planQueueCursors.queueId, block.queueId), isNull(planQueueCursors.phaseId));
+
+  await db.transaction(async (tx) => {
+    const siblings = await tx
+      .select({ id: planQueueItems.id })
+      .from(planQueueItems)
+      .where(groupFilter)
+      .orderBy(asc(planQueueItems.position));
+    if (!siblings.length) return;
+
+    const [cursor] = await tx.select({ position: planQueueCursors.position }).from(planQueueCursors).where(cursorFilter);
+    const rawPosition = cursor?.position ?? 0;
+    const currentIdx = queue.cyclic ? rawPosition % siblings.length : rawPosition;
+    const current = siblings[currentIdx];
+    if (!current) return; // no-cíclica agotada (mostrando el fallback): no hay item "actual" para mover
+
+    const reordered = [...siblings.slice(0, currentIdx), ...siblings.slice(currentIdx + 1), current];
+    for (let i = 0; i < reordered.length; i++) {
+      await tx.update(planQueueItems).set({ position: i }).where(eq(planQueueItems.id, reordered[i].id));
+    }
+
+    await tx
+      .insert(planOverrides)
+      .values({ planId: block.planId, date: input.date, blockId: input.blockId, text: null, removed: true, deferredQueueItem: true })
+      .onConflictDoUpdate({
+        target: [planOverrides.date, planOverrides.blockId],
+        set: { removed: true, deferredQueueItem: true },
+      });
+  });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard/plan/fases");
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
 }
 
 // Vuelve un bloque a lo que diga la plantilla ese día (quita el override).

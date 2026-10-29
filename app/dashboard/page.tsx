@@ -211,7 +211,7 @@ export default async function RutinasPage({
   if (planPerson) {
     const pendingFrom = addDaysISO(today, -PLAN_PENDING_LOOKBACK_DAYS);
     const planCtx = await loadPlanContextById(planPerson.planId);
-    const resolvedRange = resolvePlan(toPlanData(planCtx), pendingFrom, today);
+    const resolvedRange = resolvePlan(toPlanData(planCtx), pendingFrom, today, today);
     const checksRange = await db
       .select({ blockId: planChecks.blockId, date: planChecks.date })
       .from(planChecks)

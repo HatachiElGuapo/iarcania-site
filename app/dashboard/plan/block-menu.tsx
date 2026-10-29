@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { moveBlockForDay, moveBlockToTomorrow, setCheck, getPlanCheck } from "./actions";
+import { moveBlockForDay, moveBlock, moveBlockToEndOfQueue, setCheck, getPlanCheck } from "./actions";
+import { addDaysISO } from "@/lib/date/bogota";
 
 // Móvil · "⋯" de cada bloque de Rutinas — atrasar dentro del mismo día,
 // mandarlo a mañana sin que se pierda, o anotar qué se hizo de verdad
@@ -34,6 +35,8 @@ export function PlanBlockMenu({
   const [check, setCheckState] = useState<CheckRow | null>(null);
   const [loadingCheck, setLoadingCheck] = useState(false);
   const [note, setNote] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [targetDate, setTargetDate] = useState("");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -60,7 +63,17 @@ export function PlanBlockMenu({
   const postpone = (minutes: number) =>
     run(() => moveBlockForDay({ date, blockId, startTime: addMinutes(startTime, minutes), mode: "move" }));
 
-  const toTomorrow = () => run(() => moveBlockToTomorrow({ date, blockId, text }));
+  const toTomorrow = () => run(() => moveBlock({ date, blockId, text, targetDate: addDaysISO(date, 1) }));
+  const toChosenDate = () => {
+    if (!targetDate) return;
+    run(() => moveBlock({ date, blockId, text, targetDate }));
+  };
+  const toEndOfQueue = () =>
+    run(() =>
+      moveBlockToEndOfQueue({ date, blockId }).catch((err) => {
+        alert(err instanceof Error ? err.message : "No se pudo mover");
+      }),
+    );
 
   const toggleSkip = () =>
     run(() => {
@@ -169,13 +182,51 @@ export function PlanBlockMenu({
                   </button>
                 ))}
               </div>
+              <div className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Mover</div>
+              <div className="grid grid-cols-2 gap-[7px]">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={toTomorrow}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
+                >
+                  → Mañana
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setShowDatePicker((v) => !v)}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
+                >
+                  📅 Elegir fecha
+                </button>
+              </div>
+              {showDatePicker && (
+                <div className="flex gap-1.5">
+                  <input
+                    type="date"
+                    value={targetDate}
+                    min={date}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    className="focus-ring min-h-11 flex-1 rounded-ui border border-line bg-canvas px-3 text-[14px] text-ink"
+                  />
+                  <button
+                    type="button"
+                    disabled={pending || !targetDate}
+                    onClick={toChosenDate}
+                    className="flex min-h-11 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft px-3 text-[13px] font-medium text-ink disabled:opacity-50"
+                  >
+                    Mover
+                  </button>
+                </div>
+              )}
               <button
                 type="button"
                 disabled={pending}
-                onClick={toTomorrow}
-                className="mt-1 flex min-h-11 items-center justify-center gap-2 rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
+                onClick={toEndOfQueue}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-ui border border-line text-[13px] font-medium text-ink-muted disabled:opacity-50"
               >
-                → Mover a mañana
+                ⇥ Al final de la cola
               </button>
               <button
                 type="button"
