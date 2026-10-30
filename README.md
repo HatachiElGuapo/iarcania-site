@@ -222,3 +222,12 @@ ui_kits/
     Fundadores.jsx
     Footer.jsx
 ```
+
+---
+
+## Changelog
+
+### 2026-10-30
+- `servicios.html`: reemplazados los 4 servicios planos por una estructura de niveles — Agente Chat (nuevo, desde $600.000 setup + $300.000/mes), Agente Base, Agente + Panel, A la medida — más bloque de Programa Fundador y CTA final de auditoría gratis.
+- WhatsApp del sitio actualizado en todos los archivos (`index.html`, `servicios.html`, `contacto.html`, `calculadora.html`, `site/shared.js`): `573006709840` → `573236688646`.
+- `calculadora.html`: la descarga de "¿Cuánto pierdes?" ahora genera un PDF de una página con marca IArcanIA (jsPDF vía CDN) en vez de un `.txt`. Incluye logo, datos ingresados, resultados en COP y CTA de auditoría gratis. Nombre de archivo: `IArcanIA-cuanto-pierdes-AAAA-MM-DD.pdf`.
