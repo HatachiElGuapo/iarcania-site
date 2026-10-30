@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pack de Metaprompts - IArcanIA</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #1e293b;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid #334155;
+        }
+        h2 {
+            margin-bottom: 0.5rem;
+            color: #38bdf8;
+            text-align: center;
+        }
+        p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+        }
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            background-color: #0f172a;
+            color: #fff;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #38bdf8;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 0.5rem;
+        }
+        button:hover {
+            background-color: #0369a1;
+        }
+        #success-message {
+            display: none;
+            text-align: center;
+        }
+        .download-btn {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            background-color: #10b981;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .download-btn:hover {
+            background-color: #059669;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Pack de Metaprompts</h2>
+        <p>Introduce tus datos para recibir acceso inmediato al pack exclusivo de inteligencia artificial.</p>
+
+        <!-- Formulario -->
+        <form id="lead-form">
+            <div class="form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" id="nombre" name="nombre" required placeholder="Tu nombre">
+            </div>
+            <div class="form-group">
+                <label for="celular">Celular / WhatsApp</label>
+                <input type="tel" id="celular" name="celular" required placeholder="+34 600 000 000">
+            </div>
+            <div class="form-group">
+                <label for="email">Correo electrónico</label>
+                <input type="email" id="email" name="email" required placeholder="tu@correo.com">
+            </div>
+            <button type="submit" id="submit-btn">Obtener Pack Gratis</button>
+        </form>
+
+        <!-- Mensaje de Éxito (Oculto inicialmente) -->
+        <div id="success-message">
+            <h3 style="color: #34d399;">¡Registro exitoso!</h3>
+            <p>Gracias por unirte. Ya puedes descargar tu pack haciendo clic abajo:</p>
+            <a href="#" class="download-btn" id="download-link" target="_blank">Descargar Pack de Metaprompts</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('lead-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.innerText = 'Enviando...';
+            submitBtn.disabled = true;
+
+            const payload = {
+                nombre: document.getElementById('nombre').value,
+                celular: document.getElementById('celular').value,
+                email: document.getElementById('email').value
+            };
+
+            try {
+                // Endpoint del Webhook de n8n (Ajusta la URL si usas dominio público o IP externa)
+                const response = await fetch('/webhook/prompts-arcania-lead', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    document.getElementById('lead-form').style.display = 'none';
+                    document.getElementById('success-message').style.display = 'block';
+                    window.location.href = '/metaprompts-personales.7z';
+                } else {
+                    alert('Hubo un problema al registrar tus datos. Inténtalo de nuevo.');
+                    submitBtn.innerText = 'Obtener Pack Gratis';
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error de conexión con el servidor.');
+                submitBtn.innerText = 'Obtener Pack Gratis';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
