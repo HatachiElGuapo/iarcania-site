@@ -82,6 +82,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="IArcanIA" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -374,37 +375,139 @@ Quiero pedir mi auditoría gratis.`;
     $(id).addEventListener('change', calc);
   });
 
-  // PDF download (simple text-based)
-  els.ctaPdf.addEventListener('click', () => {
-    const c = window.__calc; if (!c) return;
-    const content = `IArcanIA — Estimación de ROI
-========================================
+  // PDF download (branded, generado en el navegador con jsPDF)
+  function loadLogoDataUrl() {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        // Rasterizado al 4x para que el logo no se vea pixelado en el PDF
+        const scale = 4;
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale; canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(null);
+      img.src = '/assets/logo.svg';
+    });
+  }
 
-Proceso analizado: ${c.proceso}
-Empleados involucrados: ${c.empleados}
-Horas semanales: ${c.horas}h
-Salario promedio: ${fmtCOP(c.salario)}
+  els.ctaPdf.addEventListener('click', async () => {
+    const c = window.__calc; if (!c || !window.jspdf) return;
 
-RESULTADOS:
-- Costo actual del proceso: ${fmtCOP(c.costoMes)}/mes
-- Ahorro mensual estimado: ${fmtCOP(c.ahorroMes)}/mes
-- Ahorro anual estimado: ${fmtCOP(c.ahorroAnio)}/año
-- Tiempo recuperable: ${Math.round(c.tiempoRec)}h/mes
-- ROI estimado: ${c.roiMeses > 0 ? c.roiMeses.toFixed(1) + ' meses' : 'a definir en la auditoría'}
+    // Colores de site/shared.css
+    const COL_BG = [6, 6, 9];             // --bg-primary
+    const COL_GOLD = [201, 168, 76];      // --gold
+    const COL_PURPLE = [124, 58, 237];    // --purple-deep
+    const COL_PURPLE_DARK = [61, 31, 143]; // --purple-dark
+    const COL_TEXT = [17, 17, 32];        // --bg-card
+    const COL_MUTED = [138, 134, 176];    // --text-secondary
+    const COL_LIGHT = [240, 238, 255];    // --text-primary
 
-${c.fueraHorario ? `Consultas perdidas fuera de horario: ${Math.round(c.perdidas)}/mes\n` : ''}
-========================================
-Próximo paso: pedir la auditoría gratuita.
-WhatsApp: +57 323 668 8646
-Email: iarcania.ai@gmail.com
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
 
-Generado el ${new Date().toLocaleDateString('es-CO')}.
-`;
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'iarcania-estimacion-roi.txt';
-    a.click();
+    // Header band
+    doc.setFillColor(...COL_BG);
+    doc.rect(0, 0, pageW, 40, 'F');
+
+    const logoData = await loadLogoDataUrl();
+    if (logoData) {
+      doc.addImage(logoData, 'PNG', 14, 6, 40, 12);
+    }
+    doc.setTextColor(...COL_GOLD);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('Diagnóstico: ¿Cuánto pierdes?', 14, 31);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...COL_MUTED);
+    doc.text(`Generado el ${new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageW - 14, 31, { align: 'right' });
+
+    let y = 54;
+
+    // Datos ingresados
+    doc.setTextColor(...COL_PURPLE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Datos ingresados', 14, y);
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const datos = [
+      ['Proceso analizado', c.proceso],
+      ['Empleados involucrados', String(c.empleados)],
+      ['Horas semanales dedicadas', `${c.horas}h`],
+      ['Salario promedio', fmtCOP(c.salario)],
+    ];
+    datos.forEach(([label, value]) => {
+      doc.setTextColor(...COL_MUTED);
+      doc.text(label, 14, y);
+      doc.setTextColor(...COL_TEXT);
+      doc.text(value, pageW - 14, y, { align: 'right' });
+      y += 7;
+    });
+
+    y += 8;
+    doc.setDrawColor(220, 218, 236);
+    doc.line(14, y, pageW - 14, y);
+    y += 12;
+
+    // Resultados
+    doc.setTextColor(...COL_PURPLE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Resultados', 14, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    const resultados = [
+      ['Costo actual del proceso', `${fmtCOP(c.costoMes)}/mes`],
+      ['Ahorro mensual estimado', `${fmtCOP(c.ahorroMes)}/mes`],
+      ['Ahorro anual estimado', `${fmtCOP(c.ahorroAnio)}/año`],
+      ['Tiempo recuperable', `${Math.round(c.tiempoRec)}h/mes`],
+      ['ROI estimado', c.roiMeses > 0 ? `${c.roiMeses.toFixed(1)} meses` : 'a definir en la auditoría'],
+    ];
+    if (c.fueraHorario) {
+      resultados.push(['Consultas perdidas fuera de horario', `${Math.round(c.perdidas).toLocaleString('es-CO')}/mes`]);
+    }
+    resultados.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...COL_MUTED);
+      doc.text(label, 14, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...COL_PURPLE_DARK);
+      doc.text(value, pageW - 14, y, { align: 'right' });
+      y += 8;
+    });
+
+    // CTA block at bottom
+    const ctaH = 44;
+    const ctaY = pageH - ctaH;
+    doc.setFillColor(...COL_BG);
+    doc.rect(0, ctaY, pageW, ctaH, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...COL_GOLD);
+    doc.text('Pide tu auditoría gratis', 14, ctaY + 14);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10.5);
+    doc.setTextColor(...COL_LIGHT);
+    doc.text('WhatsApp: +57 323 668 8646', 14, ctaY + 24);
+    doc.text('Email: iarcania.ai@gmail.com', 14, ctaY + 31);
+    doc.text('iarcania.com', 14, ctaY + 38);
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    doc.save(`IArcanIA-cuanto-pierdes-${yyyy}-${mm}-${dd}.pdf`);
   });
 
   // Initial calc
