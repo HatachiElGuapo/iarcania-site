@@ -227,6 +227,9 @@ ui_kits/
 
 ## Changelog
 
+### 2026-11-01
+- Nuevo WhatsApp de IArcanIA en todo el sitio (raíz, `web/`, `site/shared.js`, `web/site/shared.js`, PDF de "¿Cuánto pierdes?" y mockup del ui_kit): `573236688646` → `573045277685` (+57 304 527 7685).
+
 ### 2026-10-30
 - `servicios.html`: reemplazados los 4 servicios planos por una estructura de niveles — Agente Chat (nuevo, desde $600.000 setup + $300.000/mes), Agente Base, Agente + Panel, A la medida — más bloque de Programa Fundador y CTA final de auditoría gratis.
 - WhatsApp del sitio actualizado en todos los archivos (`index.html`, `servicios.html`, `contacto.html`, `calculadora.html`, `site/shared.js`): `573006709840` → `573236688646`.

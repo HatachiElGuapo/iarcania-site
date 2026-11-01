@@ -120,7 +120,7 @@
 
 /* Helper: WhatsApp link builder + logout */
 window.IArc = {
-  wa: (text) => `https://wa.me/573236688646${text ? `?text=${encodeURIComponent(text)}` : ''}`,
+  wa: (text) => `https://wa.me/573045277685${text ? `?text=${encodeURIComponent(text)}` : ''}`,
   fmtCOP: (n) => '$' + Math.round(n).toLocaleString('es-CO') + ' COP',
   logout: () => { localStorage.removeItem('isAdmin'); window.location.href = '/'; },
 };
