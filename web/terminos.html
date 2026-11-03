@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Términos de servicio — IArcanIA</title>
+<meta name="description" content="Condiciones de uso del sitio iarcania.com y de la herramienta de publicación IArcanIA Social."/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="site/shared.css"/>
+<style>
+  .page-hero { padding: 130px 0 20px; text-align: center; position: relative; }
+  .page-hero h1 { font-size: clamp(34px, 5vw, 50px); margin: 18px auto 12px; max-width: 760px; }
+  .page-hero p { max-width: 620px; margin: 0 auto; font-size: 15px; color: var(--text-secondary); }
+  .legal { position: relative; z-index: 1; max-width: 780px; margin: 30px auto 0; padding: 0 24px; }
+  .legal-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 40px clamp(22px, 5vw, 48px); }
+  .legal h2 { font-size: 24px; margin: 38px 0 12px; }
+  .legal h2:first-child { margin-top: 0; }
+  .legal h3 { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 0; margin: 22px 0 8px; color: var(--gold-light); }
+  .legal p, .legal li { color: var(--text-secondary); font-size: 15px; }
+  .legal p { margin-bottom: 12px; }
+  .legal ul { margin: 0 0 14px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .legal strong { color: var(--text-primary); font-weight: 500; }
+  .legal a { color: var(--purple); text-decoration: none; border-bottom: 1px solid rgba(155,114,240,0.35); }
+  .legal a:hover { color: #ad8af5; }
+  .legal .note { border-left: 2px solid var(--gold); padding: 10px 16px; background: rgba(201,168,76,0.06); border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
+  .toc a { font-size: 13px; color: var(--text-secondary); text-decoration: none; border: 1px solid var(--border); border-radius: 100px; padding: 5px 12px; }
+  .toc a:hover { border-color: var(--border-hover); color: var(--text-primary); }
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<nav class="navbar">
+  <div class="container nav-inner">
+    <a href="/" class="nav-logo"><span>I</span><span class="accent">Arcan</span><span>IA</span></a>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Inicio</a>
+      <a href="/servicios" class="nav-link">Servicios</a>
+      <a href="/cuanto-pierdes" class="nav-link">¿Cuánto pierdes?</a>
+      <a href="/contacto" class="nav-link">Contacto</a>
+      <a href="/contacto" class="btn btn-primary btn-sm nav-cta">Auditoría gratis</a>
+    </div>
+    <button class="nav-toggle" aria-label="Menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <span class="eyebrow">Legal</span>
+    <h1>Términos de <em class="gradient-text" style="font-style: italic; font-weight: 400;">servicio</em></h1>
+    <p>Última actualización: 2 de noviembre de 2026</p>
+  </div>
+</section>
+
+<main class="legal">
+  <div class="legal-card">
+
+    <h2 id="aceptacion">1. Aceptación</h2>
+    <p>Estos términos regulan el uso del sitio <strong>iarcania.com</strong>, de sus herramientas y de <strong>IArcanIA Social</strong> (postiz.iarcania.com), la herramienta con la que programamos y publicamos contenido en redes sociales. IArcanIA es una marca operada por <strong>Miguel Aguilar</strong>, con domicilio en Bogotá, Colombia. Al usar el sitio o conectar una cuenta aceptas estos términos y nuestra <a href="/privacidad">política de privacidad</a>.</p>
+
+    <h2 id="servicios">2. Qué ofrecemos</h2>
+    <p>IArcanIA diseña e implementa agentes de inteligencia artificial y automatizaciones para negocios, y gestiona la publicación de contenido en redes sociales. El alcance, el precio y los plazos de cada servicio se definen en la propuesta o el acuerdo que firmemos con cada cliente. Lo publicado en el sitio (precios "desde", ejemplos, cálculos de "¿Cuánto pierdes?") es informativo y no constituye una oferta vinculante.</p>
+
+    <h2 id="social">3. Uso de IArcanIA Social</h2>
+    <ul>
+      <li>El acceso es solo por invitación. Solo pueden conectar cuentas IArcanIA y los clientes que lo autoricen expresamente.</li>
+      <li>Quien conecta una cuenta declara que es titular de ella o que tiene autorización para administrarla.</li>
+      <li>El cliente es responsable del contenido que crea, aprueba o nos pide publicar, y garantiza que tiene los derechos sobre él (música, imágenes, marcas, personas que aparecen).</li>
+      <li>Toda publicación debe cumplir las normas de cada plataforma: los <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">Términos de servicio de YouTube</a>, las <a href="https://www.facebook.com/terms" target="_blank" rel="noopener">Condiciones de Meta</a>, las <a href="https://help.instagram.com/581066165581870" target="_blank" rel="noopener">Condiciones de uso de Instagram</a> y las <a href="https://www.tiktok.com/legal/terms-of-service" target="_blank" rel="noopener">Condiciones de servicio de TikTok</a>. Al conectar una cuenta de YouTube aceptas también los Términos de servicio de YouTube.</li>
+      <li>No se permite usar la herramienta para spam, suplantación, contenido ilegal, engañoso o que infrinja derechos de terceros. Podemos suspender una cuenta conectada que lo haga.</li>
+      <li>Puedes desconectar tu cuenta en cualquier momento, como se explica en la <a href="/privacidad#eliminacion">política de privacidad</a>.</li>
+    </ul>
+
+    <h2 id="plataformas">4. Dependencia de terceros</h2>
+    <p>La publicación depende de las API de YouTube, Meta y TikTok, que pueden cambiar, limitar el volumen o fallar sin aviso. No garantizamos que cada publicación salga exactamente a la hora programada ni que su alcance, visibilidad o resultados sean los esperados. Si una publicación falla, te avisamos y la reintentamos o reprogramamos.</p>
+
+    <h2 id="ia">5. Uso de inteligencia artificial</h2>
+    <p>Los agentes y textos generados con IA pueden cometer errores. Recomendamos revisar lo que se publica o se responde en nombre de tu negocio. Como se indica en cada propuesta, el costo de consumo de los servicios de IA lo asume el cliente.</p>
+
+    <h2 id="pagos">6. Pagos</h2>
+    <p>Los valores, la forma de pago y la periodicidad se establecen en cada propuesta. El incumplimiento en los pagos puede dar lugar a la suspensión del servicio hasta que se ponga al día.</p>
+
+    <h2 id="propiedad">7. Propiedad intelectual</h2>
+    <p>El contenido del cliente sigue siendo del cliente. La marca IArcanIA, el diseño del sitio, los textos, los metaprompts y las plantillas publicados son de IArcanIA. Puedes usarlos para tu propio negocio, pero no revenderlos ni redistribuirlos como propios sin autorización escrita.</p>
+
+    <h2 id="responsabilidad">8. Limitación de responsabilidad</h2>
+    <p>En la medida en que la ley lo permita, IArcanIA no responde por pérdidas indirectas, lucro cesante, bloqueos o sanciones de las plataformas causadas por el contenido del cliente, ni por fallas de servicios de terceros. La responsabilidad total de IArcanIA frente a un cliente no superará el valor pagado por ese cliente en los tres meses anteriores al hecho que la origina.</p>
+
+    <h2 id="cambios">9. Cambios y terminación</h2>
+    <p>Podemos actualizar estos términos y publicaremos la versión nueva en esta página con su fecha. Cualquiera de las partes puede terminar el uso de IArcanIA Social en cualquier momento. Las condiciones de terminación de los servicios contratados se rigen por cada acuerdo.</p>
+
+    <h2 id="ley">10. Ley aplicable</h2>
+    <p>Estos términos se rigen por las leyes de la República de Colombia. Cualquier diferencia se intentará resolver primero de forma directa y, si no es posible, ante los jueces competentes de Bogotá.</p>
+
+    <p class="note">¿Preguntas? Escríbenos a <a href="mailto:iarcania.ai@gmail.com">iarcania.ai@gmail.com</a> o por <a href="https://wa.me/573045277685">WhatsApp</a>.</p>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="/" class="nav-logo"><span>I</span><span class="accent">Arcan</span><span>IA</span></a>
+        <p class="footer-tagline">Automatización con IA para PYMEs colombianas. Procesos que corren solos, equipos que escalan sin contratar más gente.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Sitio</h4>
+        <ul>
+          <li><a href="/">Inicio</a></li>
+          <li><a href="/servicios">Servicios</a></li>
+          <li><a href="/cuanto-pierdes">¿Cuánto pierdes?</a></li>
+          <li><a href="/contacto">Auditoría gratis</a></li>
+          <li><a href="/privacidad">Privacidad</a></li>
+          <li><a href="/terminos">Términos</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contacto</h4>
+        <ul>
+          <li><a href="https://wa.me/573045277685">WhatsApp +57 304 527 7685</a></li>
+          <li><a href="mailto:iarcania.ai@gmail.com">iarcania.ai@gmail.com</a></li>
+          <li style="color: var(--text-dim); font-size: 13px;">Bogotá, Colombia</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 IArcanIA · Todos los derechos reservados</span>
+    </div>
+  </div>
+</footer>
+
+<script src="site/shared.js"></script>
+</body>
+</html>
