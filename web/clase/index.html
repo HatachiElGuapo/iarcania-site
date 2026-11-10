@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Clase gratis: Crea tu primer agente en n8n con Claude — IArcanIA</title>
+<meta name="description" content="Clase 100% virtual y gratuita. Sábado 21 de noviembre. Construye tu primer agente en n8n usando Claude como copiloto, aunque nunca hayas automatizado nada."/>
+<meta property="og:title" content="Crea tu primer agente en n8n con Claude — Clase gratis"/>
+<meta property="og:description" content="Sábado 21 de noviembre · 90 minutos · 100% virtual y gratis. Construyes y pruebas tu primer agente en vivo."/>
+<meta name="theme-color" content="#060609"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../site/shared.css"/>
+<style>
+  body { overflow-y: auto; }
+  .clase-hero { min-height: 100vh; display: flex; flex-direction: column; padding: 14px 0 20px; position: relative; }
+  .clase-wrap { display: flex; flex-direction: column; gap: 14px; flex: 1; justify-content: center; }
+  .clase-top { text-align: center; }
+  .clase-top .eyebrow { justify-content: center; margin-bottom: 10px; }
+  .clase-title { font-size: clamp(24px, 6vw, 42px); margin-bottom: 10px; }
+  .clase-title em { font-style: italic; font-weight: 400; }
+  .clase-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 4px; }
+  .meta-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: rgba(155,114,240,0.06); border: 1px solid var(--border); border-radius: 100px; font-size: 12.5px; color: var(--text-secondary); }
+  .meta-chip strong { color: var(--text-primary); font-weight: 500; }
+  .meta-chip.gold { border-color: var(--border-gold); }
+  .meta-chip.gold strong { color: var(--gold); }
+
+  .form-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px 20px; max-width: 460px; width: 100%; margin: 0 auto; }
+  .form-card h2 { font-size: 18px; margin-bottom: 4px; }
+  .form-card .sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 6px; }
+  .field input { width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; }
+  .field input:focus { border-color: var(--border-hover); }
+  .field input::placeholder { color: var(--text-dim); }
+  .hp-field { position: absolute; left: -9999px; top: -9999px; opacity: 0; }
+  .submit-btn { width: 100%; padding: 15px; font-size: 15.5px; margin-top: 4px; }
+  .form-note { font-size: 11.5px; color: var(--text-dim); text-align: center; margin-top: 12px; line-height: 1.5; }
+  .form-error { font-size: 12.5px; color: #f87171; margin-top: 8px; display: none; }
+
+  .confirm-view { display: none; text-align: center; }
+  .confirm-view.visible { display: block; }
+  .confirm-check { width: 56px; height: 56px; border-radius: 50%; background: rgba(201,168,76,0.10); border: 1px solid var(--border-gold); color: var(--gold); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+  .confirm-check svg { width: 26px; height: 26px; }
+  .confirm-view h2 { font-size: 19px; margin-bottom: 8px; }
+  .confirm-view p { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+
+  .learn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .learn-card { padding: 26px 22px; }
+  .learn-num { font-family: 'Playfair Display', serif; font-size: 40px; font-weight: 700; color: var(--gold); line-height: 1; margin-bottom: 14px; font-style: italic; }
+  .learn-title { font-size: 17px; margin-bottom: 8px; }
+  .learn-desc { font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; }
+
+  .signature { text-align: center; font-size: 13px; color: var(--text-dim); margin: 36px 0 0; }
+
+  @media (max-width: 900px) {
+    .learn-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .clase-hero { padding: 14px 0 20px; }
+    .clase-title { font-size: 24px; }
+    .form-card { padding: 20px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<section class="clase-hero">
+  <div class="container clase-wrap">
+    <div class="clase-top reveal">
+      <span class="eyebrow">Clase gratis en vivo</span>
+      <h1 class="clase-title">Crea tu primer <em class="gradient-text">agente en n8n</em> con Claude</h1>
+      <div class="clase-meta">
+        <span class="meta-chip gold"><strong>Sábado 21 de nov</strong></span>
+        <span class="meta-chip" id="hora-chip"><strong>Hora:</strong>&nbsp;Por confirmar</span>
+        <span class="meta-chip"><strong>90 min</strong></span>
+        <span class="meta-chip"><strong>100% virtual</strong></span>
+        <span class="meta-chip gold"><strong>Gratis</strong></span>
+      </div>
+    </div>
+
+    <div class="form-card reveal" id="form-card">
+      <div id="form-view">
+        <h2>Reserva tu cupo</h2>
+        <p class="sub">Para estudiantes y curiosos de la IA. No necesitas experiencia previa.</p>
+        <form id="inscripcion-form" novalidate>
+          <div class="field">
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" placeholder="Tu nombre completo" required autocomplete="name"/>
+          </div>
+          <div class="field">
+            <label for="correo">Correo</label>
+            <input type="email" id="correo" name="correo" placeholder="tucorreo@ejemplo.com" required autocomplete="email"/>
+          </div>
+          <div class="field">
+            <label for="celular">Celular (WhatsApp)</label>
+            <input type="tel" id="celular" name="celular" placeholder="300 123 4567" required autocomplete="tel" pattern="[0-9+\s]{7,15}"/>
+          </div>
+          <div class="hp-field">
+            <label for="website">Website</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off"/>
+          </div>
+          <button type="submit" class="btn btn-primary submit-btn">Quiero mi cupo gratis</button>
+          <p class="form-error" id="form-error">Revisa los datos, falta algo por completar.</p>
+          <p class="form-note">Te escribimos por WhatsApp para confirmar tu cupo. Sin spam.</p>
+        </form>
+      </div>
+
+      <div id="confirm-view" class="confirm-view">
+        <div class="confirm-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l5 5 9-11"/></svg>
+        </div>
+        <h2>¡Listo, quedaste inscrito!</h2>
+        <p>Guarda la fecha: sábado 21 de noviembre. Te confirmamos la hora y el enlace por WhatsApp.</p>
+        <a href="#" id="wa-confirm-btn" class="wa-btn" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+          Confirmar por WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section-pad">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">En esta clase</span>
+      <h2 class="section-title">Qué vas a aprender</h2>
+      <p>90 minutos prácticos, sin relleno. Terminas con un agente funcionando, no solo con teoría.</p>
+    </div>
+    <div class="learn-grid">
+      <div class="card learn-card reveal">
+        <div class="learn-num">01</div>
+        <h3 class="learn-title">Cómo piensa un flujo</h3>
+        <p class="learn-desc">Triggers, nodos y datos: la lógica detrás de cualquier automatización en n8n, explicada desde cero.</p>
+      </div>
+      <div class="card learn-card reveal">
+        <div class="learn-num">02</div>
+        <h3 class="learn-title">Claude como copiloto</h3>
+        <p class="learn-desc">Usamos Claude para diseñar el flujo, escribir prompts y corregir errores sin quedarte atascado.</p>
+      </div>
+      <div class="card learn-card reveal">
+        <div class="learn-num">03</div>
+        <h3 class="learn-title">Tu primer agente, en vivo</h3>
+        <p class="learn-desc">Construimos y probamos juntos tu primer agente funcionando, paso a paso, en tiempo real.</p>
+      </div>
+    </div>
+    <p class="signature">Miguel Ángel Aguilar · IArcanIA</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="/" class="nav-logo"><span>I</span><span class="accent">Arcan</span><span>IA</span></a>
+        <p class="footer-tagline">Automatización con IA para PYMEs colombianas. Procesos que corren solos, equipos que escalan sin contratar más gente.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Sitio</h4>
+        <ul>
+          <li><a href="/">Inicio</a></li>
+          <li><a href="/servicios">Servicios</a></li>
+          <li><a href="/contacto">Auditoría gratis</a></li>
+          <li><a href="/privacidad">Privacidad</a></li>
+          <li><a href="/terminos">Términos</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contacto</h4>
+        <ul>
+          <li><a href="https://wa.me/573045277685">WhatsApp +57 304 527 7685</a></li>
+          <li><a href="mailto:iarcania.ai@gmail.com">iarcania.ai@gmail.com</a></li>
+          <li style="color: var(--text-dim); font-size: 13px;">Bogotá, Colombia</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 IArcanIA · Todos los derechos reservados</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+const CONFIG = {
+  HORA: "Por confirmar",
+  WEBHOOK_URL: "",
+  WHATSAPP: "573045277685",
+  FECHA_CLASE: "Sábado 21 de noviembre"
+};
+
+document.getElementById('hora-chip').innerHTML = '<strong>Hora:</strong>&nbsp;' + CONFIG.HORA;
+
+const form = document.getElementById('inscripcion-form');
+const formError = document.getElementById('form-error');
+
+function getUtmSource() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('utm_source') || '';
+}
+
+function buildWaMessage(nombre, celular, origen) {
+  const partes = [
+    `Hola, soy ${nombre} y quiero confirmar mi cupo para la clase "Crea tu primer agente en n8n con Claude" (${CONFIG.FECHA_CLASE}).`,
+    `Mi celular: ${celular}.`
+  ];
+  if (origen) partes.push(`Origen: ${origen}.`);
+  return partes.join(' ');
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formError.style.display = 'none';
+
+  const nombre = form.nombre.value.trim();
+  const correo = form.correo.value.trim();
+  const celular = form.celular.value.trim();
+  const honeypot = form.website.value.trim();
+
+  if (honeypot) return;
+
+  if (!form.checkValidity() || !nombre || !correo || !celular) {
+    formError.style.display = 'block';
+    form.reportValidity();
+    return;
+  }
+
+  const origen = getUtmSource();
+  const submitBtn = form.querySelector('.submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Enviando...';
+
+  const payload = {
+    nombre,
+    correo,
+    celular,
+    clase: 'Crea tu primer agente en n8n con Claude',
+    origen
+  };
+
+  let waUrl = `https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(buildWaMessage(nombre, celular, origen))}`;
+
+  if (CONFIG.WEBHOOK_URL) {
+    try {
+      await fetch(CONFIG.WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      waUrl = `https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(buildWaMessage(nombre, celular, origen))}`;
+    }
+  }
+
+  document.getElementById('wa-confirm-btn').href = waUrl;
+  document.getElementById('form-view').style.display = 'none';
+  document.getElementById('confirm-view').classList.add('visible');
+});
+</script>
+<script src="../site/shared.js"></script>
+</body>
+</html>
