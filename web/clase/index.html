@@ -50,6 +50,9 @@
   .confirm-check svg { width: 26px; height: 26px; }
   .confirm-view h2 { font-size: 19px; margin-bottom: 8px; }
   .confirm-view p { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+  .confirm-view .wa-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; border-radius: 12px; font-weight: 500; font-size: 14.5px; text-decoration: none; box-shadow: 0 10px 30px rgba(37,211,102,0.25); transition: all 0.25s; }
+  .confirm-view .wa-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(37,211,102,0.4); }
+  .confirm-view .wa-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
 
   .learn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
   .learn-card { padding: 26px 22px; }
@@ -330,7 +333,7 @@ const formError = document.getElementById('form-error');
 
 function getUtmSource() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('utm_source') || '';
+  return params.get('utm_source') || 'directo';
 }
 
 function buildWaMessage(nombre, celular, origen) {
