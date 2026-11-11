@@ -29,9 +29,15 @@
   .form-card .sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
   .field { margin-bottom: 10px; }
   .field label { display: block; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 6px; }
-  .field input { width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; }
-  .field input:focus { border-color: var(--border-hover); }
+  .field input, .field select { width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; }
+  .field input:focus, .field select:focus { border-color: var(--border-hover); }
   .field input::placeholder { color: var(--text-dim); }
+  .tel-row { display: flex; gap: 8px; }
+  .tel-row select { flex: 0 0 104px; min-width: 0; padding-left: 8px; padding-right: 4px; font-size: 14px; }
+  .tel-row input { flex: 1 1 auto; min-width: 0; }
+  @media (max-width: 480px) {
+    .tel-row select { flex-basis: 92px; font-size: 13px; }
+  }
   .hp-field { position: absolute; left: -9999px; top: -9999px; opacity: 0; }
   .submit-btn { width: 100%; padding: 15px; font-size: 15.5px; margin-top: 4px; }
   .form-note { font-size: 11.5px; color: var(--text-dim); text-align: center; margin-top: 12px; line-height: 1.5; }
@@ -93,7 +99,31 @@
           </div>
           <div class="field">
             <label for="celular">Celular (WhatsApp)</label>
-            <input type="tel" id="celular" name="celular" placeholder="300 123 4567" required autocomplete="tel" pattern="[0-9+\s]{7,15}"/>
+            <div class="tel-row">
+              <select id="pais_codigo" name="pais_codigo" aria-label="Código de país">
+                <option value="57" selected>🇨🇴 +57</option>
+                <option value="52">🇲🇽 +52</option>
+                <option value="54">🇦🇷 +54</option>
+                <option value="56">🇨🇱 +56</option>
+                <option value="51">🇵🇪 +51</option>
+                <option value="593">🇪🇨 +593</option>
+                <option value="58">🇻🇪 +58</option>
+                <option value="591">🇧🇴 +591</option>
+                <option value="595">🇵🇾 +595</option>
+                <option value="598">🇺🇾 +598</option>
+                <option value="506">🇨🇷 +506</option>
+                <option value="507">🇵🇦 +507</option>
+                <option value="502">🇬🇹 +502</option>
+                <option value="503">🇸🇻 +503</option>
+                <option value="504">🇭🇳 +504</option>
+                <option value="505">🇳🇮 +505</option>
+                <option value="53">🇨🇺 +53</option>
+                <option value="1809">🇩🇴 +1809</option>
+                <option value="34">🇪🇸 +34</option>
+                <option value="1">🇺🇸 +1</option>
+              </select>
+              <input type="tel" id="celular" name="celular" placeholder="300 123 4567" required autocomplete="tel" inputmode="numeric" pattern="[0-9\s]{6,12}"/>
+            </div>
           </div>
           <div class="hp-field">
             <label for="website">Website</label>
@@ -182,7 +212,7 @@
 
 <script>
 const CONFIG = {
-  HORA: "Por confirmar",
+  HORA: "10:00 a. m. (hora Colombia)",
   WEBHOOK_URL: "",
   WHATSAPP: "573045277685",
   FECHA_CLASE: "Sábado 21 de noviembre"
@@ -213,17 +243,21 @@ form.addEventListener('submit', async (e) => {
 
   const nombre = form.nombre.value.trim();
   const correo = form.correo.value.trim();
-  const celular = form.celular.value.trim();
+  const paisCodigo = form.pais_codigo.value;
+  const celularNacional = form.celular.value.replace(/\s+/g, '').trim();
   const honeypot = form.website.value.trim();
 
   if (honeypot) return;
 
-  if (!form.checkValidity() || !nombre || !correo || !celular) {
+  const celularValido = /^[0-9]{6,12}$/.test(celularNacional);
+
+  if (!form.checkValidity() || !nombre || !correo || !celularValido) {
     formError.style.display = 'block';
     form.reportValidity();
     return;
   }
 
+  const celular = paisCodigo + celularNacional;
   const origen = getUtmSource();
   const submitBtn = form.querySelector('.submit-btn');
   submitBtn.disabled = true;
@@ -233,6 +267,7 @@ form.addEventListener('submit', async (e) => {
     nombre,
     correo,
     celular,
+    pais_codigo: paisCodigo,
     clase: 'Crea tu primer agente en n8n con Claude',
     origen
   };
