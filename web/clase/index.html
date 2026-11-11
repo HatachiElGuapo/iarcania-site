@@ -39,9 +39,14 @@
   @media (max-width: 480px) {
     .tel-row #pais_buscar { flex-basis: 108px; font-size: 12.5px; padding-left: 8px; }
   }
+  .checkbox-field { display: flex; }
+  .checkbox-label { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-primary); cursor: pointer; line-height: 1.4; }
+  .checkbox-label input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--purple); background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; }
+  #canal-field select { cursor: pointer; }
   .hp-field { position: absolute; left: -9999px; top: -9999px; opacity: 0; }
   .submit-btn { width: 100%; padding: 15px; font-size: 15.5px; margin-top: 4px; }
   .form-note { font-size: 11.5px; color: var(--text-dim); text-align: center; margin-top: 12px; line-height: 1.5; }
+  .form-privacy { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 8px; line-height: 1.5; }
   .form-error { font-size: 12.5px; color: #f87171; margin-top: 8px; display: none; }
 
   .confirm-view { display: none; text-align: center; }
@@ -111,6 +116,20 @@
             <input type="text" id="pais_manual" class="pais-manual" placeholder="Escribe tu código, solo números (1-4 dígitos)" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"/>
             <input type="hidden" id="pais_codigo" name="pais_codigo" value="57"/>
           </div>
+          <div class="field checkbox-field">
+            <label class="checkbox-label">
+              <input type="checkbox" id="quiere_recordatorio" name="quiere_recordatorio" checked/>
+              <span>Quiero recibir recordatorios de la clase</span>
+            </label>
+          </div>
+          <div class="field" id="canal-field">
+            <label for="canal_recordatorio">¿Dónde prefieres recibirlos?</label>
+            <select id="canal_recordatorio" name="canal_recordatorio">
+              <option value="correo" selected>Correo</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="ambos">Correo y WhatsApp</option>
+            </select>
+          </div>
           <div class="hp-field">
             <label for="website">Website</label>
             <input type="text" id="website" name="website" tabindex="-1" autocomplete="off"/>
@@ -118,6 +137,7 @@
           <button type="submit" class="btn btn-primary submit-btn">Quiero mi cupo gratis</button>
           <p class="form-error" id="form-error">Revisa los datos, falta algo por completar.</p>
           <p class="form-note">Te escribimos por WhatsApp para confirmar tu cupo. Sin spam.</p>
+          <p class="form-privacy">Solo usaremos tus datos para enviarte la clase y los recordatorios que elijas.</p>
         </form>
       </div>
 
@@ -328,6 +348,15 @@ paisManual.addEventListener('input', () => {
   paisCodigo.value = paisManual.value;
 });
 
+const quiereRecordatorio = document.getElementById('quiere_recordatorio');
+const canalField = document.getElementById('canal-field');
+
+function syncCanalField() {
+  canalField.style.display = quiereRecordatorio.checked ? 'block' : 'none';
+}
+quiereRecordatorio.addEventListener('change', syncCanalField);
+syncCanalField();
+
 const form = document.getElementById('inscripcion-form');
 const formError = document.getElementById('form-error');
 
@@ -368,6 +397,8 @@ form.addEventListener('submit', async (e) => {
 
   const celular = codigoPais + celularNacional;
   const origen = getUtmSource();
+  const quiereRecordatorioVal = quiereRecordatorio.checked;
+  const canalRecordatorio = quiereRecordatorioVal ? form.canal_recordatorio.value : 'correo';
   const submitBtn = form.querySelector('.submit-btn');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Enviando...';
@@ -378,7 +409,9 @@ form.addEventListener('submit', async (e) => {
     celular,
     pais_codigo: codigoPais,
     clase: 'Crea tu primer agente en n8n con Claude',
-    origen
+    origen,
+    quiere_recordatorio: quiereRecordatorioVal,
+    canal_recordatorio: canalRecordatorio
   };
 
   const waUrl = `https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(buildWaMessage(nombre, celular, origen))}`;
