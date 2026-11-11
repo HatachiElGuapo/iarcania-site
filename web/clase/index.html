@@ -33,10 +33,11 @@
   .field input:focus, .field select:focus { border-color: var(--border-hover); }
   .field input::placeholder { color: var(--text-dim); }
   .tel-row { display: flex; gap: 8px; }
-  .tel-row select { flex: 0 0 104px; min-width: 0; padding-left: 8px; padding-right: 4px; font-size: 14px; }
-  .tel-row input { flex: 1 1 auto; min-width: 0; }
+  .tel-row #pais_buscar { flex: 0 0 128px; min-width: 0; padding-left: 10px; padding-right: 6px; font-size: 13.5px; }
+  .tel-row input#celular { flex: 1 1 auto; min-width: 0; }
+  .pais-manual { margin-top: 8px; display: none; }
   @media (max-width: 480px) {
-    .tel-row select { flex-basis: 92px; font-size: 13px; }
+    .tel-row #pais_buscar { flex-basis: 108px; font-size: 12.5px; padding-left: 8px; }
   }
   .hp-field { position: absolute; left: -9999px; top: -9999px; opacity: 0; }
   .submit-btn { width: 100%; padding: 15px; font-size: 15.5px; margin-top: 4px; }
@@ -98,32 +99,14 @@
             <input type="email" id="correo" name="correo" placeholder="tucorreo@ejemplo.com" required autocomplete="email"/>
           </div>
           <div class="field">
-            <label for="celular">Celular (WhatsApp)</label>
+            <label for="pais_buscar">Celular (WhatsApp)</label>
             <div class="tel-row">
-              <select id="pais_codigo" name="pais_codigo" aria-label="Código de país">
-                <option value="57" selected>🇨🇴 +57</option>
-                <option value="52">🇲🇽 +52</option>
-                <option value="54">🇦🇷 +54</option>
-                <option value="56">🇨🇱 +56</option>
-                <option value="51">🇵🇪 +51</option>
-                <option value="593">🇪🇨 +593</option>
-                <option value="58">🇻🇪 +58</option>
-                <option value="591">🇧🇴 +591</option>
-                <option value="595">🇵🇾 +595</option>
-                <option value="598">🇺🇾 +598</option>
-                <option value="506">🇨🇷 +506</option>
-                <option value="507">🇵🇦 +507</option>
-                <option value="502">🇬🇹 +502</option>
-                <option value="503">🇸🇻 +503</option>
-                <option value="504">🇭🇳 +504</option>
-                <option value="505">🇳🇮 +505</option>
-                <option value="53">🇨🇺 +53</option>
-                <option value="1809">🇩🇴 +1809</option>
-                <option value="34">🇪🇸 +34</option>
-                <option value="1">🇺🇸 +1</option>
-              </select>
+              <input type="text" id="pais_buscar" list="paises-datalist" placeholder="País o código" autocomplete="off" aria-label="País o código"/>
               <input type="tel" id="celular" name="celular" placeholder="300 123 4567" required autocomplete="tel" inputmode="numeric" pattern="[0-9\s]{6,12}"/>
             </div>
+            <datalist id="paises-datalist"></datalist>
+            <input type="text" id="pais_manual" class="pais-manual" placeholder="Escribe tu código, solo números (1-4 dígitos)" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"/>
+            <input type="hidden" id="pais_codigo" name="pais_codigo" value="57"/>
           </div>
           <div class="hp-field">
             <label for="website">Website</label>
@@ -220,6 +203,116 @@ const CONFIG = {
 
 document.getElementById('hora-chip').innerHTML = '<strong>Hora:</strong>&nbsp;' + CONFIG.HORA;
 
+const PAISES = [
+  ['AF','Afganistán','93'],['AL','Albania','355'],['DE','Alemania','49'],['AD','Andorra','376'],
+  ['AO','Angola','244'],['AI','Anguila','1264'],['AG','Antigua y Barbuda','1268'],['SA','Arabia Saudita','966'],
+  ['DZ','Argelia','213'],['AR','Argentina','54'],['AM','Armenia','374'],['AW','Aruba','297'],
+  ['AU','Australia','61'],['AT','Austria','43'],['AZ','Azerbaiyán','994'],['BS','Bahamas','1242'],
+  ['BD','Bangladés','880'],['BB','Barbados','1246'],['BH','Baréin','973'],['BE','Bélgica','32'],
+  ['BZ','Belice','501'],['BJ','Benín','229'],['BY','Bielorrusia','375'],['MM','Birmania (Myanmar)','95'],
+  ['BO','Bolivia','591'],['BA','Bosnia y Herzegovina','387'],['BW','Botsuana','267'],['BR','Brasil','55'],
+  ['BN','Brunéi','673'],['BG','Bulgaria','359'],['BF','Burkina Faso','226'],['BI','Burundi','257'],
+  ['BT','Bután','975'],['CV','Cabo Verde','238'],['KH','Camboya','855'],['CM','Camerún','237'],
+  ['CA','Canadá','1'],['QA','Catar','974'],['KZ','Kazajistán','7'],['TD','Chad','235'],
+  ['CL','Chile','56'],['CN','China','86'],['CY','Chipre','357'],['VA','Ciudad del Vaticano','379'],
+  ['CO','Colombia','57'],['KM','Comoras','269'],['CG','Congo','242'],['CD','Congo (RD)','243'],
+  ['KP','Corea del Norte','850'],['KR','Corea del Sur','82'],['CI','Costa de Marfil','225'],['CR','Costa Rica','506'],
+  ['HR','Croacia','385'],['CU','Cuba','53'],['CW','Curazao','599'],['DK','Dinamarca','45'],
+  ['DM','Dominica','1767'],['EC','Ecuador','593'],['EG','Egipto','20'],['SV','El Salvador','503'],
+  ['AE','Emiratos Árabes Unidos','971'],['ER','Eritrea','291'],['SK','Eslovaquia','421'],['SI','Eslovenia','386'],
+  ['ES','España','34'],['US','Estados Unidos','1'],['EE','Estonia','372'],['ET','Etiopía','251'],
+  ['SZ','Esuatini','268'],['PH','Filipinas','63'],['FI','Finlandia','358'],['FJ','Fiyi','679'],
+  ['FR','Francia','33'],['GA','Gabón','241'],['GM','Gambia','220'],['GE','Georgia','995'],
+  ['GH','Ghana','233'],['GI','Gibraltar','350'],['GD','Granada','1473'],['GR','Grecia','30'],
+  ['GL','Groenlandia','299'],['GP','Guadalupe','590'],['GU','Guam','1671'],['GT','Guatemala','502'],
+  ['GF','Guayana Francesa','594'],['GN','Guinea','224'],['GQ','Guinea Ecuatorial','240'],['GW','Guinea-Bisáu','245'],
+  ['GY','Guyana','592'],['HT','Haití','509'],['HN','Honduras','504'],['HK','Hong Kong','852'],
+  ['HU','Hungría','36'],['IN','India','91'],['ID','Indonesia','62'],['IQ','Irak','964'],
+  ['IR','Irán','98'],['IE','Irlanda','353'],['IM','Isla de Man','44'],['IS','Islandia','354'],
+  ['KY','Islas Caimán','1345'],['CK','Islas Cook','682'],['FO','Islas Feroe','298'],['MH','Islas Marshall','692'],
+  ['FK','Islas Malvinas','500'],['MP','Islas Marianas del Norte','1670'],['SB','Islas Salomón','677'],['TC','Islas Turcas y Caicos','1649'],
+  ['VG','Islas Vírgenes Británicas','1284'],['VI','Islas Vírgenes de EE. UU.','1340'],['IL','Israel','972'],['IT','Italia','39'],
+  ['JM','Jamaica','1876'],['JP','Japón','81'],['JE','Jersey','44'],['JO','Jordania','962'],
+  ['KE','Kenia','254'],['KG','Kirguistán','996'],['KI','Kiribati','686'],['KW','Kuwait','965'],
+  ['LA','Laos','856'],['LS','Lesoto','266'],['LV','Letonia','371'],['LB','Líbano','961'],
+  ['LR','Liberia','231'],['LY','Libia','218'],['LI','Liechtenstein','423'],['LT','Lituania','370'],
+  ['LU','Luxemburgo','352'],['MO','Macao','853'],['MK','Macedonia del Norte','389'],['MG','Madagascar','261'],
+  ['MY','Malasia','60'],['MW','Malaui','265'],['MV','Maldivas','960'],['ML','Malí','223'],
+  ['MT','Malta','356'],['MA','Marruecos','212'],['MQ','Martinica','596'],['MU','Mauricio','230'],
+  ['MR','Mauritania','222'],['YT','Mayotte','262'],['MX','México','52'],['FM','Micronesia','691'],
+  ['MD','Moldavia','373'],['MC','Mónaco','377'],['MN','Mongolia','976'],['ME','Montenegro','382'],
+  ['MS','Montserrat','1664'],['MZ','Mozambique','258'],['NA','Namibia','264'],['NR','Nauru','674'],
+  ['NP','Nepal','977'],['NI','Nicaragua','505'],['NE','Níger','227'],['NG','Nigeria','234'],
+  ['NU','Niue','683'],['NO','Noruega','47'],['NC','Nueva Caledonia','687'],['NZ','Nueva Zelanda','64'],
+  ['OM','Omán','968'],['NL','Países Bajos','31'],['PK','Pakistán','92'],['PW','Palaos','680'],
+  ['PS','Palestina','970'],['PA','Panamá','507'],['PG','Papúa Nueva Guinea','675'],['PY','Paraguay','595'],
+  ['PE','Perú','51'],['PF','Polinesia Francesa','689'],['PL','Polonia','48'],['PT','Portugal','351'],
+  ['PR','Puerto Rico','1787'],['GB','Reino Unido','44'],['CF','República Centroafricana','236'],['CZ','República Checa','420'],
+  ['DO','República Dominicana','1809'],['RE','Reunión','262'],['RW','Ruanda','250'],['RO','Rumanía','40'],
+  ['RU','Rusia','7'],['EH','Sahara Occidental','212'],['WS','Samoa','685'],['AS','Samoa Americana','1684'],
+  ['BL','San Bartolomé','590'],['KN','San Cristóbal y Nieves','1869'],['SM','San Marino','378'],['MF','San Martín','590'],
+  ['PM','San Pedro y Miquelón','508'],['VC','San Vicente y las Granadinas','1784'],['SH','Santa Elena','290'],['LC','Santa Lucía','1758'],
+  ['ST','Santo Tomé y Príncipe','239'],['SN','Senegal','221'],['RS','Serbia','381'],['SC','Seychelles','248'],
+  ['SL','Sierra Leona','232'],['SG','Singapur','65'],['SX','Sint Maarten','1721'],['SY','Siria','963'],
+  ['SO','Somalia','252'],['LK','Sri Lanka','94'],['ZA','Sudáfrica','27'],['SD','Sudán','249'],
+  ['SS','Sudán del Sur','211'],['SE','Suecia','46'],['CH','Suiza','41'],['SR','Surinam','597'],
+  ['TH','Tailandia','66'],['TW','Taiwán','886'],['TZ','Tanzania','255'],['TJ','Tayikistán','992'],
+  ['TL','Timor Oriental','670'],['TG','Togo','228'],['TK','Tokelau','690'],['TO','Tonga','676'],
+  ['TT','Trinidad y Tobago','1868'],['TN','Túnez','216'],['TM','Turkmenistán','993'],['TR','Turquía','90'],
+  ['TV','Tuvalu','688'],['UA','Ucrania','380'],['UG','Uganda','256'],['UY','Uruguay','598'],
+  ['UZ','Uzbekistán','998'],['VU','Vanuatu','678'],['VE','Venezuela','58'],['VN','Vietnam','84'],
+  ['WF','Wallis y Futuna','681'],['YE','Yemen','967'],['DJ','Yibuti','253'],['ZM','Zambia','260'],
+  ['ZW','Zimbabue','263']
+];
+
+function flagEmoji(iso) {
+  return iso.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
+
+const OTRO_CODIGO = 'Otro código (escribir manualmente)';
+const paisesOrdenados = PAISES
+  .map(([iso, nombre, code]) => ({ nombre, code, display: `${flagEmoji(iso)} +${code} ${nombre}` }))
+  .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+const displayToCode = {};
+const datalist = document.getElementById('paises-datalist');
+paisesOrdenados.forEach((p) => {
+  const opt = document.createElement('option');
+  opt.value = p.display;
+  datalist.appendChild(opt);
+  displayToCode[p.display] = p.code;
+});
+const otroOpt = document.createElement('option');
+otroOpt.value = OTRO_CODIGO;
+datalist.appendChild(otroOpt);
+
+const paisBuscar = document.getElementById('pais_buscar');
+const paisManual = document.getElementById('pais_manual');
+const paisCodigo = document.getElementById('pais_codigo');
+
+const colombia = paisesOrdenados.find((p) => p.code === '57');
+paisBuscar.value = colombia.display;
+paisCodigo.value = colombia.code;
+
+paisBuscar.addEventListener('input', () => {
+  const v = paisBuscar.value.trim();
+  if (v === OTRO_CODIGO) {
+    paisManual.style.display = 'block';
+    paisManual.focus();
+    paisCodigo.value = paisManual.value.replace(/\D/g, '');
+    return;
+  }
+  paisManual.style.display = 'none';
+  if (displayToCode[v]) {
+    paisCodigo.value = displayToCode[v];
+  }
+});
+
+paisManual.addEventListener('input', () => {
+  paisManual.value = paisManual.value.replace(/\D/g, '').slice(0, 4);
+  paisCodigo.value = paisManual.value;
+});
+
 const form = document.getElementById('inscripcion-form');
 const formError = document.getElementById('form-error');
 
@@ -243,21 +336,22 @@ form.addEventListener('submit', async (e) => {
 
   const nombre = form.nombre.value.trim();
   const correo = form.correo.value.trim();
-  const paisCodigo = form.pais_codigo.value;
+  const codigoPais = paisCodigo.value.trim();
   const celularNacional = form.celular.value.replace(/\s+/g, '').trim();
   const honeypot = form.website.value.trim();
 
   if (honeypot) return;
 
+  const codigoValido = /^[0-9]{1,4}$/.test(codigoPais);
   const celularValido = /^[0-9]{6,12}$/.test(celularNacional);
 
-  if (!form.checkValidity() || !nombre || !correo || !celularValido) {
+  if (!form.checkValidity() || !nombre || !correo || !codigoValido || !celularValido) {
     formError.style.display = 'block';
     form.reportValidity();
     return;
   }
 
-  const celular = paisCodigo + celularNacional;
+  const celular = codigoPais + celularNacional;
   const origen = getUtmSource();
   const submitBtn = form.querySelector('.submit-btn');
   submitBtn.disabled = true;
@@ -267,7 +361,7 @@ form.addEventListener('submit', async (e) => {
     nombre,
     correo,
     celular,
-    pais_codigo: paisCodigo,
+    pais_codigo: codigoPais,
     clase: 'Crea tu primer agente en n8n con Claude',
     origen
   };
