@@ -16,9 +16,9 @@ import {
   planQueueCursors,
   planPhases,
 } from "@/lib/db/schema/plan";
-import { activityLogs } from "@/lib/db/schema/habitos";
+import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
-import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
+import { loadPlanContextForUser, toPlanData, findPlanPersonForUser } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { addDaysISO, weekdayMon0, todayISO } from "@/lib/date/bogota";
 
@@ -34,7 +34,7 @@ async function requireUserId() {
 // bloques de SU columna — antes esto exigía ser el dueño del plan sin
 // excepción, así que cualquiera que no fuera el dueño se encontraba con
 // "Bloque no encontrado" al marcar lo que fuera, aunque el bloque existiera.
-async function requireOwnedBlock(blockId: string, userId: string) {
+export async function requireOwnedBlock(blockId: string, userId: string) {
   const [row] = await db
     .select({
       id: planBlocks.id,
@@ -579,5 +579,56 @@ export async function resetPlanStartDate(formData: FormData) {
   revalidatePath("/dashboard/plan/historial");
   revalidatePath("/dashboard/plan/fases");
   revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
+}
+
+// Agrega un hábito activo que no tiene ningún bloque al Plan — crea el
+// bloque (kind "habito", texto = nombre del hábito) y el link en
+// plan_block_activities. Pensado para la sección "Por revisar" del
+// dashboard: hábitos huérfanos (ver lib/plan/orphans.ts).
+export async function addHabitToPlan(input: { activityId: string; weekday: number; startTime: string }) {
+  const userId = await requireUserId();
+  const { activityId, weekday, startTime } = input;
+  if (weekday < 0 || weekday > 6) throw new Error("Día inválido");
+  if (!startTime) throw new Error("Falta la hora");
+
+  const [activity] = await db
+    .select({ id: activities.id, name: activities.name })
+    .from(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.userId, userId)));
+  if (!activity) throw new Error("Hábito no encontrado");
+
+  const person = await findPlanPersonForUser(userId);
+  if (!person) throw new Error("No tenés un plan");
+
+  const [block] = await db
+    .insert(planBlocks)
+    .values({
+      planId: person.planId,
+      personId: person.personId,
+      weekday,
+      startTime,
+      endTime: null,
+      text: activity.name,
+      kind: "habito",
+    })
+    .returning({ id: planBlocks.id });
+
+  await db.insert(planBlockActivities).values({ blockId: block.id, activityId: activity.id });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+}
+
+// Quita un bloque del Plan — borra planBlocks (cascada limpia
+// planBlockActivities/planChecks/planOverrides). Para "Por revisar": un
+// bloque cuyo hábito ya está inactivo.
+export async function removePlanBlock(input: { blockId: string }) {
+  const userId = await requireUserId();
+  await requireOwnedBlock(input.blockId, userId);
+
+  await db.delete(planBlocks).where(eq(planBlocks.id, input.blockId));
+
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard");
 }

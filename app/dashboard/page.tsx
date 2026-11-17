@@ -12,6 +12,7 @@ import { buildDayEvents, type AgendaEvent } from "@/lib/agenda/day-events";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
+import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type OrphanPlanBlock } from "@/lib/plan/orphans";
 import {
   PageHeader,
   Card,
@@ -28,13 +29,16 @@ import {
 import { QuickAddPanel } from "@/components/ui/quick-add-panel";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ListCard } from "@/components/ui/list-card";
-import { toggleTaskStatus, createTask } from "./actividades/actions";
+import { createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
-import { setCheck } from "./plan/actions";
-import { completeAppointment } from "./citas/actions";
 import { NewTaskSheet } from "./new-task-sheet";
+import { DayEventRow, fmtTime, primaryActionFor } from "./day-event-row";
 import { PlanBlockMenu } from "./plan/block-menu";
+import { setCheck } from "./plan/actions";
 import { TaskHabitMenu } from "./day-row-menu";
+import { PendingPanel } from "./pending-panel";
+import { OverduePanel, type OverdueTask } from "./overdue-panel";
+import { ReviewSection } from "./review-section";
 
 const PRIORITY_COLOR: Record<string, string> = {
   alta: "text-danger",
@@ -75,12 +79,6 @@ function fmtDayShort(iso: string) {
     day: "numeric",
     month: "short",
   });
-}
-
-function fmtTime(min: number) {
-  const h = Math.floor(min / 60) % 24;
-  const m = min % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 // Racha actual: días consecutivos con log terminando en `from` — si `from`
@@ -137,7 +135,7 @@ export default async function RutinasPage({
       .from(activityLogs)
       .where(and(eq(activityLogs.userId, userId), gte(activityLogs.date, lookbackStart), lte(activityLogs.date, date))),
     db
-      .select({ id: tasks.id })
+      .select({ id: tasks.id, title: tasks.title, dueDate: tasks.dueDate, priority: tasks.priority, category: tasks.category })
       .from(tasks)
       .where(and(eq(tasks.userId, userId), lt(tasks.dueDate, today), eq(tasks.status, "pendiente"))),
     db
@@ -235,6 +233,11 @@ export default async function RutinasPage({
     }
   }
 
+  const [orphanActivities, orphanBlocks] = await Promise.all([
+    getOrphanActivities(userId),
+    planPerson ? getOrphanPlanBlocks(planPerson.planId) : Promise.resolve([]),
+  ]);
+
   const dateLong = capitalize(
     new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-CO", {
       timeZone: "America/Bogota",
@@ -258,6 +261,7 @@ export default async function RutinasPage({
         pctToday={pctToday}
         composeOpen={composeOpen}
         overdueCount={overdueTasks.length}
+        overdueTasks={overdueTasks}
         upcomingAppointments={upcomingAppointments}
         planPending={planPending}
         events={events}
@@ -267,6 +271,8 @@ export default async function RutinasPage({
         viciosCounts={viciosCounts}
         bestStreak={bestStreak}
         upcomingTasks={upcomingTasks}
+        orphanActivities={orphanActivities}
+        orphanBlocks={orphanBlocks}
       />
       <div className="hidden flex-col gap-4 p-8 md:flex">
         <PageHeader
@@ -318,12 +324,27 @@ export default async function RutinasPage({
       />
 
       <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(4, 1fr) 1.6fr" }}>
-        <MetricCard value={pendingToday} label="pendientes" sub="hoy" tone="primary" />
+        <PendingPanel
+          trigger={
+            <button type="button" className="focus-ring block w-full text-left">
+              <MetricCard value={pendingToday} label="pendientes" sub="hoy" tone="primary" />
+            </button>
+          }
+          events={events}
+          date={date}
+        />
         <MetricCard value={doneToday} label="completadas" sub={`de ${totalToday}`} tone="success" />
-        <MetricCard
-          value={overdueTasks.length}
-          label="vencidas"
-          tone={overdueTasks.length ? "danger" : "primary"}
+        <OverduePanel
+          trigger={
+            <button type="button" className="focus-ring block w-full text-left">
+              <MetricCard
+                value={overdueTasks.length}
+                label="vencidas"
+                tone={overdueTasks.length ? "danger" : "primary"}
+              />
+            </button>
+          }
+          tasks={overdueTasks}
         />
         <MetricCard value={bestStreak} label="mejor racha" sub="días" tone="warm" />
         <div className="flex flex-col justify-center gap-2 rounded-ui-lg border border-accent/25 bg-accent/[0.06] px-3.5 py-3">
@@ -343,13 +364,18 @@ export default async function RutinasPage({
       {(overdueTasks.length > 0 || upcomingAppointments.length > 0) && (
         <div className="flex flex-wrap items-center gap-2.5">
           {overdueTasks.length > 0 && (
-            <Link
-              href="/dashboard/actividades?tiempo=vencidas"
-              className="rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 py-1.5 text-xs text-danger transition-colors duration-120 hover:border-danger/50"
-            >
-              ⚠ {overdueTasks.length} tarea{overdueTasks.length !== 1 ? "s" : ""} vencida
-              {overdueTasks.length !== 1 ? "s" : ""}
-            </Link>
+            <OverduePanel
+              trigger={
+                <button
+                  type="button"
+                  className="focus-ring rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 py-1.5 text-xs text-danger transition-colors duration-120 hover:border-danger/50"
+                >
+                  ⚠ {overdueTasks.length} tarea{overdueTasks.length !== 1 ? "s" : ""} vencida
+                  {overdueTasks.length !== 1 ? "s" : ""}
+                </button>
+              }
+              tasks={overdueTasks}
+            />
           )}
           {upcomingAppointments.map((a, i) => (
             <a
@@ -426,6 +452,8 @@ export default async function RutinasPage({
           </div>
         </Card>
       )}
+
+      <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 
       <div className="grid items-start gap-4" style={{ gridTemplateColumns: "1.35fr 1fr" }}>
         <Card
@@ -635,109 +663,6 @@ export default async function RutinasPage({
   );
 }
 
-type RowAction = (formData: FormData) => void | Promise<void>;
-
-// El toggle "principal" de cada fila — el que se dispara clickeando en
-// cualquier parte de la fila, no solo un cuadradito chico. Plan además
-// tiene "saltado" (✗) como control aparte, porque hecho/saltado no son
-// opuestos de un solo booleano.
-function primaryActionFor(
-  ev: AgendaEvent,
-  date: string,
-): { action: RowAction; fields: Record<string, string> } | null {
-  if (ev.kind === "block" && ev.itemType === "task" && ev.itemId) {
-    return { action: toggleTaskStatus, fields: { id: ev.itemId, nextStatus: ev.done ? "pendiente" : "completada" } };
-  }
-  if ((ev.kind === "habit" || (ev.kind === "block" && ev.itemType === "habito")) && ev.itemId) {
-    return { action: toggleLogToday, fields: { activityId: ev.itemId, date } };
-  }
-  if (ev.kind === "block" && ev.itemType === "cita" && ev.itemId) {
-    return { action: completeAppointment, fields: { id: ev.itemId } };
-  }
-  if (ev.kind === "plan") {
-    return { action: setCheck, fields: { date, blockId: ev.refId, status: ev.done ? "" : "done" } };
-  }
-  return null;
-}
-
-// Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
-// de un <button type="submit"> que ocupa toda la fila — clickear en
-// cualquier parte marca/desmarca, no solo un cuadradito. El control de
-// "saltado" de Plan y el link de editar quedan aparte, afuera del botón
-// grande, para no perder ese click más chico.
-function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
-  const primary = primaryActionFor(ev, date);
-
-  const content = (
-    <>
-      <span
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
-          ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
-        }`}
-      >
-        ✓
-      </span>
-      <span className="w-14 shrink-0 text-meta tabular-nums text-ink-dim">
-        {ev.autoTime ? "—" : fmtTime(ev.start)}
-      </span>
-      <span className="shrink-0 text-[17px]">{ev.icon}</span>
-      <div className="min-w-0 flex-1">
-        <span className={`block truncate text-body ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
-          {ev.title}
-        </span>
-        {ev.habitChecks && ev.habitChecks.length > 0 && (
-          <span className="mt-0.5 flex flex-wrap gap-1.5">
-            {ev.habitChecks.map((h) => (
-              <span key={h.name} className={`text-[10px] ${h.done ? "text-success" : "text-ink-dim"}`}>
-                {h.done ? "✓" : "○"} {h.name}
-              </span>
-            ))}
-          </span>
-        )}
-      </div>
-      <span
-        className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
-        style={{ background: `${ev.accent}22`, color: ev.accent }}
-      >
-        {ev.badge}
-      </span>
-    </>
-  );
-
-  return (
-    <div className="flex items-center gap-2 px-3.5 py-1">
-      {primary ? (
-        <form action={primary.action} className="min-w-0 flex-1">
-          {Object.entries(primary.fields).map(([k, v]) => (
-            <input key={k} type="hidden" name={k} value={v} />
-          ))}
-          <button
-            type="submit"
-            className="focus-ring flex w-full items-center gap-3 rounded-ui py-2.5 text-left transition-colors duration-120 hover:bg-surface-2"
-          >
-            {content}
-          </button>
-        </form>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
-      )}
-      {ev.kind === "plan" && (
-        <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
-      )}
-      {ev.itemType === "task" && ev.itemId && (
-        <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
-      )}
-      {(ev.itemType === "habit" || ev.itemType === "habito") && ev.itemId && (
-        <TaskHabitMenu kind="habit" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
-      )}
-      {ev.editHref && ev.kind !== "plan" && ev.itemType !== "task" && ev.itemType !== "habit" && ev.itemType !== "habito" && (
-        <a href={ev.editHref} className="shrink-0 px-1 text-meta text-ink-dim hover:text-ink">
-          ⋯
-        </a>
-      )}
-    </div>
-  );
-}
 
 // ── Móvil · "Hoy" (pantalla 01 del diseño "App Movil") ──────────────────
 // Mismos datos que la vista de escritorio de arriba (`events`, `habitsView`,
@@ -756,6 +681,7 @@ type MobileHoyProps = {
   pctToday: number;
   composeOpen: boolean;
   overdueCount: number;
+  overdueTasks: OverdueTask[];
   upcomingAppointments: { id: string; title: string; type: string; datetime: Date }[];
   planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[];
   events: AgendaEvent[];
@@ -772,6 +698,8 @@ type MobileHoyProps = {
   viciosCounts: Map<string, number>;
   bestStreak: number;
   upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
+  orphanActivities: OrphanActivity[];
+  orphanBlocks: OrphanPlanBlock[];
 };
 
 function MobileHoy({
@@ -784,6 +712,7 @@ function MobileHoy({
   pctToday,
   composeOpen,
   overdueCount,
+  overdueTasks,
   upcomingAppointments,
   planPending,
   events,
@@ -793,6 +722,8 @@ function MobileHoy({
   viciosCounts,
   bestStreak,
   upcomingTasks,
+  orphanActivities,
+  orphanBlocks,
 }: MobileHoyProps) {
   return (
     <div className="flex flex-col gap-6 p-4 pb-28 md:hidden">
@@ -813,12 +744,17 @@ function MobileHoy({
       {(overdueCount > 0 || upcomingAppointments.length > 0) && (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
           {overdueCount > 0 && (
-            <Link
-              href="/dashboard/actividades?tiempo=vencidas"
-              className="flex min-h-11 shrink-0 items-center rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 text-[13px] text-danger"
-            >
-              ⚠ {overdueCount} vencida{overdueCount !== 1 ? "s" : ""}
-            </Link>
+            <OverduePanel
+              trigger={
+                <button
+                  type="button"
+                  className="focus-ring flex min-h-11 shrink-0 items-center rounded-ui border border-danger/25 bg-danger/[0.06] px-3.5 text-[13px] text-danger"
+                >
+                  ⚠ {overdueCount} vencida{overdueCount !== 1 ? "s" : ""}
+                </button>
+              }
+              tasks={overdueTasks}
+            />
           )}
           {upcomingAppointments.map((a) => (
             <a
@@ -881,6 +817,8 @@ function MobileHoy({
           </div>
         </div>
       )}
+
+      <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
