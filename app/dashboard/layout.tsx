@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { Wordmark } from "@/components/brand/logo";
 import { NavLinks } from "@/components/app/nav-links";
@@ -24,12 +26,25 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-canvas">
       <aside className="hidden w-[220px] shrink-0 flex-col border-r border-line bg-surface-sunken print:hidden md:flex">
-        <div className="border-b border-line p-6">
-          <Wordmark size={18} />
+        <Link
+          href="/dashboard"
+          aria-label="Ir al inicio"
+          className="focus-ring block border-b border-line p-6 transition-colors duration-120 hover:bg-surface"
+        >
+          <div className="flex items-center gap-2">
+            <Image
+              src="/brand/iarcania-icon-1024.png"
+              alt=""
+              width={28}
+              height={28}
+              className="shrink-0 rounded-md"
+            />
+            <Wordmark size={18} />
+          </div>
           <div className="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-ink-dim">
             Sistema Operativo
           </div>
-        </div>
+        </Link>
         <div className="flex-1 overflow-y-auto">
           <NavLinks />
         </div>
