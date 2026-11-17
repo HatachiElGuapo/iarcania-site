@@ -1,17 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { Card } from "@/components/ui";
+import { useEffect, useState, useTransition } from "react";
 import type { OrphanActivity, OrphanPlanBlock } from "@/lib/plan/orphans";
 import { addHabitToPlan, removePlanBlock } from "./plan/actions";
 import { archiveActivity, unarchiveActivity } from "./habitos/actions";
 
 const WEEKDAY_LABEL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const OPEN_STORAGE_KEY = "dashboard.review.open";
 
 // "Por revisar" — desajustes entre hábitos (activities) y el Plan
 // (plan_blocks) que hoy son invisibles: un hábito activo sin bloque, o un
 // bloque que sigue apuntando a un hábito ya inactivo. Ver lib/plan/orphans.ts.
+// Colapsada por defecto — no es algo urgente, no debe competir con "Tu día".
 export function ReviewSection({
   orphanActivities,
   orphanBlocks,
@@ -19,29 +20,65 @@ export function ReviewSection({
   orphanActivities: OrphanActivity[];
   orphanBlocks: OrphanPlanBlock[];
 }) {
-  if (orphanActivities.length === 0 && orphanBlocks.length === 0) return null;
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      setOpen(localStorage.getItem(OPEN_STORAGE_KEY) === "1");
+    } catch {
+      // localStorage no disponible (SSR, modo privado, etc.) — queda cerrada.
+    }
+  }, []);
+
+  const count = orphanActivities.length + orphanBlocks.length;
+  if (count === 0) return null;
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    try {
+      localStorage.setItem(OPEN_STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // Sin persistencia disponible — igual funciona para esta sesión.
+    }
+  }
 
   return (
-    <Card title="Por revisar" count={orphanActivities.length + orphanBlocks.length} className="border-accent-warm/25 bg-accent-warm/[0.04]">
-      <div className="flex flex-col gap-3">
-        {orphanActivities.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-meta text-ink-dim">Hábitos activos sin bloque en el Plan.</p>
-            {orphanActivities.map((a) => (
-              <OrphanActivityRow key={a.id} activity={a} />
-            ))}
+    <section className="overflow-hidden rounded-ui-lg border border-accent-warm/25 bg-accent-warm/[0.04]">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="focus-ring flex w-full items-center gap-2.5 border-b border-line bg-surface-2 px-3.5 py-3 text-left"
+      >
+        <span className="text-ink-dim">{open ? "▾" : "▸"}</span>
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+          Por revisar · {count}
+        </span>
+      </button>
+      {open && (
+        <div className="p-3.5">
+          <div className="flex flex-col gap-3">
+            {orphanActivities.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-meta text-ink-dim">Hábitos activos sin bloque en el Plan.</p>
+                {orphanActivities.map((a) => (
+                  <OrphanActivityRow key={a.id} activity={a} />
+                ))}
+              </div>
+            )}
+            {orphanBlocks.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-meta text-ink-dim">Bloques del Plan cuyo hábito ya está inactivo.</p>
+                {orphanBlocks.map((b) => (
+                  <OrphanBlockRow key={b.blockId} block={b} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
-        {orphanBlocks.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className="text-meta text-ink-dim">Bloques del Plan cuyo hábito ya está inactivo.</p>
-            {orphanBlocks.map((b) => (
-              <OrphanBlockRow key={b.blockId} block={b} />
-            ))}
-          </div>
-        )}
-      </div>
-    </Card>
+        </div>
+      )}
+    </section>
   );
 }
 
