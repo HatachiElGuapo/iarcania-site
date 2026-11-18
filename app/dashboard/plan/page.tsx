@@ -1,16 +1,20 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { planChecks, plans } from "@/lib/db/schema/plan";
+import { planChecks, plans, planBlocks, planBlockActivities } from "@/lib/db/schema/plan";
+import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, type ResolvedBlock } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
-import { todayISO, addDaysISO, diffDaysISO } from "@/lib/date/bogota";
+import { todayISO, addDaysISO, diffDaysISO, nowHHMM } from "@/lib/date/bogota";
+import { getPendingMinimumsForPerson } from "@/lib/plan/pending";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
-import { setCheck, setOverride, removeForDay, clearOverride } from "./actions";
+import { setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
 import { MoveBlockButtons } from "./move-to-tomorrow-button";
 import { ResetPlanStartButton } from "./reset-plan-start-button";
+import { PlanCheckButton, PlanSkipButton, SubHabitsDropdown, type SubHabit } from "./block-check";
+import { NoteForm } from "./note-form";
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -95,6 +99,37 @@ export default async function PlanPage({
     ctx.overrides.filter((o) => o.date === date).map((o) => [o.blockId, o]),
   );
 
+  // Subhábitos por bloque: todos los hábitos enlazados (plan_block_
+  // activities) menos el que comparte nombre con el bloque (el principal,
+  // que se marca con el check del bloque, no acá). Solo se muestran con
+  // más de una actividad enlazada en total.
+  const linkRows = await db
+    .select({ blockId: planBlockActivities.blockId, activityId: planBlockActivities.activityId, name: activities.name })
+    .from(planBlockActivities)
+    .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
+    .innerJoin(planBlocks, eq(planBlocks.id, planBlockActivities.blockId))
+    .where(eq(planBlocks.planId, ctx.plan.id));
+  const linksByBlockId = new Map<string, { activityId: string; name: string }[]>();
+  for (const r of linkRows) {
+    const list = linksByBlockId.get(r.blockId) ?? [];
+    list.push({ activityId: r.activityId, name: r.name });
+    linksByBlockId.set(r.blockId, list);
+  }
+  const linkedActivityIds = [...new Set(linkRows.map((r) => r.activityId))];
+  const todaysLogs = linkedActivityIds.length
+    ? await db
+        .select({ activityId: activityLogs.activityId })
+        .from(activityLogs)
+        .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, linkedActivityIds)))
+    : [];
+  const doneActivityIds = new Set(todaysLogs.map((l) => l.activityId));
+
+  function subHabitsFor(blockId: string, blockText: string): SubHabit[] {
+    return (linksByBlockId.get(blockId) ?? [])
+      .filter((l) => l.name !== blockText)
+      .map((l) => ({ activityId: l.activityId, name: l.name, done: doneActivityIds.has(l.activityId) }));
+  }
+
   // Móvil ("Rutinas"): solo la columna del propio usuario — sin la grilla
   // familiar completa. `ctx.people` ya viene cargado para el día, así que
   // esto es una búsqueda en memoria, no una consulta nueva.
@@ -110,13 +145,17 @@ export default async function PlanPage({
     weekLabel = `semana ${weekIndex} de ${totalWeeks}`;
   }
 
-  // Resumen: bloques hechos, mínimos cumplidos, horas de ingresos hechas.
+  // Resumen: bloques hechos, mínimos cumplidos, horas de ingresos hechas,
+  // mínimos pendientes (ya les tocó pasar y no tienen check).
+  const today = todayISO();
+  const now = nowHHMM();
   let doneCount = 0;
   let totalBlocks = 0;
   let minimumsTotal = 0;
   let minimumsDone = 0;
   let incomeMinutesDone = 0;
-  for (const list of Object.values(day.blocksByPerson)) {
+  for (const person of ctx.people) {
+    const list = day.blocksByPerson[person.id] ?? [];
     for (const b of list) {
       totalBlocks++;
       const check = checkByBlockId.get(b.blockId);
@@ -130,6 +169,40 @@ export default async function PlanPage({
       }
     }
   }
+  const showPersonName = ctx.people.length > 1;
+
+  // Pendientes "de verdad": solo mínimos cuya hora de vencimiento ya pasó
+  // (ver lib/plan/pending.ts — incluye el caso de bloques que cruzan
+  // medianoche, ej. Dormir, que vencen al día siguiente). Solo tiene
+  // sentido para HOY — un día pasado ya está todo "vencido" sin más (se
+  // muestra cualquier mínimo sin marcar), un día futuro no tiene nada
+  // vencido todavía.
+  const pendingMinimums: { blockId: string; personName: string; text: string; startTime: string; dueTime: string }[] = [];
+  if (date === today) {
+    for (const person of ctx.people) {
+      const list = await getPendingMinimumsForPerson(ctx, person.id, today, now);
+      for (const p of list) {
+        pendingMinimums.push({ blockId: p.blockId, personName: person.name, text: p.text, startTime: p.startTime, dueTime: p.dueTime });
+      }
+    }
+  } else if (date < today) {
+    for (const person of ctx.people) {
+      const list = day.blocksByPerson[person.id] ?? [];
+      for (const b of list) {
+        const check = checkByBlockId.get(b.blockId);
+        if (b.isMinimum && !check) {
+          pendingMinimums.push({
+            blockId: b.blockId,
+            personName: person.name,
+            text: b.text,
+            startTime: b.startTime,
+            dueTime: b.endTime ?? b.startTime,
+          });
+        }
+      }
+    }
+  }
+  pendingMinimums.sort((a, b) => a.dueTime.localeCompare(b.dueTime));
 
   const dateLong = capitalize(
     new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-CO", {
@@ -190,7 +263,29 @@ export default async function PlanPage({
           <div className="text-[10.5px] uppercase tracking-[0.1em] text-ink-dim">Horas de ingresos hechas</div>
           <div className="mt-1 font-display text-[21px] font-bold text-ink">{fmtDur(incomeMinutesDone)}</div>
         </Card>
+        <Card className={`flex-1 min-w-[160px] ${pendingMinimums.length > 0 ? "border-danger/25 bg-danger/[0.04]" : ""}`}>
+          <div className="text-[10.5px] uppercase tracking-[0.1em] text-ink-dim">Pendientes</div>
+          <div className="mt-1 font-display text-[21px] font-bold text-ink">{pendingMinimums.length}</div>
+        </Card>
       </div>
+
+      {pendingMinimums.length > 0 && (
+        <Card title="Pendientes" count={pendingMinimums.length} className="mb-4 border-danger/25 bg-danger/[0.04]">
+          <p className="mb-2.5 text-meta text-ink-dim">Mínimos cuya hora ya pasó y todavía no se marcaron.</p>
+          <div className="flex flex-col gap-1.5">
+            {pendingMinimums.map((p) => (
+              <div key={p.blockId} className="flex items-center gap-2.5 rounded-ui bg-surface-sunken px-2.5 py-1.5 text-meta">
+                <span className="shrink-0 tabular-nums text-ink-dim">
+                  {p.startTime}
+                  {p.dueTime !== p.startTime && ` → ${p.dueTime}`}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-ink">{p.text}</span>
+                {showPersonName && <span className="shrink-0 text-ink-dim">{p.personName}</span>}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {day.events.length > 0 && (
         <Card title="Eventos del día" className="mb-4">
@@ -225,13 +320,11 @@ export default async function PlanPage({
                 const check = checkByBlockId.get(b.blockId);
                 const kind = kindInfo(b.kind);
                 const isDone = check?.status === "done";
+                const subHabits = subHabitsFor(b.blockId, b.text);
                 return (
-                  <div key={b.blockId} className="flex items-center gap-2">
-                    <form action={setCheck} className="min-w-0 flex-1">
-                      <input type="hidden" name="date" value={date} />
-                      <input type="hidden" name="blockId" value={b.blockId} />
-                      <input type="hidden" name="status" value={isDone ? "" : "done"} />
-                      <button type="submit" className="contents">
+                  <div key={b.blockId} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <PlanCheckButton date={date} blockId={b.blockId} isDone={isDone} className="contents min-w-0 flex-1">
                         <ListCard accent={kind.color}>
                           <span
                             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
@@ -249,9 +342,14 @@ export default async function PlanPage({
                           </span>
                           {b.isMinimum && <Badge tone="warm" className="shrink-0">Mínimo</Badge>}
                         </ListCard>
-                      </button>
-                    </form>
-                    <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
+                      </PlanCheckButton>
+                      <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
+                    </div>
+                    {subHabits.length > 0 && (
+                      <div className="pl-2">
+                        <SubHabitsDropdown date={date} subHabits={subHabits} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -275,6 +373,7 @@ export default async function PlanPage({
                   const kind = kindInfo(b.kind);
                   const isDone = check?.status === "done";
                   const isSkipped = check?.status === "skipped";
+                  const subHabits = subHabitsFor(b.blockId, b.text);
                   return (
                     <div key={b.blockId} className="px-3.5 py-2.5">
                       <div className="flex items-start gap-2">
@@ -297,42 +396,36 @@ export default async function PlanPage({
                           {check?.note && <div className="mt-0.5 text-meta text-ink-dim">Nota: {check.note}</div>}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
-                          <form action={setCheck}>
-                            <input type="hidden" name="date" value={date} />
-                            <input type="hidden" name="blockId" value={b.blockId} />
-                            <input type="hidden" name="status" value={isDone ? "" : "done"} />
-                            <button
-                              type="submit"
-                              title="Hecho"
-                              className={
-                                "focus-ring rounded-ui border px-1.5 py-1 text-[11px] transition-colors duration-120 " +
-                                (isDone
-                                  ? "border-success/40 bg-success/12 text-success"
-                                  : "border-line text-ink-dim hover:border-line-strong hover:text-ink")
-                              }
-                            >
-                              ✓
-                            </button>
-                          </form>
-                          <form action={setCheck}>
-                            <input type="hidden" name="date" value={date} />
-                            <input type="hidden" name="blockId" value={b.blockId} />
-                            <input type="hidden" name="status" value={isSkipped ? "" : "skipped"} />
-                            <button
-                              type="submit"
-                              title="Saltado"
-                              className={
-                                "focus-ring rounded-ui border px-1.5 py-1 text-[11px] transition-colors duration-120 " +
-                                (isSkipped
-                                  ? "border-danger/40 bg-danger/12 text-danger"
-                                  : "border-line text-ink-dim hover:border-line-strong hover:text-ink")
-                              }
-                            >
-                              ✗
-                            </button>
-                          </form>
+                          <PlanCheckButton
+                            date={date}
+                            blockId={b.blockId}
+                            isDone={isDone}
+                            className={
+                              "focus-ring rounded-ui border px-1.5 py-1 text-[11px] transition-colors duration-120 " +
+                              (isDone
+                                ? "border-success/40 bg-success/12 text-success"
+                                : "border-line text-ink-dim hover:border-line-strong hover:text-ink")
+                            }
+                          >
+                            <span title="Hecho">✓</span>
+                          </PlanCheckButton>
+                          <PlanSkipButton
+                            date={date}
+                            blockId={b.blockId}
+                            isSkipped={isSkipped}
+                            className={
+                              "focus-ring rounded-ui border px-1.5 py-1 text-[11px] transition-colors duration-120 " +
+                              (isSkipped
+                                ? "border-danger/40 bg-danger/12 text-danger"
+                                : "border-line text-ink-dim hover:border-line-strong hover:text-ink")
+                            }
+                          >
+                            <span title="Saltado">✗</span>
+                          </PlanSkipButton>
                         </div>
                       </div>
+
+                      {subHabits.length > 0 && <SubHabitsDropdown date={date} subHabits={subHabits} />}
 
                       <details className="mt-1.5">
                         <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">
@@ -355,21 +448,12 @@ export default async function PlanPage({
                               Guardar
                             </Button>
                           </form>
-                          <form action={setCheck} className="flex items-center gap-1.5">
-                            <input type="hidden" name="date" value={date} />
-                            <input type="hidden" name="blockId" value={b.blockId} />
-                            <input type="hidden" name="status" value={check?.status || "done"} />
-                            <input
-                              type="text"
-                              name="note"
-                              defaultValue={check?.note ?? ""}
-                              placeholder="Nota — ¿qué hiciste?"
-                              className="min-w-0 flex-1 rounded-ui border border-line bg-canvas px-2 py-1 text-meta text-ink"
-                            />
-                            <Button type="submit" variant="secondary" size="sm">
-                              Nota
-                            </Button>
-                          </form>
+                          <NoteForm
+                            date={date}
+                            blockId={b.blockId}
+                            currentStatus={check?.status}
+                            defaultNote={check?.note ?? ""}
+                          />
                           <MoveBlockButtons date={date} blockId={b.blockId} text={b.text} />
                           <form action={removeForDay}>
                             <input type="hidden" name="date" value={date} />

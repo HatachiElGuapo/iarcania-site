@@ -36,9 +36,11 @@ export type AgendaEvent = {
   done: boolean;
   autoTime: boolean; // hábito sin hora fija
   editHref: string | null;
-  // Solo bloques de Plan con hábitos enlazados: un check por hábito, en vez
-  // de pintar cada hábito aparte.
-  habitChecks?: { name: string; done: boolean }[];
+  // Solo bloques de Plan con MÁS de un hábito enlazado: los subhábitos
+  // (todos menos el principal, el que comparte nombre con el bloque) — se
+  // muestran en un desplegable, cada uno con su propio toggle
+  // (toggleLogToday), independiente del check del bloque principal.
+  habitChecks?: { activityId: string; name: string; done: boolean }[];
   // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
   // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
   endLabel?: string;
@@ -148,7 +150,12 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
     const todayResolved = resolvedRange.find((d) => d.date === date) ?? null;
     const before = resolvedRange.find((d) => d.date === yesterday) ?? null;
     const todaysBlocks = todayResolved?.blocksByPerson[planPerson.personId] ?? [];
-    const carryBlocks = (before?.blocksByPerson[planPerson.personId] ?? []).filter((b) => !b.endTime);
+    // Bloque abierto (sin end_time) O que cruza medianoche con end_time
+    // explícito menor al start_time (ej. Dormir 21:00–04:40) — ambos se
+    // "cargan" en la vista de hoy.
+    const carryBlocks = (before?.blocksByPerson[planPerson.personId] ?? []).filter(
+      (b) => !b.endTime || b.endTime < b.startTime,
+    );
 
     const linkRows = await db
       .select({ blockId: planBlockActivities.blockId, activityId: planBlockActivities.activityId, name: activities.name })
@@ -163,8 +170,13 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
       list.push({ activityId: r.activityId, name: r.name });
       habitsByBlockId.set(r.blockId, list);
     }
-    const buildHabitChecks = (blockId: string, doneSet: Set<string>) =>
-      (habitsByBlockId.get(blockId) ?? []).map((h) => ({ name: h.name, done: doneSet.has(h.activityId) }));
+    // Solo los subhábitos (todos menos el que comparte nombre con el
+    // bloque, el principal) — ese se marca aparte, con el check del bloque
+    // (setCheck), no con este toggle.
+    const buildHabitChecks = (blockId: string, blockText: string, doneSet: Set<string>) =>
+      (habitsByBlockId.get(blockId) ?? [])
+        .filter((h) => h.name !== blockText)
+        .map((h) => ({ activityId: h.activityId, name: h.name, done: doneSet.has(h.activityId) }));
 
     const planChecksRows = await db
       .select({ blockId: planChecks.blockId, date: planChecks.date, status: planChecks.status })
@@ -184,6 +196,10 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
 
     const carryEvents: AgendaEvent[] = carryBlocks.map((b) => {
       const info = kindInfo(b.kind);
+      // Abierto (sin end_time): se extiende hasta el primer bloque de hoy
+      // (o 24:00 si no hay ninguno). Con end_time explícito que cruza
+      // medianoche: termina a esa hora exacta, no en firstBlockStart.
+      const endMinutes = b.endTime ? toMinutes(b.endTime) : firstBlockStart;
       return {
         key: `plan-carry-${b.blockId}`,
         kind: "plan",
@@ -191,7 +207,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         itemType: "plan",
         itemId: null,
         start: 0,
-        duration: Math.max(1, firstBlockStart),
+        duration: Math.max(1, endMinutes),
         title: b.text,
         accent: info.color,
         icon: info.icon,
@@ -199,7 +215,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         done: planCheckByKey.get(`${yesterday}:${b.blockId}`) === "done",
         autoTime: false,
         editHref: `/dashboard/plan?date=${yesterday}`,
-        habitChecks: buildHabitChecks(b.blockId, yesterdayDoneIds),
+        habitChecks: buildHabitChecks(b.blockId, b.text, yesterdayDoneIds),
       };
     });
 
@@ -222,7 +238,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         done: planCheckByKey.get(`${date}:${b.blockId}`) === "done",
         autoTime: false,
         editHref: `/dashboard/plan?date=${date}`,
-        habitChecks: buildHabitChecks(b.blockId, doneHabitIds),
+        habitChecks: buildHabitChecks(b.blockId, b.text, doneHabitIds),
         endLabel: b.endTime ? undefined : "24:00",
         projected: b.isProjected,
       };

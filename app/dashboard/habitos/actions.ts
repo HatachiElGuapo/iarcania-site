@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { activities, activityLogs, activityQueueItems } from "@/lib/db/schema/habitos";
@@ -327,7 +327,16 @@ export async function deleteActivity(formData: FormData) {
 
 // Toggle simple: si hay algún log hoy para este hábito, lo borra (marca "no
 // hecho"); si no hay ninguno, crea uno con value=1 (marca "hecho").
-export async function toggleLogToday(formData: FormData) {
+// Devuelve el estado resultante (no solo void) para que quien llama desde
+// el cliente (ver SafeActionButton) pueda decidir un toast de
+// felicitación: `isPrincipal` = hábito diario (los que se muestran en la
+// card "Hábitos" con racha — los "Vicios", frequency='recurrente', son
+// contadores y nunca pasan por este toggle). `allPrincipalDone` solo se
+// calcula al marcar (no al desmarcar) y solo si el hábito es principal —
+// compara hábitos diarios activos vs. cuántos ya tienen log ese día.
+export async function toggleLogToday(
+  formData: FormData,
+): Promise<{ done: boolean; isPrincipal: boolean; allPrincipalDone: boolean }> {
   const userId = await requireUserId();
   const activityId = String(formData.get("activityId") || "");
   const date = String(formData.get("date") || "");
@@ -343,6 +352,7 @@ export async function toggleLogToday(formData: FormData) {
       ),
     );
 
+  let done: boolean;
   if (existing.length > 0) {
     await db.delete(activityLogs).where(
       and(
@@ -351,11 +361,42 @@ export async function toggleLogToday(formData: FormData) {
         eq(activityLogs.date, date),
       ),
     );
+    done = false;
   } else {
     await db.insert(activityLogs).values({ userId, activityId, date });
+    done = true;
   }
 
   revalidateAll();
+
+  const [activity] = await db
+    .select({ frequency: activities.frequency })
+    .from(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.userId, userId)));
+  const isPrincipal = activity?.frequency === "diaria";
+
+  let allPrincipalDone = false;
+  if (done && isPrincipal) {
+    const dailyHabits = await db
+      .select({ id: activities.id })
+      .from(activities)
+      .where(and(eq(activities.userId, userId), eq(activities.isActive, true), eq(activities.frequency, "diaria")));
+    if (dailyHabits.length > 0) {
+      const doneLogs = await db
+        .select({ activityId: activityLogs.activityId })
+        .from(activityLogs)
+        .where(
+          and(
+            eq(activityLogs.userId, userId),
+            eq(activityLogs.date, date),
+            inArray(activityLogs.activityId, dailyHabits.map((h) => h.id)),
+          ),
+        );
+      allPrincipalDone = new Set(doneLogs.map((l) => l.activityId)).size === dailyHabits.length;
+    }
+  }
+
+  return { done, isPrincipal, allPrincipalDone };
 }
 
 // Contador (para "vicios" u otros hábitos frequency='recurrente'): cada

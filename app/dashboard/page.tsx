@@ -7,12 +7,14 @@ import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { appointments } from "@/lib/db/schema/citas";
 import { planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
-import { todayISO, addDaysISO } from "@/lib/date/bogota";
+import { todayISO, addDaysISO, nowHHMM } from "@/lib/date/bogota";
 import { buildDayEvents, type AgendaEvent } from "@/lib/agenda/day-events";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type OrphanPlanBlock } from "@/lib/plan/orphans";
+import { getPendingMinimumsForPerson, type PendingMinimumBlock } from "@/lib/plan/pending";
+import { getStreakForPerson } from "@/lib/plan/streak";
 import {
   PageHeader,
   Card,
@@ -34,8 +36,9 @@ import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./ha
 import { NewTaskSheet } from "./new-task-sheet";
 import { DayEventRow, fmtTime, primaryActionFor } from "./day-event-row";
 import { PlanBlockMenu } from "./plan/block-menu";
-import { setCheck } from "./plan/actions";
 import { TaskHabitMenu } from "./day-row-menu";
+import { SafeActionButton } from "./safe-action-button";
+import { PlanCheckButton, PlanSkipButton } from "./plan/block-check";
 import { PendingPanel } from "./pending-panel";
 import { OverduePanel, type OverdueTask } from "./overdue-panel";
 import { ReviewSection } from "./review-section";
@@ -174,7 +177,6 @@ export default async function RutinasPage({
   const events = [...dayEvents.events].sort((a, b) => a.start - b.start);
   const doneToday = events.filter((e) => e.done).length;
   const totalToday = events.length;
-  const pendingToday = totalToday - doneToday;
   const pctToday = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
 
   const logsByHabit = new Map<string, Set<string>>();
@@ -208,9 +210,17 @@ export default async function RutinasPage({
   // de la versión vieja y no hay nada que resolver ahí.
   const planPerson = await findPlanPersonForUser(userId);
   let planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[] = [];
+  let pendingMinimums: PendingMinimumBlock[] = [];
+  let streakResult = { streak: 0, protectors: 0 };
   const yesterday = addDaysISO(today, -1);
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
+    if (isToday) {
+      [pendingMinimums, streakResult] = await Promise.all([
+        getPendingMinimumsForPerson(planCtx, planPerson.personId, today, nowHHMM()),
+        getStreakForPerson(planCtx, planPerson.personId, today),
+      ]);
+    }
     if (yesterday >= planCtx.plan.startDate) {
       const resolvedYesterday = resolvePlan(toPlanData(planCtx), yesterday, yesterday);
       const checksYesterday = await db
@@ -327,11 +337,10 @@ export default async function RutinasPage({
         <PendingPanel
           trigger={
             <button type="button" className="focus-ring block w-full text-left">
-              <MetricCard value={pendingToday} label="pendientes" sub="hoy" tone="primary" />
+              <MetricCard value={pendingMinimums.length} label="pendientes" sub="mínimos vencidos" tone="primary" />
             </button>
           }
-          events={events}
-          date={date}
+          pendingMinimums={pendingMinimums}
         />
         <MetricCard value={doneToday} label="completadas" sub={`de ${totalToday}`} tone="success" />
         <OverduePanel
@@ -360,6 +369,20 @@ export default async function RutinasPage({
           <div className="text-[10px] text-ink-dim">Todo lo de hoy: tareas, hábitos, Plan y citas agendadas.</div>
         </div>
       </div>
+
+      {planPerson && (
+        <div className="flex items-center gap-2 text-meta text-ink-muted">
+          <span>
+            🔥 Racha de Plan: <span className="font-semibold text-ink">{streakResult.streak}</span> día
+            {streakResult.streak !== 1 ? "s" : ""}
+          </span>
+          {streakResult.protectors > 0 && (
+            <span>
+              · 🛡️ {streakResult.protectors} protector{streakResult.protectors !== 1 ? "es" : ""}
+            </span>
+          )}
+        </div>
+      )}
 
       {(overdueTasks.length > 0 || upcomingAppointments.length > 0) && (
         <div className="flex flex-wrap items-center gap-2.5">
@@ -424,28 +447,22 @@ export default async function RutinasPage({
                   <span className="shrink-0 tabular-nums text-ink-dim">{fmtDayShort(b.date)}</span>
                   <span className="shrink-0">{kind.icon}</span>
                   <span className="min-w-0 flex-1 truncate text-ink">{b.text}</span>
-                  <form action={setCheck} className="shrink-0">
-                    <input type="hidden" name="date" value={b.date} />
-                    <input type="hidden" name="blockId" value={b.blockId} />
-                    <input type="hidden" name="status" value="done" />
-                    <button
-                      type="submit"
-                      className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-success/40 hover:text-success"
-                    >
-                      ✓
-                    </button>
-                  </form>
-                  <form action={setCheck} className="shrink-0">
-                    <input type="hidden" name="date" value={b.date} />
-                    <input type="hidden" name="blockId" value={b.blockId} />
-                    <input type="hidden" name="status" value="skipped" />
-                    <button
-                      type="submit"
-                      className="focus-ring rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-danger/40 hover:text-danger"
-                    >
-                      ✗
-                    </button>
-                  </form>
+                  <PlanCheckButton
+                    date={b.date}
+                    blockId={b.blockId}
+                    isDone={false}
+                    className="focus-ring shrink-0 rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-success/40 hover:text-success"
+                  >
+                    ✓
+                  </PlanCheckButton>
+                  <PlanSkipButton
+                    date={b.date}
+                    blockId={b.blockId}
+                    isSkipped={false}
+                    className="focus-ring shrink-0 rounded-ui border border-line px-1.5 py-0.5 text-[11px] text-ink-dim hover:border-danger/40 hover:text-danger"
+                  >
+                    ✗
+                  </PlanSkipButton>
                 </div>
               );
             })}
@@ -523,39 +540,37 @@ export default async function RutinasPage({
                 <EmptyState icon="🔥">Aún no sigues ningún hábito diario — creá el primero abajo.</EmptyState>
               ) : (
                 habitsView.map((h) => (
-                  <form key={h.id} action={toggleLogToday}>
-                    <input type="hidden" name="activityId" value={h.id} />
-                    <input type="hidden" name="date" value={date} />
-                    <button
-                      type="submit"
-                      className="focus-ring flex w-full items-center gap-2.5 rounded-ui-lg border border-line bg-surface px-3.5 py-2.5 text-left transition-colors duration-120 hover:border-line-strong"
+                  <SafeActionButton
+                    key={h.id}
+                    action={toggleLogToday}
+                    fields={{ activityId: h.id, date }}
+                    className="focus-ring flex w-full items-center gap-2.5 rounded-ui-lg border border-line bg-surface px-3.5 py-2.5 text-left transition-colors duration-120 hover:border-line-strong"
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                        h.done ? "border-accent bg-accent text-white" : "border-line-strong"
+                      }`}
                     >
-                      <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-                          h.done ? "border-accent bg-accent text-white" : "border-line-strong"
-                        }`}
-                      >
-                        {h.done ? "✓" : ""}
+                      {h.done ? "✓" : ""}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-sm ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
+                        {h.name}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className={`block truncate text-sm ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
-                          {h.name}
-                        </span>
-                        <span className="mt-0.5 block truncate text-[10px] text-ink-dim">
-                          {h.horaSugerida ?? "cualquier hora"}
-                        </span>
+                      <span className="mt-0.5 block truncate text-[10px] text-ink-dim">
+                        {h.horaSugerida ?? "cualquier hora"}
                       </span>
-                      <span className="flex shrink-0 gap-[2px]">
-                        {h.week.map((c, i) => (
-                          <span
-                            key={i}
-                            className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
-                          />
-                        ))}
-                      </span>
-                      <Badge tone="warm">🔥 {h.streak}</Badge>
-                    </button>
-                  </form>
+                    </span>
+                    <span className="flex shrink-0 gap-[2px]">
+                      {h.week.map((c, i) => (
+                        <span
+                          key={i}
+                          className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
+                        />
+                      ))}
+                    </span>
+                    <Badge tone="warm">🔥 {h.streak}</Badge>
+                  </SafeActionButton>
                 ))
               )}
             </div>
@@ -789,28 +804,22 @@ function MobileHoy({
                   <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{fmtDayShort(b.date)}</span>
                   <span className="shrink-0 text-[15px]">{kind.icon}</span>
                   <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{b.text}</span>
-                  <form action={setCheck} className="shrink-0">
-                    <input type="hidden" name="date" value={b.date} />
-                    <input type="hidden" name="blockId" value={b.blockId} />
-                    <input type="hidden" name="status" value="done" />
-                    <button
-                      type="submit"
-                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
-                    >
-                      ✓
-                    </button>
-                  </form>
-                  <form action={setCheck} className="shrink-0">
-                    <input type="hidden" name="date" value={b.date} />
-                    <input type="hidden" name="blockId" value={b.blockId} />
-                    <input type="hidden" name="status" value="skipped" />
-                    <button
-                      type="submit"
-                      className="focus-ring flex h-9 w-9 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
-                    >
-                      ✗
-                    </button>
-                  </form>
+                  <PlanCheckButton
+                    date={b.date}
+                    blockId={b.blockId}
+                    isDone={false}
+                    className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
+                  >
+                    ✓
+                  </PlanCheckButton>
+                  <PlanSkipButton
+                    date={b.date}
+                    blockId={b.blockId}
+                    isSkipped={false}
+                    className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[13px] text-ink-dim"
+                  >
+                    ✗
+                  </PlanSkipButton>
                 </ListCard>
               );
             })}
@@ -972,14 +981,9 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   return (
     <div className="flex items-center gap-2">
       {primary ? (
-        <form action={primary.action} className="min-w-0 flex-1">
-          {Object.entries(primary.fields).map(([k, v]) => (
-            <input key={k} type="hidden" name={k} value={v} />
-          ))}
-          <button type="submit" className="contents">
-            {row}
-          </button>
-        </form>
+        <SafeActionButton action={primary.action} fields={primary.fields} className="contents min-w-0 flex-1">
+          {row}
+        </SafeActionButton>
       ) : (
         <div className="min-w-0 flex-1">{row}</div>
       )}
@@ -1004,33 +1008,29 @@ function MobileHabitRow({
   date: string;
 }) {
   return (
-    <form action={toggleLogToday}>
-      <input type="hidden" name="activityId" value={h.id} />
-      <input type="hidden" name="date" value={date} />
-      <button type="submit" className="contents">
-        <ListCard>
-          <span
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-              h.done ? "border-accent bg-accent text-white" : "border-line-strong"
-            }`}
-          >
-            {h.done ? "✓" : ""}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className={`truncate text-[15px] ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
-              {h.name}
-            </div>
-            <div className="mt-0.5 text-[11px] text-ink-dim">{h.horaSugerida ?? "cualquier hora"}</div>
+    <SafeActionButton action={toggleLogToday} fields={{ activityId: h.id, date }} className="contents">
+      <ListCard>
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+            h.done ? "border-accent bg-accent text-white" : "border-line-strong"
+          }`}
+        >
+          {h.done ? "✓" : ""}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className={`truncate text-[15px] ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
+            {h.name}
           </div>
-          <span className="flex shrink-0 gap-[2px]">
-            {h.week.map((c, i) => (
-              <span key={i} className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`} />
-            ))}
-          </span>
-          <Badge tone="warm">🔥 {h.streak}</Badge>
-        </ListCard>
-      </button>
-    </form>
+          <div className="mt-0.5 text-[11px] text-ink-dim">{h.horaSugerida ?? "cualquier hora"}</div>
+        </div>
+        <span className="flex shrink-0 gap-[2px]">
+          {h.week.map((c, i) => (
+            <span key={i} className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`} />
+          ))}
+        </span>
+        <Badge tone="warm">🔥 {h.streak}</Badge>
+      </ListCard>
+    </SafeActionButton>
   );
 }
 

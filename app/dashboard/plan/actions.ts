@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, eq, inArray, isNull, lte, gte } from "drizzle-orm";
+import { and, asc, eq, isNull, lte, gte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import {
@@ -19,8 +19,9 @@ import {
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { loadPlanContextForUser, toPlanData, findPlanPersonForUser } from "@/lib/plan/load";
-import { resolvePlan } from "@/lib/plan/resolve";
-import { addDaysISO, weekdayMon0, todayISO } from "@/lib/date/bogota";
+import { resolvePlan, type PlanData } from "@/lib/plan/resolve";
+import { getStreakForPerson } from "@/lib/plan/streak";
+import { addDaysISO, weekdayMon0, todayISO, nowHHMM } from "@/lib/date/bogota";
 
 async function requireUserId() {
   const session = await auth();
@@ -43,6 +44,8 @@ export async function requireOwnedBlock(blockId: string, userId: string) {
       queueId: planBlocks.queueId,
       weekday: planBlocks.weekday,
       holidayText: planBlocks.holidayText,
+      text: planBlocks.text,
+      isMinimum: planBlocks.isMinimum,
       ownerId: plans.ownerId,
     })
     .from(planBlocks)
@@ -57,6 +60,19 @@ export async function requireOwnedBlock(blockId: string, userId: string) {
     .where(and(eq(planPeople.id, row.personId), eq(planPeople.userId, userId)));
   if (!person) throw new Error("No autorizado para este bloque");
   return row;
+}
+
+// Un override/check solo tiene sentido en una fecha cuyo weekday coincida
+// con el del bloque — el resolver solo evalúa overrides para bloques del
+// weekday de ESE día (ver resolve.ts), así que guardar uno con otra fecha
+// deja una fila muerta que nunca se aplica. Se vio un caso real: un bloque
+// del lunes con un override guardado en 2026-10-20 (martes) — probablemente
+// al mover un bloque ya pasada la medianoche, cuando la fecha "de hoy" en
+// el cliente ya rotó pero el bloque seguía siendo el de ayer.
+function assertDateMatchesWeekday(date: string, weekday: number) {
+  if (weekdayMon0(date) !== weekday) {
+    throw new Error("La fecha no coincide con el día del bloque");
+  }
 }
 
 // El check de HOY de este bloque, si existe — para que el panel sepa el
@@ -119,35 +135,35 @@ export async function linkBlockScript(formData: FormData) {
 }
 
 // Un bloque de Plan puede tener uno o más hábitos enlazados
-// (plan_block_activities) — la card "Hábitos" del dashboard (racha, franja
-// de la semana) lee activity_logs, no plan_checks, así que sin esto marcar
-// "hecho" en un bloque enlazado desde "Tu día"/Plan nunca hacía avanzar la
-// racha de ese hábito. Mantiene los dos en sync: "hecho" asegura un log de
-// hoy por cada hábito enlazado (sin duplicar si ya había uno), cualquier
-// otro estado (saltado, o quitar la marca) lo borra.
-async function syncLinkedHabitLogs(userId: string, blockId: string, date: string, done: boolean) {
+// (plan_block_activities): el que comparte nombre con el bloque es el
+// hábito PRINCIPAL, los demás son subhábitos opcionales (se marcan aparte,
+// desde el desplegable — ver toggleLogToday). Marcar el bloque solo
+// sincroniza el log del principal (si hay uno con ese nombre); los
+// secundarios NO se auto-marcan — pedido explícito del usuario, para no
+// meter datos falsos de algo que no se hizo de verdad.
+async function syncLinkedHabitLogs(userId: string, blockId: string, blockText: string, date: string, done: boolean) {
   const links = await db
-    .select({ activityId: planBlockActivities.activityId })
+    .select({ activityId: planBlockActivities.activityId, name: activities.name })
     .from(planBlockActivities)
+    .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
     .where(eq(planBlockActivities.blockId, blockId));
-  if (!links.length) return;
-  const activityIds = links.map((l) => l.activityId);
+  const principal = links.find((l) => l.name === blockText);
+  if (!principal) return;
+  const activityId = principal.activityId;
 
   if (!done) {
     await db
       .delete(activityLogs)
-      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, activityIds)));
+      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), eq(activityLogs.activityId, activityId)));
     return;
   }
 
-  const existing = await db
+  const [existing] = await db
     .select({ activityId: activityLogs.activityId })
     .from(activityLogs)
-    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, activityIds)));
-  const alreadyLogged = new Set(existing.map((e) => e.activityId));
-  const missing = activityIds.filter((id) => !alreadyLogged.has(id));
-  if (missing.length) {
-    await db.insert(activityLogs).values(missing.map((activityId) => ({ userId, activityId, date })));
+    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), eq(activityLogs.activityId, activityId)));
+  if (!existing) {
+    await db.insert(activityLogs).values({ userId, activityId, date });
   }
 }
 
@@ -192,11 +208,55 @@ async function shiftQueueCursor(tx: DbTx, blockId: string, date: string, delta: 
   }
 }
 
+// Resuelve en qué fecha vive REALMENTE este bloque para `date`: el caso
+// normal es `date` mismo, pero un bloque que cruza la medianoche (sin
+// end_time, ej. "Dormir" 21:00, o CON end_time menor al start_time, ej.
+// 21:00–04:40) se sigue viendo y marcando desde la vista del día SIGUIENTE
+// (day-events.ts lo "carga" como carry-over) — su check real pertenece al
+// día en que empezó. Marcar desde el día siguiente solo es válido ANTES de
+// que pase su end_time (si lo tiene) — después de esa hora esa ocurrencia
+// ya venció. Si ni `date` ni `date - 1` resuelven el bloque, no hay fecha
+// válida: null (quien llama decide qué hacer con eso).
+function resolveEffectiveDate(
+  planData: PlanData,
+  personId: string,
+  blockId: string,
+  date: string,
+  now: string,
+): string | null {
+  const [day] = resolvePlan(planData, date, date);
+  if (day?.blocksByPerson[personId]?.some((b) => b.blockId === blockId)) return date;
+
+  const yesterday = addDaysISO(date, -1);
+  const [prevDay] = resolvePlan(planData, yesterday, yesterday);
+  const prevBlock = prevDay?.blocksByPerson[personId]?.find((b) => b.blockId === blockId);
+  if (prevBlock) {
+    const crossesMidnight = !prevBlock.endTime || prevBlock.endTime < prevBlock.startTime;
+    if (crossesMidnight && (!prevBlock.endTime || now < prevBlock.endTime)) return yesterday;
+  }
+
+  return null;
+}
+
+export type SetCheckResult = {
+  done: boolean;
+  isMinimum: boolean;
+  allMinimumsDone: boolean;
+  streakBefore: number;
+  streakAfter: number;
+  protectorsBefore: number;
+  protectorsAfter: number;
+};
+
 // Marca/desmarca un bloque para UN día — status vacío = quita la marca.
 // resolved_text se calcula acá (con el resolver, sobre el plan completo) y
 // queda fijo: si luego se reordena una cola o se edita el bloque, el
-// historial no cambia.
-export async function setCheck(formData: FormData) {
+// historial no cambia. Devuelve info para que el cliente (SafeActionButton)
+// decida un toast de felicitación/racha — undefined al desmarcar (no hay
+// nada que festejar). Lanza "El bloque no aplica ese día" si `date` no
+// resuelve ninguna fecha válida — el cliente lo atrapa y lo muestra como
+// toast, no tumba la página.
+export async function setCheck(formData: FormData): Promise<SetCheckResult | undefined> {
   const userId = await requireUserId();
   const date = String(formData.get("date") || "");
   const blockId = String(formData.get("blockId") || "");
@@ -206,41 +266,50 @@ export async function setCheck(formData: FormData) {
 
   const block = await requireOwnedBlock(blockId, userId);
 
+  const ctx = await loadPlanContextForUser(userId);
+  if (!ctx) throw new Error("No hay plan");
+  const planData = toPlanData(ctx);
+
+  const effectiveDate = resolveEffectiveDate(planData, block.personId, blockId, date, nowHHMM());
+  if (!effectiveDate) throw new Error("El bloque no aplica ese día");
+
   if (!status) {
     await db.transaction(async (tx) => {
       const [existed] = await tx
         .select({ blockId: planChecks.blockId })
         .from(planChecks)
-        .where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
-      await tx.delete(planChecks).where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
-      if (existed) await shiftQueueCursor(tx, blockId, date, -1);
+        .where(and(eq(planChecks.date, effectiveDate), eq(planChecks.blockId, blockId)));
+      await tx.delete(planChecks).where(and(eq(planChecks.date, effectiveDate), eq(planChecks.blockId, blockId)));
+      if (existed) await shiftQueueCursor(tx, blockId, effectiveDate, -1);
     });
-    await syncLinkedHabitLogs(userId, blockId, date, false);
+    await syncLinkedHabitLogs(userId, blockId, block.text, effectiveDate, false);
     revalidatePath("/dashboard/plan");
     revalidatePath("/dashboard/plan/historial");
     revalidatePath("/dashboard/agenda");
     revalidatePath("/dashboard");
-    return;
+    return undefined;
   }
   if (status !== "done" && status !== "skipped") throw new Error("Estado inválido");
 
-  const ctx = await loadPlanContextForUser(userId);
-  if (!ctx) throw new Error("No hay plan");
-  const [day] = resolvePlan(toPlanData(ctx), date, date);
+  const [day] = resolvePlan(planData, effectiveDate, effectiveDate);
   const resolved = day?.blocksByPerson[block.personId]?.find((b) => b.blockId === blockId);
   if (!resolved) throw new Error("El bloque no aplica ese día");
+
+  const streakBeforeResult = block.isMinimum
+    ? await getStreakForPerson(ctx, block.personId, effectiveDate)
+    : { streak: 0, protectors: 0 };
 
   await db.transaction(async (tx) => {
     const [existed] = await tx
       .select({ blockId: planChecks.blockId })
       .from(planChecks)
-      .where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+      .where(and(eq(planChecks.date, effectiveDate), eq(planChecks.blockId, blockId)));
 
     await tx
       .insert(planChecks)
       .values({
         planId: block.planId,
-        date,
+        date: effectiveDate,
         blockId,
         personId: block.personId,
         status,
@@ -252,14 +321,51 @@ export async function setCheck(formData: FormData) {
         set: { status, resolvedText: resolved.text, note, checkedAt: new Date() },
       });
 
-    if (!existed) await shiftQueueCursor(tx, blockId, date, 1);
+    if (!existed) await shiftQueueCursor(tx, blockId, effectiveDate, 1);
   });
-  await syncLinkedHabitLogs(userId, blockId, date, status === "done");
+  await syncLinkedHabitLogs(userId, blockId, block.text, effectiveDate, status === "done");
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/plan/historial");
   revalidatePath("/dashboard/agenda");
   revalidatePath("/dashboard");
+
+  if (status !== "done") {
+    return {
+      done: false,
+      isMinimum: block.isMinimum,
+      allMinimumsDone: false,
+      streakBefore: streakBeforeResult.streak,
+      streakAfter: streakBeforeResult.streak,
+      protectorsBefore: streakBeforeResult.protectors,
+      protectorsAfter: streakBeforeResult.protectors,
+    };
+  }
+
+  const allMinimums = day?.blocksByPerson[block.personId]?.filter((b) => b.isMinimum) ?? [];
+  let allMinimumsDone = false;
+  if (block.isMinimum && allMinimums.length > 0) {
+    const doneChecks = await db
+      .select({ blockId: planChecks.blockId })
+      .from(planChecks)
+      .where(and(eq(planChecks.date, effectiveDate), eq(planChecks.personId, block.personId), eq(planChecks.status, "done")));
+    const doneIds = new Set(doneChecks.map((c) => c.blockId));
+    allMinimumsDone = allMinimums.every((b) => doneIds.has(b.blockId));
+  }
+
+  const streakAfterResult = block.isMinimum
+    ? await getStreakForPerson(ctx, block.personId, effectiveDate)
+    : streakBeforeResult;
+
+  return {
+    done: true,
+    isMinimum: block.isMinimum,
+    allMinimumsDone,
+    streakBefore: streakBeforeResult.streak,
+    streakAfter: streakAfterResult.streak,
+    protectorsBefore: streakBeforeResult.protectors,
+    protectorsAfter: streakAfterResult.protectors,
+  };
 }
 
 // Cambia el texto de un bloque solo para ese día, sin tocar la plantilla.
@@ -271,6 +377,7 @@ export async function setOverride(formData: FormData) {
   if (!date || !blockId || !text) throw new Error("Faltan datos");
 
   const block = await requireOwnedBlock(blockId, userId);
+  assertDateMatchesWeekday(date, block.weekday);
 
   await db
     .insert(planOverrides)
@@ -291,6 +398,7 @@ export async function removeForDay(formData: FormData) {
   if (!date || !blockId) throw new Error("Faltan datos");
 
   const block = await requireOwnedBlock(blockId, userId);
+  assertDateMatchesWeekday(date, block.weekday);
 
   await db
     .insert(planOverrides)
@@ -341,12 +449,14 @@ export async function moveBlockForDay(input: {
       personId: planBlocks.personId,
       startTime: planBlocks.startTime,
       endTime: planBlocks.endTime,
+      weekday: planBlocks.weekday,
       ownerId: plans.ownerId,
     })
     .from(planBlocks)
     .innerJoin(plans, eq(plans.id, planBlocks.planId))
     .where(eq(planBlocks.id, input.blockId));
   if (!block) throw new Error("Bloque no encontrado");
+  assertDateMatchesWeekday(input.date, block.weekday);
   if (block.ownerId !== userId) {
     const [person] = await db
       .select({ id: planPeople.id })
@@ -414,6 +524,7 @@ export async function moveBlock(input: { date: string; blockId: string; text: st
   if (input.targetDate < input.date) throw new Error("La fecha elegida no puede ser anterior a hoy");
 
   const block = await requireOwnedBlock(input.blockId, userId);
+  assertDateMatchesWeekday(input.date, block.weekday);
   const text = input.text.trim();
 
   if (!block.queueId) {
@@ -482,6 +593,7 @@ export async function moveBlockToEndOfQueue(input: { date: string; blockId: stri
   if (!input?.date || !input?.blockId) throw new Error("Faltan datos");
 
   const block = await requireOwnedBlock(input.blockId, userId);
+  assertDateMatchesWeekday(input.date, block.weekday);
   if (!block.queueId) throw new Error("Este bloque no viene de una cola");
 
   const [queue] = await db

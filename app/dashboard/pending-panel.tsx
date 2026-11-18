@@ -2,23 +2,20 @@
 
 import { type ReactNode, useState } from "react";
 import { EmptyState } from "@/components/ui";
-import type { AgendaEvent } from "@/lib/agenda/day-events";
-import { DayEventRow } from "./day-event-row";
+import type { PendingMinimumBlock } from "@/lib/plan/pending";
 
-// Panel de "Pendientes" — mismas filas y acciones que "Tu día" (✓, ✗ de
-// Plan, mover/editar vía los menús "⋯" ya existentes), filtradas a lo que
-// falta por hacer hoy. Mismo patrón de overlay que <QuickAddPanel>.
+// Panel de "Pendientes" — solo bloques is_minimum de Plan cuya hora de
+// vencimiento ya pasó y todavía no se marcaron (ver lib/plan/pending.ts).
+// Mismo patrón de overlay que <QuickAddPanel>.
 export function PendingPanel({
   trigger,
-  events,
-  date,
+  pendingMinimums,
 }: {
   trigger: ReactNode;
-  events: AgendaEvent[];
-  date: string;
+  pendingMinimums: PendingMinimumBlock[];
 }) {
   const [open, setOpen] = useState(false);
-  const pending = events.filter((e) => !e.done);
+  const pending = pendingMinimums;
 
   return (
     <>
@@ -38,7 +35,7 @@ export function PendingPanel({
             className="mt-[8vh] w-full max-w-md overflow-hidden rounded-ui-lg border border-line-strong bg-surface-2"
           >
             <div className="flex items-center justify-between border-b border-line bg-surface px-3.5 py-3">
-              <span className="font-display text-[15px] font-semibold text-ink">Pendientes de hoy</span>
+              <span className="font-display text-[15px] font-semibold text-ink">Mínimos vencidos</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -49,9 +46,18 @@ export function PendingPanel({
             </div>
             <div className="flex max-h-[70vh] flex-col divide-y divide-line overflow-y-auto">
               {pending.length === 0 ? (
-                <EmptyState icon="🎉">Todo lo de hoy está hecho.</EmptyState>
+                <EmptyState icon="🎉">No hay mínimos vencidos sin marcar.</EmptyState>
               ) : (
-                pending.map((ev) => <DayEventRow key={ev.key} ev={ev} date={date} />)
+                pending.map((p) => (
+                  <a
+                    key={p.blockId}
+                    href={`/dashboard/plan?date=${p.effectiveDate}`}
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface-2"
+                  >
+                    <span className="w-14 shrink-0 text-meta tabular-nums text-ink-dim">{p.dueTime}</span>
+                    <span className="min-w-0 flex-1 truncate text-body text-ink">{p.text}</span>
+                  </a>
+                ))
               )}
             </div>
           </div>

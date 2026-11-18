@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { moveBlockForDay, moveBlock, moveBlockToEndOfQueue, setCheck, getPlanCheck } from "./actions";
 import { addDaysISO } from "@/lib/date/bogota";
+import { useToast } from "@/components/ui/toast";
 
 // Móvil · "⋯" de cada bloque de Rutinas — atrasar dentro del mismo día,
 // mandarlo a mañana sin que se pierda, o anotar qué se hizo de verdad
@@ -31,6 +32,7 @@ export function PlanBlockMenu({
   text: string;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [check, setCheckState] = useState<CheckRow | null>(null);
   const [loadingCheck, setLoadingCheck] = useState(false);
@@ -52,11 +54,15 @@ export function PlanBlockMenu({
 
   const isSkipped = check?.status === "skipped";
 
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<unknown>) {
     startTransition(async () => {
-      await action();
-      setOpen(false);
-      router.refresh();
+      try {
+        await action();
+        setOpen(false);
+        router.refresh();
+      } catch (err) {
+        toast.show({ message: err instanceof Error ? err.message : "Algo salió mal.", tone: "error" });
+      }
     });
   }
 
@@ -68,12 +74,7 @@ export function PlanBlockMenu({
     if (!targetDate) return;
     run(() => moveBlock({ date, blockId, text, targetDate }));
   };
-  const toEndOfQueue = () =>
-    run(() =>
-      moveBlockToEndOfQueue({ date, blockId }).catch((err) => {
-        alert(err instanceof Error ? err.message : "No se pudo mover");
-      }),
-    );
+  const toEndOfQueue = () => run(() => moveBlockToEndOfQueue({ date, blockId }));
 
   const toggleSkip = () =>
     run(() => {
