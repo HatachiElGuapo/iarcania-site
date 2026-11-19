@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, eq, isNull, lte, gte } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, gte } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import {
@@ -249,13 +249,10 @@ export type SetCheckResult = {
 };
 
 // Marca/desmarca un bloque para UN día — status vacío = quita la marca.
-// resolved_text se calcula acá (con el resolver, sobre el plan completo) y
-// queda fijo: si luego se reordena una cola o se edita el bloque, el
-// historial no cambia. Devuelve info para que el cliente (SafeActionButton)
-// decida un toast de felicitación/racha — undefined al desmarcar (no hay
-// nada que festejar). Lanza "El bloque no aplica ese día" si `date` no
-// resuelve ninguna fecha válida — el cliente lo atrapa y lo muestra como
-// toast, no tumba la página.
+// `setCheck` es el wrapper que recibe el FormData de un <form>/
+// SafeActionButton; `applyBlockCheck` es la lógica de verdad, reusable
+// sin pasar por FormData (la llama syncOneBlock cuando el árbol de hábitos
+// del bloque completa solo — ver más abajo).
 export async function setCheck(formData: FormData): Promise<SetCheckResult | undefined> {
   const userId = await requireUserId();
   const date = String(formData.get("date") || "");
@@ -263,7 +260,23 @@ export async function setCheck(formData: FormData): Promise<SetCheckResult | und
   const status = String(formData.get("status") || "");
   const note = String(formData.get("note") || "").trim() || null;
   if (!date || !blockId) throw new Error("Faltan datos");
+  return applyBlockCheck(userId, blockId, date, status, note);
+}
 
+// resolved_text se calcula acá (con el resolver, sobre el plan completo) y
+// queda fijo: si luego se reordena una cola o se edita el bloque, el
+// historial no cambia. Devuelve info para que el cliente (SafeActionButton)
+// decida un toast de felicitación/racha — undefined al desmarcar (no hay
+// nada que festejar). Lanza "El bloque no aplica ese día" si `date` no
+// resuelve ninguna fecha válida — el cliente lo atrapa y lo muestra como
+// toast, no tumba la página.
+export async function applyBlockCheck(
+  userId: string,
+  blockId: string,
+  date: string,
+  status: string,
+  note: string | null,
+): Promise<SetCheckResult | undefined> {
   const block = await requireOwnedBlock(blockId, userId);
 
   const ctx = await loadPlanContextForUser(userId);
@@ -743,4 +756,84 @@ export async function removePlanBlock(input: { blockId: string }) {
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard");
+}
+
+// Sube la cadena activities.parent_id hasta el ancestro de primer nivel
+// (el único que puede estar enlazado en plan_block_activities) — máximo 3
+// niveles, así que 2 saltos alcanzan, pero se deja margen.
+async function findTopAncestorId(activityId: string): Promise<string> {
+  let current = activityId;
+  for (let i = 0; i < 5; i++) {
+    const [row] = await db.select({ parentId: activities.parentId }).from(activities).where(eq(activities.id, current));
+    if (!row?.parentId) return current;
+    current = row.parentId;
+  }
+  return current;
+}
+
+// done de una activity ese día = tiene su propio log, O (tiene hijos
+// activos Y todos ellos están done) — misma regla recursiva que
+// lib/plan/sub-habits.ts (acá se recalcula con queries propias porque solo
+// hace falta para UNA rama, no para armar el árbol completo de un bloque).
+async function isActivityDoneOnDate(userId: string, activityId: string, date: string): Promise<boolean> {
+  const [log] = await db
+    .select({ id: activityLogs.id })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, activityId), eq(activityLogs.date, date)));
+  if (log) return true;
+
+  const children = await db
+    .select({ id: activities.id })
+    .from(activities)
+    .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
+  if (children.length === 0) return false;
+
+  const results = await Promise.all(children.map((c) => isActivityDoneOnDate(userId, c.id, date)));
+  return results.every(Boolean);
+}
+
+// Si todos los hábitos PRINCIPALES de primer nivel de un bloque (los que
+// no son is_optional) quedaron done, el bloque se marca done de verdad
+// (mismo camino que un click manual — cuenta para racha/mínimos). Si deja
+// de estarlo, se desmarca — salvo que esté "skipped" (un salto manual no
+// se pisa). Bloques sin hábitos enlazados, o solo con secundarios, no se
+// tocan — siguen siendo 100% manuales, como hoy.
+async function syncOneBlock(userId: string, blockId: string, date: string) {
+  const level1 = await db
+    .select({ id: activities.id, isOptional: activities.isOptional })
+    .from(planBlockActivities)
+    .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
+    .where(and(eq(planBlockActivities.blockId, blockId), eq(activities.isActive, true)));
+  const principals = level1.filter((a) => !a.isOptional);
+  if (principals.length === 0) return;
+
+  const doneFlags = await Promise.all(principals.map((a) => isActivityDoneOnDate(userId, a.id, date)));
+  const allDone = doneFlags.every(Boolean);
+
+  const yesterday = addDaysISO(date, -1);
+  const [existing] = await db
+    .select({ status: planChecks.status })
+    .from(planChecks)
+    .where(and(eq(planChecks.blockId, blockId), inArray(planChecks.date, [date, yesterday])));
+  if (existing?.status === "skipped") return;
+
+  if (allDone && existing?.status !== "done") {
+    await applyBlockCheck(userId, blockId, date, "done", null);
+  } else if (!allDone && existing?.status === "done") {
+    await applyBlockCheck(userId, blockId, date, "", null);
+  }
+}
+
+// Punto de entrada desde toggleLogToday: una activity cualquiera (de
+// cualquier nivel) puede hacer que el/los bloque(s) que enlazan su
+// ancestro de primer nivel pasen a estar (o dejen de estar) done.
+export async function syncBlockForActivity(userId: string, activityId: string, date: string): Promise<void> {
+  const topId = await findTopAncestorId(activityId);
+  const links = await db
+    .select({ blockId: planBlockActivities.blockId })
+    .from(planBlockActivities)
+    .where(eq(planBlockActivities.activityId, topId));
+  for (const { blockId } of links) {
+    await syncOneBlock(userId, blockId, date);
+  }
 }

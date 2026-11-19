@@ -281,6 +281,13 @@
       "when": 1793295422305,
       "tag": "0039_plan_queue_cursors",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795053481680,
+      "tag": "0040_aromatic_exodus",
+      "breakpoints": true
     }
   ]
 }

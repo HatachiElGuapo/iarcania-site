@@ -9,6 +9,7 @@ import {
   timestamp,
   index,
   check,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./auth";
@@ -38,6 +39,14 @@ export const activities = pgTable(
     horaSugerida: text("hora_sugerida"),
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
+    // Árbol de hábitos anidados (hasta 3 niveles): null = de primer nivel,
+    // enlazado directo en plan_block_activities. Un hijo nunca se enlaza
+    // ahí — se descubre subiendo esta cadena. Cascada: borrar el padre
+    // borra toda su descendencia.
+    parentId: uuid("parent_id").references((): AnyPgColumn => activities.id, { onDelete: "cascade" }),
+    // Secundario — no cuenta para que el bloque que lo enlaza quede "done"
+    // automáticamente (ver app/dashboard/plan/actions.ts, syncOneBlock).
+    isOptional: boolean("is_optional").notNull().default(false),
     // Contenido persistente del hábito — distinto de activity_logs.notes
     // (la nota de un día puntual, "qué hiciste hoy"). Este es un texto que
     // se va afinando con el tiempo, sin fecha — ej. el guion de la rutina
@@ -54,6 +63,7 @@ export const activities = pgTable(
   },
   (t) => ({
     userIdx: index("activities_user_idx").on(t.userId),
+    parentIdx: index("activities_parent_idx").on(t.parentId),
     frequencyCheck: check(
       "activities_frequency_chk",
       sql`${t.frequency} IN ('diaria','semanal','mensual','unica','recurrente','trabajo')`,

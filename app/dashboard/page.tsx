@@ -1,4 +1,4 @@
-import { and, eq, lt, ne, gte, lte, gt } from "drizzle-orm";
+import { and, eq, isNull, lt, ne, gte, lte, gt } from "drizzle-orm";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
@@ -134,7 +134,14 @@ export default async function RutinasPage({
     db
       .select({ id: activities.id, name: activities.name, horaSugerida: activities.horaSugerida })
       .from(activities)
-      .where(and(eq(activities.userId, userId), eq(activities.isActive, true), eq(activities.frequency, "diaria"))),
+      .where(
+        and(
+          eq(activities.userId, userId),
+          eq(activities.isActive, true),
+          eq(activities.frequency, "diaria"),
+          isNull(activities.parentId),
+        ),
+      ),
     db
       .select({ activityId: activityLogs.activityId, date: activityLogs.date })
       .from(activityLogs)

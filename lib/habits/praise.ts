@@ -43,7 +43,18 @@ function pickRandom(pool: string[]): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-export function pickHabitPraise(result: { isPrincipal: boolean; allPrincipalDone: boolean }): string {
+export function pickHabitPraise(result: {
+  isPrincipal: boolean;
+  allPrincipalDone: boolean;
+  hasParent?: boolean;
+  parentJustCompleted?: boolean;
+}): string {
+  // Un hijo (tiene parent_id) siempre es un toast corto — salvo que con
+  // ESE click haya completado a su padre, ahí se festeja como un hábito
+  // (ver app/dashboard/habitos/actions.ts, toggleLogToday).
+  if (result.hasParent) {
+    return result.parentJustCompleted ? pickRandom(PRINCIPAL_PHRASES) : pickRandom(GENERIC_PHRASES);
+  }
   if (result.allPrincipalDone) return pickRandom(ALL_DONE_PHRASES);
   return pickRandom(result.isPrincipal ? PRINCIPAL_PHRASES : GENERIC_PHRASES);
 }

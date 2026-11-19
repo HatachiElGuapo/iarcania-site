@@ -3,8 +3,8 @@
 import type { AgendaEvent } from "@/lib/agenda/day-events";
 import { fmtTime } from "@/lib/agenda/time";
 import { primaryActionFor } from "@/lib/plan/primary-action";
-import { toggleLogToday } from "./habitos/actions";
 import { PlanBlockMenu } from "./plan/block-menu";
+import { SubHabitsDropdown } from "./plan/block-check";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
@@ -19,7 +19,6 @@ import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pi
 export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const primary = primaryActionFor(ev, date);
   const toast = useToast();
-  const hasSubHabits = !!ev.habitChecks && ev.habitChecks.length > 0;
 
   function handlePlanResult(result: unknown) {
     if (!result || typeof result !== "object") return;
@@ -107,32 +106,10 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
           </a>
         )}
       </div>
-      {hasSubHabits && (
-        <details className="ml-9">
-          <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">
-            Subhábitos ({ev.habitChecks!.filter((h) => h.done).length}/{ev.habitChecks!.length})
-          </summary>
-          <div className="mt-1 flex flex-col gap-1 pl-1">
-            {ev.habitChecks!.map((h) => (
-              <SafeActionButton
-                key={h.activityId}
-                action={toggleLogToday}
-                fields={{ activityId: h.activityId, date }}
-                onResult={handleHabitResult}
-                className="focus-ring flex items-center gap-2 rounded-ui py-1 text-left transition-colors duration-120 hover:bg-surface-2"
-              >
-                <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-ui border text-[10px] ${
-                    h.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
-                  }`}
-                >
-                  ✓
-                </span>
-                <span className={`text-[12px] ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>{h.name}</span>
-              </SafeActionButton>
-            ))}
-          </div>
-        </details>
+      {ev.habitChecks && ev.habitChecks.length > 0 && (
+        <div className="ml-9">
+          <SubHabitsDropdown date={date} subHabits={ev.habitChecks} />
+        </div>
       )}
     </div>
   );

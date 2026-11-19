@@ -5,14 +5,13 @@ import { SafeActionButton } from "../safe-action-button";
 import { setCheck, type SetCheckResult } from "./actions";
 import { toggleLogToday } from "../habitos/actions";
 import { pickHabitPraise } from "@/lib/habits/praise";
+import type { HabitNode } from "@/lib/plan/sub-habits";
 import {
   pickBlockPraise,
   streakMilestoneCrossed,
   pickStreakMilestoneMessage,
   pickProtectorGainedMessage,
 } from "@/lib/plan/praise";
-
-export type SubHabit = { activityId: string; name: string; done: boolean };
 
 function usePlanToast() {
   const toast = useToast();
@@ -81,10 +80,59 @@ export function PlanSkipButton({
   );
 }
 
-// Desplegable de subhábitos — todos menos el principal (el que comparte
-// nombre con el bloque). Cada uno se marca aparte con toggleLogToday, sin
-// afectar el check del bloque.
-export function SubHabitsDropdown({ date, subHabits }: { date: string; subHabits: SubHabit[] }) {
+// Una fila del árbol — su propio checkbox (toggleLogToday sobre SU
+// activityId, nunca cascada a los hijos) y, si tiene hijos, su propio
+// desplegable anidado (hasta el 3er nivel).
+function HabitRow({
+  date,
+  node,
+  onHabitResult,
+}: {
+  date: string;
+  node: HabitNode;
+  onHabitResult: (result: unknown) => void;
+}) {
+  const hasChildren = node.children.length > 0;
+  return (
+    <div className="flex flex-col gap-1">
+      <SafeActionButton
+        action={toggleLogToday}
+        fields={{ activityId: node.activityId, date }}
+        onResult={onHabitResult}
+        className="focus-ring flex items-center gap-2 rounded-ui py-1 text-left transition-colors duration-120 hover:bg-surface-2"
+      >
+        <span
+          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-ui border text-[10px] ${
+            node.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+          }`}
+        >
+          ✓
+        </span>
+        <span className={`text-[12px] ${node.done ? "text-ink-dim line-through" : "text-ink"}`}>
+          {node.name}
+          {node.isOptional && <span className="ml-1 text-ink-dim">· secundario</span>}
+        </span>
+      </SafeActionButton>
+      {hasChildren && (
+        <details className="ml-5">
+          <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">
+            {node.children.filter((c) => c.done).length}/{node.children.length}
+          </summary>
+          <div className="mt-1 flex flex-col gap-1">
+            {node.children.map((c) => (
+              <HabitRow key={c.activityId} date={date} node={c} onHabitResult={onHabitResult} />
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+// Desplegable de hábitos de primer nivel de un bloque — TODOS, incluido el
+// que comparte nombre con el bloque. Cada uno (y sus hijos/nietos) se
+// marca aparte con toggleLogToday, sin afectar el check del bloque.
+export function SubHabitsDropdown({ date, subHabits }: { date: string; subHabits: HabitNode[] }) {
   const toast = useToast();
   if (subHabits.length === 0) return null;
 
@@ -98,26 +146,11 @@ export function SubHabitsDropdown({ date, subHabits }: { date: string; subHabits
   return (
     <details className="mt-1.5">
       <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">
-        Subhábitos ({subHabits.filter((h) => h.done).length}/{subHabits.length})
+        Hábitos ({subHabits.filter((h) => h.done).length}/{subHabits.length})
       </summary>
       <div className="mt-1 flex flex-col gap-1">
         {subHabits.map((h) => (
-          <SafeActionButton
-            key={h.activityId}
-            action={toggleLogToday}
-            fields={{ activityId: h.activityId, date }}
-            onResult={onHabitResult}
-            className="focus-ring flex items-center gap-2 rounded-ui py-1 text-left transition-colors duration-120 hover:bg-surface-2"
-          >
-            <span
-              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-ui border text-[10px] ${
-                h.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
-              }`}
-            >
-              ✓
-            </span>
-            <span className={`text-[12px] ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>{h.name}</span>
-          </SafeActionButton>
+          <HabitRow key={h.activityId} date={date} node={h} onHabitResult={onHabitResult} />
         ))}
       </div>
     </details>

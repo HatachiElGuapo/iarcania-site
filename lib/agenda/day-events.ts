@@ -3,18 +3,19 @@
 // bloques de Plan — en un solo lugar. Usado por /dashboard/agenda (la
 // grilla) y por /dashboard (Rutinas, como lista mezclada por hora): antes
 // cada página tenía su propia copia de esta lógica y se desincronizaban.
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { agendaItems } from "@/lib/db/schema/agenda";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { tasks } from "@/lib/db/schema/trabajo";
 import { appointments } from "@/lib/db/schema/citas";
-import { planBlocks, planBlockActivities, planChecks } from "@/lib/db/schema/plan";
+import { planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
 import { catInfo } from "@/components/ui/category";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
+import { loadHabitTreesByBlock, type HabitNode } from "@/lib/plan/sub-habits";
 import { addDaysISO, todayISO } from "@/lib/date/bogota";
 
 export type AgendaEvent = {
@@ -36,11 +37,11 @@ export type AgendaEvent = {
   done: boolean;
   autoTime: boolean; // hábito sin hora fija
   editHref: string | null;
-  // Solo bloques de Plan con MÁS de un hábito enlazado: los subhábitos
-  // (todos menos el principal, el que comparte nombre con el bloque) — se
-  // muestran en un desplegable, cada uno con su propio toggle
-  // (toggleLogToday), independiente del check del bloque principal.
-  habitChecks?: { activityId: string; name: string; done: boolean }[];
+  // Árbol de hábitos de primer nivel enlazados al bloque (y sus hijos/
+  // nietos) — TODOS, incluido el que comparte nombre con el bloque. Cada
+  // uno se marca aparte con su propio toggle (toggleLogToday), independiente
+  // del check del bloque principal.
+  habitChecks?: HabitNode[];
   // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
   // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
   endLabel?: string;
@@ -118,7 +119,14 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
     db
       .select({ id: activities.id, name: activities.name, horaSugerida: activities.horaSugerida })
       .from(activities)
-      .where(and(eq(activities.userId, userId), eq(activities.isActive, true), eq(activities.frequency, "diaria"))),
+      .where(
+        and(
+          eq(activities.userId, userId),
+          eq(activities.isActive, true),
+          eq(activities.frequency, "diaria"),
+          isNull(activities.parentId),
+        ),
+      ),
     db
       .select({ activityId: activityLogs.activityId })
       .from(activityLogs)
@@ -157,40 +165,22 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
       (b) => !b.endTime || b.endTime < b.startTime,
     );
 
-    const linkRows = await db
-      .select({ blockId: planBlockActivities.blockId, activityId: planBlockActivities.activityId, name: activities.name })
-      .from(planBlockActivities)
-      .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
-      .innerJoin(planBlocks, eq(planBlocks.id, planBlockActivities.blockId))
-      .where(eq(planBlocks.planId, planPerson.planId));
-    linkedActivityIds = new Set(linkRows.map((r) => r.activityId));
-    const habitsByBlockId = new Map<string, { activityId: string; name: string }[]>();
-    for (const r of linkRows) {
-      const list = habitsByBlockId.get(r.blockId) ?? [];
-      list.push({ activityId: r.activityId, name: r.name });
-      habitsByBlockId.set(r.blockId, list);
-    }
-    // Solo los subhábitos (todos menos el que comparte nombre con el
-    // bloque, el principal) — ese se marca aparte, con el check del bloque
-    // (setCheck), no con este toggle.
-    const buildHabitChecks = (blockId: string, blockText: string, doneSet: Set<string>) =>
-      (habitsByBlockId.get(blockId) ?? [])
-        .filter((h) => h.name !== blockText)
-        .map((h) => ({ activityId: h.activityId, name: h.name, done: doneSet.has(h.activityId) }));
+    // Árbol de hábitos por bloque (hasta 3 niveles) — uno resuelto para HOY
+    // y otro para AYER (los bloques "carry" que cruzan medianoche necesitan
+    // el estado de done de ayer, no el de hoy).
+    const [habitTreesToday, habitTreesYesterday] = await Promise.all([
+      loadHabitTreesByBlock(planPerson.planId, userId, date),
+      loadHabitTreesByBlock(planPerson.planId, userId, yesterday),
+    ]);
+    linkedActivityIds = new Set(
+      [...habitTreesToday.values()].flatMap((nodes) => nodes.map((n) => n.activityId)),
+    );
 
     const planChecksRows = await db
       .select({ blockId: planChecks.blockId, date: planChecks.date, status: planChecks.status })
       .from(planChecks)
       .where(and(eq(planChecks.planId, planPerson.planId), inArray(planChecks.date, [date, yesterday])));
     const planCheckByKey = new Map(planChecksRows.map((c) => [`${c.date}:${c.blockId}`, c.status]));
-
-    const yesterdayLogs = linkedActivityIds.size
-      ? await db
-          .select({ activityId: activityLogs.activityId })
-          .from(activityLogs)
-          .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, yesterday)))
-      : [];
-    const yesterdayDoneIds = new Set(yesterdayLogs.map((l) => l.activityId));
 
     const firstBlockStart = todaysBlocks.length ? Math.min(...todaysBlocks.map((b) => toMinutes(b.startTime))) : DAY_END;
 
@@ -215,7 +205,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         done: planCheckByKey.get(`${yesterday}:${b.blockId}`) === "done",
         autoTime: false,
         editHref: `/dashboard/plan?date=${yesterday}`,
-        habitChecks: buildHabitChecks(b.blockId, b.text, yesterdayDoneIds),
+        habitChecks: habitTreesYesterday.get(b.blockId) ?? [],
       };
     });
 
@@ -238,7 +228,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         done: planCheckByKey.get(`${date}:${b.blockId}`) === "done",
         autoTime: false,
         editHref: `/dashboard/plan?date=${date}`,
-        habitChecks: buildHabitChecks(b.blockId, b.text, doneHabitIds),
+        habitChecks: habitTreesToday.get(b.blockId) ?? [],
         endLabel: b.endTime ? undefined : "24:00",
         projected: b.isProjected,
       };

@@ -1,19 +1,19 @@
-import { and, eq, gte, lte, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { planChecks, plans, planBlocks, planBlockActivities } from "@/lib/db/schema/plan";
-import { activities, activityLogs } from "@/lib/db/schema/habitos";
+import { planChecks, plans } from "@/lib/db/schema/plan";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan, type ResolvedBlock } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO, diffDaysISO, nowHHMM } from "@/lib/date/bogota";
 import { getPendingMinimumsForPerson } from "@/lib/plan/pending";
+import { loadHabitTreesByBlock } from "@/lib/plan/sub-habits";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
 import { MoveBlockButtons } from "./move-to-tomorrow-button";
 import { ResetPlanStartButton } from "./reset-plan-start-button";
-import { PlanCheckButton, PlanSkipButton, SubHabitsDropdown, type SubHabit } from "./block-check";
+import { PlanCheckButton, PlanSkipButton, SubHabitsDropdown } from "./block-check";
 import { NoteForm } from "./note-form";
 
 function capitalize(s: string) {
@@ -99,36 +99,10 @@ export default async function PlanPage({
     ctx.overrides.filter((o) => o.date === date).map((o) => [o.blockId, o]),
   );
 
-  // Subhábitos por bloque: todos los hábitos enlazados (plan_block_
-  // activities) menos el que comparte nombre con el bloque (el principal,
-  // que se marca con el check del bloque, no acá). Solo se muestran con
-  // más de una actividad enlazada en total.
-  const linkRows = await db
-    .select({ blockId: planBlockActivities.blockId, activityId: planBlockActivities.activityId, name: activities.name })
-    .from(planBlockActivities)
-    .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
-    .innerJoin(planBlocks, eq(planBlocks.id, planBlockActivities.blockId))
-    .where(eq(planBlocks.planId, ctx.plan.id));
-  const linksByBlockId = new Map<string, { activityId: string; name: string }[]>();
-  for (const r of linkRows) {
-    const list = linksByBlockId.get(r.blockId) ?? [];
-    list.push({ activityId: r.activityId, name: r.name });
-    linksByBlockId.set(r.blockId, list);
-  }
-  const linkedActivityIds = [...new Set(linkRows.map((r) => r.activityId))];
-  const todaysLogs = linkedActivityIds.length
-    ? await db
-        .select({ activityId: activityLogs.activityId })
-        .from(activityLogs)
-        .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, linkedActivityIds)))
-    : [];
-  const doneActivityIds = new Set(todaysLogs.map((l) => l.activityId));
-
-  function subHabitsFor(blockId: string, blockText: string): SubHabit[] {
-    return (linksByBlockId.get(blockId) ?? [])
-      .filter((l) => l.name !== blockText)
-      .map((l) => ({ activityId: l.activityId, name: l.name, done: doneActivityIds.has(l.activityId) }));
-  }
+  // Árbol de hábitos por bloque (hasta 3 niveles) — TODOS los de primer
+  // nivel, incluido el que comparte nombre con el bloque (ver
+  // lib/plan/sub-habits.ts).
+  const habitTreesByBlock = await loadHabitTreesByBlock(ctx.plan.id, userId, date);
 
   // Móvil ("Rutinas"): solo la columna del propio usuario — sin la grilla
   // familiar completa. `ctx.people` ya viene cargado para el día, así que
@@ -320,7 +294,7 @@ export default async function PlanPage({
                 const check = checkByBlockId.get(b.blockId);
                 const kind = kindInfo(b.kind);
                 const isDone = check?.status === "done";
-                const subHabits = subHabitsFor(b.blockId, b.text);
+                const subHabits = habitTreesByBlock.get(b.blockId) ?? [];
                 return (
                   <div key={b.blockId} className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
@@ -373,7 +347,7 @@ export default async function PlanPage({
                   const kind = kindInfo(b.kind);
                   const isDone = check?.status === "done";
                   const isSkipped = check?.status === "skipped";
-                  const subHabits = subHabitsFor(b.blockId, b.text);
+                  const subHabits = habitTreesByBlock.get(b.blockId) ?? [];
                   return (
                     <div key={b.blockId} className="px-3.5 py-2.5">
                       <div className="flex items-start gap-2">
