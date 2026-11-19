@@ -8,7 +8,6 @@ import { SubHabitsDropdown } from "./plan/block-check";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
-import { pickHabitPraise } from "@/lib/habits/praise";
 import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pickProtectorGainedMessage } from "@/lib/plan/praise";
 
 // Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
@@ -44,9 +43,8 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
 
   function handleHabitResult(result: unknown) {
     if (!result || typeof result !== "object") return;
-    const r = result as { done: boolean; isPrincipal: boolean; allPrincipalDone: boolean };
-    if (!r.done) return;
-    toast.show({ message: pickHabitPraise(r), tone: "success" });
+    const r = result as { done: boolean; toastMessage: string | null };
+    if (r.toastMessage) toast.show({ message: r.toastMessage, tone: "success" });
   }
 
   const content = (

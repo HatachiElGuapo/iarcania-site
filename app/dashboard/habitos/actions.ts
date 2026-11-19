@@ -5,7 +5,8 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { activities, activityLogs, activityQueueItems } from "@/lib/db/schema/habitos";
-import { syncBlockForActivity } from "@/app/dashboard/plan/actions";
+import { applyHabitToggle } from "@/app/dashboard/plan/actions";
+import { pickHabitPraise } from "@/lib/habits/praise";
 
 const FREQUENCIES = ["diaria", "semanal", "mensual", "unica", "recurrente", "trabajo"];
 
@@ -335,44 +336,23 @@ export async function deleteActivity(formData: FormData) {
 // contadores y nunca pasan por este toggle). `allPrincipalDone` solo se
 // calcula al marcar (no al desmarcar) y solo si el hábito es principal —
 // compara hábitos diarios activos vs. cuántos ya tienen log ese día.
-export async function toggleLogToday(formData: FormData): Promise<{
-  done: boolean;
-  isPrincipal: boolean;
-  allPrincipalDone: boolean;
-  hasParent: boolean;
-  parentJustCompleted: boolean;
-}> {
+// Devuelve un solo `toastMessage` ya resuelto — el del nivel más alto que
+// se completó con ESTE click (hito de racha de bloque > protector > bloque
+// cumplido > "día cumplido" dashboard-wide > padre completado > hábito
+// simple) — así la UI muestra un único toast, nunca dos por el mismo
+// click. `applyHabitToggle` hace TODA la escritura (el log del hábito, su
+// descendencia, y el/los bloque(s) que enlazan su ancestro de primer
+// nivel) en una sola transacción.
+export async function toggleLogToday(formData: FormData): Promise<{ done: boolean; toastMessage: string | null }> {
   const userId = await requireUserId();
   const activityId = String(formData.get("activityId") || "");
   const date = String(formData.get("date") || "");
 
-  const existing = await db
+  const [existing] = await db
     .select({ id: activityLogs.id })
     .from(activityLogs)
-    .where(
-      and(
-        eq(activityLogs.activityId, activityId),
-        eq(activityLogs.userId, userId),
-        eq(activityLogs.date, date),
-      ),
-    );
-
-  let done: boolean;
-  if (existing.length > 0) {
-    await db.delete(activityLogs).where(
-      and(
-        eq(activityLogs.activityId, activityId),
-        eq(activityLogs.userId, userId),
-        eq(activityLogs.date, date),
-      ),
-    );
-    done = false;
-  } else {
-    await db.insert(activityLogs).values({ userId, activityId, date });
-    done = true;
-  }
-
-  revalidateAll();
+    .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
+  const done = !existing;
 
   const [activity] = await db
     .select({ frequency: activities.frequency, parentId: activities.parentId })
@@ -380,6 +360,10 @@ export async function toggleLogToday(formData: FormData): Promise<{
     .where(and(eq(activities.id, activityId), eq(activities.userId, userId)));
   const isPrincipal = activity?.frequency === "diaria";
   const hasParent = !!activity?.parentId;
+
+  const cascade = await applyHabitToggle(userId, activityId, date, done);
+
+  revalidateAll();
 
   // "Día cumplido" es dashboard-wide — solo hábitos de primer nivel
   // (parent_id null) cuentan, un hijo nunca lo dispara (ver
@@ -412,40 +396,20 @@ export async function toggleLogToday(formData: FormData): Promise<{
     }
   }
 
-  // Toast de "padre completado": solo tiene sentido al marcar (no al
-  // desmarcar) un hijo cuyos hermanos (mismo parent_id) quedaron TODOS con
-  // log ese día.
-  let parentJustCompleted = false;
-  if (done && hasParent && activity?.parentId) {
-    const siblings = await db
-      .select({ id: activities.id })
-      .from(activities)
-      .where(and(eq(activities.parentId, activity.parentId), eq(activities.isActive, true)));
-    if (siblings.length > 0) {
-      const doneLogs = await db
-        .select({ activityId: activityLogs.activityId })
-        .from(activityLogs)
-        .where(
-          and(
-            eq(activityLogs.userId, userId),
-            eq(activityLogs.date, date),
-            inArray(activityLogs.activityId, siblings.map((s) => s.id)),
-          ),
-        );
-      parentJustCompleted = new Set(doneLogs.map((l) => l.activityId)).size === siblings.length;
+  let toastMessage: string | null = null;
+  if (done) {
+    if (cascade.blockToastMessage) {
+      toastMessage = cascade.blockToastMessage;
+    } else if (allPrincipalDone) {
+      toastMessage = pickHabitPraise({ isPrincipal: true, allPrincipalDone: true });
+    } else if (cascade.parentJustCompleted) {
+      toastMessage = pickHabitPraise({ isPrincipal, allPrincipalDone: false, hasParent: true, parentJustCompleted: true });
+    } else {
+      toastMessage = pickHabitPraise({ isPrincipal, allPrincipalDone: false, hasParent, parentJustCompleted: false });
     }
   }
 
-  // Efecto secundario: si esta activity (o su ancestro de primer nivel)
-  // está enlazada a un bloque de Plan, el bloque puede pasar a done/no-done
-  // solo. Nunca debe tumbar el toggle en sí — si falla, se registra y listo.
-  try {
-    await syncBlockForActivity(userId, activityId, date);
-  } catch (err) {
-    console.warn("toggleLogToday: no se pudo sincronizar el bloque de Plan", err);
-  }
-
-  return { done, isPrincipal, allPrincipalDone, hasParent, parentJustCompleted };
+  return { done, toastMessage };
 }
 
 // Contador (para "vicios" u otros hábitos frequency='recurrente'): cada

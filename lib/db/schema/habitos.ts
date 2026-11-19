@@ -44,8 +44,11 @@ export const activities = pgTable(
     // ahí — se descubre subiendo esta cadena. Cascada: borrar el padre
     // borra toda su descendencia.
     parentId: uuid("parent_id").references((): AnyPgColumn => activities.id, { onDelete: "cascade" }),
-    // Secundario — no cuenta para que el bloque que lo enlaza quede "done"
-    // automáticamente (ver app/dashboard/plan/actions.ts, syncOneBlock).
+    // Secundario — no hace falta que esté done para que el bloque que lo
+    // enlaza quede "done" solo con los PRINCIPALES (ver
+    // app/dashboard/plan/actions.ts, applyHabitToggle/applyBlockCheck); si
+    // además TODOS los de primer nivel —incluidos los secundarios— quedan
+    // done, el bloque también se marca done por esa otra vía.
     isOptional: boolean("is_optional").notNull().default(false),
     // Contenido persistente del hábito — distinto de activity_logs.notes
     // (la nota de un día puntual, "qué hiciste hoy"). Este es un texto que

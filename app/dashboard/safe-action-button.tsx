@@ -3,7 +3,6 @@
 import { type ReactNode, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast, type ToastInput } from "@/components/ui/toast";
-import { pickHabitPraise } from "@/lib/habits/praise";
 import {
   pickBlockPraise,
   streakMilestoneCrossed,
@@ -18,9 +17,9 @@ import {
 // etc.) que sí lo calculan explícito.
 function defaultOnResult(result: unknown, toast: { show: (t: ToastInput) => void }) {
   if (!result || typeof result !== "object") return;
-  if ("isPrincipal" in result) {
-    const r = result as { done: boolean; isPrincipal: boolean; allPrincipalDone: boolean };
-    if (r.done) toast.show({ message: pickHabitPraise(r), tone: "success" });
+  if ("toastMessage" in result) {
+    const r = result as { done: boolean; toastMessage: string | null };
+    if (r.toastMessage) toast.show({ message: r.toastMessage, tone: "success" });
     return;
   }
   if ("isMinimum" in result) {

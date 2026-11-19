@@ -21,6 +21,12 @@ import { tasks } from "@/lib/db/schema/trabajo";
 import { loadPlanContextForUser, toPlanData, findPlanPersonForUser } from "@/lib/plan/load";
 import { resolvePlan, type PlanData } from "@/lib/plan/resolve";
 import { getStreakForPerson } from "@/lib/plan/streak";
+import {
+  pickBlockPraise,
+  streakMilestoneCrossed,
+  pickStreakMilestoneMessage,
+  pickProtectorGainedMessage,
+} from "@/lib/plan/praise";
 import { addDaysISO, weekdayMon0, todayISO, nowHHMM } from "@/lib/date/bogota";
 
 async function requireUserId() {
@@ -134,37 +140,133 @@ export async function linkBlockScript(formData: FormData) {
   revalidatePath(`/dashboard/plan/bloque/${id}`);
 }
 
-// Un bloque de Plan puede tener uno o más hábitos enlazados
-// (plan_block_activities): el que comparte nombre con el bloque es el
-// hábito PRINCIPAL, los demás son subhábitos opcionales (se marcan aparte,
-// desde el desplegable — ver toggleLogToday). Marcar el bloque solo
-// sincroniza el log del principal (si hay uno con ese nombre); los
-// secundarios NO se auto-marcan — pedido explícito del usuario, para no
-// meter datos falsos de algo que no se hizo de verdad.
-async function syncLinkedHabitLogs(userId: string, blockId: string, blockText: string, date: string, done: boolean) {
-  const links = await db
-    .select({ activityId: planBlockActivities.activityId, name: activities.name })
+// Sube/baja el árbol de hábitos (activities.parent_id) DENTRO de una
+// transacción ya abierta — usados tanto por applyBlockCheck (marcar el
+// bloque cascada hacia TODOS sus hábitos) como por applyHabitToggle
+// (marcar un hábito cascada hacia sus descendientes y hacia el/los
+// bloque(s) que enlazan su ancestro de primer nivel).
+async function collectDescendantIdsTx(tx: DbTx, activityId: string): Promise<string[]> {
+  const children = await tx
+    .select({ id: activities.id })
+    .from(activities)
+    .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
+  let ids = children.map((c) => c.id);
+  for (const c of children) ids = ids.concat(await collectDescendantIdsTx(tx, c.id));
+  return ids;
+}
+
+// done de una activity ese día = tiene su propio log, O (tiene hijos
+// activos Y todos ellos están done) — misma regla recursiva que
+// lib/plan/sub-habits.ts, pero leyendo DENTRO de la transacción (así ve
+// los logs que la misma transacción ya escribió, no una copia vieja).
+async function isActivityDoneOnDateTx(tx: DbTx, userId: string, activityId: string, date: string): Promise<boolean> {
+  const [log] = await tx
+    .select({ id: activityLogs.id })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, activityId), eq(activityLogs.date, date)));
+  if (log) return true;
+
+  const children = await tx
+    .select({ id: activities.id })
+    .from(activities)
+    .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
+  if (children.length === 0) return false;
+
+  const results = await Promise.all(children.map((c) => isActivityDoneOnDateTx(tx, userId, c.id, date)));
+  return results.every(Boolean);
+}
+
+async function setLogsForIdsTx(tx: DbTx, userId: string, ids: string[], date: string, done: boolean) {
+  if (ids.length === 0) return;
+  if (done) {
+    const existing = await tx
+      .select({ activityId: activityLogs.activityId })
+      .from(activityLogs)
+      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, ids)));
+    const existingSet = new Set(existing.map((e) => e.activityId));
+    const toInsert = ids.filter((id) => !existingSet.has(id));
+    if (toInsert.length) await tx.insert(activityLogs).values(toInsert.map((id) => ({ userId, activityId: id, date })));
+  } else {
+    await tx
+      .delete(activityLogs)
+      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, ids)));
+  }
+}
+
+// Cascada hacia abajo desde el bloque: TODOS sus hábitos de primer nivel
+// (incluidos los secundarios) y toda su descendencia — pedido explícito:
+// marcar/desmarcar el bloque marca/desmarca todo lo que enlaza.
+async function cascadeBlockHabitsTx(tx: DbTx, userId: string, blockId: string, date: string, done: boolean) {
+  const level1 = await tx
+    .select({ id: activities.id })
     .from(planBlockActivities)
     .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
-    .where(eq(planBlockActivities.blockId, blockId));
-  const principal = links.find((l) => l.name === blockText);
-  if (!principal) return;
-  const activityId = principal.activityId;
+    .where(and(eq(planBlockActivities.blockId, blockId), eq(activities.isActive, true)));
+  let ids = level1.map((a) => a.id);
+  for (const a of level1) ids = ids.concat(await collectDescendantIdsTx(tx, a.id));
+  await setLogsForIdsTx(tx, userId, ids, date, done);
+}
 
-  if (!done) {
-    await db
-      .delete(activityLogs)
-      .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), eq(activityLogs.activityId, activityId)));
+// Escribe/borra el plan_check de un bloque dentro de una transacción ya
+// abierta — lógica compartida entre el click manual (applyBlockCheck) y el
+// auto-check/auto-desmarque que dispara el árbol de hábitos
+// (applyHabitToggle). status vacío = quita la marca.
+async function writeBlockCheckTx(
+  tx: DbTx,
+  block: { planId: string; personId: string },
+  blockId: string,
+  date: string,
+  status: "" | "done" | "skipped",
+  note: string | null,
+  resolvedText: string,
+) {
+  const [existed] = await tx
+    .select({ blockId: planChecks.blockId })
+    .from(planChecks)
+    .where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+
+  if (!status) {
+    await tx.delete(planChecks).where(and(eq(planChecks.date, date), eq(planChecks.blockId, blockId)));
+    if (existed) await shiftQueueCursor(tx, blockId, date, -1);
     return;
   }
 
-  const [existing] = await db
-    .select({ activityId: activityLogs.activityId })
-    .from(activityLogs)
-    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), eq(activityLogs.activityId, activityId)));
-  if (!existing) {
-    await db.insert(activityLogs).values({ userId, activityId, date });
+  await tx
+    .insert(planChecks)
+    .values({ planId: block.planId, date, blockId, personId: block.personId, status, resolvedText, note })
+    .onConflictDoUpdate({
+      target: [planChecks.date, planChecks.blockId],
+      set: { status, resolvedText, note, checkedAt: new Date() },
+    });
+  if (!existed) await shiftQueueCursor(tx, blockId, date, 1);
+}
+
+// "Todos los mínimos del día de esta persona están done" — para el toast
+// de "día cumplido" de Plan. Se usa tanto al marcar el bloque a mano como
+// al completarlo solo desde el árbol de hábitos.
+async function allMinimumsDoneForPerson(planData: PlanData, personId: string, date: string): Promise<boolean> {
+  const [day] = resolvePlan(planData, date, date);
+  const minimums = day?.blocksByPerson[personId]?.filter((b) => b.isMinimum) ?? [];
+  if (minimums.length === 0) return false;
+  const doneChecks = await db
+    .select({ blockId: planChecks.blockId })
+    .from(planChecks)
+    .where(and(eq(planChecks.date, date), eq(planChecks.personId, personId), eq(planChecks.status, "done")));
+  const doneIds = new Set(doneChecks.map((c) => c.blockId));
+  return minimums.every((b) => doneIds.has(b.blockId));
+}
+
+// Sube la cadena activities.parent_id hasta el ancestro de primer nivel
+// (el único que puede estar enlazado en plan_block_activities) — máximo 3
+// niveles, así que 2 saltos alcanzan, pero se deja margen.
+async function findTopAncestorId(activityId: string): Promise<string> {
+  let current = activityId;
+  for (let i = 0; i < 5; i++) {
+    const [row] = await db.select({ parentId: activities.parentId }).from(activities).where(eq(activities.id, current));
+    if (!row?.parentId) return current;
+    current = row.parentId;
   }
+  return current;
 }
 
 // La cola solo avanza cuando SE MARCA una actividad (hecho o saltado) —
@@ -250,9 +352,9 @@ export type SetCheckResult = {
 
 // Marca/desmarca un bloque para UN día — status vacío = quita la marca.
 // `setCheck` es el wrapper que recibe el FormData de un <form>/
-// SafeActionButton; `applyBlockCheck` es la lógica de verdad, reusable
-// sin pasar por FormData (la llama syncOneBlock cuando el árbol de hábitos
-// del bloque completa solo — ver más abajo).
+// SafeActionButton; `applyBlockCheck` es la lógica de verdad, reusable sin
+// pasar por FormData (la llama applyHabitToggle cuando el árbol de hábitos
+// completa o descompleta el bloque solo — ver más abajo).
 export async function setCheck(formData: FormData): Promise<SetCheckResult | undefined> {
   const userId = await requireUserId();
   const date = String(formData.get("date") || "");
@@ -288,14 +390,9 @@ export async function applyBlockCheck(
 
   if (!status) {
     await db.transaction(async (tx) => {
-      const [existed] = await tx
-        .select({ blockId: planChecks.blockId })
-        .from(planChecks)
-        .where(and(eq(planChecks.date, effectiveDate), eq(planChecks.blockId, blockId)));
-      await tx.delete(planChecks).where(and(eq(planChecks.date, effectiveDate), eq(planChecks.blockId, blockId)));
-      if (existed) await shiftQueueCursor(tx, blockId, effectiveDate, -1);
+      await writeBlockCheckTx(tx, block, blockId, effectiveDate, "", null, "");
+      await cascadeBlockHabitsTx(tx, userId, blockId, effectiveDate, false);
     });
-    await syncLinkedHabitLogs(userId, blockId, block.text, effectiveDate, false);
     revalidatePath("/dashboard/plan");
     revalidatePath("/dashboard/plan/historial");
     revalidatePath("/dashboard/agenda");
@@ -313,30 +410,12 @@ export async function applyBlockCheck(
     : { streak: 0, protectors: 0 };
 
   await db.transaction(async (tx) => {
-    const [existed] = await tx
-      .select({ blockId: planChecks.blockId })
-      .from(planChecks)
-      .where(and(eq(planChecks.date, effectiveDate), eq(planChecks.blockId, blockId)));
-
-    await tx
-      .insert(planChecks)
-      .values({
-        planId: block.planId,
-        date: effectiveDate,
-        blockId,
-        personId: block.personId,
-        status,
-        resolvedText: resolved.text,
-        note,
-      })
-      .onConflictDoUpdate({
-        target: [planChecks.date, planChecks.blockId],
-        set: { status, resolvedText: resolved.text, note, checkedAt: new Date() },
-      });
-
-    if (!existed) await shiftQueueCursor(tx, blockId, effectiveDate, 1);
+    await writeBlockCheckTx(tx, block, blockId, effectiveDate, status as "done" | "skipped", note, resolved.text);
+    // Marcar el bloque cascada hacia TODOS sus hábitos (principales y
+    // secundarios) y su descendencia — saltar no marca nada, saltar no es
+    // "hacerlo".
+    if (status === "done") await cascadeBlockHabitsTx(tx, userId, blockId, effectiveDate, true);
   });
-  await syncLinkedHabitLogs(userId, blockId, block.text, effectiveDate, status === "done");
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/plan/historial");
@@ -355,16 +434,7 @@ export async function applyBlockCheck(
     };
   }
 
-  const allMinimums = day?.blocksByPerson[block.personId]?.filter((b) => b.isMinimum) ?? [];
-  let allMinimumsDone = false;
-  if (block.isMinimum && allMinimums.length > 0) {
-    const doneChecks = await db
-      .select({ blockId: planChecks.blockId })
-      .from(planChecks)
-      .where(and(eq(planChecks.date, effectiveDate), eq(planChecks.personId, block.personId), eq(planChecks.status, "done")));
-    const doneIds = new Set(doneChecks.map((c) => c.blockId));
-    allMinimumsDone = allMinimums.every((b) => doneIds.has(b.blockId));
-  }
+  const allMinimumsDone = block.isMinimum ? await allMinimumsDoneForPerson(planData, block.personId, effectiveDate) : false;
 
   const streakAfterResult = block.isMinimum
     ? await getStreakForPerson(ctx, block.personId, effectiveDate)
@@ -758,82 +828,153 @@ export async function removePlanBlock(input: { blockId: string }) {
   revalidatePath("/dashboard");
 }
 
-// Sube la cadena activities.parent_id hasta el ancestro de primer nivel
-// (el único que puede estar enlazado en plan_block_activities) — máximo 3
-// niveles, así que 2 saltos alcanzan, pero se deja margen.
-async function findTopAncestorId(activityId: string): Promise<string> {
-  let current = activityId;
-  for (let i = 0; i < 5; i++) {
-    const [row] = await db.select({ parentId: activities.parentId }).from(activities).where(eq(activities.id, current));
-    if (!row?.parentId) return current;
-    current = row.parentId;
-  }
-  return current;
-}
+// Resultado de marcar/desmarcar UN hábito — para que toggleLogToday
+// (habitos/actions.ts) elija UN solo toast, el del nivel más alto que se
+// completó con este click: si un bloque quedó done por esta cascada,
+// `blockToastMessage` ya trae el mensaje correcto (hito de racha >
+// protector > bloque cumplido) con más prioridad que festejar solo el
+// hábito o su padre.
+export type HabitCascadeResult = {
+  parentJustCompleted: boolean;
+  blockToastMessage: string | null;
+};
 
-// done de una activity ese día = tiene su propio log, O (tiene hijos
-// activos Y todos ellos están done) — misma regla recursiva que
-// lib/plan/sub-habits.ts (acá se recalcula con queries propias porque solo
-// hace falta para UNA rama, no para armar el árbol completo de un bloque).
-async function isActivityDoneOnDate(userId: string, activityId: string, date: string): Promise<boolean> {
-  const [log] = await db
-    .select({ id: activityLogs.id })
-    .from(activityLogs)
-    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, activityId), eq(activityLogs.date, date)));
-  if (log) return true;
-
-  const children = await db
-    .select({ id: activities.id })
+// Punto de entrada desde toggleLogToday — TODO en una transacción: cascada
+// hacia abajo (el hábito clickeado y toda su descendencia quedan en
+// `done`) y, si su ancestro de primer nivel enlaza algún bloque, cascada
+// hacia arriba (si con esto todos los hábitos de primer nivel del bloque
+// —o todos los principales— quedan done, el bloque se marca done; si deja
+// de estarlo, se desmarca — salvo que esté "skipped", eso no se pisa).
+export async function applyHabitToggle(
+  userId: string,
+  activityId: string,
+  date: string,
+  done: boolean,
+): Promise<HabitCascadeResult> {
+  const [activity] = await db
+    .select({ parentId: activities.parentId })
     .from(activities)
-    .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
-  if (children.length === 0) return false;
+    .where(and(eq(activities.id, activityId), eq(activities.userId, userId)));
+  if (!activity) throw new Error("Hábito no encontrado");
 
-  const results = await Promise.all(children.map((c) => isActivityDoneOnDate(userId, c.id, date)));
-  return results.every(Boolean);
-}
-
-// Si todos los hábitos PRINCIPALES de primer nivel de un bloque (los que
-// no son is_optional) quedaron done, el bloque se marca done de verdad
-// (mismo camino que un click manual — cuenta para racha/mínimos). Si deja
-// de estarlo, se desmarca — salvo que esté "skipped" (un salto manual no
-// se pisa). Bloques sin hábitos enlazados, o solo con secundarios, no se
-// tocan — siguen siendo 100% manuales, como hoy.
-async function syncOneBlock(userId: string, blockId: string, date: string) {
-  const level1 = await db
-    .select({ id: activities.id, isOptional: activities.isOptional })
-    .from(planBlockActivities)
-    .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
-    .where(and(eq(planBlockActivities.blockId, blockId), eq(activities.isActive, true)));
-  const principals = level1.filter((a) => !a.isOptional);
-  if (principals.length === 0) return;
-
-  const doneFlags = await Promise.all(principals.map((a) => isActivityDoneOnDate(userId, a.id, date)));
-  const allDone = doneFlags.every(Boolean);
-
-  const yesterday = addDaysISO(date, -1);
-  const [existing] = await db
-    .select({ status: planChecks.status })
-    .from(planChecks)
-    .where(and(eq(planChecks.blockId, blockId), inArray(planChecks.date, [date, yesterday])));
-  if (existing?.status === "skipped") return;
-
-  if (allDone && existing?.status !== "done") {
-    await applyBlockCheck(userId, blockId, date, "done", null);
-  } else if (!allDone && existing?.status === "done") {
-    await applyBlockCheck(userId, blockId, date, "", null);
-  }
-}
-
-// Punto de entrada desde toggleLogToday: una activity cualquiera (de
-// cualquier nivel) puede hacer que el/los bloque(s) que enlazan su
-// ancestro de primer nivel pasen a estar (o dejen de estar) done.
-export async function syncBlockForActivity(userId: string, activityId: string, date: string): Promise<void> {
   const topId = await findTopAncestorId(activityId);
-  const links = await db
+  const blockLinks = await db
     .select({ blockId: planBlockActivities.blockId })
     .from(planBlockActivities)
     .where(eq(planBlockActivities.activityId, topId));
-  for (const { blockId } of links) {
-    await syncOneBlock(userId, blockId, date);
+
+  const ctx = blockLinks.length ? await loadPlanContextForUser(userId) : null;
+  const planData = ctx ? toPlanData(ctx) : null;
+
+  type BlockInfo = {
+    blockId: string;
+    personId: string;
+    planId: string;
+    isMinimum: boolean;
+    wasDone: boolean;
+    streakBefore: number;
+    protectorsBefore: number;
+  };
+  const blockInfos: BlockInfo[] = [];
+  if (ctx) {
+    for (const { blockId } of blockLinks) {
+      const block = await requireOwnedBlock(blockId, userId).catch(() => null);
+      if (!block) continue;
+      const [existingCheck] = await db
+        .select({ status: planChecks.status })
+        .from(planChecks)
+        .where(and(eq(planChecks.blockId, blockId), eq(planChecks.date, date)));
+      const streak = block.isMinimum ? await getStreakForPerson(ctx, block.personId, date) : { streak: 0, protectors: 0 };
+      blockInfos.push({
+        blockId,
+        personId: block.personId,
+        planId: block.planId,
+        isMinimum: block.isMinimum,
+        wasDone: existingCheck?.status === "done",
+        streakBefore: streak.streak,
+        protectorsBefore: streak.protectors,
+      });
+    }
   }
+
+  let parentJustCompleted = false;
+  const blockOutcomes: { info: BlockInfo; nowDone: boolean }[] = [];
+
+  await db.transaction(async (tx) => {
+    const descendantIds = await collectDescendantIdsTx(tx, activityId);
+    await setLogsForIdsTx(tx, userId, [activityId, ...descendantIds], date, done);
+
+    // Padre completado: todos los hermanos (mismo parent_id) quedaron done
+    // con este click — solo tiene sentido al marcar, no al desmarcar.
+    if (done && activity.parentId) {
+      const siblings = await tx
+        .select({ id: activities.id })
+        .from(activities)
+        .where(and(eq(activities.parentId, activity.parentId), eq(activities.isActive, true)));
+      if (siblings.length > 0) {
+        const results = await Promise.all(siblings.map((s) => isActivityDoneOnDateTx(tx, userId, s.id, date)));
+        parentJustCompleted = results.every(Boolean);
+      }
+    }
+
+    for (const info of blockInfos) {
+      const level1 = await tx
+        .select({ id: activities.id, isOptional: activities.isOptional })
+        .from(planBlockActivities)
+        .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
+        .where(and(eq(planBlockActivities.blockId, info.blockId), eq(activities.isActive, true)));
+      if (level1.length === 0) continue;
+
+      const doneFlags = await Promise.all(level1.map((a) => isActivityDoneOnDateTx(tx, userId, a.id, date)));
+      const allLevel1Done = doneFlags.every(Boolean);
+      const principalDone = level1
+        .map((a, i) => ({ isOptional: a.isOptional, done: doneFlags[i] }))
+        .filter((a) => !a.isOptional);
+      const allPrincipalDone = principalDone.length > 0 && principalDone.every((a) => a.done);
+      const shouldBeDone = allLevel1Done || allPrincipalDone;
+
+      const [existingCheckTx] = await tx
+        .select({ status: planChecks.status })
+        .from(planChecks)
+        .where(and(eq(planChecks.blockId, info.blockId), eq(planChecks.date, date)));
+      if (existingCheckTx?.status === "skipped") continue;
+
+      if (shouldBeDone && existingCheckTx?.status !== "done") {
+        const [day] = resolvePlan(planData!, date, date);
+        const resolved = day?.blocksByPerson[info.personId]?.find((b) => b.blockId === info.blockId);
+        await writeBlockCheckTx(tx, info, info.blockId, date, "done", null, resolved?.text ?? "");
+        blockOutcomes.push({ info, nowDone: true });
+      } else if (!shouldBeDone && existingCheckTx?.status === "done") {
+        await writeBlockCheckTx(tx, info, info.blockId, date, "", null, "");
+        blockOutcomes.push({ info, nowDone: false });
+      }
+    }
+  });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard/plan/historial");
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
+
+  let blockToastMessage: string | null = null;
+  if (done) {
+    const justCompleted = blockOutcomes.find((o) => o.nowDone && !o.info.wasDone);
+    if (justCompleted) {
+      if (justCompleted.info.isMinimum) {
+        const streakAfter = await getStreakForPerson(ctx!, justCompleted.info.personId, date);
+        const milestone = streakMilestoneCrossed(justCompleted.info.streakBefore, streakAfter.streak);
+        if (milestone) {
+          blockToastMessage = pickStreakMilestoneMessage(milestone);
+        } else if (streakAfter.protectors > justCompleted.info.protectorsBefore) {
+          blockToastMessage = pickProtectorGainedMessage();
+        }
+      }
+      if (!blockToastMessage) {
+        const allMinimumsDone = await allMinimumsDoneForPerson(planData!, justCompleted.info.personId, date);
+        blockToastMessage = pickBlockPraise({ isMinimum: justCompleted.info.isMinimum, allMinimumsDone });
+      }
+    }
+  }
+
+  return { parentJustCompleted, blockToastMessage };
 }

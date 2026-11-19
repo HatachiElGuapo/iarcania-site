@@ -4,7 +4,6 @@ import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "../safe-action-button";
 import { setCheck, type SetCheckResult } from "./actions";
 import { toggleLogToday } from "../habitos/actions";
-import { pickHabitPraise } from "@/lib/habits/praise";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 import {
   pickBlockPraise,
@@ -138,9 +137,8 @@ export function SubHabitsDropdown({ date, subHabits }: { date: string; subHabits
 
   function onHabitResult(result: unknown) {
     if (!result || typeof result !== "object") return;
-    const r = result as { done: boolean; isPrincipal: boolean; allPrincipalDone: boolean };
-    if (!r.done) return;
-    toast.show({ message: pickHabitPraise(r), tone: "success" });
+    const r = result as { done: boolean; toastMessage: string | null };
+    if (r.toastMessage) toast.show({ message: r.toastMessage, tone: "success" });
   }
 
   return (
