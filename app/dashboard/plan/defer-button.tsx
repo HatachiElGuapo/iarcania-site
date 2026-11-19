@@ -71,10 +71,14 @@ export function DeferButton({
         title="Aplazar"
         className={
           className ??
-          "focus-ring flex h-7 w-7 shrink-0 items-center justify-center rounded-ui border border-line text-[12px] text-ink-dim hover:border-line-strong hover:text-ink"
+          "focus-ring flex h-7 w-7 shrink-0 items-center justify-center rounded-ui border border-line bg-transparent text-[12px] text-ink-dim transition-colors duration-120 hover:border-line-strong hover:text-ink"
         }
       >
-        ⏭
+        {/* U+23ED + selector de variación U+FE0E: fuerza presentación de
+        texto (monocromo, hereda color) en vez de la emoji a color por
+        defecto de algunos sistemas — mismo tratamiento que ✓/✗, que son
+        glifos de texto, no emoji. */}
+        {"⏭︎"}
       </button>
       {open && (
         <>
@@ -103,7 +107,7 @@ export function DeferButton({
               action={deferTomorrow}
               fields={{ date, blockId, text, targetDate: addDaysISO(date, 1) }}
               onResult={() => confirmed("Aplazado a mañana.")}
-              className="flex h-9 w-full items-center justify-center rounded-ui border border-accent/40 bg-accent-soft text-[12px] font-medium text-ink"
+              className="flex h-9 w-full items-center justify-center rounded-ui border border-line bg-surface text-[12px] font-medium text-ink-dim transition-colors duration-120 hover:border-line-strong hover:text-ink"
             >
               → Mañana
             </SafeActionButton>
