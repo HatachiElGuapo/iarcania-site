@@ -16,7 +16,13 @@ export type HabitNode = {
   children: HabitNode[];
 };
 
-type Row = { id: string; parentId: string | null; name: string; isOptional: boolean };
+type Row = { id: string; parentId: string | null; name: string; isOptional: boolean; sortOrder: number };
+
+// sort_order ascendente, nombre como desempate — mismo criterio en los 3
+// niveles.
+function bySortOrder(a: { sortOrder: number; name: string }, b: { sortOrder: number; name: string }): number {
+  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name);
+}
 
 export async function loadHabitTreesByBlock(
   planId: string,
@@ -29,6 +35,7 @@ export async function loadHabitTreesByBlock(
       id: activities.id,
       name: activities.name,
       isOptional: activities.isOptional,
+      sortOrder: activities.sortOrder,
     })
     .from(planBlockActivities)
     .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
@@ -38,7 +45,13 @@ export async function loadHabitTreesByBlock(
   const level1Ids = level1Rows.map((r) => r.id);
   const level2Rows: Row[] = level1Ids.length
     ? await db
-        .select({ id: activities.id, parentId: activities.parentId, name: activities.name, isOptional: activities.isOptional })
+        .select({
+          id: activities.id,
+          parentId: activities.parentId,
+          name: activities.name,
+          isOptional: activities.isOptional,
+          sortOrder: activities.sortOrder,
+        })
         .from(activities)
         .where(and(inArray(activities.parentId, level1Ids), eq(activities.isActive, true)))
     : [];
@@ -46,7 +59,13 @@ export async function loadHabitTreesByBlock(
   const level2Ids = level2Rows.map((r) => r.id);
   const level3Rows: Row[] = level2Ids.length
     ? await db
-        .select({ id: activities.id, parentId: activities.parentId, name: activities.name, isOptional: activities.isOptional })
+        .select({
+          id: activities.id,
+          parentId: activities.parentId,
+          name: activities.name,
+          isOptional: activities.isOptional,
+          sortOrder: activities.sortOrder,
+        })
         .from(activities)
         .where(and(inArray(activities.parentId, level2Ids), eq(activities.isActive, true)))
     : [];
@@ -67,6 +86,7 @@ export async function loadHabitTreesByBlock(
     list.push(r);
     childrenByParent.set(r.parentId, list);
   }
+  for (const list of childrenByParent.values()) list.sort(bySortOrder);
 
   // done de un nodo = tiene su propio log ESE día, O (tiene hijos Y todos
   // sus hijos done) — misma regla en los 3 niveles. El checkbox de un
@@ -80,8 +100,10 @@ export async function loadHabitTreesByBlock(
     return { activityId: id, name, isOptional, done, children };
   }
 
+  const sortedLevel1Rows = [...level1Rows].sort(bySortOrder);
+
   const byBlock = new Map<string, HabitNode[]>();
-  for (const r of level1Rows) {
+  for (const r of sortedLevel1Rows) {
     const list = byBlock.get(r.blockId) ?? [];
     list.push(buildNode(r.id, r.name, r.isOptional));
     byBlock.set(r.blockId, list);
