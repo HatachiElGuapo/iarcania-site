@@ -21,19 +21,21 @@ import type { PlanContext } from "./load";
 import { toPlanData } from "./load";
 import { resolvePlan } from "./resolve";
 
-export type StreakResult = { streak: number; protectors: number };
+export type StreakResult = { streak: number; protectors: number; best: number };
 
 export function simulateStreak(dayCompletions: { hasMinimums: boolean; allDone: boolean }[]): StreakResult {
   let streak = 0;
   let protectors = 0;
   let goodRun = 0;
   let pendingMiss = false;
+  let best = 0;
 
   for (const d of dayCompletions) {
     if (!d.hasMinimums) continue; // día sin mínimos: no cuenta ni para ni contra
 
     if (d.allDone) {
       streak++;
+      if (streak > best) best = streak;
       goodRun++;
       pendingMiss = false;
       if (goodRun >= 3) {
@@ -56,14 +58,14 @@ export function simulateStreak(dayCompletions: { hasMinimums: boolean; allDone: 
     }
   }
 
-  return { streak, protectors };
+  return { streak, protectors, best };
 }
 
 // Trae, para `personId`, si cada día entre plan.startDate y `uptoDate`
 // (incluida) tuvo algún bloque is_minimum ese weekday y si todos quedaron
 // en "done" — listo para pasarle a simulateStreak.
 export async function getStreakForPerson(ctx: PlanContext, personId: string, uptoDate: string): Promise<StreakResult> {
-  if (uptoDate < ctx.plan.startDate) return { streak: 0, protectors: 0 };
+  if (uptoDate < ctx.plan.startDate) return { streak: 0, protectors: 0, best: 0 };
 
   const planData = toPlanData(ctx);
   const resolved = resolvePlan(planData, ctx.plan.startDate, uptoDate, uptoDate);

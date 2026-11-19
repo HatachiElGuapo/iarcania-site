@@ -409,7 +409,7 @@ export async function applyBlockCheck(
 
   const streakBeforeResult = block.isMinimum
     ? await getStreakForPerson(ctx, block.personId, effectiveDate)
-    : { streak: 0, protectors: 0 };
+    : { streak: 0, protectors: 0, best: 0 };
 
   await db.transaction(async (tx) => {
     await writeBlockCheckTx(tx, block, blockId, effectiveDate, status as "done" | "skipped", note, resolved.text);
@@ -888,7 +888,7 @@ export async function applyHabitToggle(
         .select({ status: planChecks.status })
         .from(planChecks)
         .where(and(eq(planChecks.blockId, blockId), eq(planChecks.date, date)));
-      const streak = block.isMinimum ? await getStreakForPerson(ctx, block.personId, date) : { streak: 0, protectors: 0 };
+      const streak = block.isMinimum ? await getStreakForPerson(ctx, block.personId, date) : { streak: 0, protectors: 0, best: 0 };
       blockInfos.push({
         blockId,
         personId: block.personId,

@@ -37,7 +37,7 @@ import { QuickAddPanel } from "@/components/ui/quick-add-panel";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ListCard } from "@/components/ui/list-card";
 import { createTask } from "./actividades/actions";
-import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
+import { createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { NewTaskSheet } from "./new-task-sheet";
 import { DayEventRow } from "./day-event-row";
 import { DayTimeline } from "./day-timeline";
@@ -261,7 +261,7 @@ export default async function RutinasPage({
   let pendingMinimums: PendingMinimumBlock[] = [];
   let pendingSecondary: PendingSecondaryHabit[] = [];
   let secondaryGroups: Record<SecondaryBand, SecondaryEntry[]> = { manana: [], tarde: [], noche: [] };
-  let streakResult = { streak: 0, protectors: 0 };
+  let streakResult = { streak: 0, protectors: 0, best: 0 };
   const yesterday = addDaysISO(today, -1);
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
@@ -594,74 +594,11 @@ export default async function RutinasPage({
         <div className="flex flex-col gap-4">
           <HabitsCard
             streak={streakResult.streak}
+            best={streakResult.best}
             protectors={streakResult.protectors}
-            doneToday={habitsDoneToday}
-            total={habitsView.length}
-          >
-            <div className="flex items-center gap-3 px-3.5 pt-3">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-                <div
-                  className="h-full rounded-full bg-accent-warm"
-                  style={{
-                    width: habitsView.length ? `${Math.round((habitsDoneToday / habitsView.length) * 100)}%` : "0%",
-                  }}
-                />
-              </div>
-              <Link href="/dashboard/habitos/rachas" className="shrink-0 text-meta text-accent hover:underline">
-                Ver rachas →
-              </Link>
-            </div>
-            <div className="flex flex-col gap-1.5 p-3.5">
-              {habitsView.length === 0 ? (
-                <EmptyState icon="🔥">Aún no sigues ningún hábito diario — creá el primero abajo.</EmptyState>
-              ) : (
-                habitsView.map((h) => (
-                  <SafeActionButton
-                    key={h.id}
-                    action={toggleLogToday}
-                    fields={{ activityId: h.id, date }}
-                    className="focus-ring flex w-full items-center gap-2.5 rounded-ui-lg border border-line bg-surface px-3.5 py-2.5 text-left transition-colors duration-120 hover:border-line-strong"
-                  >
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-                        h.done ? "border-accent bg-accent text-white" : "border-line-strong"
-                      }`}
-                    >
-                      {h.done ? "✓" : ""}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-sm ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
-                        {h.name}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[10px] text-ink-dim">
-                        {h.horaSugerida ?? "cualquier hora"}
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 gap-[2px]">
-                      {h.week.map((c, i) => (
-                        <span
-                          key={i}
-                          className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`}
-                        />
-                      ))}
-                    </span>
-                    <Badge tone="warm">🔥 {h.streak}</Badge>
-                  </SafeActionButton>
-                ))
-              )}
-            </div>
-            <div className="border-t border-line bg-surface-sunken px-3.5 py-2.5">
-              <QuickAddPanel
-                trigger={<button className="text-meta text-accent hover:underline">+ Nuevo hábito</button>}
-                title="Nuevo hábito"
-                action={createActivity}
-                name="name"
-                placeholder="Nombre del hábito…"
-                hidden={{ frequency: "diaria" }}
-                extras={<Input type="time" name="horaSugerida" />}
-              />
-            </div>
-          </HabitsCard>
+            habitsView={habitsView}
+            date={date}
+          />
 
           <SecondaryCard groups={secondaryGroups} pendingActivityIds={pendingSecondaryIds} date={date} />
 
@@ -800,7 +737,7 @@ type MobileHoyProps = {
   vicioStatsById: Map<string, VicioStats>;
   secondaryGroups: Record<SecondaryBand, SecondaryEntry[]>;
   pendingSecondaryIds: string[];
-  streakResult: { streak: number; protectors: number };
+  streakResult: { streak: number; protectors: number; best: number };
   bestStreak: number;
   upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
   orphanActivities: OrphanActivity[];
@@ -955,29 +892,11 @@ function MobileHoy({
 
       <HabitsCard
         streak={streakResult.streak}
+        best={streakResult.best}
         protectors={streakResult.protectors}
-        doneToday={habitsDoneToday}
-        total={habitsView.length}
-      >
-        <div className="flex flex-col gap-2 p-3.5">
-          <div className="flex flex-col gap-1.5">
-            {habitsView.length === 0 ? (
-              <EmptyState icon="🔥">Aún no sigues ningún hábito diario.</EmptyState>
-            ) : (
-              habitsView.map((h) => <MobileHabitRow key={h.id} h={h} date={date} />)
-            )}
-          </div>
-          <QuickAddPanel
-            trigger={<button className="self-start text-[12px] text-accent">+ Nuevo hábito</button>}
-            title="Nuevo hábito"
-            action={createActivity}
-            name="name"
-            placeholder="Nombre del hábito…"
-            hidden={{ frequency: "diaria" }}
-            extras={<Input type="time" name="horaSugerida" />}
-          />
-        </div>
-      </HabitsCard>
+        habitsView={habitsView}
+        date={date}
+      />
 
       <div className="flex flex-col gap-2">
         <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Vicios</div>
@@ -1115,40 +1034,6 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         <TaskHabitMenu kind="habit" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
       )}
     </div>
-  );
-}
-
-function MobileHabitRow({
-  h,
-  date,
-}: {
-  h: { id: string; name: string; horaSugerida: string | null; done: boolean; streak: number; week: { done: boolean }[] };
-  date: string;
-}) {
-  return (
-    <SafeActionButton action={toggleLogToday} fields={{ activityId: h.id, date }} className="contents">
-      <ListCard>
-        <span
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-            h.done ? "border-accent bg-accent text-white" : "border-line-strong"
-          }`}
-        >
-          {h.done ? "✓" : ""}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className={`truncate text-[15px] ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>
-            {h.name}
-          </div>
-          <div className="mt-0.5 text-[11px] text-ink-dim">{h.horaSugerida ?? "cualquier hora"}</div>
-        </div>
-        <span className="flex shrink-0 gap-[2px]">
-          {h.week.map((c, i) => (
-            <span key={i} className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`} />
-          ))}
-        </span>
-        <Badge tone="warm">🔥 {h.streak}</Badge>
-      </ListCard>
-    </SafeActionButton>
   );
 }
 

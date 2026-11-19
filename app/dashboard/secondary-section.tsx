@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "./safe-action-button";
 import { toggleLogToday } from "./habitos/actions";
 import { DeferButton } from "./plan/defer-button";
+import { CompactModalCard } from "./compact-modal-card";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 import type { SecondaryBand, SecondaryEntry } from "@/lib/plan/secondary";
 
@@ -205,50 +206,13 @@ export function SecondaryCard({
   date: string;
 }) {
   const [groups, setGroups] = useState(initialGroups);
-  const [open, setOpen] = useState(false);
   const [clearedPendingIds, setClearedPendingIds] = useState<Set<string>>(new Set());
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // El modal solo existe mientras `open` — cuando llegan props nuevas
-  // (tras router.refresh(), ej. al marcar algo) hay que resincronizar el
-  // árbol local, igual que HabitTreeDnd.
+  // Cuando llegan props nuevas (tras router.refresh(), ej. al marcar
+  // algo) hay que resincronizar el árbol local, igual que HabitTreeDnd.
   useEffect(() => {
     setGroups(initialGroups);
   }, [initialGroups]);
-
-  useEffect(() => {
-    if (!open) return;
-    const previouslyFocused = (document.activeElement as HTMLElement | null) ?? triggerRef.current;
-    dialogRef.current?.focus();
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setOpen(false);
-        return;
-      }
-      if (e.key !== "Tab" || !dialogRef.current) return;
-      const focusables = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
-      );
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      previouslyFocused?.focus();
-    };
-  }, [open]);
 
   function onToggled(activityId: string, done: boolean) {
     setGroups((g) => cascadeDoneInGroups(g, activityId, done));
@@ -264,18 +228,11 @@ export function SecondaryCard({
   const pendingCount = pendingActivityIds.filter((id) => !clearedPendingIds.has(id)).length;
 
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen(true)}
-        className="focus-ring flex w-full items-center justify-between gap-2.5 rounded-ui-lg border border-line bg-surface px-3.5 py-3 text-left"
-      >
-        <span className="flex items-center gap-2">
-          <span className="text-ink-dim">▸</span>
-          <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Secundarios</span>
-        </span>
-        <span className="flex items-center gap-3 text-meta text-ink-dim">
+    <CompactModalCard
+      label="Secundarios"
+      title="Secundarios"
+      summary={
+        <>
           {pendingCount > 0 && (
             <span className="text-danger/80">
               {pendingCount} pendiente{pendingCount === 1 ? "" : "s"}
@@ -284,40 +241,10 @@ export function SecondaryCard({
           <span className="tabular-nums">
             {done}/{total} hoy
           </span>
-        </span>
-      </button>
-
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 md:items-center md:p-4"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
-          }}
-        >
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Secundarios"
-            tabIndex={-1}
-            className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[14px] border-t border-line-strong bg-surface-2 outline-none md:max-h-[85vh] md:max-w-2xl md:rounded-ui-lg md:border"
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-line bg-surface px-3.5 py-3">
-              <span className="font-display text-[15px] font-semibold text-ink">Secundarios</span>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="focus-ring rounded-ui px-2 py-1 text-ink-dim hover:text-ink"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <SecondaryModalContent groups={groups} date={date} onToggled={onToggled} />
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+        </>
+      }
+    >
+      <SecondaryModalContent groups={groups} date={date} onToggled={onToggled} />
+    </CompactModalCard>
   );
 }

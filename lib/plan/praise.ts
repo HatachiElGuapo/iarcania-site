@@ -47,7 +47,7 @@ export function pickBlockPraise(result: { isMinimum: boolean; allMinimumsDone: b
   return pickRandom(result.isMinimum ? PRINCIPAL_PHRASES : SECONDARY_PHRASES);
 }
 
-const STREAK_MILESTONES = [3, 7, 14, 21, 30, 60, 100];
+export const STREAK_MILESTONES = [3, 7, 14, 21, 30, 60, 100];
 
 // Hito de racha cruzado con ESTE click (streakBefore < hito <= streakAfter)
 // — null si no se cruzó ninguno.
