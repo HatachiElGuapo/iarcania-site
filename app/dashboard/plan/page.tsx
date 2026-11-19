@@ -337,9 +337,9 @@ export default async function PlanPage({
           const blocks = day.blocksByPerson[person.id] ?? [];
           return (
             <Card key={person.id} title={person.name} count={blocks.length} flush>
-              <div className="flex flex-col divide-y divide-line">
+              <div className="flex flex-col gap-2.5 p-2.5">
                 {blocks.length === 0 && (
-                  <p className="px-3.5 py-4 text-xs text-ink-muted">Nada agendado este día.</p>
+                  <p className="px-1 py-4 text-xs text-ink-muted">Nada agendado este día.</p>
                 )}
                 {blocks.map((b) => {
                   const check = checkByBlockId.get(b.blockId);
@@ -349,7 +349,7 @@ export default async function PlanPage({
                   const isSkipped = check?.status === "skipped";
                   const subHabits = habitTreesByBlock.get(b.blockId) ?? [];
                   return (
-                    <div key={b.blockId} className="px-3.5 py-2.5">
+                    <div key={b.blockId} className="rounded-ui-lg border border-line bg-surface px-3 py-2.5">
                       <div className="flex items-start gap-2">
                         <span className="shrink-0 pt-0.5 text-meta">{kind.icon}</span>
                         <div className="min-w-0 flex-1">

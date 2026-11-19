@@ -74,8 +74,16 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
     </>
   );
 
+  const isPlanBlock = ev.kind === "plan";
+
   return (
-    <div className="flex flex-col gap-1 px-3.5 py-1">
+    <div
+      className={
+        isPlanBlock
+          ? "my-1 flex flex-col gap-1 rounded-ui-lg border border-line bg-surface px-3 py-1"
+          : "flex flex-col gap-1 px-3.5 py-1"
+      }
+    >
       <div className="flex items-center gap-2">
         {primary ? (
           <SafeActionButton
