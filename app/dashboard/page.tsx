@@ -18,6 +18,7 @@ import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMin
 import { computeVicioStats, type VicioStats } from "@/lib/habits/vicio-stats";
 import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
 import { SecondaryHabitsList, SecondaryHabitsMobileSection } from "./secondary-section";
+import { HabitsCard } from "./habits-card";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import {
   PageHeader,
@@ -332,6 +333,7 @@ export default async function RutinasPage({
         viciosCounts={viciosCounts}
         vicioStatsById={vicioStatsById}
         secondaryGroups={secondaryGroups}
+        streakResult={streakResult}
         bestStreak={bestStreak}
         upcomingTasks={upcomingTasks}
         orphanActivities={orphanActivities}
@@ -588,18 +590,14 @@ export default async function RutinasPage({
         </Card>
 
         <div className="flex flex-col gap-4">
-          <Card
-            title="Hábitos"
-            count={`${habitsDoneToday} / ${habitsView.length}`}
-            action={
-              <Link href="/dashboard/habitos/rachas" className="text-accent hover:underline">
-                Ver rachas →
-              </Link>
-            }
-            flush
+          <HabitsCard
+            streak={streakResult.streak}
+            protectors={streakResult.protectors}
+            doneToday={habitsDoneToday}
+            total={habitsView.length}
           >
-            <div className="px-3.5 pt-3">
-              <div className="h-1.5 overflow-hidden rounded-full bg-line">
+            <div className="flex items-center gap-3 px-3.5 pt-3">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
                 <div
                   className="h-full rounded-full bg-accent-warm"
                   style={{
@@ -607,6 +605,9 @@ export default async function RutinasPage({
                   }}
                 />
               </div>
+              <Link href="/dashboard/habitos/rachas" className="shrink-0 text-meta text-accent hover:underline">
+                Ver rachas →
+              </Link>
             </div>
             <div className="flex flex-col gap-1.5 p-3.5">
               {habitsView.length === 0 ? (
@@ -658,7 +659,7 @@ export default async function RutinasPage({
                 extras={<Input type="time" name="horaSugerida" />}
               />
             </div>
-          </Card>
+          </HabitsCard>
 
           <Card
             title="Secundarios"
@@ -802,6 +803,7 @@ type MobileHoyProps = {
   viciosCounts: Map<string, number>;
   vicioStatsById: Map<string, VicioStats>;
   secondaryGroups: Record<SecondaryBand, SecondaryEntry[]>;
+  streakResult: { streak: number; protectors: number };
   bestStreak: number;
   upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
   orphanActivities: OrphanActivity[];
@@ -828,6 +830,7 @@ function MobileHoy({
   viciosCounts,
   vicioStatsById,
   secondaryGroups,
+  streakResult,
   bestStreak,
   upcomingTasks,
   orphanActivities,
@@ -952,30 +955,31 @@ function MobileHoy({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Hábitos</div>
-          <span className="text-[11px] text-ink-dim">
-            {habitsDoneToday} / {habitsView.length}
-          </span>
+      <HabitsCard
+        streak={streakResult.streak}
+        protectors={streakResult.protectors}
+        doneToday={habitsDoneToday}
+        total={habitsView.length}
+      >
+        <div className="flex flex-col gap-2 p-3.5">
+          <div className="flex flex-col gap-1.5">
+            {habitsView.length === 0 ? (
+              <EmptyState icon="🔥">Aún no sigues ningún hábito diario.</EmptyState>
+            ) : (
+              habitsView.map((h) => <MobileHabitRow key={h.id} h={h} date={date} />)
+            )}
+          </div>
+          <QuickAddPanel
+            trigger={<button className="self-start text-[12px] text-accent">+ Nuevo hábito</button>}
+            title="Nuevo hábito"
+            action={createActivity}
+            name="name"
+            placeholder="Nombre del hábito…"
+            hidden={{ frequency: "diaria" }}
+            extras={<Input type="time" name="horaSugerida" />}
+          />
         </div>
-        <div className="flex flex-col gap-1.5">
-          {habitsView.length === 0 ? (
-            <EmptyState icon="🔥">Aún no sigues ningún hábito diario.</EmptyState>
-          ) : (
-            habitsView.map((h) => <MobileHabitRow key={h.id} h={h} date={date} />)
-          )}
-        </div>
-        <QuickAddPanel
-          trigger={<button className="self-start text-[12px] text-accent">+ Nuevo hábito</button>}
-          title="Nuevo hábito"
-          action={createActivity}
-          name="name"
-          placeholder="Nombre del hábito…"
-          hidden={{ frequency: "diaria" }}
-          extras={<Input type="time" name="horaSugerida" />}
-        />
-      </div>
+      </HabitsCard>
 
       <div className="flex flex-col gap-2">
         <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Vicios</div>

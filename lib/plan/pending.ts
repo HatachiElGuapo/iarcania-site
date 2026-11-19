@@ -13,6 +13,7 @@ import { toPlanData } from "./load";
 import { resolvePlan, type ResolvedBlock } from "./resolve";
 import { addDaysISO } from "@/lib/date/bogota";
 import { loadHabitTreesByBlock, type HabitNode } from "./sub-habits";
+import { splitPrincipalSecondary } from "./secondary";
 
 export type PendingMinimumBlock = {
   blockId: string;
@@ -86,12 +87,33 @@ export type PendingSecondaryHabit = {
   blockStartTime: string;
 };
 
-// Hábitos y subhábitos SECUNDARIOS (is_optional=true, a cualquier
-// profundidad del árbol) cuya hora ya pasó y no están marcados hoy — no
-// cuentan para mínimos/racha, solo es un recordatorio aparte. A
-// diferencia de getPendingMinimumsForPerson, no mira el bloque de AYER
-// que cruza medianoche: los secundarios siempre cuelgan de un bloque del
-// día, no de uno que recién vence al día siguiente.
+// Un nodo entero (él mismo y toda su descendencia) sin ningún registro
+// hoy — a diferencia de `!node.done` (que es false también cuando SOLO
+// ALGUNOS hijos están marcados), esto exige que NINGUNO lo esté. Un nodo
+// hoja se reduce a `!node.done`.
+function isFullyUntouched(n: HabitNode): boolean {
+  if (n.children.length === 0) return !n.done;
+  return !n.done && n.children.every(isFullyUntouched);
+}
+
+// Hábitos y subhábitos SECUNDARIOS (is_optional=true en algún ancestro —
+// se recorre el forest que ya separó splitPrincipalSecondary, así que
+// CADA nodo acá es secundario por herencia, tenga o no su propio flag) no
+// cuentan para mínimos/racha, solo son un recordatorio aparte:
+//
+// - Un nodo HOJA aparece apenas pasa SU hora (hora_sugerida propia, o la
+//   de fin del bloque si no tiene) y sigue sin marcar — ej. "Dientes
+//   mañana" a las 4:40.
+// - Un nodo con HIJOS (ej. "Dientes") nunca aparece por su propia hora —
+//   solo es un catch-all al final del día: aparece recién cuando llega
+//   la hora de inicio del bloque "Dormir" (el bloque is_minimum que cruza
+//   medianoche — ver crossesMidnight), y solo si NINGUNO de sus
+//   descendientes (ni él mismo) tiene registro hoy. Si marcaste aunque
+//   sea uno, no vuelve a aparecer.
+//
+// No mira el bloque de AYER que cruza medianoche (a diferencia de
+// getPendingMinimumsForPerson): los secundarios siempre cuelgan de un
+// bloque de HOY.
 export async function getPendingSecondaryHabits(
   ctx: PlanContext,
   userId: string,
@@ -104,24 +126,27 @@ export async function getPendingSecondaryHabits(
   const blocks = todayDay?.blocksByPerson[personId] ?? [];
   if (blocks.length === 0) return [];
 
+  const dormirBlock = blocks.find((b) => crossesMidnight(b));
+  const endOfDayCutoff = dormirBlock?.startTime ?? "23:59";
+
   const habitTreesByBlock = await loadHabitTreesByBlock(ctx.plan.id, userId, today);
   const out: PendingSecondaryHabit[] = [];
 
   function walk(nodes: HabitNode[], blockId: string, blockText: string, blockStartTime: string, blockDueTime: string) {
     for (const n of nodes) {
-      if (n.isOptional && !n.done) {
-        const dueTime = n.horaSugerida ?? blockDueTime;
-        if (dueTime <= nowHHMM) {
-          out.push({
-            activityId: n.activityId,
-            name: n.name,
-            horaSugerida: n.horaSugerida,
-            dueTime,
-            blockId,
-            blockText,
-            blockStartTime,
-          });
-        }
+      const isLeaf = n.children.length === 0;
+      const dueTime = isLeaf ? (n.horaSugerida ?? blockDueTime) : endOfDayCutoff;
+      const untouched = isLeaf ? !n.done : isFullyUntouched(n);
+      if (untouched && dueTime <= nowHHMM) {
+        out.push({
+          activityId: n.activityId,
+          name: n.name,
+          horaSugerida: n.horaSugerida,
+          dueTime,
+          blockId,
+          blockText,
+          blockStartTime,
+        });
       }
       walk(n.children, blockId, blockText, blockStartTime, blockDueTime);
     }
@@ -129,8 +154,9 @@ export async function getPendingSecondaryHabits(
 
   for (const b of blocks) {
     const tree = habitTreesByBlock.get(b.blockId) ?? [];
+    const { secondary } = splitPrincipalSecondary(tree);
     const blockDueTime = b.endTime ?? b.startTime;
-    walk(tree, b.blockId, b.text, b.startTime, blockDueTime);
+    walk(secondary, b.blockId, b.text, b.startTime, blockDueTime);
   }
 
   out.sort((a, b) => a.dueTime.localeCompare(b.dueTime));
