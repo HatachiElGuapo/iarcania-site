@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, ne, gte, lte, gt } from "drizzle-orm";
+import { and, eq, isNull, lt, ne, gte, lte, gt, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
@@ -15,6 +15,9 @@ import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type OrphanPlanBlock } from "@/lib/plan/orphans";
 import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMinimumBlock, type PendingSecondaryHabit } from "@/lib/plan/pending";
+import { computeVicioStats, type VicioStats } from "@/lib/habits/vicio-stats";
+import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
+import { SecondaryHabitsList, SecondaryHabitsMobileSection } from "./secondary-section";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import {
   PageHeader,
@@ -190,6 +193,25 @@ export default async function RutinasPage({
   const viciosCounts = new Map<string, number>();
   for (const l of viciosLogs) viciosCounts.set(l.activityId, (viciosCounts.get(l.activityId) ?? 0) + 1);
 
+  // Racha de días sin registrar, mejor racha y último registro — todo el
+  // historial (sin recorte por lookback), una sola query extra solo si
+  // hay vicios. Se computa en memoria (lib/habits/vicio-stats.ts), sin
+  // tabla nueva.
+  const vicioIds = vicios.map((v) => v.id);
+  const vicioAllLogs = vicioIds.length
+    ? await db
+        .select({ activityId: activityLogs.activityId, date: activityLogs.date })
+        .from(activityLogs)
+        .where(and(eq(activityLogs.userId, userId), inArray(activityLogs.activityId, vicioIds)))
+    : [];
+  const vicioDatesById = new Map<string, string[]>();
+  for (const l of vicioAllLogs) {
+    if (!vicioDatesById.has(l.activityId)) vicioDatesById.set(l.activityId, []);
+    vicioDatesById.get(l.activityId)!.push(l.date);
+  }
+  const vicioStatsById = new Map<string, VicioStats>();
+  for (const v of vicios) vicioStatsById.set(v.id, computeVicioStats(vicioDatesById.get(v.id) ?? [], today));
+
   const events = [...dayEvents.events].sort((a, b) => a.start - b.start);
   const doneToday = events.filter((e) => e.done).length;
   const totalToday = events.length;
@@ -237,10 +259,12 @@ export default async function RutinasPage({
   let planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[] = [];
   let pendingMinimums: PendingMinimumBlock[] = [];
   let pendingSecondary: PendingSecondaryHabit[] = [];
+  let secondaryGroups: Record<SecondaryBand, SecondaryEntry[]> = { manana: [], tarde: [], noche: [] };
   let streakResult = { streak: 0, protectors: 0 };
   const yesterday = addDaysISO(today, -1);
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
+    secondaryGroups = groupSecondaryEntries(await getSecondaryHabitsForPerson(planCtx, userId, planPerson.personId, date));
     if (isToday) {
       [pendingMinimums, pendingSecondary, streakResult] = await Promise.all([
         getPendingMinimumsForPerson(planCtx, planPerson.personId, today, nowHHMM()),
@@ -306,6 +330,8 @@ export default async function RutinasPage({
         habitsDoneToday={habitsDoneToday}
         vicios={vicios}
         viciosCounts={viciosCounts}
+        vicioStatsById={vicioStatsById}
+        secondaryGroups={secondaryGroups}
         bestStreak={bestStreak}
         upcomingTasks={upcomingTasks}
         orphanActivities={orphanActivities}
@@ -634,6 +660,14 @@ export default async function RutinasPage({
             </div>
           </Card>
 
+          <Card
+            title="Secundarios"
+            count={secondaryGroups.manana.length + secondaryGroups.tarde.length + secondaryGroups.noche.length}
+            flush
+          >
+            <SecondaryHabitsList groups={secondaryGroups} date={date} />
+          </Card>
+
           <Card title="Vicios" count={vicios.length} flush>
             {vicios.length === 0 ? (
               <p className="px-3.5 py-3 text-xs text-ink-muted">
@@ -644,9 +678,17 @@ export default async function RutinasPage({
               <div className="flex flex-col divide-y divide-line">
                 {vicios.map((v) => {
                   const count = viciosCounts.get(v.id) ?? 0;
+                  const stats = vicioStatsById.get(v.id);
                   return (
                     <div key={v.id} className="flex items-center gap-2.5 px-3.5 py-2">
-                      <span className="flex-1 truncate text-sm text-ink">{v.name}</span>
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-sm text-ink">{v.name}</span>
+                        <span className="block truncate text-[10px] text-ink-dim">
+                          {stats?.lastDate
+                            ? `${stats.daysSinceLast} día${stats.daysSinceLast === 1 ? "" : "s"} sin · mejor racha ${stats.bestStreak} · último ${stats.lastDate}`
+                            : "sin registros todavía"}
+                        </span>
+                      </div>
                       <form action={decrementLog}>
                         <input type="hidden" name="activityId" value={v.id} />
                         <input type="hidden" name="date" value={date} />
@@ -758,6 +800,8 @@ type MobileHoyProps = {
   habitsDoneToday: number;
   vicios: { id: string; name: string }[];
   viciosCounts: Map<string, number>;
+  vicioStatsById: Map<string, VicioStats>;
+  secondaryGroups: Record<SecondaryBand, SecondaryEntry[]>;
   bestStreak: number;
   upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
   orphanActivities: OrphanActivity[];
@@ -782,6 +826,8 @@ function MobileHoy({
   habitsDoneToday,
   vicios,
   viciosCounts,
+  vicioStatsById,
+  secondaryGroups,
   bestStreak,
   upcomingTasks,
   orphanActivities,
@@ -874,6 +920,8 @@ function MobileHoy({
         </div>
       )}
 
+      <SecondaryHabitsMobileSection groups={secondaryGroups} date={date} />
+
       <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 
       <div className="flex flex-col gap-2">
@@ -939,7 +987,13 @@ function MobileHoy({
         ) : (
           <div className="flex flex-col gap-1.5">
             {vicios.map((v) => (
-              <MobileVicioRow key={v.id} v={v} count={viciosCounts.get(v.id) ?? 0} date={date} />
+              <MobileVicioRow
+                key={v.id}
+                v={v}
+                count={viciosCounts.get(v.id) ?? 0}
+                stats={vicioStatsById.get(v.id) ?? null}
+                date={date}
+              />
             ))}
           </div>
         )}
@@ -1096,10 +1150,27 @@ function MobileHabitRow({
   );
 }
 
-function MobileVicioRow({ v, count, date }: { v: { id: string; name: string }; count: number; date: string }) {
+function MobileVicioRow({
+  v,
+  count,
+  stats,
+  date,
+}: {
+  v: { id: string; name: string };
+  count: number;
+  stats: VicioStats | null;
+  date: string;
+}) {
   return (
     <ListCard>
-      <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{v.name}</span>
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] text-ink">{v.name}</span>
+        <span className="block truncate text-[10.5px] text-ink-dim">
+          {stats?.lastDate
+            ? `${stats.daysSinceLast} día${stats.daysSinceLast === 1 ? "" : "s"} sin · mejor racha ${stats.bestStreak}`
+            : "sin registros todavía"}
+        </span>
+      </div>
       <form action={decrementLog}>
         <input type="hidden" name="activityId" value={v.id} />
         <input type="hidden" name="date" value={date} />

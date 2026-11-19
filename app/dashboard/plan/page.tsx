@@ -8,6 +8,7 @@ import { kindInfo } from "@/lib/plan/kinds";
 import { todayISO, addDaysISO, diffDaysISO, nowHHMM } from "@/lib/date/bogota";
 import { getPendingMinimumsForPerson } from "@/lib/plan/pending";
 import { loadHabitTreesByBlock } from "@/lib/plan/sub-habits";
+import { splitPrincipalSecondary } from "@/lib/plan/secondary";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
@@ -114,10 +115,14 @@ export default async function PlanPage({
     ctx.overrides.filter((o) => o.date === date).map((o) => [o.blockId, o]),
   );
 
-  // Árbol de hábitos por bloque (hasta 3 niveles) — TODOS los de primer
-  // nivel, incluido el que comparte nombre con el bloque (ver
-  // lib/plan/sub-habits.ts).
-  const habitTreesByBlock = await loadHabitTreesByBlock(ctx.plan.id, userId, date);
+  // Árbol de hábitos por bloque (hasta 3 niveles) — TODOS los principales
+  // de primer nivel, incluido el que comparte nombre con el bloque (ver
+  // lib/plan/sub-habits.ts). Los secundarios (is_optional) se sacan acá
+  // mismo — se muestran aparte, en el panel "Secundarios" del dashboard.
+  const rawHabitTrees = await loadHabitTreesByBlock(ctx.plan.id, userId, date);
+  const habitTreesByBlock = new Map(
+    [...rawHabitTrees].map(([blockId, tree]) => [blockId, splitPrincipalSecondary(tree).principal]),
+  );
 
   // Móvil ("Rutinas"): solo la columna del propio usuario — sin la grilla
   // familiar completa. `ctx.people` ya viene cargado para el día, así que

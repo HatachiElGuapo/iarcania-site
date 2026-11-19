@@ -16,6 +16,7 @@ import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/pl
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { loadHabitTreesByBlock, type HabitNode } from "@/lib/plan/sub-habits";
+import { splitPrincipalSecondary } from "@/lib/plan/secondary";
 import { addDaysISO, todayISO } from "@/lib/date/bogota";
 
 export type AgendaEvent = {
@@ -205,7 +206,9 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         done: planCheckByKey.get(`${yesterday}:${b.blockId}`) === "done",
         autoTime: false,
         editHref: `/dashboard/plan?date=${yesterday}`,
-        habitChecks: habitTreesYesterday.get(b.blockId) ?? [],
+        // Solo principales — los secundarios (is_optional) salen de acá y
+        // se muestran aparte en el panel "Secundarios" del dashboard.
+        habitChecks: splitPrincipalSecondary(habitTreesYesterday.get(b.blockId) ?? []).principal,
       };
     });
 
@@ -228,7 +231,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         done: planCheckByKey.get(`${date}:${b.blockId}`) === "done",
         autoTime: false,
         editHref: `/dashboard/plan?date=${date}`,
-        habitChecks: habitTreesToday.get(b.blockId) ?? [],
+        habitChecks: splitPrincipalSecondary(habitTreesToday.get(b.blockId) ?? []).principal,
         endLabel: b.endTime ? undefined : "24:00",
         projected: b.isProjected,
       };
