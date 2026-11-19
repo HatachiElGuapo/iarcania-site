@@ -1,33 +1,53 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
+import { useModalStackEntry } from "./modal-stack";
 
 // Pieza de abajo (el diálogo en sí) de CompactModalCard, separada para
 // poder reusarla con un trigger propio distinto del botón-tarjeta
-// estándar (ej. MobileSubHabits, un botón chico dentro de una fila, no
-// una tarjeta completa) — mismo bottom sheet: centrado y ancho con
-// scroll interno en escritorio, hoja a pantalla completa en móvil
-// (clases md:, no dos componentes); se cierra con ✕, Esc o clic afuera;
-// el foco queda atrapado adentro y vuelve a `returnFocusRef` (o a lo que
-// estuviera enfocado antes de abrir) al cerrar. Siempre controlado
-// (open/onOpenChange obligatorios) — quien lo usa decide cuándo abrir.
+// estándar (ej. MobileSubHabits, HabitNodeMenu, PlanBlockMenu — botones
+// chicos dentro de una fila u otro modal, no una tarjeta completa).
+//
+// Soporta anidamiento: se renderiza en un portal a document.body (así un
+// modal abierto DESDE otro nunca queda atrapado dentro del DOM del de
+// abajo, que es lo que rompía el foco/clic-afuera/z-index antes) y se
+// registra en la pila global de modales (modal-stack.ts) — solo el de
+// más arriba escucha Esc/clic afuera y atrapa el foco; el z-index crece
+// con la profundidad. Al cerrar un modal anidado, el foco vuelve al que
+// quedó abajo (su propio trigger, no el documento) porque cada nivel
+// recuerda por separado quién tenía el foco cuando se abrió.
+//
+// Mismo bottom sheet de siempre: centrado y ancho con scroll interno en
+// escritorio, hoja a pantalla completa en móvil (clases md:, no dos
+// componentes). `header` reemplaza la barra título+✕ por defecto, para
+// los que ya tenían su propio encabezado (ej. el handle+"Cancelar" de
+// HabitNodeMenu/PlanBlockMenu) sin perder nada de su diseño.
 export function BottomSheetModal({
   open,
   onOpenChange,
   title,
+  header,
+  widthClassName = "md:max-w-2xl",
   children,
   returnFocusRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  header?: ReactNode;
+  widthClassName?: string;
   children: ReactNode;
   returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { isTop, depth } = useModalStackEntry(open);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isTop) return;
     const previouslyFocused = (document.activeElement as HTMLElement | null) ?? returnFocusRef?.current ?? null;
     dialogRef.current?.focus();
 
@@ -59,14 +79,27 @@ export function BottomSheetModal({
       document.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus();
     };
-  }, [open, onOpenChange, returnFocusRef]);
+    // Solo mientras es el de más arriba — si se abre uno encima, este
+    // efecto se desmonta (isTop pasa a false) y deja de competir por
+    // teclado/foco con el nuevo, sin perder su propio estado.
+  }, [open, isTop, onOpenChange, returnFocusRef]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  // z-50 + 10 por nivel: el primero queda igual que antes (z-50), cada
+  // uno anidado encima queda estrictamente por encima del anterior.
+  const zIndex = 50 + depth * 10;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 md:items-center md:p-4"
+      className="fixed inset-0 flex items-end justify-center bg-black/70 md:items-center md:p-4"
+      style={{ zIndex }}
       onMouseDown={(e) => {
+        // Si no es el de más arriba, un clic "afuera" acá en realidad cayó
+        // en el backdrop de un modal más viejo que quedó tapado por uno
+        // nuevo — no debe cerrar nada: el de arriba es el único dueño del
+        // clic-afuera mientras esté abierto.
+        if (!isTop) return;
         if (e.target === e.currentTarget) onOpenChange(false);
       }}
     >
@@ -76,21 +109,24 @@ export function BottomSheetModal({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[14px] border-t border-line-strong bg-surface-2 outline-none md:max-h-[85vh] md:max-w-2xl md:rounded-ui-lg md:border"
+        className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[14px] border-t border-line-strong bg-surface-2 outline-none md:max-h-[85vh] md:rounded-ui-lg md:border ${widthClassName}`}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-line bg-surface px-3.5 py-3">
-          <span className="font-display text-[15px] font-semibold text-ink">{title}</span>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="focus-ring rounded-ui px-2 py-1 text-ink-dim hover:text-ink"
-          >
-            ✕
-          </button>
-        </div>
+        {header ?? (
+          <div className="flex shrink-0 items-center justify-between border-b border-line bg-surface px-3.5 py-3">
+            <span className="font-display text-[15px] font-semibold text-ink">{title}</span>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="focus-ring rounded-ui px-2 py-1 text-ink-dim hover:text-ink"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

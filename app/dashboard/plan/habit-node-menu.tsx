@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 import { updateHabitNode, reorderHabitNode, moveHabitNodeToParent, moveHabitNodeToTopLevel, addHabitChild } from "./actions";
 import { archiveActivity } from "../habitos/actions";
 import { HABIT_ICON_NAMES, HabitIcon } from "@/lib/icons/habit-icons";
+import { BottomSheetModal } from "../compact-modal-card";
 
 function collectIds(n: HabitNode): string[] {
   return [n.activityId, ...n.children.flatMap(collectIds)];
@@ -42,6 +43,7 @@ export function HabitNodeMenu({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(node.name);
   const [hora, setHora] = useState(node.horaSugerida ?? "");
@@ -133,9 +135,23 @@ export function HabitNodeMenu({
       return archiveActivity(fd);
     });
 
+  const header = (
+    <div className="shrink-0">
+      <div className="flex justify-center pt-[11px]">
+        <span className="h-1 w-[38px] rounded-full bg-line-strong" />
+      </div>
+      <div className="px-[18px] pt-4">
+        <button type="button" onClick={() => setOpen(false)} className="focus-ring text-[14px] text-ink-muted">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         title="Editar hábito"
@@ -143,27 +159,15 @@ export function HabitNodeMenu({
       >
         ⋯
       </button>
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-md rounded-t-[14px] border-t border-line-strong bg-surface-2 pb-[max(18px,env(safe-area-inset-bottom))]"
-          >
-            <div className="flex justify-center pt-[11px]">
-              <span className="h-1 w-[38px] rounded-full bg-line-strong" />
-            </div>
-            <div className="px-[18px] pt-4">
-              <button type="button" onClick={() => setOpen(false)} className="focus-ring text-[14px] text-ink-muted">
-                Cancelar
-              </button>
-            </div>
-            <div className="flex max-h-[75vh] flex-col gap-3 overflow-y-auto px-[18px] pb-2 pt-2">
+      <BottomSheetModal
+        open={open}
+        onOpenChange={setOpen}
+        title={`Editar ${node.name}`}
+        header={header}
+        widthClassName="md:max-w-md"
+        returnFocusRef={triggerRef}
+      >
+        <div className="flex max-h-[75vh] flex-col gap-3 overflow-y-auto px-[18px] pb-2 pt-2">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Nombre</label>
                 <input
@@ -316,9 +320,7 @@ export function HabitNodeMenu({
                 Desactivar hábito
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheetModal>
     </>
   );
 }

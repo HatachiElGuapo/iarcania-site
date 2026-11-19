@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { moveBlockForDay, moveBlock, moveBlockToEndOfQueue, setCheck, getPlanCheck } from "./actions";
 import { addPlanExtra } from "./extras-actions";
 import { addDaysISO } from "@/lib/date/bogota";
 import { useToast } from "@/components/ui/toast";
+import { BottomSheetModal } from "../compact-modal-card";
 
 // Móvil · "⋯" de cada bloque de Rutinas — atrasar dentro del mismo día,
 // mandarlo a mañana sin que se pierda, o anotar qué se hizo de verdad
@@ -45,6 +46,7 @@ export function PlanBlockMenu({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [check, setCheckState] = useState<CheckRow | null>(null);
   const [loadingCheck, setLoadingCheck] = useState(false);
@@ -141,9 +143,31 @@ export function PlanBlockMenu({
       return setCheck(fd);
     });
 
+  const header = (
+    <div className="shrink-0">
+      <div className="flex justify-center pt-[11px]">
+        <span className="h-1 w-[38px] rounded-full bg-line-strong" />
+      </div>
+      <div className="px-[18px] pt-4">
+        <button type="button" onClick={() => setOpen(false)} className="focus-ring text-[14px] text-ink-muted">
+          Cancelar
+        </button>
+      </div>
+      <div className="px-[18px] pt-2">
+        <div className="font-display text-[17px] font-bold leading-snug text-ink">{text}</div>
+        <div className="mt-1 text-[13px] tabular-nums text-ink-dim">
+          {startTime}
+          {isSkipped && " · saltado"}
+          {check?.status === "done" && !isSkipped && " · hecho"}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         title="Más acciones"
@@ -153,35 +177,14 @@ export function PlanBlockMenu({
       >
         ⋯
       </button>
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-md rounded-t-[14px] border-t border-line-strong bg-surface-2 pb-[max(18px,env(safe-area-inset-bottom))]"
-          >
-            <div className="flex justify-center pt-[11px]">
-              <span className="h-1 w-[38px] rounded-full bg-line-strong" />
-            </div>
-            <div className="px-[18px] pt-4">
-              <button type="button" onClick={() => setOpen(false)} className="focus-ring text-[14px] text-ink-muted">
-                Cancelar
-              </button>
-            </div>
-            <div className="px-[18px] pt-2">
-              <div className="font-display text-[17px] font-bold leading-snug text-ink">{text}</div>
-              <div className="mt-1 text-[13px] tabular-nums text-ink-dim">
-                {startTime}
-                {isSkipped && " · saltado"}
-                {check?.status === "done" && !isSkipped && " · hecho"}
-              </div>
-            </div>
-
+      <BottomSheetModal
+        open={open}
+        onOpenChange={setOpen}
+        title={text}
+        header={header}
+        widthClassName="md:max-w-md"
+        returnFocusRef={triggerRef}
+      >
             <div className="flex flex-col gap-3 px-[18px] pb-2 pt-4">
               <a
                 href={`/dashboard/plan/bloque/${blockId}`}
@@ -319,9 +322,7 @@ export function PlanBlockMenu({
                 {isSkipped ? "Quitar salto" : "✗ Saltar este bloque"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheetModal>
     </>
   );
 }
