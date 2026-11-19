@@ -19,13 +19,22 @@ export function CompactModalCard({
   summary,
   title,
   children,
+  open: openProp,
+  onOpenChange,
 }: {
   label: string;
   summary: ReactNode;
   title: string;
   children: ReactNode;
+  // Controlado (ej. ActionsCard, que comparte el modal con un botón del
+  // encabezado vía contexto) si se pasan ambos; si no, el componente
+  // maneja su propio estado (HabitsCard, SecondaryCard).
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -62,7 +71,7 @@ export function CompactModalCard({
       document.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus();
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   return (
     <>

@@ -20,6 +20,9 @@ import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand,
 import { SecondaryCard } from "./secondary-section";
 import { HabitsCard } from "./habits-card";
 import { getStreakForPerson } from "@/lib/plan/streak";
+import { getDailyActions } from "@/lib/trabajo/daily-actions";
+import { ActionsCard, type DayActions } from "./acciones/actions-card";
+import { ActionsModalProvider, ActionsHeaderButton } from "./acciones/actions-context";
 import {
   PageHeader,
   Card,
@@ -296,6 +299,12 @@ export default async function RutinasPage({
   }
   const pendingSecondaryIds = pendingSecondary.map((p) => p.activityId);
 
+  const tomorrow = addDaysISO(today, 1);
+  const [hoyActions, mananaActions] = await Promise.all([
+    getDailyActions(userId, today),
+    getDailyActions(userId, tomorrow),
+  ]);
+
   const [orphanActivities, orphanBlocks] = await Promise.all([
     getOrphanActivities(userId),
     planPerson ? getOrphanPlanBlocks(planPerson.planId) : Promise.resolve([]),
@@ -313,6 +322,7 @@ export default async function RutinasPage({
   const nowTime = now.toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "numeric", minute: "2-digit" });
 
   return (
+    <ActionsModalProvider>
     <>
       <MobileHoy
         dateEyebrow={fmtDayEyebrow(date)}
@@ -335,6 +345,10 @@ export default async function RutinasPage({
         vicioStatsById={vicioStatsById}
         secondaryGroups={secondaryGroups}
         pendingSecondaryIds={pendingSecondaryIds}
+        hoyActions={hoyActions}
+        mananaActions={mananaActions}
+        today={today}
+        tomorrow={tomorrow}
         streakResult={streakResult}
         bestStreak={bestStreak}
         upcomingTasks={upcomingTasks}
@@ -357,6 +371,7 @@ export default async function RutinasPage({
             <Button variant="secondary" href={`/dashboard/agenda?date=${date}`}>
               Agenda del día
             </Button>
+            <ActionsHeaderButton />
             <QuickAddPanel
               trigger={
                 <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-ui bg-accent px-3.5 py-2 text-body font-medium text-white transition-colors duration-120 hover:bg-accent/90">
@@ -592,6 +607,11 @@ export default async function RutinasPage({
         </Card>
 
         <div className="flex flex-col gap-4">
+          <ActionsCard
+            hoy={{ date: today, ...hoyActions }}
+            manana={{ date: tomorrow, ...mananaActions }}
+          />
+
           <HabitsCard
             streak={streakResult.streak}
             best={streakResult.best}
@@ -698,6 +718,7 @@ export default async function RutinasPage({
       )}
       </div>
     </>
+    </ActionsModalProvider>
   );
 }
 
@@ -737,6 +758,10 @@ type MobileHoyProps = {
   vicioStatsById: Map<string, VicioStats>;
   secondaryGroups: Record<SecondaryBand, SecondaryEntry[]>;
   pendingSecondaryIds: string[];
+  hoyActions: { focus: DayActions["focus"]; others: DayActions["others"] };
+  mananaActions: { focus: DayActions["focus"]; others: DayActions["others"] };
+  today: string;
+  tomorrow: string;
   streakResult: { streak: number; protectors: number; best: number };
   bestStreak: number;
   upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
@@ -765,6 +790,10 @@ function MobileHoy({
   vicioStatsById,
   secondaryGroups,
   pendingSecondaryIds,
+  hoyActions,
+  mananaActions,
+  today,
+  tomorrow,
   streakResult,
   bestStreak,
   upcomingTasks,
@@ -889,6 +918,11 @@ function MobileHoy({
           )}
         </div>
       </div>
+
+      <ActionsCard
+        hoy={{ date: today, ...hoyActions }}
+        manana={{ date: tomorrow, ...mananaActions }}
+      />
 
       <HabitsCard
         streak={streakResult.streak}
