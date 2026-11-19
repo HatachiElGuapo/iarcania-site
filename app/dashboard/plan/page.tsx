@@ -306,59 +306,59 @@ export default async function PlanPage({
             </div>
             <div className="flex flex-col gap-1.5">
               <DayTimeline
-                items={myBlocks.map((b) => ({ ...b, key: b.blockId, start: toMinutes(b.startTime), end: timelineEnd(b), title: b.text }))}
                 isToday={isToday}
-                renderItem={(b, meta) => {
+                items={myBlocks.map((b) => {
                   const check = checkByBlockId.get(b.blockId);
                   const kind = kindInfo(b.kind);
                   const isDone = check?.status === "done";
                   const subHabits = habitTreesByBlock.get(b.blockId) ?? [];
-                  const overdue = meta.isPast && !isDone;
-                  return (
-                    <div className={`flex flex-col gap-1 ${meta.isCurrent ? "rounded-ui-lg ring-1 ring-accent/40" : ""}`}>
-                      <div className="flex items-center gap-2">
-                        <PlanCheckButton date={date} blockId={b.blockId} isDone={isDone} className="contents min-w-0 flex-1">
-                          <ListCard accent={kind.color}>
-                            <span
-                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
-                                isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
-                              }`}
-                            >
-                              ✓
-                            </span>
-                            <div className="flex w-14 shrink-0 flex-col items-start leading-tight">
-                              <span className="text-[11px] tabular-nums text-ink-dim">
-                                {b.startTime}
-                                {b.endTime && `–${b.endTime}`}
+                  return {
+                    key: b.blockId,
+                    start: toMinutes(b.startTime),
+                    end: timelineEnd(b),
+                    done: isDone,
+                    node: (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <PlanCheckButton date={date} blockId={b.blockId} isDone={isDone} className="contents min-w-0 flex-1">
+                            <ListCard accent={kind.color}>
+                              <span
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
+                                  isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+                                }`}
+                              >
+                                ✓
                               </span>
-                              {b.endTime && (
-                                <span className="text-[9px] tabular-nums text-ink-dim/70">{fmtDuration(durationOf(b))}</span>
-                              )}
-                            </div>
-                            <span className="shrink-0 text-[16px]">{kind.icon}</span>
-                            <span
-                              className={`line-clamp-2 min-w-0 flex-1 text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
-                            >
-                              {b.text}
-                            </span>
-                            {b.isMinimum && <Badge tone="warm" className="shrink-0">Mínimo</Badge>}
-                          </ListCard>
-                        </PlanCheckButton>
-                        <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
-                        <DeferButton date={date} blockId={b.blockId} text={b.text} startTime={b.startTime} />
-                      </div>
-                      {overdue && <div className="pl-2 text-[10px] text-danger/75">vencido</div>}
-                      {meta.overlapWithTitle && (
-                        <div className="pl-2 text-[10px] text-ink-dim">⚠ se cruza con {meta.overlapWithTitle}</div>
-                      )}
-                      {subHabits.length > 0 && (
-                        <div className="pl-2">
-                          <SubHabitsDropdown date={date} blockId={b.blockId} subHabits={subHabits} />
+                              <div className="flex w-14 shrink-0 flex-col items-start leading-tight">
+                                <span className="text-[11px] tabular-nums text-ink-dim">
+                                  {b.startTime}
+                                  {b.endTime && `–${b.endTime}`}
+                                </span>
+                                {b.endTime && (
+                                  <span className="text-[9px] tabular-nums text-ink-dim/70">{fmtDuration(durationOf(b))}</span>
+                                )}
+                              </div>
+                              <span className="shrink-0 text-[16px]">{kind.icon}</span>
+                              <span
+                                className={`line-clamp-2 min-w-0 flex-1 text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
+                              >
+                                {b.text}
+                              </span>
+                              {b.isMinimum && <Badge tone="warm" className="shrink-0">Mínimo</Badge>}
+                            </ListCard>
+                          </PlanCheckButton>
+                          <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
+                          <DeferButton date={date} blockId={b.blockId} text={b.text} startTime={b.startTime} />
                         </div>
-                      )}
-                    </div>
-                  );
-                }}
+                        {subHabits.length > 0 && (
+                          <div className="pl-2">
+                            <SubHabitsDropdown date={date} blockId={b.blockId} subHabits={subHabits} />
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  };
+                })}
               />
             </div>
           </>
@@ -375,20 +375,21 @@ export default async function PlanPage({
                   <p className="px-1 py-4 text-xs text-ink-muted">Nada agendado este día.</p>
                 )}
                 <DayTimeline
-                  items={blocks.map((b) => ({ ...b, key: b.blockId, start: toMinutes(b.startTime), end: timelineEnd(b), title: b.text }))}
                   isToday={isToday}
-                  renderItem={(b, meta) => {
+                  items={blocks.map((b) => {
                     const check = checkByBlockId.get(b.blockId);
                     const override = overrideByBlockId.get(b.blockId);
                     const kind = kindInfo(b.kind);
                     const isDone = check?.status === "done";
                     const isSkipped = check?.status === "skipped";
                     const subHabits = habitTreesByBlock.get(b.blockId) ?? [];
-                    const overdue = meta.isPast && !isDone;
-                    return (
-                    <div
-                      className={`rounded-ui-lg border border-line bg-surface px-3 py-2.5 ${meta.isCurrent ? "ring-1 ring-accent/40" : ""}`}
-                    >
+                    return {
+                      key: b.blockId,
+                      start: toMinutes(b.startTime),
+                      end: timelineEnd(b),
+                      done: isDone,
+                      node: (
+                    <div className="rounded-ui-lg border border-line bg-surface px-3 py-2.5">
                       <div className="flex items-start gap-2">
                         <span className="shrink-0 pt-0.5 text-meta">{kind.icon}</span>
                         <div className="min-w-0 flex-1">
@@ -403,14 +404,10 @@ export default async function PlanPage({
                             {b.tentative && <Badge tone="neutral">Tentativo</Badge>}
                             {b.isHoliday && <Badge tone="accent">Festivo</Badge>}
                             {override && <Badge tone="neutral">Editado hoy</Badge>}
-                            {overdue && <span className="text-[10.5px] text-danger/75">vencido</span>}
                           </div>
                           <div className={isDone ? "text-body text-ink-dim line-through" : "text-body text-ink"}>
                             {b.text}
                           </div>
-                          {meta.overlapWithTitle && (
-                            <div className="mt-0.5 text-meta text-ink-dim">⚠ se cruza con {meta.overlapWithTitle}</div>
-                          )}
                           {check?.note && <div className="mt-0.5 text-meta text-ink-dim">Nota: {check.note}</div>}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
@@ -499,8 +496,9 @@ export default async function PlanPage({
                         </div>
                       </details>
                     </div>
-                    );
-                  }}
+                      ),
+                    };
+                  })}
                 />
               </div>
             </Card>

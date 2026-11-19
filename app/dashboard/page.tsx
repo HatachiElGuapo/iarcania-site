@@ -36,7 +36,7 @@ import { createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { NewTaskSheet } from "./new-task-sheet";
 import { DayEventRow } from "./day-event-row";
-import { DayTimeline, OverlapNotice, type TimelineMeta } from "./day-timeline";
+import { DayTimeline } from "./day-timeline";
 import { primaryActionFor } from "@/lib/plan/primary-action";
 import { PlanBlockMenu } from "./plan/block-menu";
 import { TaskHabitMenu } from "./day-row-menu";
@@ -191,7 +191,6 @@ export default async function RutinasPage({
   for (const l of viciosLogs) viciosCounts.set(l.activityId, (viciosCounts.get(l.activityId) ?? 0) + 1);
 
   const events = [...dayEvents.events].sort((a, b) => a.start - b.start);
-  const timelineEvents = events.map((e) => ({ ...e, key: e.key, start: e.start, end: e.start + e.duration, title: e.title }));
   const doneToday = events.filter((e) => e.done).length;
   const totalToday = events.length;
   const pctToday = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
@@ -536,9 +535,14 @@ export default async function RutinasPage({
               <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
             ) : (
               <DayTimeline
-                items={timelineEvents}
+                items={events.map((e) => ({
+                  key: e.key,
+                  start: e.start,
+                  end: e.start + e.duration,
+                  done: e.done,
+                  node: <DayEventRow ev={e} date={date} />,
+                }))}
                 isToday={isToday}
-                renderItem={(e, meta) => <DayEventRow ev={e} date={date} meta={meta} />}
               />
             )}
           </div>
@@ -874,9 +878,14 @@ function MobileHoy({
             <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
           ) : (
             <DayTimeline
-              items={events.map((ev) => ({ ...ev, key: ev.key, start: ev.start, end: ev.start + ev.duration, title: ev.title }))}
+              items={events.map((ev) => ({
+                key: ev.key,
+                start: ev.start,
+                end: ev.start + ev.duration,
+                done: ev.done,
+                node: <MobileDayRow ev={ev} date={date} />,
+              }))}
               isToday={isToday}
-              renderItem={(ev, meta) => <MobileDayRow ev={ev} date={date} meta={meta} />}
             />
           )}
         </div>
@@ -969,11 +978,11 @@ function MobileHoy({
   );
 }
 
-function MobileDayRow({ ev, date, meta }: { ev: AgendaEvent; date: string; meta?: TimelineMeta }) {
+function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const primary = primaryActionFor(ev, date);
 
   const row = (
-    <ListCard accent={ev.accent} className={meta?.isCurrent ? "ring-1 ring-accent/40" : undefined}>
+    <ListCard accent={ev.accent}>
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
           ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
@@ -994,8 +1003,6 @@ function MobileDayRow({ ev, date, meta }: { ev: AgendaEvent; date: string; meta?
         >
           {ev.title}
         </div>
-        {meta?.isPast && !ev.done && <div className="text-[10px] text-danger/75">vencido</div>}
-        {meta?.overlapWithTitle && <OverlapNotice withTitle={meta.overlapWithTitle} />}
         {(ev.badge || (ev.habitChecks && ev.habitChecks.length > 0)) && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {ev.badge && (

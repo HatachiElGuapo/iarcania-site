@@ -10,15 +10,16 @@ import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
 import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pickProtectorGainedMessage } from "@/lib/plan/praise";
-import { OverlapNotice, type TimelineMeta } from "./day-timeline";
 
 // Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
 // de un <button type="submit"> que ocupa toda la fila — clickear en
 // cualquier parte marca/desmarca, no solo un cuadradito. El control de
 // "saltado" de Plan y el link de editar quedan aparte, afuera del botón
-// grande, para no perder ese click más chico. `meta` (línea de tiempo,
-// ver DayTimeline) es opcional — sin ella la fila se ve igual que antes.
-export function DayEventRow({ ev, date, meta }: { ev: AgendaEvent; date: string; meta?: TimelineMeta }) {
+// grande, para no perder ese click más chico. El resaltado de "en
+// curso"/"vencido" y la línea de "ahora" los agrega DayTimeline por
+// fuera (BlockTimelineState/NowMarkerSlot) — esta fila no sabe nada de
+// eso, solo pinta su propio contenido.
+export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const primary = primaryActionFor(ev, date);
   const toast = useToast();
 
@@ -70,8 +71,6 @@ export function DayEventRow({ ev, date, meta }: { ev: AgendaEvent; date: string;
         <span className={`block truncate text-body ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}
         </span>
-        {meta?.isPast && !ev.done && <span className="text-[10px] text-danger/75">vencido</span>}
-        {meta?.overlapWithTitle && <OverlapNotice withTitle={meta.overlapWithTitle} />}
       </div>
       <span
         className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
@@ -87,10 +86,9 @@ export function DayEventRow({ ev, date, meta }: { ev: AgendaEvent; date: string;
   return (
     <div
       className={
-        (isPlanBlock
+        isPlanBlock
           ? "my-1 flex flex-col gap-1 rounded-ui-lg border border-line bg-surface px-3 py-1"
-          : "flex flex-col gap-1 rounded-ui-lg px-3.5 py-1") +
-        (meta?.isCurrent ? " ring-1 ring-accent/40" : "")
+          : "flex flex-col gap-1 px-3.5 py-1"
       }
     >
       <div className="flex items-center gap-2">
