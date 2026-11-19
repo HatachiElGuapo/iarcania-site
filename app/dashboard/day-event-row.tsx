@@ -106,7 +106,7 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       </div>
       {ev.habitChecks && ev.habitChecks.length > 0 && (
         <div className="ml-9">
-          <SubHabitsDropdown date={date} subHabits={ev.habitChecks} />
+          <SubHabitsDropdown date={date} blockId={ev.refId} subHabits={ev.habitChecks} />
         </div>
       )}
     </div>

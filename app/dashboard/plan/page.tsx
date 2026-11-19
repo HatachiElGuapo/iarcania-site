@@ -321,7 +321,7 @@ export default async function PlanPage({
                     </div>
                     {subHabits.length > 0 && (
                       <div className="pl-2">
-                        <SubHabitsDropdown date={date} subHabits={subHabits} />
+                        <SubHabitsDropdown date={date} blockId={b.blockId} subHabits={subHabits} />
                       </div>
                     )}
                   </div>
@@ -399,7 +399,7 @@ export default async function PlanPage({
                         </div>
                       </div>
 
-                      {subHabits.length > 0 && <SubHabitsDropdown date={date} subHabits={subHabits} />}
+                      {subHabits.length > 0 && <SubHabitsDropdown date={date} blockId={b.blockId} subHabits={subHabits} />}
 
                       <details className="mt-1.5">
                         <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">

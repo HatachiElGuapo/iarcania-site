@@ -978,3 +978,202 @@ export async function applyHabitToggle(
 
   return { parentJustCompleted, blockToastMessage };
 }
+
+// ─── Gestión del árbol de hábitos (nombre/hora/secundario, orden, mover,
+// agregar, desactivar) — server-first, sin drag-and-drop: botones ↑/↓ para
+// orden y un menú (ver HabitNodeMenu) para el resto. ───────────────────────
+
+async function requireOwnedActivityRow(id: string, userId: string) {
+  const [row] = await db
+    .select({
+      id: activities.id,
+      name: activities.name,
+      parentId: activities.parentId,
+      isOptional: activities.isOptional,
+      horaSugerida: activities.horaSugerida,
+      sortOrder: activities.sortOrder,
+    })
+    .from(activities)
+    .where(and(eq(activities.id, id), eq(activities.userId, userId)));
+  if (!row) throw new Error("Hábito no encontrado");
+  return row;
+}
+
+// Profundidad de un nodo: 1 = primer nivel (enlazado en
+// plan_block_activities), 2 = hijo, 3 = nieto.
+async function depthOf(activityId: string, userId: string): Promise<number> {
+  let depth = 1;
+  let current = await requireOwnedActivityRow(activityId, userId);
+  while (current.parentId) {
+    depth++;
+    current = await requireOwnedActivityRow(current.parentId, userId);
+  }
+  return depth;
+}
+
+// Altura del subárbol propio del nodo (1 = sin hijos, 2 = tiene hijos sin
+// nietos, 3 = tiene nietos) — para no dejar una rama a más de 3 niveles al
+// moverla o anidarla.
+async function subtreeHeight(activityId: string): Promise<number> {
+  const children = await db
+    .select({ id: activities.id })
+    .from(activities)
+    .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
+  if (children.length === 0) return 1;
+  const heights = await Promise.all(children.map((c) => subtreeHeight(c.id)));
+  return 1 + Math.max(...heights);
+}
+
+// Nombre, hora sugerida y si es secundario (is_optional) — no toca
+// frequency/categoría/etc, a diferencia de updateActivity en habitos/
+// actions.ts (que exige mandar la fila entera).
+export async function updateHabitNode(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const horaSugerida = String(formData.get("horaSugerida") || "") || null;
+  const isOptional = formData.get("isOptional") === "on";
+  if (!id || !name) throw new Error("Faltan datos");
+
+  await requireOwnedActivityRow(id, userId);
+  await db.update(activities).set({ name, horaSugerida, isOptional }).where(eq(activities.id, id));
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
+}
+
+// Sube/baja un hábito o subhábito un puesto dentro de sus hermanos — si no
+// tiene padre (primer nivel), los hermanos son los demás hábitos de primer
+// nivel del MISMO bloque (hace falta `blockId`); si tiene padre, son los
+// demás hijos de ese padre. Renumera todos los hermanos a 0..n-1 primero
+// (por si había sort_order repetidos o salteados) y recién ahí intercambia
+// — así el cambio siempre se nota, no depende de qué valores traía antes.
+export async function reorderHabitNode(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const blockId = String(formData.get("blockId") || "") || null;
+  const direction = String(formData.get("direction") || "");
+  if (!id || (direction !== "up" && direction !== "down")) throw new Error("Faltan datos");
+
+  const node = await requireOwnedActivityRow(id, userId);
+
+  let siblings: { id: string; name: string; sortOrder: number }[];
+  if (node.parentId) {
+    siblings = await db
+      .select({ id: activities.id, name: activities.name, sortOrder: activities.sortOrder })
+      .from(activities)
+      .where(and(eq(activities.parentId, node.parentId), eq(activities.isActive, true)));
+  } else {
+    if (!blockId) throw new Error("Falta el bloque");
+    await requireOwnedBlock(blockId, userId);
+    siblings = await db
+      .select({ id: activities.id, name: activities.name, sortOrder: activities.sortOrder })
+      .from(planBlockActivities)
+      .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
+      .where(and(eq(planBlockActivities.blockId, blockId), eq(activities.isActive, true)));
+  }
+  siblings.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+
+  const idx = siblings.findIndex((s) => s.id === id);
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (idx < 0 || swapIdx < 0 || swapIdx >= siblings.length) return;
+
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < siblings.length; i++) {
+      if (siblings[i].sortOrder !== i) await tx.update(activities).set({ sortOrder: i }).where(eq(activities.id, siblings[i].id));
+    }
+    await tx.update(activities).set({ sortOrder: swapIdx }).where(eq(activities.id, siblings[idx].id));
+    await tx.update(activities).set({ sortOrder: idx }).where(eq(activities.id, siblings[swapIdx].id));
+  });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
+}
+
+// Mueve un subhábito (debe tener padre) a otro padre — valida que no se
+// mueva dentro de su propia rama (ciclo) y que la rama movida no termine a
+// más de 3 niveles de profundidad.
+export async function moveHabitNodeToParent(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const newParentId = String(formData.get("newParentId") || "");
+  if (!id || !newParentId) throw new Error("Faltan datos");
+  if (id === newParentId) throw new Error("No se puede mover a sí mismo");
+
+  const node = await requireOwnedActivityRow(id, userId);
+  if (!node.parentId) throw new Error("Este hábito ya es de primer nivel");
+
+  await requireOwnedActivityRow(newParentId, userId);
+  const newParentDepth = await depthOf(newParentId, userId);
+  if (newParentDepth > 2) throw new Error("Ese hábito ya es un subhábito de tercer nivel — no puede tener hijos");
+
+  let cursor: string | null = newParentId;
+  while (cursor) {
+    if (cursor === id) throw new Error("No se puede mover dentro de su propia rama");
+    const row = await requireOwnedActivityRow(cursor, userId);
+    cursor = row.parentId;
+  }
+
+  const height = await subtreeHeight(id);
+  if (newParentDepth + height > 3) throw new Error("Ese movimiento dejaría hábitos a más de 3 niveles de profundidad");
+
+  await db.update(activities).set({ parentId: newParentId }).where(eq(activities.id, id));
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
+}
+
+// Mueve un subhábito (debe tener padre) al primer nivel de un bloque —
+// quita el parent_id y lo enlaza en plan_block_activities si no estaba ya.
+export async function moveHabitNodeToTopLevel(formData: FormData) {
+  const userId = await requireUserId();
+  const id = String(formData.get("id") || "");
+  const blockId = String(formData.get("blockId") || "");
+  if (!id || !blockId) throw new Error("Faltan datos");
+
+  const node = await requireOwnedActivityRow(id, userId);
+  if (!node.parentId) throw new Error("Este hábito ya es de primer nivel");
+  await requireOwnedBlock(blockId, userId);
+
+  await db.transaction(async (tx) => {
+    await tx.update(activities).set({ parentId: null }).where(eq(activities.id, id));
+    const [existingLink] = await tx
+      .select({ blockId: planBlockActivities.blockId })
+      .from(planBlockActivities)
+      .where(and(eq(planBlockActivities.blockId, blockId), eq(planBlockActivities.activityId, id)));
+    if (!existingLink) await tx.insert(planBlockActivities).values({ blockId, activityId: id });
+  });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
+}
+
+// Agrega un subhábito nuevo bajo `parentId` — rechaza si el padre ya está
+// en el último nivel permitido (3).
+export async function addHabitChild(formData: FormData) {
+  const userId = await requireUserId();
+  const parentId = String(formData.get("parentId") || "");
+  const name = String(formData.get("name") || "").trim();
+  const isOptional = formData.get("isOptional") === "on";
+  if (!parentId || !name) throw new Error("Faltan datos");
+
+  await requireOwnedActivityRow(parentId, userId);
+  const parentDepth = await depthOf(parentId, userId);
+  if (parentDepth >= 3) throw new Error("Ese hábito ya está en el último nivel — no puede tener hijos");
+
+  const siblings = await db
+    .select({ sortOrder: activities.sortOrder })
+    .from(activities)
+    .where(and(eq(activities.parentId, parentId), eq(activities.isActive, true)));
+  const nextSort = siblings.length ? Math.max(...siblings.map((s) => s.sortOrder)) + 1 : 0;
+
+  await db.insert(activities).values({ userId, name, parentId, isOptional, sortOrder: nextSort, frequency: "diaria" });
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
+}

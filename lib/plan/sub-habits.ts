@@ -12,11 +12,19 @@ export type HabitNode = {
   activityId: string;
   name: string;
   isOptional: boolean;
+  horaSugerida: string | null;
   done: boolean;
   children: HabitNode[];
 };
 
-type Row = { id: string; parentId: string | null; name: string; isOptional: boolean; sortOrder: number };
+type Row = {
+  id: string;
+  parentId: string | null;
+  name: string;
+  isOptional: boolean;
+  sortOrder: number;
+  horaSugerida: string | null;
+};
 
 // sort_order ascendente, nombre como desempate — mismo criterio en los 3
 // niveles.
@@ -36,6 +44,7 @@ export async function loadHabitTreesByBlock(
       name: activities.name,
       isOptional: activities.isOptional,
       sortOrder: activities.sortOrder,
+      horaSugerida: activities.horaSugerida,
     })
     .from(planBlockActivities)
     .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
@@ -51,6 +60,7 @@ export async function loadHabitTreesByBlock(
           name: activities.name,
           isOptional: activities.isOptional,
           sortOrder: activities.sortOrder,
+          horaSugerida: activities.horaSugerida,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level1Ids), eq(activities.isActive, true)))
@@ -65,6 +75,7 @@ export async function loadHabitTreesByBlock(
           name: activities.name,
           isOptional: activities.isOptional,
           sortOrder: activities.sortOrder,
+          horaSugerida: activities.horaSugerida,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level2Ids), eq(activities.isActive, true)))
@@ -93,11 +104,11 @@ export async function loadHabitTreesByBlock(
   // padre siempre marca/desmarca SU PROPIO log (toggleLogToday sobre su
   // activityId) — nunca cascada hacia los hijos; "también se puede marcar
   // directo" es justamente ese camino independiente del cómputo por hijos.
-  function buildNode(id: string, name: string, isOptional: boolean): HabitNode {
+  function buildNode(id: string, name: string, isOptional: boolean, horaSugerida: string | null): HabitNode {
     const childRows = childrenByParent.get(id) ?? [];
-    const children = childRows.map((c) => buildNode(c.id, c.name, c.isOptional));
+    const children = childRows.map((c) => buildNode(c.id, c.name, c.isOptional, c.horaSugerida));
     const done = doneSet.has(id) || (children.length > 0 && children.every((c) => c.done));
-    return { activityId: id, name, isOptional, done, children };
+    return { activityId: id, name, isOptional, horaSugerida, done, children };
   }
 
   const sortedLevel1Rows = [...level1Rows].sort(bySortOrder);
@@ -105,7 +116,7 @@ export async function loadHabitTreesByBlock(
   const byBlock = new Map<string, HabitNode[]>();
   for (const r of sortedLevel1Rows) {
     const list = byBlock.get(r.blockId) ?? [];
-    list.push(buildNode(r.id, r.name, r.isOptional));
+    list.push(buildNode(r.id, r.name, r.isOptional, r.horaSugerida));
     byBlock.set(r.blockId, list);
   }
   return byBlock;
