@@ -2,20 +2,36 @@
 
 import { type ReactNode, useState } from "react";
 import { EmptyState } from "@/components/ui";
-import type { PendingMinimumBlock } from "@/lib/plan/pending";
+import { useToast } from "@/components/ui/toast";
+import type { PendingMinimumBlock, PendingSecondaryHabit } from "@/lib/plan/pending";
+import { SafeActionButton } from "./safe-action-button";
+import { toggleLogToday } from "./habitos/actions";
+import { DeferButton } from "./plan/defer-button";
 
-// Panel de "Pendientes" — solo bloques is_minimum de Plan cuya hora de
-// vencimiento ya pasó y todavía no se marcaron (ver lib/plan/pending.ts).
+// Panel de "Pendientes" — mínimos vencidos (is_minimum, sin marcar) y,
+// aparte, hábitos/subhábitos SECUNDARIOS (is_optional=true) cuya hora ya
+// pasó y tampoco están marcados. Los secundarios no afectan racha ni el
+// contador principal — son solo un recordatorio con su propio conteo.
 // Mismo patrón de overlay que <QuickAddPanel>.
 export function PendingPanel({
   trigger,
   pendingMinimums,
+  pendingSecondary,
+  date,
 }: {
   trigger: ReactNode;
   pendingMinimums: PendingMinimumBlock[];
+  pendingSecondary: PendingSecondaryHabit[];
+  date: string;
 }) {
   const [open, setOpen] = useState(false);
-  const pending = pendingMinimums;
+  const toast = useToast();
+
+  function onHabitResult(result: unknown) {
+    if (!result || typeof result !== "object") return;
+    const r = result as { done: boolean; toastMessage: string | null };
+    if (r.toastMessage) toast.show({ message: r.toastMessage, tone: "success" });
+  }
 
   return (
     <>
@@ -44,20 +60,52 @@ export function PendingPanel({
                 ✕
               </button>
             </div>
-            <div className="flex max-h-[70vh] flex-col divide-y divide-line overflow-y-auto">
-              {pending.length === 0 ? (
-                <EmptyState icon="🎉">No hay mínimos vencidos sin marcar.</EmptyState>
-              ) : (
-                pending.map((p) => (
-                  <a
-                    key={p.blockId}
-                    href={`/dashboard/plan?date=${p.effectiveDate}`}
-                    className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface-2"
-                  >
-                    <span className="w-14 shrink-0 text-meta tabular-nums text-ink-dim">{p.dueTime}</span>
-                    <span className="min-w-0 flex-1 truncate text-body text-ink">{p.text}</span>
-                  </a>
-                ))
+            <div className="flex max-h-[70vh] flex-col overflow-y-auto">
+              <div className="flex flex-col divide-y divide-line">
+                {pendingMinimums.length === 0 ? (
+                  <EmptyState icon="🎉">No hay mínimos vencidos sin marcar.</EmptyState>
+                ) : (
+                  pendingMinimums.map((p) => (
+                    <a
+                      key={p.blockId}
+                      href={`/dashboard/plan?date=${p.effectiveDate}`}
+                      className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface-2"
+                    >
+                      <span className="w-14 shrink-0 text-meta tabular-nums text-ink-dim">{p.dueTime}</span>
+                      <span className="min-w-0 flex-1 truncate text-body text-ink">{p.text}</span>
+                    </a>
+                  ))
+                )}
+              </div>
+
+              {pendingSecondary.length > 0 && (
+                <div className="border-t border-line">
+                  <div className="bg-surface px-3.5 py-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                    Secundarios pendientes
+                  </div>
+                  <div className="flex flex-col divide-y divide-line">
+                    {pendingSecondary.map((h) => (
+                      <div key={h.activityId} className="flex items-center gap-2 px-3.5 py-2.5">
+                        <SafeActionButton
+                          action={toggleLogToday}
+                          fields={{ activityId: h.activityId, date }}
+                          onResult={onHabitResult}
+                          className="focus-ring flex min-w-0 flex-1 items-center gap-2.5 rounded-ui py-0.5 text-left transition-colors duration-120 hover:bg-surface"
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-ui border border-line-strong text-[11px] text-transparent">
+                            ✓
+                          </span>
+                          <span className="w-12 shrink-0 text-meta tabular-nums text-ink-dim">{h.dueTime}</span>
+                          <span className="min-w-0 flex-1 truncate text-body text-ink">
+                            {h.name}
+                            <span className="ml-1.5 text-meta text-ink-dim">· {h.blockText}</span>
+                          </span>
+                        </SafeActionButton>
+                        <DeferButton date={date} blockId={h.blockId} text={h.blockText} startTime={h.blockStartTime} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>

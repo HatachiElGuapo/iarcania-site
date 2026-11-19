@@ -14,7 +14,7 @@ import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/pl
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type OrphanPlanBlock } from "@/lib/plan/orphans";
-import { getPendingMinimumsForPerson, type PendingMinimumBlock } from "@/lib/plan/pending";
+import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMinimumBlock, type PendingSecondaryHabit } from "@/lib/plan/pending";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import {
   PageHeader,
@@ -236,13 +236,15 @@ export default async function RutinasPage({
   const planPerson = await findPlanPersonForUser(userId);
   let planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[] = [];
   let pendingMinimums: PendingMinimumBlock[] = [];
+  let pendingSecondary: PendingSecondaryHabit[] = [];
   let streakResult = { streak: 0, protectors: 0 };
   const yesterday = addDaysISO(today, -1);
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
     if (isToday) {
-      [pendingMinimums, streakResult] = await Promise.all([
+      [pendingMinimums, pendingSecondary, streakResult] = await Promise.all([
         getPendingMinimumsForPerson(planCtx, planPerson.personId, today, nowHHMM()),
+        getPendingSecondaryHabits(planCtx, userId, planPerson.personId, today, nowHHMM()),
         getStreakForPerson(planCtx, planPerson.personId, today),
       ]);
     }
@@ -362,10 +364,21 @@ export default async function RutinasPage({
         <PendingPanel
           trigger={
             <button type="button" className="focus-ring block w-full text-left">
-              <MetricCard value={pendingMinimums.length} label="pendientes" sub="mínimos vencidos" tone="primary" />
+              <MetricCard
+                value={pendingMinimums.length}
+                label="pendientes"
+                sub={
+                  pendingSecondary.length > 0
+                    ? `${pendingMinimums.length} mínimos · ${pendingSecondary.length} secundarios`
+                    : "mínimos vencidos"
+                }
+                tone="primary"
+              />
             </button>
           }
           pendingMinimums={pendingMinimums}
+          pendingSecondary={pendingSecondary}
+          date={today}
         />
         <MetricCard value={doneToday} label="completadas" sub={`de ${totalToday}`} tone="success" />
         <OverduePanel

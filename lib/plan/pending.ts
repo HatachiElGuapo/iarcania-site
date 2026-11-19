@@ -12,6 +12,7 @@ import type { PlanContext } from "./load";
 import { toPlanData } from "./load";
 import { resolvePlan, type ResolvedBlock } from "./resolve";
 import { addDaysISO } from "@/lib/date/bogota";
+import { loadHabitTreesByBlock, type HabitNode } from "./sub-habits";
 
 export type PendingMinimumBlock = {
   blockId: string;
@@ -69,6 +70,67 @@ export async function getPendingMinimumsForPerson(
     if (nowHHMM < dueTime) continue;
     if (checkedSet.has(`${yesterday}:${b.blockId}`)) continue;
     out.push({ blockId: b.blockId, text: b.text, startTime: b.startTime, dueTime, effectiveDate: yesterday });
+  }
+
+  out.sort((a, b) => a.dueTime.localeCompare(b.dueTime));
+  return out;
+}
+
+export type PendingSecondaryHabit = {
+  activityId: string;
+  name: string;
+  horaSugerida: string | null;
+  dueTime: string; // hora_sugerida si la tiene, si no la hora de fin del bloque
+  blockId: string;
+  blockText: string;
+  blockStartTime: string;
+};
+
+// Hábitos y subhábitos SECUNDARIOS (is_optional=true, a cualquier
+// profundidad del árbol) cuya hora ya pasó y no están marcados hoy — no
+// cuentan para mínimos/racha, solo es un recordatorio aparte. A
+// diferencia de getPendingMinimumsForPerson, no mira el bloque de AYER
+// que cruza medianoche: los secundarios siempre cuelgan de un bloque del
+// día, no de uno que recién vence al día siguiente.
+export async function getPendingSecondaryHabits(
+  ctx: PlanContext,
+  userId: string,
+  personId: string,
+  today: string,
+  nowHHMM: string,
+): Promise<PendingSecondaryHabit[]> {
+  const planData = toPlanData(ctx);
+  const [todayDay] = resolvePlan(planData, today, today);
+  const blocks = todayDay?.blocksByPerson[personId] ?? [];
+  if (blocks.length === 0) return [];
+
+  const habitTreesByBlock = await loadHabitTreesByBlock(ctx.plan.id, userId, today);
+  const out: PendingSecondaryHabit[] = [];
+
+  function walk(nodes: HabitNode[], blockId: string, blockText: string, blockStartTime: string, blockDueTime: string) {
+    for (const n of nodes) {
+      if (n.isOptional && !n.done) {
+        const dueTime = n.horaSugerida ?? blockDueTime;
+        if (dueTime <= nowHHMM) {
+          out.push({
+            activityId: n.activityId,
+            name: n.name,
+            horaSugerida: n.horaSugerida,
+            dueTime,
+            blockId,
+            blockText,
+            blockStartTime,
+          });
+        }
+      }
+      walk(n.children, blockId, blockText, blockStartTime, blockDueTime);
+    }
+  }
+
+  for (const b of blocks) {
+    const tree = habitTreesByBlock.get(b.blockId) ?? [];
+    const blockDueTime = b.endTime ?? b.startTime;
+    walk(tree, b.blockId, b.text, b.startTime, blockDueTime);
   }
 
   out.sort((a, b) => a.dueTime.localeCompare(b.dueTime));
