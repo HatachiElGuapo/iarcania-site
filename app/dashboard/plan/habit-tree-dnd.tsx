@@ -141,7 +141,9 @@ function HabitRow({
   allNodes: HabitNode[];
 }) {
   const { node, depth } = item;
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+  });
   const toast = useToast();
 
   function onHabitResult(result: unknown) {
@@ -161,6 +163,7 @@ function HabitRow({
       ))}
       <div className="flex min-w-0 flex-1 items-center gap-1 py-0.5">
         <button
+          ref={setActivatorNodeRef}
           type="button"
           {...attributes}
           {...listeners}
@@ -221,7 +224,7 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
