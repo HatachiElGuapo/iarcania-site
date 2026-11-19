@@ -47,6 +47,10 @@ export type AgendaEvent = {
   // "Extras de hoy" del bloque — tasks sueltas enlazadas vía
   // tasks.plan_block_id (ver lib/plan/extras.ts), solo para kind="plan".
   extras?: PlanExtra[];
+  // plan_blocks.kind crudo (solo kind="plan") — para pintar el ícono de
+  // línea por defecto (ver lib/icons/habit-icons.tsx, BlockIcon). `icon`
+  // ya trae el emoji viejo para el resto de los kinds, sin tocar.
+  planKind?: string | null;
   // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
   // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
   endLabel?: string;
@@ -217,6 +221,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         // se muestran aparte en el panel "Secundarios" del dashboard.
         habitChecks: splitPrincipalSecondary(habitTreesYesterday.get(b.blockId) ?? []).principal,
         extras: extrasYesterday.get(b.blockId) ?? [],
+        planKind: b.kind,
       };
     });
 
@@ -241,6 +246,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         editHref: `/dashboard/plan?date=${date}`,
         habitChecks: splitPrincipalSecondary(habitTreesToday.get(b.blockId) ?? []).principal,
         extras: extrasToday.get(b.blockId) ?? [],
+        planKind: b.kind,
         endLabel: b.endTime ? undefined : "24:00",
         projected: b.isProjected,
       };

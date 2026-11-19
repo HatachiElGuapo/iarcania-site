@@ -1037,10 +1037,11 @@ export async function updateHabitNode(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const horaSugerida = String(formData.get("horaSugerida") || "") || null;
   const isOptional = formData.get("isOptional") === "on";
+  const icon = String(formData.get("icon") || "") || null;
   if (!id || !name) throw new Error("Faltan datos");
 
   await requireOwnedActivityRow(id, userId);
-  await db.update(activities).set({ name, horaSugerida, isOptional }).where(eq(activities.id, id));
+  await db.update(activities).set({ name, horaSugerida, isOptional, icon }).where(eq(activities.id, id));
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard");

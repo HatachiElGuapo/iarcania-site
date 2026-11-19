@@ -7,6 +7,7 @@ import { toggleLogToday } from "./habitos/actions";
 import { DeferButton } from "./plan/defer-button";
 import { CompactModalCard } from "./compact-modal-card";
 import type { HabitNode } from "@/lib/plan/sub-habits";
+import { HabitIcon } from "@/lib/icons/habit-icons";
 import type { SecondaryBand, SecondaryEntry } from "@/lib/plan/secondary";
 
 const BAND_LABEL: Record<SecondaryBand, string> = { manana: "Mañana", tarde: "Tarde", noche: "Noche" };
@@ -115,6 +116,7 @@ function SecondaryRow({
           >
             ✓
           </span>
+          <HabitIcon icon={node.icon} className="h-3.5 w-3.5 shrink-0 text-ink-dim" />
           <span className={`min-w-0 truncate text-[12px] ${node.done ? "text-ink-dim line-through" : "text-ink"}`}>
             {node.name}
           </span>

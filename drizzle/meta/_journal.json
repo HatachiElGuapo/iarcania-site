@@ -295,6 +295,13 @@
       "when": 1795119774547,
       "tag": "0041_lonely_sally_floyd",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795120879854,
+      "tag": "0042_chief_colonel_america",
+      "breakpoints": true
     }
   ]
 }

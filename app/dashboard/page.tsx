@@ -19,6 +19,7 @@ import { computeVicioStats, type VicioStats } from "@/lib/habits/vicio-stats";
 import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
 import { SecondaryCard } from "./secondary-section";
 import { HabitsCard } from "./habits-card";
+import { BlockIcon } from "@/lib/icons/habit-icons";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import { getDailyActions } from "@/lib/trabajo/daily-actions";
 import { ActionsCard, type DayActions } from "./acciones/actions-card";
@@ -146,6 +147,7 @@ export default async function RutinasPage({
         name: activities.name,
         horaSugerida: activities.horaSugerida,
         sortOrder: activities.sortOrder,
+        icon: activities.icon,
       })
       .from(activities)
       .where(
@@ -238,6 +240,7 @@ export default async function RutinasPage({
         name: h.name,
         horaSugerida: h.horaSugerida,
         sortOrder: h.sortOrder,
+        icon: h.icon,
         done: dates?.has(date) ?? false,
         streak: computeStreak(dates, date),
         week: weekCells(dates, date),
@@ -748,6 +751,7 @@ type MobileHoyProps = {
     id: string;
     name: string;
     horaSugerida: string | null;
+    icon: string | null;
     done: boolean;
     streak: number;
     week: { done: boolean }[];
@@ -1018,7 +1022,11 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         </span>
         {!ev.autoTime && <span className="text-[9px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>}
       </div>
-      <span className="shrink-0 text-[16px]">{ev.icon}</span>
+      {ev.kind === "plan" ? (
+        <BlockIcon kind={ev.planKind ?? null} className="h-4 w-4 shrink-0 text-ink-dim" />
+      ) : (
+        <span className="shrink-0 text-[16px]">{ev.icon}</span>
+      )}
       <div className="min-w-0 flex-1">
         <div
           className={`line-clamp-2 text-[15px] leading-tight ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}

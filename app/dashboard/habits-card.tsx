@@ -9,11 +9,13 @@ import { SafeActionButton } from "./safe-action-button";
 import { toggleLogToday, createActivity } from "./habitos/actions";
 import { CompactModalCard } from "./compact-modal-card";
 import { STREAK_MILESTONES } from "@/lib/plan/praise";
+import { HabitIcon } from "@/lib/icons/habit-icons";
 
 export type HabitViewItem = {
   id: string;
   name: string;
   horaSugerida: string | null;
+  icon: string | null;
   done: boolean;
   streak: number;
   week: { done: boolean }[];
@@ -51,6 +53,7 @@ function HabitRow({
       >
         {h.done ? "✓" : ""}
       </span>
+      <HabitIcon icon={h.icon} className="h-4 w-4 shrink-0 text-ink-dim" />
       <span className="min-w-0 flex-1">
         <span className={`block truncate text-sm ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>{h.name}</span>
         <span className="mt-0.5 block truncate text-[10px] text-ink-dim">{h.horaSugerida ?? "cualquier hora"}</span>

@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/toast";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 import { updateHabitNode, reorderHabitNode, moveHabitNodeToParent, moveHabitNodeToTopLevel, addHabitChild } from "./actions";
 import { archiveActivity } from "../habitos/actions";
+import { HABIT_ICON_NAMES, HabitIcon } from "@/lib/icons/habit-icons";
 
 function collectIds(n: HabitNode): string[] {
   return [n.activityId, ...n.children.flatMap(collectIds)];
@@ -45,6 +46,7 @@ export function HabitNodeMenu({
   const [name, setName] = useState(node.name);
   const [hora, setHora] = useState(node.horaSugerida ?? "");
   const [isOptional, setIsOptional] = useState(node.isOptional);
+  const [icon, setIcon] = useState(node.icon ?? "");
   const [newParentId, setNewParentId] = useState("");
   const [childName, setChildName] = useState("");
   const [childOptional, setChildOptional] = useState(false);
@@ -76,6 +78,7 @@ export function HabitNodeMenu({
       fd.set("name", name);
       fd.set("horaSugerida", hora);
       if (isOptional) fd.set("isOptional", "on");
+      fd.set("icon", icon);
       return updateHabitNode(fd);
     });
 
@@ -181,6 +184,35 @@ export function HabitNodeMenu({
                   Secundario
                 </label>
               </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Ícono</label>
+                <div className="grid grid-cols-8 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIcon("")}
+                    title="Sin ícono"
+                    className={`flex h-9 items-center justify-center rounded-ui border text-[10px] ${
+                      icon === "" ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-dim"
+                    }`}
+                  >
+                    ✕
+                  </button>
+                  {HABIT_ICON_NAMES.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setIcon(n)}
+                      title={n}
+                      className={`flex h-9 items-center justify-center rounded-ui border ${
+                        icon === n ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-dim"
+                      }`}
+                    >
+                      <HabitIcon icon={n} className="h-4 w-4" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <button
                 type="button"
                 disabled={pending || !name.trim()}

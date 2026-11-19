@@ -10,6 +10,7 @@ import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
 import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pickProtectorGainedMessage } from "@/lib/plan/praise";
+import { BlockIcon } from "@/lib/icons/habit-icons";
 
 // Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
 // de un <button type="submit"> que ocupa toda la fila — clickear en
@@ -66,7 +67,11 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         </span>
         {!ev.autoTime && <span className="text-[9.5px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>}
       </div>
-      <span className="shrink-0 text-[17px]">{ev.icon}</span>
+      {ev.kind === "plan" ? (
+        <BlockIcon kind={ev.planKind ?? null} className="h-[17px] w-[17px] shrink-0 text-ink-dim" />
+      ) : (
+        <span className="shrink-0 text-[17px]">{ev.icon}</span>
+      )}
       <div className="min-w-0 flex-1">
         <span className={`block truncate text-body ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}

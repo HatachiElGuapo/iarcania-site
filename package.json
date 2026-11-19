@@ -19,6 +19,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.76.0",
     "next": "15.5.23",
     "next-auth": "^5.0.0-beta.32",
     "postgres": "^3.4.5",

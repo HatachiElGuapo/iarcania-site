@@ -30,6 +30,7 @@ import { toggleLogToday } from "../habitos/actions";
 import { reorderHabitNode, moveHabitNodeToParent, moveHabitNodeToTopLevel } from "./actions";
 import { HabitNodeMenu } from "./habit-node-menu";
 import type { HabitNode } from "@/lib/plan/sub-habits";
+import { HabitIcon } from "@/lib/icons/habit-icons";
 
 // Ancho de cada nivel de sangría/línea guía, en px — también la unidad que
 // usa la proyección de drag (arrastrar a la derecha ~1 unidad = anidar bajo
@@ -272,6 +273,7 @@ function HabitRow({
           >
             ✓
           </span>
+          <HabitIcon icon={node.icon} className="h-3.5 w-3.5 shrink-0 text-ink-dim" />
           {node.horaSugerida && (
             <span className="shrink-0 text-[10px] tabular-nums text-ink-dim">{node.horaSugerida}</span>
           )}

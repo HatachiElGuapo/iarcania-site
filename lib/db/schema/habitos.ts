@@ -37,6 +37,11 @@ export const activities = pgTable(
     // tipos.
     diasSemana: integer("dias_semana").array(),
     horaSugerida: text("hora_sugerida"),
+    // Nombre de ícono lucide-react (ej. "Sun", "BedDouble") — null = usa
+    // el default por plan_blocks.kind (nivel 1) o el genérico de subhábito
+    // (ver lib/icons/habit-icons.tsx). Nunca emoji, siempre el nombre del
+    // componente para poder resolverlo en el cliente sin guardar JSX.
+    icon: text("icon"),
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     // Árbol de hábitos anidados (hasta 3 niveles): null = de primer nivel,

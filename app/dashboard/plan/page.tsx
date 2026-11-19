@@ -10,6 +10,7 @@ import { getPendingMinimumsForPerson } from "@/lib/plan/pending";
 import { loadHabitTreesByBlock } from "@/lib/plan/sub-habits";
 import { splitPrincipalSecondary } from "@/lib/plan/secondary";
 import { getPlanExtrasByBlock } from "@/lib/plan/extras";
+import { BlockIcon } from "@/lib/icons/habit-icons";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
@@ -345,7 +346,7 @@ export default async function PlanPage({
                                   <span className="text-[9px] tabular-nums text-ink-dim/70">{fmtDuration(durationOf(b))}</span>
                                 )}
                               </div>
-                              <span className="shrink-0 text-[16px]">{kind.icon}</span>
+                              <BlockIcon kind={b.kind} className="h-4 w-4 shrink-0 text-ink-dim" />
                               <span
                                 className={`line-clamp-2 min-w-0 flex-1 text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
                               >
@@ -403,7 +404,7 @@ export default async function PlanPage({
                       node: (
                     <div className="rounded-ui-lg border border-line bg-surface px-3 py-2.5">
                       <div className="flex items-start gap-2">
-                        <span className="shrink-0 pt-0.5 text-meta">{kind.icon}</span>
+                        <BlockIcon kind={b.kind} className="mt-0.5 h-4 w-4 shrink-0 text-ink-dim" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 text-meta text-ink-dim">
                             <span className="tabular-nums">
