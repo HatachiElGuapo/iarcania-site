@@ -41,6 +41,7 @@ import { PlanBlockMenu } from "./plan/block-menu";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { PlanCheckButton, PlanSkipButton } from "./plan/block-check";
+import { DeferButton } from "./plan/defer-button";
 import { PendingPanel } from "./pending-panel";
 import { OverduePanel, type OverdueTask } from "./overdue-panel";
 import { ReviewSection } from "./review-section";
@@ -1011,7 +1012,10 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         <div className="min-w-0 flex-1">{row}</div>
       )}
       {ev.kind === "plan" && (
-        <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
+        <>
+          <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
+          <DeferButton date={date} blockId={ev.refId} text={ev.title} startTime={fmtTime(ev.start)} />
+        </>
       )}
       {ev.itemType === "task" && ev.itemId && (
         <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />

@@ -11,6 +11,7 @@ import { loadHabitTreesByBlock } from "@/lib/plan/sub-habits";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
+import { DeferButton } from "./defer-button";
 import { MoveBlockButtons } from "./move-to-tomorrow-button";
 import { ResetPlanStartButton } from "./reset-plan-start-button";
 import { PlanCheckButton, PlanSkipButton, SubHabitsDropdown } from "./block-check";
@@ -318,6 +319,7 @@ export default async function PlanPage({
                         </ListCard>
                       </PlanCheckButton>
                       <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
+                      <DeferButton date={date} blockId={b.blockId} text={b.text} startTime={b.startTime} />
                     </div>
                     {subHabits.length > 0 && (
                       <div className="pl-2">
@@ -396,6 +398,13 @@ export default async function PlanPage({
                           >
                             <span title="Saltado">✗</span>
                           </PlanSkipButton>
+                          <DeferButton
+                            date={date}
+                            blockId={b.blockId}
+                            text={b.text}
+                            startTime={b.startTime}
+                            className="focus-ring rounded-ui border border-line px-1.5 py-1 text-[11px] text-ink-dim transition-colors duration-120 hover:border-line-strong hover:text-ink"
+                          />
                         </div>
                       </div>
 
