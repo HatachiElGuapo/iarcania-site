@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -95,6 +95,46 @@ function getDragDepth(offsetX: number): number {
   return Math.round(offsetX / INDENT);
 }
 
+// Tras un deploy, el bundle viejo referencia Server Actions que el server
+// nuevo ya no conoce — Next.js lo reporta con este mensaje. No es un error
+// de negocio: recargar trae el bundle nuevo con las acciones correctas.
+function isStaleServerActionError(err: unknown): boolean {
+  return err instanceof Error && /Failed to find Server Action/i.test(err.message);
+}
+
+// Marca/desmarca `id` y TODOS sus descendientes a `done` (igual que
+// applyHabitToggle en el servidor) y recalcula cada ancestro en el camino
+// de vuelta: done = (ya estaba done) || todos sus hijos quedaron done —
+// misma fórmula que loadHabitTreesByBlock. Es una actualización optimista:
+// la próxima revalidación (router.refresh) trae el estado real por si
+// hay un caso borde (ej. un ancestro con su propio log directo que esta
+// aproximación no puede distinguir de "quedó done por sus hijos").
+function cascadeDoneLocal(nodes: HabitNode[], targetId: string, done: boolean): HabitNode[] {
+  function setAll(n: HabitNode): HabitNode {
+    return { ...n, done, children: n.children.map(setAll) };
+  }
+  function walk(list: HabitNode[]): { list: HabitNode[]; found: boolean } {
+    let found = false;
+    const next = list.map((n) => {
+      if (n.activityId === targetId) {
+        found = true;
+        return setAll(n);
+      }
+      if (n.children.length > 0) {
+        const res = walk(n.children);
+        if (res.found) {
+          found = true;
+          const allChildrenDone = res.list.every((c) => c.done);
+          return { ...n, children: res.list, done: done ? n.done || allChildrenDone : allChildrenDone };
+        }
+      }
+      return n;
+    });
+    return { list: next, found };
+  }
+  return walk(nodes).list;
+}
+
 // Proyección de dónde quedaría el ítem si se soltara ahora — mismo
 // algoritmo que el ejemplo oficial de dnd-kit para árboles ordenables:
 // el desplazamiento horizontal decide la profundidad deseada, acotada por
@@ -134,11 +174,13 @@ function HabitRow({
   date,
   blockId,
   allNodes,
+  onToggled,
 }: {
   item: FlatItem;
   date: string;
   blockId: string;
   allNodes: HabitNode[];
+  onToggled: (activityId: string, done: boolean) => void;
 }) {
   const { node, depth } = item;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -149,6 +191,10 @@ function HabitRow({
   function onHabitResult(result: unknown) {
     if (!result || typeof result !== "object") return;
     const r = result as { done: boolean; toastMessage: string | null };
+    // Optimista: refleja el done/cascada ya, sin esperar a que
+    // router.refresh() (dentro de SafeActionButton) traiga el árbol
+    // actualizado del servidor.
+    onToggled(node.activityId, r.done);
     if (r.toastMessage) toast.show({ message: r.toastMessage, tone: "success" });
   }
 
@@ -221,6 +267,21 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
   const [activeId, setActiveId] = useState<string | null>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [busy, setBusy] = useState(false);
+
+  // El árbol local solo existe para el modo optimista del drag — cuando
+  // llegan props nuevas (tras un router.refresh(), ej. al marcar un
+  // checkbox o al terminar un drag) hay que resincronizar, si no el
+  // widget se queda mostrando el estado viejo hasta un reload manual. Se
+  // salta mientras `busy` (un drag propio todavía persistiendo) para no
+  // pisar la actualización optimista con una revalidación de fondo que
+  // podría llegar de otro cambio en curso.
+  useEffect(() => {
+    if (!busy) setTree(subHabits);
+  }, [subHabits, busy]);
+
+  function onToggled(activityId: string, done: boolean) {
+    setTree((t) => cascadeDoneLocal(t, activityId, done));
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -350,6 +411,11 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
         router.refresh();
       })
       .catch((err) => {
+        if (isStaleServerActionError(err)) {
+          toast.show({ message: "Hay una versión nueva, recargando…", tone: "error" });
+          window.location.reload();
+          return;
+        }
         setTree(snapshot);
         toast.show({ message: err instanceof Error ? err.message : "No se pudo mover el hábito.", tone: "error" });
       })
@@ -369,7 +435,7 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
       <SortableContext items={visibleFlat.map((i) => i.id)} strategy={verticalListSortingStrategy}>
         <div className={`flex flex-col gap-0.5 ${busy ? "pointer-events-none opacity-60" : ""}`}>
           {visibleFlat.map((item) => (
-            <HabitRow key={item.id} item={item} date={date} blockId={blockId} allNodes={tree} />
+            <HabitRow key={item.id} item={item} date={date} blockId={blockId} allNodes={tree} onToggled={onToggled} />
           ))}
         </div>
       </SortableContext>

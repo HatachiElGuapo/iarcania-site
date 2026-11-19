@@ -15,6 +15,13 @@ import {
 // no pueden cruzar a un Client Component) también obtiene su toast de
 // felicitación/racha, igual que los wrappers dedicados (PlanCheckButton,
 // etc.) que sí lo calculan explícito.
+// Tras un deploy, el bundle viejo en el navegador referencia Server
+// Actions que el server nuevo ya no conoce — Next.js lo reporta como este
+// mensaje. No es un error de negocio: recargar trae el bundle nuevo.
+function isStaleServerActionError(err: unknown): boolean {
+  return err instanceof Error && /Failed to find Server Action/i.test(err.message);
+}
+
 function defaultOnResult(result: unknown, toast: { show: (t: ToastInput) => void }) {
   if (!result || typeof result !== "object") return;
   if ("toastMessage" in result) {
@@ -80,6 +87,11 @@ export function SafeActionButton({
         else defaultOnResult(result, toast);
         router.refresh();
       } catch (err) {
+        if (isStaleServerActionError(err)) {
+          toast.show({ message: "Hay una versión nueva, recargando…", tone: "error" });
+          window.location.reload();
+          return;
+        }
         toast.show({ message: err instanceof Error ? err.message : "Algo salió mal.", tone: "error" });
       }
     });
