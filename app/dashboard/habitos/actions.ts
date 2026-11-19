@@ -26,6 +26,7 @@ function revalidateAll() {
   revalidatePath("/dashboard/habitos/gestion");
   revalidatePath("/dashboard/habitos/rachas");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/agenda");
 }
 
@@ -77,7 +78,18 @@ export async function updateActivityLog(formData: FormData) {
   if (existing) {
     await db.update(activityLogs).set({ value, notes }).where(eq(activityLogs.id, existing.id));
   } else {
-    await db.insert(activityLogs).values({ userId, activityId, date, value, notes });
+    // Crear el log de hoy equivale a marcar el hábito hecho — pasa por la
+    // misma cascada que toggleLogToday (marca descendientes, sube al
+    // padre y al bloque/plan_check) en vez de insertar la fila suelta;
+    // después le pone el value/notes propios a la fila que quedó creada.
+    await applyHabitToggle(userId, activityId, date, true);
+    const [own] = await db
+      .select({ id: activityLogs.id })
+      .from(activityLogs)
+      .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)))
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(1);
+    if (own) await db.update(activityLogs).set({ value, notes }).where(eq(activityLogs.id, own.id));
   }
 
   revalidateAll();

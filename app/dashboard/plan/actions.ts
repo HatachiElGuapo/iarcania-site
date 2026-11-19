@@ -397,6 +397,8 @@ export async function applyBlockCheck(
     revalidatePath("/dashboard/plan/historial");
     revalidatePath("/dashboard/agenda");
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/habitos");
+    revalidatePath("/dashboard/habitos/rachas");
     return undefined;
   }
   if (status !== "done" && status !== "skipped") throw new Error("Estado inválido");
@@ -421,6 +423,8 @@ export async function applyBlockCheck(
   revalidatePath("/dashboard/plan/historial");
   revalidatePath("/dashboard/agenda");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/habitos");
+  revalidatePath("/dashboard/habitos/rachas");
 
   if (status !== "done") {
     return {
