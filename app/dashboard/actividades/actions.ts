@@ -42,6 +42,11 @@ export async function createTask(formData: FormData) {
   if (!["alta", "media", "baja"].includes(priority)) {
     throw new Error("Prioridad inválida");
   }
+  if (timeDue && timeEnd) {
+    const [sh, sm] = timeDue.split(":").map(Number);
+    const [eh, em] = timeEnd.split(":").map(Number);
+    if (eh * 60 + em <= sh * 60 + sm) throw new Error("La hora de fin debe ser mayor que la de inicio");
+  }
 
   await db.insert(tasks).values({
     userId,

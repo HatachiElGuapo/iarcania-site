@@ -12,6 +12,7 @@ export type FocusSlot = {
   taskId: string | null;
   title: string;
   timeDue: string | null;
+  timeEnd: string | null;
   done: boolean;
 };
 
@@ -19,6 +20,7 @@ export type OtherAction = {
   id: string;
   title: string;
   timeDue: string | null;
+  timeEnd: string | null;
   done: boolean;
 };
 
@@ -32,6 +34,7 @@ export async function getDailyActions(
       taskId: dailyFocus.taskId,
       title: tasks.title,
       timeDue: tasks.timeDue,
+      timeEnd: tasks.timeEnd,
       status: tasks.status,
     })
     .from(dailyFocus)
@@ -42,18 +45,25 @@ export async function getDailyActions(
   const focus: FocusSlot[] = [0, 1, 2].map((rank) => {
     const row = focusRows.find((f) => f.sortOrder === rank);
     return row
-      ? { rank, taskId: row.taskId, title: row.title, timeDue: row.timeDue, done: row.status === "completada" }
-      : { rank, taskId: null, title: "", timeDue: null, done: false };
+      ? {
+          rank,
+          taskId: row.taskId,
+          title: row.title,
+          timeDue: row.timeDue,
+          timeEnd: row.timeEnd,
+          done: row.status === "completada",
+        }
+      : { rank, taskId: null, title: "", timeDue: null, timeEnd: null, done: false };
   });
 
   const allTasksOfDay = await db
-    .select({ id: tasks.id, title: tasks.title, timeDue: tasks.timeDue, status: tasks.status })
+    .select({ id: tasks.id, title: tasks.title, timeDue: tasks.timeDue, timeEnd: tasks.timeEnd, status: tasks.status })
     .from(tasks)
     .where(and(eq(tasks.userId, userId), eq(tasks.dueDate, date), ne(tasks.status, "archivada")));
 
   const others: OtherAction[] = allTasksOfDay
     .filter((t) => !focusTaskIds.has(t.id))
-    .map((t) => ({ id: t.id, title: t.title, timeDue: t.timeDue, done: t.status === "completada" }))
+    .map((t) => ({ id: t.id, title: t.title, timeDue: t.timeDue, timeEnd: t.timeEnd, done: t.status === "completada" }))
     .sort((a, b) => (a.timeDue ?? "99:99").localeCompare(b.timeDue ?? "99:99"));
 
   return { focus, others };

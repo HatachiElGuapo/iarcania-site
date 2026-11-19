@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type FocusEvent } from "react";
 import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "../safe-action-button";
 import { saveFocusSlot } from "./actions";
@@ -12,6 +12,28 @@ import type { FocusSlot, OtherAction } from "@/lib/trabajo/daily-actions";
 
 export type DayActions = { date: string; focus: FocusSlot[]; others: OtherAction[] };
 
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Propuesta de fin cuando solo se puso inicio: +1h, recortada a 23:59
+// para no cruzar de día (el usuario puede editarla antes de guardar).
+function plusOneHour(hhmm: string): string {
+  const total = Math.min(23 * 60 + 59, toMinutes(hhmm) + 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function isRangeValid(timeDue: string, timeEnd: string): boolean {
+  if (!timeDue || !timeEnd) return true;
+  return toMinutes(timeEnd) > toMinutes(timeDue);
+}
+
+function fmtRange(timeDue: string | null, timeEnd: string | null): string | null {
+  if (!timeDue) return null;
+  return timeEnd ? `de ${timeDue} a ${timeEnd}` : timeDue;
+}
+
 function filledCount(focus: FocusSlot[]) {
   return focus.filter((f) => f.title.trim() !== "").length;
 }
@@ -20,9 +42,11 @@ function doneCount(focus: FocusSlot[]) {
   return focus.filter((f) => f.taskId && f.done).length;
 }
 
-// Un campo fijo "Acción N" — texto + hora opcional, se guardan en línea
-// (blur o Enter). El checkbox solo existe una vez que el slot tiene una
-// task detrás (taskId), reusa toggleTaskStatus tal cual.
+// Un campo fijo "Acción N" — texto + rango de hora opcional, se guarda en
+// línea (blur o Enter). Al escribir la hora de inicio sin tener fin
+// todavía, propone fin = inicio + 1h (editable antes de guardar). El
+// checkbox solo existe una vez que el slot tiene una task detrás
+// (taskId), reusa toggleTaskStatus tal cual.
 function FocusSlotRow({
   slot,
   date,
@@ -31,21 +55,38 @@ function FocusSlotRow({
 }: {
   slot: FocusSlot;
   date: string;
-  onSaved: (rank: number, title: string, timeDue: string | null) => void;
+  onSaved: (rank: number, title: string, timeDue: string | null, timeEnd: string | null) => void;
   onToggled: (rank: number, done: boolean) => void;
 }) {
   const [title, setTitle] = useState(slot.title);
   const [timeDue, setTimeDue] = useState(slot.timeDue ?? "");
+  const [timeEnd, setTimeEnd] = useState(slot.timeEnd ?? "");
   const [pending, startTransition] = useTransition();
   const toast = useToast();
 
   useEffect(() => {
     setTitle(slot.title);
     setTimeDue(slot.timeDue ?? "");
-  }, [slot.title, slot.timeDue]);
+    setTimeEnd(slot.timeEnd ?? "");
+  }, [slot.title, slot.timeDue, slot.timeEnd]);
+
+  function onStartChange(value: string) {
+    setTimeDue(value);
+    if (value && !timeEnd) setTimeEnd(plusOneHour(value));
+  }
 
   function save() {
-    if (title.trim() === slot.title.trim() && (timeDue || null) === slot.timeDue) return;
+    if (
+      title.trim() === slot.title.trim() &&
+      (timeDue || null) === slot.timeDue &&
+      (timeEnd || null) === slot.timeEnd
+    ) {
+      return;
+    }
+    if (!isRangeValid(timeDue, timeEnd)) {
+      toast.show({ message: "La hora de fin debe ser mayor que la de inicio.", tone: "error" });
+      return;
+    }
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -53,8 +94,9 @@ function FocusSlotRow({
         fd.set("rank", String(slot.rank));
         fd.set("title", title);
         fd.set("timeDue", timeDue);
+        fd.set("timeEnd", timeEnd);
         await saveFocusSlot(fd);
-        onSaved(slot.rank, title.trim(), timeDue || null);
+        onSaved(slot.rank, title.trim(), timeDue || null, timeEnd || null);
       } catch (err) {
         toast.show({ message: err instanceof Error ? err.message : "No se pudo guardar.", tone: "error" });
       }
@@ -65,8 +107,18 @@ function FocusSlotRow({
     onToggled(slot.rank, !slot.done);
   }
 
+  function onBlurSave(e: FocusEvent<HTMLDivElement>) {
+    // Solo guarda cuando el foco se va del grupo entero (texto+horas),
+    // no entre sus propios campos — si no, cada Tab entre inicio/fin
+    // dispararía un guardado a mitad de editar el rango.
+    if (!e.currentTarget.contains(e.relatedTarget)) save();
+  }
+
   return (
-    <div className="flex items-center gap-2 rounded-ui border border-line bg-surface px-2.5 py-2">
+    <div
+      className="flex flex-wrap items-center gap-2 rounded-ui border border-line bg-surface px-2.5 py-2"
+      onBlur={onBlurSave}
+    >
       {slot.taskId ? (
         <SafeActionButton
           action={toggleTaskStatus}
@@ -91,7 +143,6 @@ function FocusSlotRow({
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        onBlur={save}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -101,25 +152,40 @@ function FocusSlotRow({
         }}
         placeholder="Escribí la acción…"
         disabled={pending}
-        className={`focus-ring min-w-0 flex-1 rounded-ui border border-transparent bg-transparent px-1.5 py-1 text-[14px] ${
+        className={`focus-ring min-w-[120px] flex-1 rounded-ui border border-transparent bg-transparent px-1.5 py-1 text-[14px] ${
           slot.done ? "text-ink-dim line-through" : "text-ink"
         }`}
       />
-      <input
-        type="time"
-        value={timeDue}
-        onChange={(e) => setTimeDue(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            save();
-            (e.target as HTMLInputElement).blur();
-          }
-        }}
-        disabled={pending}
-        className="focus-ring w-[92px] shrink-0 rounded-ui border border-line bg-canvas px-1.5 py-1 text-[12px] text-ink-dim"
-      />
+      <div className="flex shrink-0 items-center gap-1 text-[11px] text-ink-dim">
+        <span>de</span>
+        <input
+          type="time"
+          value={timeDue}
+          onChange={(e) => onStartChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              save();
+            }
+          }}
+          disabled={pending}
+          className="focus-ring w-[92px] rounded-ui border border-line bg-canvas px-1.5 py-1 text-[12px] text-ink-dim"
+        />
+        <span>a</span>
+        <input
+          type="time"
+          value={timeEnd}
+          onChange={(e) => setTimeEnd(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              save();
+            }
+          }}
+          disabled={pending}
+          className="focus-ring w-[92px] rounded-ui border border-line bg-canvas px-1.5 py-1 text-[12px] text-ink-dim"
+        />
+      </div>
     </div>
   );
 }
@@ -146,6 +212,8 @@ function OtherActionRow({
     toast.show({ message: "Aplazada a mañana.", tone: "success" });
   }
 
+  const range = fmtRange(action.timeDue, action.timeEnd);
+
   return (
     <div className="flex items-center gap-2 rounded-ui border border-line bg-surface px-2.5 py-1.5">
       <SafeActionButton
@@ -161,7 +229,7 @@ function OtherActionRow({
         >
           ✓
         </span>
-        {action.timeDue && <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{action.timeDue}</span>}
+        {range && <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{range}</span>}
         <span className={`min-w-0 truncate text-[13px] ${action.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {action.title}
         </span>
@@ -181,21 +249,39 @@ function OtherActionRow({
 function QuickAddOther({ date, onAdded }: { date: string; onAdded: (action: OtherAction) => void }) {
   const [title, setTitle] = useState("");
   const [timeDue, setTimeDue] = useState("");
+  const [timeEnd, setTimeEnd] = useState("");
   const [pending, startTransition] = useTransition();
   const toast = useToast();
 
+  function onStartChange(value: string) {
+    setTimeDue(value);
+    if (value && !timeEnd) setTimeEnd(plusOneHour(value));
+  }
+
   function submit() {
     if (!title.trim()) return;
+    if (!isRangeValid(timeDue, timeEnd)) {
+      toast.show({ message: "La hora de fin debe ser mayor que la de inicio.", tone: "error" });
+      return;
+    }
     const fd = new FormData();
     fd.set("title", title.trim());
     fd.set("dueDate", date);
     if (timeDue) fd.set("timeDue", timeDue);
+    if (timeEnd) fd.set("timeEnd", timeEnd);
     startTransition(async () => {
       try {
         await createTask(fd);
-        onAdded({ id: crypto.randomUUID(), title: title.trim(), timeDue: timeDue || null, done: false });
+        onAdded({
+          id: crypto.randomUUID(),
+          title: title.trim(),
+          timeDue: timeDue || null,
+          timeEnd: timeEnd || null,
+          done: false,
+        });
         setTitle("");
         setTimeDue("");
+        setTimeEnd("");
       } catch (err) {
         toast.show({ message: err instanceof Error ? err.message : "No se pudo agregar.", tone: "error" });
       }
@@ -203,7 +289,7 @@ function QuickAddOther({ date, onAdded }: { date: string; onAdded: (action: Othe
   }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -215,15 +301,26 @@ function QuickAddOther({ date, onAdded }: { date: string; onAdded: (action: Othe
         }}
         placeholder="+ agregar otra acción…"
         disabled={pending}
-        className="focus-ring min-w-0 flex-1 rounded-ui border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-dim"
+        className="focus-ring min-w-[140px] flex-1 rounded-ui border border-line bg-canvas px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-dim"
       />
-      <input
-        type="time"
-        value={timeDue}
-        onChange={(e) => setTimeDue(e.target.value)}
-        disabled={pending}
-        className="focus-ring w-[92px] shrink-0 rounded-ui border border-line bg-canvas px-1.5 py-1 text-[12px] text-ink-dim"
-      />
+      <div className="flex shrink-0 items-center gap-1 text-[11px] text-ink-dim">
+        <span>de</span>
+        <input
+          type="time"
+          value={timeDue}
+          onChange={(e) => onStartChange(e.target.value)}
+          disabled={pending}
+          className="focus-ring w-[92px] rounded-ui border border-line bg-canvas px-1.5 py-1 text-[12px] text-ink-dim"
+        />
+        <span>a</span>
+        <input
+          type="time"
+          value={timeEnd}
+          onChange={(e) => setTimeEnd(e.target.value)}
+          disabled={pending}
+          className="focus-ring w-[92px] rounded-ui border border-line bg-canvas px-1.5 py-1 text-[12px] text-ink-dim"
+        />
+      </div>
       <button
         type="button"
         onClick={submit}
@@ -237,10 +334,12 @@ function QuickAddOther({ date, onAdded }: { date: string; onAdded: (action: Othe
 }
 
 function DayTabContent({ day, onChange }: { day: DayActions; onChange: (next: DayActions) => void }) {
-  function onSlotSaved(rank: number, title: string, timeDue: string | null) {
+  function onSlotSaved(rank: number, title: string, timeDue: string | null, timeEnd: string | null) {
     onChange({
       ...day,
-      focus: day.focus.map((f) => (f.rank === rank ? { ...f, title, timeDue, taskId: f.taskId ?? "pending" } : f)),
+      focus: day.focus.map((f) =>
+        f.rank === rank ? { ...f, title, timeDue, timeEnd, taskId: f.taskId ?? "pending" } : f,
+      ),
     });
   }
 

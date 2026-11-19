@@ -47,6 +47,20 @@ async function syncTomorrowActionsHabit(userId: string) {
   await applyHabitToggle(userId, habit.id, today, allThreeDefined);
 }
 
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Si hay inicio pero no fin, el cliente ya propone fin = inicio + 1h
+// (editable) antes de guardar — esto es solo el resguardo del lado del
+// servidor: fin, si viene, tiene que ser estrictamente mayor que inicio.
+function validateRange(timeDue: string | null, timeEnd: string | null) {
+  if (timeDue && timeEnd && toMinutes(timeEnd) <= toMinutes(timeDue)) {
+    throw new Error("La hora de fin debe ser mayor que la de inicio");
+  }
+}
+
 // Guarda (o limpia, si `title` viene vacío) uno de los 3 campos fijos
 // "Acción 1/2/3" de un día — crea/actualiza la task detrás y la fila de
 // daily_focus (list_type='hoy', sort_order=rank 0/1/2) que la marca como
@@ -58,7 +72,9 @@ export async function saveFocusSlot(formData: FormData) {
   const rank = Number(formData.get("rank"));
   const title = String(formData.get("title") || "").trim();
   const timeDue = String(formData.get("timeDue") || "") || null;
+  const timeEnd = String(formData.get("timeEnd") || "") || null;
   if (!date || ![0, 1, 2].includes(rank)) throw new Error("Faltan datos");
+  validateRange(timeDue, timeEnd);
 
   const [existing] = await db
     .select({ id: dailyFocus.id, taskId: dailyFocus.taskId })
@@ -75,9 +91,12 @@ export async function saveFocusSlot(formData: FormData) {
   if (!title) {
     if (existing) await db.delete(tasks).where(eq(tasks.id, existing.taskId));
   } else if (existing) {
-    await db.update(tasks).set({ title, timeDue }).where(eq(tasks.id, existing.taskId));
+    await db.update(tasks).set({ title, timeDue, timeEnd }).where(eq(tasks.id, existing.taskId));
   } else {
-    const [task] = await db.insert(tasks).values({ userId, title, dueDate: date, timeDue }).returning({ id: tasks.id });
+    const [task] = await db
+      .insert(tasks)
+      .values({ userId, title, dueDate: date, timeDue, timeEnd })
+      .returning({ id: tasks.id });
     await db.insert(dailyFocus).values({ userId, date, listType: "hoy", taskId: task.id, sortOrder: rank });
   }
 
