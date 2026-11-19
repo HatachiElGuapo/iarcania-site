@@ -132,7 +132,12 @@ export default async function RutinasPage({
     await Promise.all([
     buildDayEvents(userId, date),
     db
-      .select({ id: activities.id, name: activities.name, horaSugerida: activities.horaSugerida })
+      .select({
+        id: activities.id,
+        name: activities.name,
+        horaSugerida: activities.horaSugerida,
+        sortOrder: activities.sortOrder,
+      })
       .from(activities)
       .where(
         and(
@@ -197,17 +202,26 @@ export default async function RutinasPage({
     ? Math.max(...dailyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date)))
     : 0;
 
-  const habitsView = dailyHabits.map((h) => {
-    const dates = logsByHabit.get(h.id);
-    return {
-      id: h.id,
-      name: h.name,
-      horaSugerida: h.horaSugerida,
-      done: dates?.has(date) ?? false,
-      streak: computeStreak(dates, date),
-      week: weekCells(dates, date),
-    };
-  });
+  const habitsView = dailyHabits
+    .map((h) => {
+      const dates = logsByHabit.get(h.id);
+      return {
+        id: h.id,
+        name: h.name,
+        horaSugerida: h.horaSugerida,
+        sortOrder: h.sortOrder,
+        done: dates?.has(date) ?? false,
+        streak: computeStreak(dates, date),
+        week: weekCells(dates, date),
+      };
+    })
+    // hora_sugerida ascendente (sin hora al final), luego sort_order, luego nombre.
+    .sort(
+      (a, b) =>
+        (a.horaSugerida ?? "99:99").localeCompare(b.horaSugerida ?? "99:99") ||
+        a.sortOrder - b.sortOrder ||
+        a.name.localeCompare(b.name),
+    );
   const habitsDoneToday = habitsView.filter((h) => h.done).length;
 
   // Plan: bloques de AYER (y solo ayer) que quedaron sin marcar (ni hecho
