@@ -1,21 +1,34 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit, Playfair_Display } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  // 400 = reloj/timer/contador de Reloj + inicial de avatar en Clientes
-  // (font-display sin font-bold); 700 = títulos y stats. El 600 no se usa.
-  weight: ["400", "700"],
+// next/font/local en vez de next/font/google: el build en el servidor
+// (Docker) no tiene salida a fonts.googleapis.com y next/font/google
+// falla ahí con "Cannot read properties of null" al no poder descargar
+// las fuentes. Los .woff2 (mismas fuentes/pesos) viven en app/fonts/,
+// copiados una sola vez de los paquetes @fontsource/playfair-display y
+// @fontsource/outfit — no se agregan como dependencia de runtime, son
+// solo la fuente de los archivos.
+const playfairDisplay = localFont({
+  src: [
+    // 400 = reloj/timer/contador de Reloj + inicial de avatar en Clientes
+    // (font-display sin font-bold); 700 = títulos y stats. El 600 no se usa.
+    { path: "./fonts/playfair-display/playfair-display-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/playfair-display/playfair-display-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-display",
 });
 
 // El cuerpo va en Outfit, no Inter — el dashboard original (os.css, ya
 // retirado) lo usaba y el sistema nuevo lo mantiene. Ver
 // docs/sistema-de-diseno.md · Tipografía.
-const outfit = Outfit({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+const outfit = localFont({
+  src: [
+    { path: "./fonts/outfit/outfit-latin-300-normal.woff2", weight: "300", style: "normal" },
+    { path: "./fonts/outfit/outfit-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/outfit/outfit-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/outfit/outfit-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-body",
 });
 
