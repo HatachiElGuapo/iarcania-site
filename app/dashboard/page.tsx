@@ -17,7 +17,7 @@ import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type Orp
 import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMinimumBlock, type PendingSecondaryHabit } from "@/lib/plan/pending";
 import { computeVicioStats, type VicioStats } from "@/lib/habits/vicio-stats";
 import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
-import { SecondaryHabitsList, SecondaryHabitsMobileSection } from "./secondary-section";
+import { SecondaryCard } from "./secondary-section";
 import { HabitsCard } from "./habits-card";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import {
@@ -294,6 +294,7 @@ export default async function RutinasPage({
       }
     }
   }
+  const pendingSecondaryIds = pendingSecondary.map((p) => p.activityId);
 
   const [orphanActivities, orphanBlocks] = await Promise.all([
     getOrphanActivities(userId),
@@ -333,6 +334,7 @@ export default async function RutinasPage({
         viciosCounts={viciosCounts}
         vicioStatsById={vicioStatsById}
         secondaryGroups={secondaryGroups}
+        pendingSecondaryIds={pendingSecondaryIds}
         streakResult={streakResult}
         bestStreak={bestStreak}
         upcomingTasks={upcomingTasks}
@@ -661,13 +663,7 @@ export default async function RutinasPage({
             </div>
           </HabitsCard>
 
-          <Card
-            title="Secundarios"
-            count={secondaryGroups.manana.length + secondaryGroups.tarde.length + secondaryGroups.noche.length}
-            flush
-          >
-            <SecondaryHabitsList groups={secondaryGroups} date={date} />
-          </Card>
+          <SecondaryCard groups={secondaryGroups} pendingActivityIds={pendingSecondaryIds} date={date} />
 
           <Card title="Vicios" count={vicios.length} flush>
             {vicios.length === 0 ? (
@@ -803,6 +799,7 @@ type MobileHoyProps = {
   viciosCounts: Map<string, number>;
   vicioStatsById: Map<string, VicioStats>;
   secondaryGroups: Record<SecondaryBand, SecondaryEntry[]>;
+  pendingSecondaryIds: string[];
   streakResult: { streak: number; protectors: number };
   bestStreak: number;
   upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
@@ -830,6 +827,7 @@ function MobileHoy({
   viciosCounts,
   vicioStatsById,
   secondaryGroups,
+  pendingSecondaryIds,
   streakResult,
   bestStreak,
   upcomingTasks,
@@ -923,7 +921,7 @@ function MobileHoy({
         </div>
       )}
 
-      <SecondaryHabitsMobileSection groups={secondaryGroups} date={date} />
+      <SecondaryCard groups={secondaryGroups} pendingActivityIds={pendingSecondaryIds} date={date} />
 
       <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 

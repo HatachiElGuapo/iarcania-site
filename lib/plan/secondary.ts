@@ -36,6 +36,7 @@ export type SecondaryEntry = {
   dueTime: string;
   blockId: string;
   blockText: string;
+  blockStartTime: string;
 };
 
 // Mañana: antes de 12:00. Tarde: 12:00–18:00. Noche: después de 18:00.
@@ -76,7 +77,13 @@ export async function getSecondaryHabitsForPerson(
     const { secondary } = splitPrincipalSecondary(tree);
     const blockDueTime = b.endTime ?? b.startTime;
     for (const node of secondary) {
-      out.push({ node, dueTime: node.horaSugerida ?? blockDueTime, blockId: b.blockId, blockText: b.text });
+      out.push({
+        node,
+        dueTime: node.horaSugerida ?? blockDueTime,
+        blockId: b.blockId,
+        blockText: b.text,
+        blockStartTime: b.startTime,
+      });
     }
   }
 
