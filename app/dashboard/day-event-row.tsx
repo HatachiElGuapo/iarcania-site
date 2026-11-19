@@ -1,7 +1,7 @@
 "use client";
 
 import type { AgendaEvent } from "@/lib/agenda/day-events";
-import { fmtTime } from "@/lib/agenda/time";
+import { fmtTime, fmtDuration } from "@/lib/agenda/time";
 import { primaryActionFor } from "@/lib/plan/primary-action";
 import { PlanBlockMenu } from "./plan/block-menu";
 import { DeferButton } from "./plan/defer-button";
@@ -10,13 +10,15 @@ import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
 import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pickProtectorGainedMessage } from "@/lib/plan/praise";
+import { OverlapNotice, type TimelineMeta } from "./day-timeline";
 
 // Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
 // de un <button type="submit"> que ocupa toda la fila — clickear en
 // cualquier parte marca/desmarca, no solo un cuadradito. El control de
 // "saltado" de Plan y el link de editar quedan aparte, afuera del botón
-// grande, para no perder ese click más chico.
-export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
+// grande, para no perder ese click más chico. `meta` (línea de tiempo,
+// ver DayTimeline) es opcional — sin ella la fila se ve igual que antes.
+export function DayEventRow({ ev, date, meta }: { ev: AgendaEvent; date: string; meta?: TimelineMeta }) {
   const primary = primaryActionFor(ev, date);
   const toast = useToast();
 
@@ -57,14 +59,19 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       >
         ✓
       </span>
-      <span className="w-14 shrink-0 text-meta tabular-nums text-ink-dim">
-        {ev.autoTime ? "—" : fmtTime(ev.start)}
-      </span>
+      <div className="flex w-16 shrink-0 flex-col items-start leading-tight">
+        <span className="text-meta tabular-nums text-ink-dim">
+          {ev.autoTime ? "—" : `${fmtTime(ev.start)}–${fmtTime(ev.start + ev.duration)}`}
+        </span>
+        {!ev.autoTime && <span className="text-[9.5px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>}
+      </div>
       <span className="shrink-0 text-[17px]">{ev.icon}</span>
       <div className="min-w-0 flex-1">
         <span className={`block truncate text-body ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}
         </span>
+        {meta?.isPast && !ev.done && <span className="text-[10px] text-danger/75">vencido</span>}
+        {meta?.overlapWithTitle && <OverlapNotice withTitle={meta.overlapWithTitle} />}
       </div>
       <span
         className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
@@ -80,9 +87,10 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   return (
     <div
       className={
-        isPlanBlock
+        (isPlanBlock
           ? "my-1 flex flex-col gap-1 rounded-ui-lg border border-line bg-surface px-3 py-1"
-          : "flex flex-col gap-1 px-3.5 py-1"
+          : "flex flex-col gap-1 rounded-ui-lg px-3.5 py-1") +
+        (meta?.isCurrent ? " ring-1 ring-accent/40" : "")
       }
     >
       <div className="flex items-center gap-2">

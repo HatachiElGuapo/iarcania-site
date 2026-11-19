@@ -9,7 +9,7 @@ import { planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
 import { todayISO, addDaysISO, nowHHMM } from "@/lib/date/bogota";
 import { buildDayEvents, type AgendaEvent } from "@/lib/agenda/day-events";
-import { fmtTime } from "@/lib/agenda/time";
+import { fmtTime, fmtDuration } from "@/lib/agenda/time";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
@@ -36,6 +36,7 @@ import { createTask } from "./actividades/actions";
 import { toggleLogToday, createActivity, incrementLog, decrementLog } from "./habitos/actions";
 import { NewTaskSheet } from "./new-task-sheet";
 import { DayEventRow } from "./day-event-row";
+import { DayTimeline, OverlapNotice, type TimelineMeta } from "./day-timeline";
 import { primaryActionFor } from "@/lib/plan/primary-action";
 import { PlanBlockMenu } from "./plan/block-menu";
 import { TaskHabitMenu } from "./day-row-menu";
@@ -190,6 +191,7 @@ export default async function RutinasPage({
   for (const l of viciosLogs) viciosCounts.set(l.activityId, (viciosCounts.get(l.activityId) ?? 0) + 1);
 
   const events = [...dayEvents.events].sort((a, b) => a.start - b.start);
+  const timelineEvents = events.map((e) => ({ ...e, key: e.key, start: e.start, end: e.start + e.duration, title: e.title }));
   const doneToday = events.filter((e) => e.done).length;
   const totalToday = events.length;
   const pctToday = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
@@ -533,7 +535,11 @@ export default async function RutinasPage({
             {events.length === 0 ? (
               <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
             ) : (
-              events.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
+              <DayTimeline
+                items={timelineEvents}
+                isToday={isToday}
+                renderItem={(e, meta) => <DayEventRow ev={e} date={date} meta={meta} />}
+              />
             )}
           </div>
         </Card>
@@ -867,7 +873,11 @@ function MobileHoy({
           {events.length === 0 ? (
             <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
           ) : (
-            events.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} />)
+            <DayTimeline
+              items={events.map((ev) => ({ ...ev, key: ev.key, start: ev.start, end: ev.start + ev.duration, title: ev.title }))}
+              isToday={isToday}
+              renderItem={(ev, meta) => <MobileDayRow ev={ev} date={date} meta={meta} />}
+            />
           )}
         </div>
       </div>
@@ -959,11 +969,11 @@ function MobileHoy({
   );
 }
 
-function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
+function MobileDayRow({ ev, date, meta }: { ev: AgendaEvent; date: string; meta?: TimelineMeta }) {
   const primary = primaryActionFor(ev, date);
 
   const row = (
-    <ListCard accent={ev.accent}>
+    <ListCard accent={ev.accent} className={meta?.isCurrent ? "ring-1 ring-accent/40" : undefined}>
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
           ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
@@ -971,9 +981,12 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       >
         ✓
       </span>
-      <span className="w-11 shrink-0 text-[11px] tabular-nums text-ink-dim">
-        {ev.autoTime ? "—" : fmtTime(ev.start)}
-      </span>
+      <div className="flex w-14 shrink-0 flex-col items-start leading-tight">
+        <span className="text-[11px] tabular-nums text-ink-dim">
+          {ev.autoTime ? "—" : `${fmtTime(ev.start)}–${fmtTime(ev.start + ev.duration)}`}
+        </span>
+        {!ev.autoTime && <span className="text-[9px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>}
+      </div>
       <span className="shrink-0 text-[16px]">{ev.icon}</span>
       <div className="min-w-0 flex-1">
         <div
@@ -981,6 +994,8 @@ function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         >
           {ev.title}
         </div>
+        {meta?.isPast && !ev.done && <div className="text-[10px] text-danger/75">vencido</div>}
+        {meta?.overlapWithTitle && <OverlapNotice withTitle={meta.overlapWithTitle} />}
         {(ev.badge || (ev.habitChecks && ev.habitChecks.length > 0)) && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {ev.badge && (
