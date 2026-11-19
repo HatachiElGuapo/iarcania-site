@@ -136,6 +136,7 @@ export async function toggleTaskStatus(formData: FormData) {
   revalidatePath("/dashboard/actividades");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/trabajo");
   revalidatePath("/dashboard/trabajo/tareas");
 }
@@ -186,6 +187,7 @@ export async function rescheduleTask(formData: FormData) {
   revalidatePath("/dashboard/actividades");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/trabajo");
   revalidatePath("/dashboard/trabajo/tareas");
 }
@@ -225,5 +227,6 @@ export async function deleteTask(formData: FormData) {
 
   revalidatePath("/dashboard/actividades");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/trabajo/tareas");
 }

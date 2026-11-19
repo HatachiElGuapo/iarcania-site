@@ -17,6 +17,7 @@ import { resolvePlan } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { loadHabitTreesByBlock, type HabitNode } from "@/lib/plan/sub-habits";
 import { splitPrincipalSecondary } from "@/lib/plan/secondary";
+import { getPlanExtrasByBlock, type PlanExtra } from "@/lib/plan/extras";
 import { addDaysISO, todayISO } from "@/lib/date/bogota";
 
 export type AgendaEvent = {
@@ -43,6 +44,9 @@ export type AgendaEvent = {
   // uno se marca aparte con su propio toggle (toggleLogToday), independiente
   // del check del bloque principal.
   habitChecks?: HabitNode[];
+  // "Extras de hoy" del bloque — tasks sueltas enlazadas vía
+  // tasks.plan_block_id (ver lib/plan/extras.ts), solo para kind="plan".
+  extras?: PlanExtra[];
   // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
   // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
   endLabel?: string;
@@ -109,6 +113,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         dueDate: tasks.dueDate,
         timeDue: tasks.timeDue,
         timeEnd: tasks.timeEnd,
+        planBlockId: tasks.planBlockId,
       })
       .from(tasks)
       .where(and(eq(tasks.userId, userId), ne(tasks.status, "archivada")))
@@ -169,9 +174,11 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
     // Árbol de hábitos por bloque (hasta 3 niveles) — uno resuelto para HOY
     // y otro para AYER (los bloques "carry" que cruzan medianoche necesitan
     // el estado de done de ayer, no el de hoy).
-    const [habitTreesToday, habitTreesYesterday] = await Promise.all([
+    const [habitTreesToday, habitTreesYesterday, extrasToday, extrasYesterday] = await Promise.all([
       loadHabitTreesByBlock(planPerson.planId, userId, date),
       loadHabitTreesByBlock(planPerson.planId, userId, yesterday),
+      getPlanExtrasByBlock(userId, date),
+      getPlanExtrasByBlock(userId, yesterday),
     ]);
     linkedActivityIds = new Set(
       [...habitTreesToday.values()].flatMap((nodes) => nodes.map((n) => n.activityId)),
@@ -209,6 +216,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         // Solo principales — los secundarios (is_optional) salen de acá y
         // se muestran aparte en el panel "Secundarios" del dashboard.
         habitChecks: splitPrincipalSecondary(habitTreesYesterday.get(b.blockId) ?? []).principal,
+        extras: extrasYesterday.get(b.blockId) ?? [],
       };
     });
 
@@ -232,6 +240,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         autoTime: false,
         editHref: `/dashboard/plan?date=${date}`,
         habitChecks: splitPrincipalSecondary(habitTreesToday.get(b.blockId) ?? []).principal,
+        extras: extrasToday.get(b.blockId) ?? [],
         endLabel: b.endTime ? undefined : "24:00",
         projected: b.isProjected,
       };
@@ -254,7 +263,9 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
   // "Mi día" — solo quedaba en "Sin agendar".
   let taskCursor = TASK_FALLBACK_START;
   const dueTodayTasks = allTasks
-    .filter((t) => t.dueDate === date && !scheduledTaskIds.has(t.id))
+    // Las "extras de hoy" de un bloque de Plan (plan_block_id) no van
+    // sueltas acá — se pintan adentro de su bloque (ver planBlockEvents).
+    .filter((t) => t.dueDate === date && !scheduledTaskIds.has(t.id) && !t.planBlockId)
     .map((t) => {
       const hasTime = !!t.timeDue && /^\d{1,2}:\d{2}$/.test(t.timeDue);
       const start = hasTime ? toMinutes(t.timeDue as string) : taskCursor;

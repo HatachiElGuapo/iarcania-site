@@ -4,7 +4,9 @@ import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "../safe-action-button";
 import { setCheck, type SetCheckResult } from "./actions";
 import { HabitTreeDnd } from "./habit-tree-dnd";
+import { ExtrasSection } from "./extras-section";
 import type { HabitNode } from "@/lib/plan/sub-habits";
+import type { PlanExtra } from "@/lib/plan/extras";
 import {
   pickBlockPraise,
   streakMilestoneCrossed,
@@ -87,10 +89,12 @@ export function SubHabitsDropdown({
   date,
   blockId,
   subHabits,
+  extras = [],
 }: {
   date: string;
   blockId: string;
   subHabits: HabitNode[];
+  extras?: PlanExtra[];
 }) {
   function countDeep(nodes: HabitNode[]): { done: number; total: number } {
     return nodes.reduce(
@@ -102,7 +106,7 @@ export function SubHabitsDropdown({
     );
   }
 
-  if (subHabits.length === 0) return null;
+  if (subHabits.length === 0 && extras.length === 0) return null;
   const { done, total } = countDeep(subHabits);
 
   return (
@@ -110,9 +114,12 @@ export function SubHabitsDropdown({
       <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">
         Hábitos ({done}/{total})
       </summary>
-      <div className="mt-1.5 rounded-ui border border-line bg-surface-sunken p-1.5">
-        <HabitTreeDnd date={date} blockId={blockId} subHabits={subHabits} />
-      </div>
+      {subHabits.length > 0 && (
+        <div className="mt-1.5 rounded-ui border border-line bg-surface-sunken p-1.5">
+          <HabitTreeDnd date={date} blockId={blockId} subHabits={subHabits} />
+        </div>
+      )}
+      <ExtrasSection date={date} blockId={blockId} extras={extras} />
     </details>
   );
 }

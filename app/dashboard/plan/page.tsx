@@ -9,6 +9,7 @@ import { todayISO, addDaysISO, diffDaysISO, nowHHMM } from "@/lib/date/bogota";
 import { getPendingMinimumsForPerson } from "@/lib/plan/pending";
 import { loadHabitTreesByBlock } from "@/lib/plan/sub-habits";
 import { splitPrincipalSecondary } from "@/lib/plan/secondary";
+import { getPlanExtrasByBlock } from "@/lib/plan/extras";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
@@ -123,6 +124,7 @@ export default async function PlanPage({
   const habitTreesByBlock = new Map(
     [...rawHabitTrees].map(([blockId, tree]) => [blockId, splitPrincipalSecondary(tree).principal]),
   );
+  const extrasByBlock = await getPlanExtrasByBlock(userId, date);
 
   // Móvil ("Rutinas"): solo la columna del propio usuario — sin la grilla
   // familiar completa. `ctx.people` ya viene cargado para el día, así que
@@ -357,7 +359,12 @@ export default async function PlanPage({
                         </div>
                         {subHabits.length > 0 && (
                           <div className="pl-2">
-                            <SubHabitsDropdown date={date} blockId={b.blockId} subHabits={subHabits} />
+                            <SubHabitsDropdown
+                              date={date}
+                              blockId={b.blockId}
+                              subHabits={subHabits}
+                              extras={extrasByBlock.get(b.blockId) ?? []}
+                            />
                           </div>
                         )}
                       </div>
@@ -452,7 +459,12 @@ export default async function PlanPage({
                         </div>
                       </div>
 
-                      {subHabits.length > 0 && <SubHabitsDropdown date={date} blockId={b.blockId} subHabits={subHabits} />}
+                      <SubHabitsDropdown
+                        date={date}
+                        blockId={b.blockId}
+                        subHabits={subHabits}
+                        extras={extrasByBlock.get(b.blockId) ?? []}
+                      />
 
                       <details className="mt-1.5">
                         <summary className="cursor-pointer text-[10.5px] text-ink-dim hover:text-ink">

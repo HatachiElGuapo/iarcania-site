@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 import { users } from "./auth";
 import { lifeAreas, lifeProjects } from "./brujula";
 import { scripts } from "./guiones";
+import { planBlocks } from "./plan";
 
 export const tasks = pgTable(
   "tasks",
@@ -46,12 +47,20 @@ export const tasks = pgTable(
     scriptId: uuid("script_id").references(() => scripts.id, {
       onDelete: "set null",
     }),
+    // "Extra de hoy" de un bloque del Plan — task normal (due_date = ese
+    // día), pero enlazada al bloque para mostrarse adentro de su árbol en
+    // vez de suelta en Tu día (ver day-events.ts). No cuenta para
+    // completar el bloque ni para la racha — es solo una task más.
+    planBlockId: uuid("plan_block_id").references(() => planBlocks.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => ({
     userDueDateIdx: index("tasks_user_due_date_idx").on(t.userId, t.dueDate),
+    planBlockIdx: index("tasks_plan_block_idx").on(t.planBlockId),
     statusCheck: check(
       "tasks_status_chk",
       sql`${t.status} IN ('pendiente','completada','archivada')`,

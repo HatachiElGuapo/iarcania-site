@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { moveBlockForDay, moveBlock, moveBlockToEndOfQueue, setCheck, getPlanCheck } from "./actions";
+import { addPlanExtra } from "./extras-actions";
 import { addDaysISO } from "@/lib/date/bogota";
 import { useToast } from "@/components/ui/toast";
 
@@ -15,6 +16,17 @@ import { useToast } from "@/components/ui/toast";
 function addMinutes(hhmm: string, minutes: number): string {
   const [h, m] = hhmm.split(":").map(Number);
   const total = Math.max(0, Math.min(23 * 60 + 50, h * 60 + m + minutes));
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Fin propuesto cuando solo se puso inicio — +1h, recortada a 23:59.
+function plusOneHour(hhmm: string): string {
+  const total = Math.min(23 * 60 + 59, toMinutes(hhmm) + 60);
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
@@ -39,6 +51,9 @@ export function PlanBlockMenu({
   const [note, setNote] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [targetDate, setTargetDate] = useState("");
+  const [extraTitle, setExtraTitle] = useState("");
+  const [extraStart, setExtraStart] = useState("");
+  const [extraEnd, setExtraEnd] = useState("");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -84,6 +99,35 @@ export function PlanBlockMenu({
       fd.set("status", isSkipped ? "" : "skipped");
       return setCheck(fd);
     });
+
+  function onExtraStartChange(value: string) {
+    setExtraStart(value);
+    if (value && !extraEnd) setExtraEnd(plusOneHour(value));
+  }
+
+  // "Agregar solo hoy" — task suelta enlazada a este bloque, SOLO para
+  // `date` (a diferencia de "Agregar subhábito" en el menú de cada
+  // hábito, que es permanente). Vive en lib/plan/extras-actions.ts.
+  const addExtra = () => {
+    if (!extraTitle.trim()) return;
+    if (extraStart && extraEnd && toMinutes(extraEnd) <= toMinutes(extraStart)) {
+      toast.show({ message: "La hora de fin debe ser mayor que la de inicio.", tone: "error" });
+      return;
+    }
+    run(() => {
+      const fd = new FormData();
+      fd.set("date", date);
+      fd.set("blockId", blockId);
+      fd.set("title", extraTitle.trim());
+      if (extraStart) fd.set("timeDue", extraStart);
+      if (extraEnd) fd.set("timeEnd", extraEnd);
+      return addPlanExtra(fd).then(() => {
+        setExtraTitle("");
+        setExtraStart("");
+        setExtraEnd("");
+      });
+    });
+  };
 
   // Guardar nota marca el bloque hecho (si no tenía ningún estado) o
   // conserva el que ya tenía (saltado sigue saltado, con su nota).
@@ -164,6 +208,41 @@ export function PlanBlockMenu({
                   className="flex min-h-11 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
                 >
                   Guardar nota
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  Agregar solo hoy (extra, no permanente)
+                </label>
+                <input
+                  value={extraTitle}
+                  onChange={(e) => setExtraTitle(e.target.value)}
+                  placeholder="ej: Llamar al banco…"
+                  className="focus-ring min-h-11 rounded-ui border border-line bg-canvas px-3 text-[15px] text-ink placeholder:text-ink-dim"
+                />
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="time"
+                    value={extraStart}
+                    onChange={(e) => onExtraStartChange(e.target.value)}
+                    className="focus-ring min-h-11 flex-1 rounded-ui border border-line bg-canvas px-2 text-[13px] text-ink"
+                  />
+                  <span className="text-[12px] text-ink-dim">a</span>
+                  <input
+                    type="time"
+                    value={extraEnd}
+                    onChange={(e) => setExtraEnd(e.target.value)}
+                    className="focus-ring min-h-11 flex-1 rounded-ui border border-line bg-canvas px-2 text-[13px] text-ink"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={pending || !extraTitle.trim()}
+                  onClick={addExtra}
+                  className="flex min-h-11 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
+                >
+                  + Agregar extra de hoy
                 </button>
               </div>
 

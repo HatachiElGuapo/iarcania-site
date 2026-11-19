@@ -288,6 +288,13 @@
       "when": 1795053481680,
       "tag": "0040_aromatic_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795119774547,
+      "tag": "0041_lonely_sally_floyd",
+      "breakpoints": true
     }
   ]
 }
