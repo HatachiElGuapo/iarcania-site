@@ -18,6 +18,7 @@ import { DeferButton } from "./defer-button";
 import { MoveBlockButtons } from "./move-to-tomorrow-button";
 import { ResetPlanStartButton } from "./reset-plan-start-button";
 import { PlanCheckButton, PlanSkipButton, SubHabitsDropdown } from "./block-check";
+import { MobileSubHabits } from "./mobile-sub-habits";
 import { NoteForm } from "./note-form";
 import { DayTimeline } from "../day-timeline";
 import { fmtDuration } from "@/lib/agenda/time";
@@ -348,7 +349,7 @@ export default async function PlanPage({
                               </div>
                               <BlockIcon kind={b.kind} className="h-4 w-4 shrink-0 text-ink-dim" />
                               <span
-                                className={`line-clamp-2 min-w-0 flex-1 text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
+                                className={`min-w-0 flex-1 truncate text-[15px] ${isDone ? "text-ink-dim line-through" : "text-ink"}`}
                               >
                                 {b.text}
                               </span>
@@ -358,16 +359,14 @@ export default async function PlanPage({
                           <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
                           <DeferButton date={date} blockId={b.blockId} text={b.text} startTime={b.startTime} />
                         </div>
-                        {subHabits.length > 0 && (
-                          <div className="pl-2">
-                            <SubHabitsDropdown
-                              date={date}
-                              blockId={b.blockId}
-                              subHabits={subHabits}
-                              extras={extrasByBlock.get(b.blockId) ?? []}
-                            />
-                          </div>
-                        )}
+                        <div className="pl-2">
+                          <MobileSubHabits
+                            date={date}
+                            blockId={b.blockId}
+                            subHabits={subHabits}
+                            extras={extrasByBlock.get(b.blockId) ?? []}
+                          />
+                        </div>
                       </div>
                     ),
                   };
