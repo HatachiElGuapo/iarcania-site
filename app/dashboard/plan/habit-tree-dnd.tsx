@@ -102,6 +102,31 @@ function isStaleServerActionError(err: unknown): boolean {
   return err instanceof Error && /Failed to find Server Action/i.test(err.message);
 }
 
+// Recuerda qué hábitos el usuario abrió/cerró a mano — por id, global (no
+// por bloque/fecha): un hábito es el mismo hábito se vea donde se vea.
+// Envuelto en try/catch porque localStorage puede no estar disponible
+// (modo privado, cuota llena) — si falla, simplemente no se recuerda.
+const COLLAPSE_STORAGE_KEY = "iarcania.plan.habitTree.collapsed";
+
+function loadCollapsedOverrides(): Record<string, boolean> {
+  try {
+    if (typeof window === "undefined") return {};
+    const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCollapsedOverrides(map: Record<string, boolean>) {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // no disponible — se pierde el recuerdo entre sesiones, no rompe nada.
+  }
+}
+
 // Marca/desmarca `id` y TODOS sus descendientes a `done` (igual que
 // applyHabitToggle en el servidor) y recalcula cada ancestro en el camino
 // de vuelta: done = (ya estaba done) || todos sus hijos quedaron done —
@@ -175,12 +200,16 @@ function HabitRow({
   blockId,
   allNodes,
   onToggled,
+  collapsed,
+  onToggleCollapse,
 }: {
   item: FlatItem;
   date: string;
   blockId: string;
   allNodes: HabitNode[];
   onToggled: (activityId: string, done: boolean) => void;
+  collapsed: boolean;
+  onToggleCollapse: (activityId: string) => void;
 }) {
   const { node, depth } = item;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -218,6 +247,18 @@ function HabitRow({
         >
           ⠿
         </button>
+        {node.children.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => onToggleCollapse(node.activityId)}
+            title={collapsed ? "Expandir" : "Minimizar"}
+            className="focus-ring flex h-6 w-4 shrink-0 items-center justify-center text-[10px] text-ink-dim hover:text-ink"
+          >
+            {collapsed ? "▸" : "▾"}
+          </button>
+        ) : (
+          <span className="w-4 shrink-0" />
+        )}
         <SafeActionButton
           action={toggleLogToday}
           fields={{ activityId: node.activityId, date }}
@@ -238,6 +279,11 @@ function HabitRow({
             {node.name}
             {node.isOptional && <span className="ml-1 text-ink-dim">· secundario</span>}
           </span>
+          {collapsed && node.children.length > 0 && (
+            <span className="shrink-0 text-[10px] tabular-nums text-ink-dim">
+              {node.children.filter((c) => c.done).length}/{node.children.length}
+            </span>
+          )}
         </SafeActionButton>
         <HabitNodeMenu date={date} blockId={blockId} node={node} depth={(depth + 1) as 1 | 2 | 3} allNodes={allNodes} />
       </div>
@@ -267,6 +313,14 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
   const [activeId, setActiveId] = useState<string | null>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
+
+  // El estado guardado en localStorage solo existe en el cliente — se
+  // carga en un efecto (no en el useState inicial) para que el primer
+  // render en servidor/cliente coincida y React no se queje de hidratación.
+  useEffect(() => {
+    setCollapsedOverrides(loadCollapsedOverrides());
+  }, []);
 
   // El árbol local solo existe para el modo optimista del drag — cuando
   // llegan props nuevas (tras un router.refresh(), ej. al marcar un
@@ -281,6 +335,29 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
 
   function onToggled(activityId: string, done: boolean) {
     setTree((t) => cascadeDoneLocal(t, activityId, done));
+  }
+
+  // Por defecto: abierto si tiene hijos pendientes, cerrado si ya está
+  // completo — salvo que el usuario lo haya abierto/cerrado a mano
+  // (collapsedOverrides, recordado en localStorage).
+  function toggleCollapse(activityId: string) {
+    setCollapsedOverrides((prev) => {
+      const flat = flatten(tree, 0, null);
+      const node = flat.find((f) => f.id === activityId)?.node;
+      const current = prev[activityId] !== undefined ? prev[activityId] : (node?.done ?? false);
+      const next = { ...prev, [activityId]: !current };
+      saveCollapsedOverrides(next);
+      return next;
+    });
+  }
+
+  function expand(activityId: string) {
+    setCollapsedOverrides((prev) => {
+      if (prev[activityId] === false) return prev;
+      const next = { ...prev, [activityId]: false };
+      saveCollapsedOverrides(next);
+      return next;
+    });
   }
 
   const sensors = useSensors(
@@ -299,10 +376,40 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
     const active = flatAll.find((i) => i.id === activeId);
     return active ? collectIds(active.node) : new Set<string>();
   }, [activeId, flatAll]);
-  const visibleFlat = useMemo(
-    () => flatAll.filter((i) => !excluded.has(i.id) || i.id === activeId),
-    [flatAll, excluded, activeId],
-  );
+  const collapsedIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of flatAll) {
+      if (f.node.children.length === 0) continue;
+      const override = collapsedOverrides[f.id];
+      const collapsed = override !== undefined ? override : f.node.done;
+      if (collapsed) set.add(f.id);
+    }
+    return set;
+  }, [flatAll, collapsedOverrides]);
+
+  const parentById = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const f of flatAll) m.set(f.id, f.parentId);
+    return m;
+  }, [flatAll]);
+
+  // Oculta descendientes de ítems minimizados (display), además de la
+  // propia rama del ítem activo durante el drag (ver comentario arriba de
+  // `excluded`). Esta es también la lista que participa del
+  // SortableContext y de la proyección de profundidad — soltar sobre un
+  // hábito minimizado lo anida igual (sus hijos ocultos no cambian la
+  // posición visual del hábito en sí) y luego se expande solo.
+  const visibleFlat = useMemo(() => {
+    function hasCollapsedAncestor(item: FlatItem): boolean {
+      let p = item.parentId;
+      while (p) {
+        if (collapsedIds.has(p)) return true;
+        p = parentById.get(p) ?? null;
+      }
+      return false;
+    }
+    return flatAll.filter((i) => (!excluded.has(i.id) || i.id === activeId) && !hasCollapsedAncestor(i));
+  }, [flatAll, excluded, activeId, collapsedIds, parentById]);
 
   const activeItem = activeId ? flatAll.find((i) => i.id === activeId) ?? null : null;
 
@@ -405,6 +512,9 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
     const nextTree = insertNode(rest, newParentId, newIndexAmongNewSiblings, removed);
     setTree(nextTree);
     setBusy(true);
+    // Si quedó anidado bajo un hábito que estaba minimizado, se expande
+    // para que se vea de una.
+    if (newParentId && newParentId !== oldParentId) expand(newParentId);
 
     persistMove(activeFlat.node, oldParentId, newParentId, newIndexAmongNewSiblings, oldIndex)
       .then(() => {
@@ -435,7 +545,16 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
       <SortableContext items={visibleFlat.map((i) => i.id)} strategy={verticalListSortingStrategy}>
         <div className={`flex flex-col gap-0.5 ${busy ? "pointer-events-none opacity-60" : ""}`}>
           {visibleFlat.map((item) => (
-            <HabitRow key={item.id} item={item} date={date} blockId={blockId} allNodes={tree} onToggled={onToggled} />
+            <HabitRow
+              key={item.id}
+              item={item}
+              date={date}
+              blockId={blockId}
+              allNodes={tree}
+              onToggled={onToggled}
+              collapsed={collapsedIds.has(item.id)}
+              onToggleCollapse={toggleCollapse}
+            />
           ))}
         </div>
       </SortableContext>
