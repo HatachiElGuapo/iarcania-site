@@ -23,7 +23,7 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const hasTree = (ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0);
 
   const row = (
-    <ListCard accent={ev.accent}>
+    <ListCard accent={ev.accent} className="w-full min-w-0 box-border">
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
           ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
@@ -58,9 +58,16 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
     </ListCard>
   );
 
+  // Ancho fijo para los botones finales (⋯/⏭/⋮) — sin esto, una fila de
+  // Plan (2 botones: PlanBlockMenu+DeferButton) le deja menos ancho a su
+  // ListCard que una de tarea/hábito (1 botón, TaskHabitMenu) o ninguno
+  // (citas/notas), así que cada tarjeta terminaba midiendo distinto.
+  // Reservando siempre el mismo espacio (justify-end, se ve vacío a la
+  // izquierda cuando hay menos botones) el ListCard de al lado queda con
+  // el mismo ancho disponible en todas las filas.
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-1 box-border">
+      <div className="flex w-full min-w-0 items-center gap-2 box-border">
         {primary ? (
           <SafeActionButton action={primary.action} fields={primary.fields} className="contents min-w-0 flex-1">
             {row}
@@ -68,22 +75,36 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         ) : (
           <div className="min-w-0 flex-1">{row}</div>
         )}
-        {ev.kind === "plan" && (
-          <>
-            <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
-            <DeferButton date={date} blockId={ev.refId} text={ev.title} startTime={fmtTime(ev.start)} />
-          </>
-        )}
-        {ev.itemType === "task" && ev.itemId && (
-          <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
-        )}
-        {(ev.itemType === "habit" || ev.itemType === "habito") && ev.itemId && (
-          <TaskHabitMenu kind="habit" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
-        )}
+        <div className="flex w-24 shrink-0 items-center justify-end gap-2">
+          {ev.kind === "plan" && (
+            <>
+              <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
+              <DeferButton
+                date={date}
+                blockId={ev.refId}
+                text={ev.title}
+                startTime={fmtTime(ev.start)}
+                className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-ui border border-line bg-transparent text-[12px] text-ink-dim transition-colors duration-120 hover:border-line-strong hover:text-ink"
+              />
+            </>
+          )}
+          {ev.itemType === "task" && ev.itemId && (
+            <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
+          )}
+          {(ev.itemType === "habit" || ev.itemType === "habito") && ev.itemId && (
+            <TaskHabitMenu kind="habit" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />
+          )}
+        </div>
       </div>
       {ev.kind === "plan" && hasTree && (
         <div className="ml-2">
-          <MobileSubHabits date={date} blockId={ev.refId} subHabits={ev.habitChecks ?? []} extras={ev.extras ?? []} />
+          <MobileSubHabits
+            date={date}
+            blockId={ev.refId}
+            blockText={ev.title}
+            subHabits={ev.habitChecks ?? []}
+            extras={ev.extras ?? []}
+          />
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
+import { BottomSheetModal } from "../compact-modal-card";
 import { HabitTreeDnd } from "./habit-tree-dnd";
 import { ExtrasSection } from "./extras-section";
 import type { HabitNode } from "@/lib/plan/sub-habits";
@@ -16,67 +17,55 @@ function countDeep(nodes: HabitNode[]): { done: number; total: number } {
   );
 }
 
-// Versión móvil de SubHabitsDropdown (block-check.tsx) — mismo
-// HabitTreeDnd/ExtrasSection de escritorio (checkbox con cascada, ▸/▾ por
-// nivel, ⋯, asa ⠿ con TouchSensor), pero CERRADA por defecto y con un
-// botón propio de zona táctil de 44px en vez del <details open> de
-// escritorio — en una pantalla chica, mostrar siempre el árbol completo
-// de cada bloque hace que las tarjetas midan todas distinto. El
-// abierto/cerrado se recuerda por bloque en localStorage.
+// Versión móvil de SubHabitsDropdown (block-check.tsx) — en vez de
+// desplegar el árbol DENTRO de la lista (eso hacía que cada tarjeta
+// cambiara de alto y tapara a la de abajo), el botón "Hábitos (x/y)" abre
+// una hoja inferior a pantalla completa (mismo BottomSheetModal que
+// Hábitos/Secundarios) con el árbol completo — mismo HabitTreeDnd/
+// ExtrasSection de escritorio: checkbox con cascada, verde, ▸/▾ por
+// nivel, ⋯, asa ⠿ con TouchSensor. Al cerrar, el conteo "x/y" del botón
+// se actualiza solo con las props nuevas que trae el router.refresh()
+// que ya dispara cualquier acción adentro (toggleLogToday, etc.) — sin
+// recargar la página.
 export function MobileSubHabits({
   date,
   blockId,
+  blockText,
   subHabits,
   extras = [],
 }: {
   date: string;
   blockId: string;
+  blockText: string;
   subHabits: HabitNode[];
   extras?: PlanExtra[];
 }) {
   const [open, setOpen] = useState(false);
-  const storageKey = `plan.mobileTree.open.${blockId}`;
-
-  useEffect(() => {
-    try {
-      setOpen(localStorage.getItem(storageKey) === "1");
-    } catch {
-      // localStorage no disponible — queda cerrada (el valor por defecto).
-    }
-  }, [storageKey]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   if (subHabits.length === 0 && extras.length === 0) return null;
   const { done, total } = countDeep(subHabits);
 
-  function toggle() {
-    const next = !open;
-    setOpen(next);
-    try {
-      localStorage.setItem(storageKey, next ? "1" : "0");
-    } catch {
-      // Sin persistencia disponible — igual funciona para esta sesión.
-    }
-  }
-
   return (
-    <div className="flex flex-col gap-1">
+    <>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={toggle}
+        onClick={() => setOpen(true)}
         aria-expanded={open}
         className="focus-ring flex min-h-11 items-center gap-1 self-start rounded-ui px-1 text-[12px] text-ink-dim"
       >
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center">{open ? "▾" : "▸"}</span>
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center">▸</span>
         <span>
           Hábitos ({done}/{total})
         </span>
       </button>
-      {open && (
-        <div className="rounded-ui border border-line bg-surface-sunken p-1.5">
+      <BottomSheetModal open={open} onOpenChange={setOpen} title={blockText} returnFocusRef={triggerRef}>
+        <div className="p-1.5">
           {subHabits.length > 0 && <HabitTreeDnd date={date} blockId={blockId} subHabits={subHabits} />}
           <ExtrasSection date={date} blockId={blockId} extras={extras} />
         </div>
-      )}
-    </div>
+      </BottomSheetModal>
+    </>
   );
 }

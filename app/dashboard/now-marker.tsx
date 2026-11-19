@@ -82,6 +82,10 @@ export function BlockTimelineState({
   const now = useNowMinutes(isToday);
   const isCurrent = now !== null && now >= start && now < end;
   const isOverdue = now !== null && now >= end && !done;
-  const className = isCurrent ? "rounded-ui-lg ring-1 ring-accent/40" : isOverdue ? "opacity-80" : undefined;
-  return <div className={className}>{children}</div>;
+  // `ring` (box-shadow) en vez de `border` a propósito — no ocupa layout,
+  // así que esta fila no mide distinto de las demás solo por estar "en
+  // curso". `w-full box-border` siempre, sea cual sea el estado, para que
+  // esta capa nunca sea la que distinga el ancho de una fila de otra.
+  const stateClassName = isCurrent ? "rounded-ui-lg ring-1 ring-accent/40" : isOverdue ? "opacity-80" : "";
+  return <div className={`w-full min-w-0 box-border ${stateClassName}`}>{children}</div>;
 }

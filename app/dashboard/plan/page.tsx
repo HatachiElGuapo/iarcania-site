@@ -327,10 +327,10 @@ export default async function PlanPage({
                     end: timelineEnd(b),
                     done: isDone,
                     node: (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
+                      <div className="flex w-full min-w-0 flex-col gap-1 box-border">
+                        <div className="flex w-full min-w-0 items-center gap-2 box-border">
                           <PlanCheckButton date={date} blockId={b.blockId} isDone={isDone} className="contents min-w-0 flex-1">
-                            <ListCard accent={kind.color}>
+                            <ListCard accent={kind.color} className="w-full min-w-0 box-border">
                               <span
                                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
                                   isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
@@ -356,13 +356,22 @@ export default async function PlanPage({
                               {b.isMinimum && <Badge tone="warm" className="shrink-0">Mínimo</Badge>}
                             </ListCard>
                           </PlanCheckButton>
-                          <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
-                          <DeferButton date={date} blockId={b.blockId} text={b.text} startTime={b.startTime} />
+                          <div className="flex w-24 shrink-0 items-center justify-end gap-2">
+                            <PlanBlockMenu date={date} blockId={b.blockId} startTime={b.startTime} text={b.text} />
+                            <DeferButton
+                              date={date}
+                              blockId={b.blockId}
+                              text={b.text}
+                              startTime={b.startTime}
+                              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-ui border border-line bg-transparent text-[12px] text-ink-dim transition-colors duration-120 hover:border-line-strong hover:text-ink"
+                            />
+                          </div>
                         </div>
                         <div className="pl-2">
                           <MobileSubHabits
                             date={date}
                             blockId={b.blockId}
+                            blockText={b.text}
                             subHabits={subHabits}
                             extras={extrasByBlock.get(b.blockId) ?? []}
                           />
