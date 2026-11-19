@@ -1,47 +1,15 @@
 "use client";
 
 import type { AgendaEvent } from "@/lib/agenda/day-events";
-import { toggleTaskStatus } from "./actividades/actions";
+import { fmtTime } from "@/lib/agenda/time";
+import { primaryActionFor } from "@/lib/plan/primary-action";
 import { toggleLogToday } from "./habitos/actions";
-import { setCheck } from "./plan/actions";
-import { completeAppointment } from "./citas/actions";
 import { PlanBlockMenu } from "./plan/block-menu";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
 import { pickHabitPraise } from "@/lib/habits/praise";
 import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pickProtectorGainedMessage } from "@/lib/plan/praise";
-
-export function fmtTime(min: number) {
-  const h = Math.floor(min / 60) % 24;
-  const m = min % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-type RowAction = (formData: FormData) => void | Promise<unknown>;
-
-// El toggle "principal" de cada fila — el que se dispara clickeando en
-// cualquier parte de la fila, no solo un cuadradito chico. Plan además
-// tiene "saltado" (✗) como control aparte, porque hecho/saltado no son
-// opuestos de un solo booleano.
-export function primaryActionFor(
-  ev: AgendaEvent,
-  date: string,
-): { action: RowAction; fields: Record<string, string> } | null {
-  if (ev.kind === "block" && ev.itemType === "task" && ev.itemId) {
-    return { action: toggleTaskStatus, fields: { id: ev.itemId, nextStatus: ev.done ? "pendiente" : "completada" } };
-  }
-  if ((ev.kind === "habit" || (ev.kind === "block" && ev.itemType === "habito")) && ev.itemId) {
-    return { action: toggleLogToday, fields: { activityId: ev.itemId, date } };
-  }
-  if (ev.kind === "block" && ev.itemType === "cita" && ev.itemId) {
-    return { action: completeAppointment, fields: { id: ev.itemId } };
-  }
-  if (ev.kind === "plan") {
-    return { action: setCheck, fields: { date, blockId: ev.refId, status: ev.done ? "" : "done" } };
-  }
-  return null;
-}
 
 // Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
 // de un <button type="submit"> que ocupa toda la fila — clickear en
