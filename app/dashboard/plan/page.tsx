@@ -11,6 +11,7 @@ import { loadHabitTreesByBlock } from "@/lib/plan/sub-habits";
 import { splitPrincipalSecondary } from "@/lib/plan/secondary";
 import { getPlanExtrasByBlock } from "@/lib/plan/extras";
 import { BlockIcon } from "@/lib/icons/habit-icons";
+import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import { Button, Card, Stepper, Badge, EmptyState, ListCard } from "@/components/ui";
 import { setOverride, removeForDay, clearOverride } from "./actions";
 import { PlanBlockMenu } from "./block-menu";
@@ -329,11 +330,9 @@ export default async function PlanPage({
                       <div className="flex w-full min-w-0 flex-col gap-1 box-border">
                         <div className="flex w-full min-w-0 items-center gap-2 box-border">
                           <PlanCheckButton date={date} blockId={b.blockId} isDone={isDone} className="contents min-w-0 flex-1">
-                            <ListCard accent={kind.color} className="w-full min-w-0 box-border">
+                            <ListCard accent={kind.color} className={`w-full min-w-0 box-border ${planCardWrapperClass(isDone)}`}>
                               <span
-                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
-                                  isDone ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
-                                }`}
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${planCardCheckboxClass(isDone)}`}
                               >
                                 ✓
                               </span>
@@ -402,7 +401,7 @@ export default async function PlanPage({
                       end: timelineEnd(b),
                       done: isDone,
                       node: (
-                    <div className="rounded-ui-lg border border-line bg-surface px-3 py-2.5">
+                    <div className={`rounded-ui-lg border px-3 py-2.5 ${planCardWrapperClass(isDone)}`}>
                       <div className="flex items-start gap-2">
                         <BlockIcon kind={b.kind} className="mt-0.5 h-4 w-4 shrink-0 text-ink-dim" />
                         <div className="min-w-0 flex-1">

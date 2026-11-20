@@ -12,6 +12,7 @@ import { ExtrasSection } from "./plan/extras-section";
 import { useFlexibleBlockCollapse } from "./plan/flexible-collapse";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
+import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 
 function countDeep(nodes: HabitNode[]): { done: number; total: number } {
@@ -40,11 +41,15 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const row = (
     <ListCard
       accent={ev.accent}
-      className={`w-full min-w-0 box-border ${ev.flexible && ev.done ? "border-success/40 bg-success/[0.06]" : ""}`}
+      className={`w-full min-w-0 box-border ${ev.kind === "plan" ? planCardWrapperClass(ev.done) : ""}`}
     >
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
-          ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+          ev.kind === "plan"
+            ? planCardCheckboxClass(ev.done)
+            : ev.done
+              ? "border-accent bg-accent text-white"
+              : "border-line-strong text-transparent"
         }`}
       >
         ✓

@@ -8,6 +8,8 @@ import { createTask, toggleTaskStatus, rescheduleTask } from "../actividades/act
 import { CompactModalCard } from "../compact-modal-card";
 import { useActionsModal } from "./actions-context";
 import { addDaysISO } from "@/lib/date/bogota";
+import { fmtDuration } from "@/lib/agenda/time";
+import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import type { FocusSlot, OtherAction } from "@/lib/trabajo/daily-actions";
 
 export type DayActions = { date: string; focus: FocusSlot[]; others: OtherAction[] };
@@ -32,13 +34,6 @@ function isRangeValid(timeDue: string, timeEnd: string): boolean {
 function fmtRange(timeDue: string | null, timeEnd: string | null): string | null {
   if (!timeDue) return null;
   return timeEnd ? `de ${timeDue} a ${timeEnd}` : timeDue;
-}
-
-// "8:00 – 12:00" — para la fila de texto corrido de TodayFocusRow (sin
-// "de"/"a"; distinto de fmtRange, que sí los lleva para OtherActionRow).
-function fmtRangeShort(timeDue: string | null, timeEnd: string | null): string | null {
-  if (!timeDue) return null;
-  return timeEnd ? `${timeDue} – ${timeEnd}` : timeDue;
 }
 
 function filledCount(focus: FocusSlot[]) {
@@ -387,15 +382,17 @@ function DayTabContent({ day, onChange }: { day: DayActions; onChange: (next: Da
   );
 }
 
-// Una de las 3 acciones de hoy, en el tope de "Tu día" — una línea de
-// texto normal (no una caja de formulario): círculo a la izquierda,
-// número sutil, el texto (tocarlo lo vuelve editable ahí mismo, Enter o
-// salir guarda) y la hora a la derecha en chico. Sin taskId todavía (slot
-// vacío) muestra el placeholder tenue en vez de nada. Mismo
-// saveFocusSlot/toggleTaskStatus de siempre — solo cambia cómo se ve en
-// reposo, no la acción ni la validación (fin > inicio la sigue
-// aplicando saveFocusSlot en el servidor; acá no se edita la hora, eso
-// sigue viviendo en el modal completo de "Acciones").
+// Una de las 3 acciones de hoy, en el tope de "Tu día" — mismo diseño de
+// tarjeta que un bloque de Plan ("estilo A", ver lib/plan/block-style.ts):
+// círculo, hora de inicio/fin + duración, texto, ⋯. Las horas son dos
+// <input type="time"> siempre visibles (se guardan solas al cambiar, con
+// la misma validación fin > inicio de saveFocusSlot); el texto se vuelve
+// editable al tocarlo (Enter o salir guarda); vacía, la tarjeta se ve
+// tenue con "Acción N · Escribe tu acción…" y las horas en su "--:--"
+// nativo. "⋯" vacía la acción (mismo saveFocusSlot con título vacío que
+// ya usa el modal completo para borrarla — ahí es borrar el texto a
+// mano, acá un acceso directo). Mismo saveFocusSlot/toggleTaskStatus de
+// siempre, nada de lógica nueva.
 function TodayFocusRow({
   slot,
   date,
@@ -407,91 +404,163 @@ function TodayFocusRow({
   onSaved: (rank: number, title: string, timeDue: string | null, timeEnd: string | null) => void;
   onToggled: (rank: number, done: boolean) => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState(slot.title);
+  const [timeDue, setTimeDue] = useState(slot.timeDue ?? "");
+  const [timeEnd, setTimeEnd] = useState(slot.timeEnd ?? "");
   const [pending, startTransition] = useTransition();
   const toast = useToast();
 
-  useEffect(() => setTitle(slot.title), [slot.title]);
+  useEffect(() => {
+    setTitle(slot.title);
+    setTimeDue(slot.timeDue ?? "");
+    setTimeEnd(slot.timeEnd ?? "");
+  }, [slot.title, slot.timeDue, slot.timeEnd]);
 
   function onToggleResult() {
     onToggled(slot.rank, !slot.done);
   }
 
-  function save() {
-    setEditing(false);
-    const trimmed = title.trim();
-    if (trimmed === slot.title.trim()) return;
+  function save(nextTitle: string, nextTimeDue: string, nextTimeEnd: string) {
+    setEditingTitle(false);
+    if (
+      nextTitle.trim() === slot.title.trim() &&
+      (nextTimeDue || null) === slot.timeDue &&
+      (nextTimeEnd || null) === slot.timeEnd
+    ) {
+      return;
+    }
+    if (!isRangeValid(nextTimeDue, nextTimeEnd)) {
+      toast.show({ message: "La hora de fin debe ser mayor que la de inicio.", tone: "error" });
+      setTimeDue(slot.timeDue ?? "");
+      setTimeEnd(slot.timeEnd ?? "");
+      return;
+    }
     startTransition(async () => {
       try {
         const fd = new FormData();
         fd.set("date", date);
         fd.set("rank", String(slot.rank));
-        fd.set("title", trimmed);
-        fd.set("timeDue", slot.timeDue ?? "");
-        fd.set("timeEnd", slot.timeEnd ?? "");
+        fd.set("title", nextTitle);
+        fd.set("timeDue", nextTimeDue);
+        fd.set("timeEnd", nextTimeEnd);
         await saveFocusSlot(fd);
-        onSaved(slot.rank, trimmed, slot.timeDue, slot.timeEnd);
+        onSaved(slot.rank, nextTitle.trim(), nextTimeDue || null, nextTimeEnd || null);
       } catch (err) {
         setTitle(slot.title);
+        setTimeDue(slot.timeDue ?? "");
+        setTimeEnd(slot.timeEnd ?? "");
         toast.show({ message: err instanceof Error ? err.message : "No se pudo guardar.", tone: "error" });
       }
     });
   }
 
-  const range = fmtRangeShort(slot.timeDue, slot.timeEnd);
+  function saveTitle() {
+    save(title, timeDue, timeEnd);
+  }
+
+  function onStartChange(value: string) {
+    const nextEnd = value && !timeEnd ? plusOneHour(value) : timeEnd;
+    setTimeDue(value);
+    setTimeEnd(nextEnd);
+    save(title, value, nextEnd);
+  }
+
+  function onEndChange(value: string) {
+    setTimeEnd(value);
+    save(title, timeDue, value);
+  }
+
+  function clear() {
+    setTitle("");
+    save("", timeDue, timeEnd);
+  }
+
+  const isEmpty = !slot.title.trim();
+  const durationMin = slot.timeDue && slot.timeEnd ? toMinutes(slot.timeEnd) - toMinutes(slot.timeDue) : null;
 
   return (
-    <div className="flex items-center gap-2.5 py-1">
+    <div
+      className={`flex items-center gap-2.5 rounded-ui-lg border px-3 py-2.5 ${planCardWrapperClass(slot.done)} ${
+        isEmpty && !editingTitle ? "opacity-60" : ""
+      }`}
+    >
       {slot.taskId ? (
         <SafeActionButton
           action={toggleTaskStatus}
           fields={{ id: slot.taskId, nextStatus: slot.done ? "pendiente" : "completada" }}
           onResult={onToggleResult}
-          className="focus-ring flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${planCardCheckboxClass(slot.done)}`}
         >
-          <span
-            className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
-              slot.done ? "border-success bg-success text-white" : "border-line-strong"
-            }`}
-          >
-            {slot.done ? "✓" : ""}
-          </span>
+          ✓
         </SafeActionButton>
       ) : (
-        <span className="h-5 w-5 shrink-0 rounded-full border border-line-strong opacity-40" />
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border border-line-strong text-[12px] text-transparent">
+          ✓
+        </span>
       )}
-      <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{slot.rank + 1}</span>
-      {editing ? (
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              save();
-            } else if (e.key === "Escape") {
-              setTitle(slot.title);
-              setEditing(false);
-            }
-          }}
-          disabled={pending}
-          className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-ink outline-none"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className={`min-w-0 flex-1 truncate text-left text-[14px] ${
-            !slot.title.trim() ? "text-ink-dim" : slot.done ? "text-ink-dim line-through" : "text-ink"
-          }`}
-        >
-          {slot.title.trim() || "Escribe tu acción…"}
-        </button>
-      )}
-      {range && <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{range}</span>}
+      <div className="flex w-[118px] shrink-0 flex-col items-start leading-tight">
+        <div className="flex items-center gap-1 text-[11px] tabular-nums text-ink-dim">
+          <input
+            type="time"
+            value={timeDue}
+            onChange={(e) => onStartChange(e.target.value)}
+            disabled={pending}
+            className="focus-ring w-[58px] rounded-ui bg-transparent"
+          />
+          <span>–</span>
+          <input
+            type="time"
+            value={timeEnd}
+            onChange={(e) => onEndChange(e.target.value)}
+            disabled={pending}
+            className="focus-ring w-[58px] rounded-ui bg-transparent"
+          />
+        </div>
+        {durationMin != null && durationMin > 0 && (
+          <span className="text-[9.5px] tabular-nums text-ink-dim/70">{fmtDuration(durationMin)}</span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        {editingTitle ? (
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                saveTitle();
+              } else if (e.key === "Escape") {
+                setTitle(slot.title);
+                setEditingTitle(false);
+              }
+            }}
+            disabled={pending}
+            className="block w-full border-0 bg-transparent p-0 text-body text-ink outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingTitle(true)}
+            className={`block w-full truncate text-left text-body ${
+              isEmpty ? "text-ink-dim" : slot.done ? "text-ink-dim line-through" : "text-ink"
+            }`}
+          >
+            {isEmpty ? `Acción ${slot.rank + 1} · Escribe tu acción…` : slot.title}
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={clear}
+        disabled={pending || isEmpty}
+        title="Vaciar acción"
+        className="shrink-0 px-1 text-meta text-ink-dim hover:text-ink disabled:opacity-30"
+      >
+        ⋯
+      </button>
     </div>
   );
 }
@@ -509,7 +578,11 @@ export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot
 
   function onSlotSaved(rank: number, title: string, timeDue: string | null, timeEnd: string | null) {
     setFocus((prev) =>
-      prev.map((f) => (f.rank === rank ? { ...f, title, timeDue, timeEnd, taskId: f.taskId ?? "pending" } : f)),
+      prev.map((f) =>
+        f.rank === rank
+          ? { ...f, title, timeDue, timeEnd, taskId: title ? f.taskId ?? "pending" : null, done: title ? f.done : false }
+          : f,
+      ),
     );
   }
 

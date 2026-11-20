@@ -13,6 +13,7 @@ import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
 import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pickProtectorGainedMessage } from "@/lib/plan/praise";
 import { BlockIcon } from "@/lib/icons/habit-icons";
+import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 
 function countDeep(nodes: HabitNode[]): { done: number; total: number } {
@@ -71,7 +72,11 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
     <>
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
-          ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+          ev.kind === "plan"
+            ? planCardCheckboxClass(ev.done)
+            : ev.done
+              ? "border-accent bg-accent text-white"
+              : "border-line-strong text-transparent"
         }`}
       >
         ✓
@@ -111,15 +116,12 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   );
 
   const isPlanBlock = ev.kind === "plan";
-  const flexibleDone = ev.flexible && ev.done;
 
   return (
     <div
       className={
         isPlanBlock
-          ? `my-1 flex flex-col gap-1 rounded-ui-lg border px-3 py-1 ${
-              flexibleDone ? "border-success/40 bg-success/[0.06]" : "border-line bg-surface"
-            }`
+          ? `my-1 flex flex-col gap-1 rounded-ui-lg border px-3 py-1 ${planCardWrapperClass(ev.done)}`
           : "flex flex-col gap-1 px-3.5 py-1"
       }
     >
