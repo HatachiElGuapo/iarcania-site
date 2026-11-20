@@ -38,8 +38,13 @@ export function useFlexibleBlockCollapse(blockId: string, done: boolean): { open
     setStored(loadMap()[blockId] ?? true);
   }, [blockId]);
 
+  // Espeja `done`: se pliega al completarse, y vuelve a depender de lo
+  // guardado apenas se desmarca (antes solo se ponía en `true` y nunca se
+  // limpiaba al volver a `false` — un bloque que se completó y después se
+  // desmarcó quedaba plegado "a la fuerza" para siempre, aunque el usuario
+  // ya lo hubiera abierto a mano esa sesión).
   useEffect(() => {
-    if (done) setForcedByDone(true);
+    setForcedByDone(done);
   }, [done]);
 
   const collapsed = forcedByDone ? true : stored ?? true;

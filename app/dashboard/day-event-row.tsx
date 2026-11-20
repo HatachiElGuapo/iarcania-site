@@ -38,6 +38,7 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const primary = primaryActionFor(ev, date);
   const toast = useToast();
   const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(ev.refId, ev.done);
+  const hasTree = (ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0) || false;
   const flexibleCount = ev.flexible ? countDeep(ev.habitChecks ?? []) : null;
 
   function handlePlanResult(result: unknown) {
@@ -132,7 +133,7 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
         )}
-        {ev.flexible && flexibleCount && flexibleCount.total > 0 && (
+        {ev.flexible && hasTree && (
           <button
             type="button"
             onClick={toggleFlexible}
@@ -157,8 +158,9 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
           </a>
         )}
       </div>
-      {ev.flexible
-        ? flexibleOpen && ((ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0)) && (
+      {hasTree &&
+        (ev.flexible ? (
+          flexibleOpen && (
             <div className="ml-9">
               {ev.habitChecks && ev.habitChecks.length > 0 && (
                 <div className="rounded-ui border border-line bg-surface-sunken p-1.5">
@@ -168,11 +170,11 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
               <ExtrasSection date={date} blockId={ev.refId} extras={ev.extras ?? []} />
             </div>
           )
-        : ((ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0)) && (
-            <div className="ml-9">
-              <SubHabitsDropdown date={date} blockId={ev.refId} subHabits={ev.habitChecks ?? []} extras={ev.extras ?? []} />
-            </div>
-          )}
+        ) : (
+          <div className="ml-9">
+            <SubHabitsDropdown date={date} blockId={ev.refId} subHabits={ev.habitChecks ?? []} extras={ev.extras ?? []} />
+          </div>
+        ))}
     </div>
   );
 }
