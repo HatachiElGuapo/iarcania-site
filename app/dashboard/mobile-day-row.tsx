@@ -44,13 +44,7 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       className={`w-full min-w-0 box-border ${ev.kind === "plan" ? planCardWrapperClass(ev.done) : ""}`}
     >
       <span
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
-          ev.kind === "plan"
-            ? planCardCheckboxClass(ev.done)
-            : ev.done
-              ? "border-accent bg-accent text-white"
-              : "border-line-strong text-transparent"
-        }`}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${planCardCheckboxClass(ev.done)}`}
       >
         ✓
       </span>

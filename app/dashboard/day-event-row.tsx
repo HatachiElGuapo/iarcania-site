@@ -71,13 +71,7 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const content = (
     <>
       <span
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
-          ev.kind === "plan"
-            ? planCardCheckboxClass(ev.done)
-            : ev.done
-              ? "border-accent bg-accent text-white"
-              : "border-line-strong text-transparent"
-        }`}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${planCardCheckboxClass(ev.done)}`}
       >
         ✓
       </span>
