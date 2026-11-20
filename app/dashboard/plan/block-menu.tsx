@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { moveBlockForDay, moveBlock, moveBlockToEndOfQueue, setCheck, getPlanCheck } from "./actions";
+import { moveBlockForDay, moveBlock, moveBlockToEndOfQueue, setCheck, getPlanCheck, updateBlockSchedule } from "./actions";
 import { addPlanExtra } from "./extras-actions";
-import { addDaysISO } from "@/lib/date/bogota";
+import { addDaysISO, weekdayMon0 } from "@/lib/date/bogota";
 import { useToast } from "@/components/ui/toast";
 import { BottomSheetModal } from "../compact-modal-card";
 
@@ -31,6 +31,8 @@ function plusOneHour(hhmm: string): string {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+const WEEKDAY_LABELS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+
 type CheckRow = { status: string; note: string | null };
 
 export function PlanBlockMenu({
@@ -38,11 +40,13 @@ export function PlanBlockMenu({
   blockId,
   startTime,
   text,
+  triggerClassName,
 }: {
   date: string;
   blockId: string;
   startTime: string;
   text: string;
+  triggerClassName?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -56,6 +60,8 @@ export function PlanBlockMenu({
   const [extraTitle, setExtraTitle] = useState("");
   const [extraStart, setExtraStart] = useState("");
   const [extraEnd, setExtraEnd] = useState("");
+  const [scheduleStart, setScheduleStart] = useState(startTime);
+  const [scheduleEnd, setScheduleEnd] = useState("");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -67,7 +73,11 @@ export function PlanBlockMenu({
         setNote(row?.note ?? "");
       })
       .finally(() => setLoadingCheck(false));
-  }, [open, blockId, date]);
+    setScheduleStart(startTime);
+    setScheduleEnd("");
+  }, [open, blockId, date, startTime]);
+
+  const weekdayLabel = WEEKDAY_LABELS[weekdayMon0(date)];
 
   const isSkipped = check?.status === "skipped";
 
@@ -131,6 +141,15 @@ export function PlanBlockMenu({
     });
   };
 
+  const changeSchedule = (scope: "today" | "weekday" | "all") => {
+    if (!scheduleStart || !scheduleEnd) return;
+    if (toMinutes(scheduleEnd) <= toMinutes(scheduleStart)) {
+      toast.show({ message: "La hora de fin debe ser mayor que la de inicio.", tone: "error" });
+      return;
+    }
+    run(() => updateBlockSchedule({ date, blockId, startTime: scheduleStart, endTime: scheduleEnd, scope }));
+  };
+
   // Guardar nota marca el bloque hecho (si no tenía ningún estado) o
   // conserva el que ya tenía (saltado sigue saltado, con su nota).
   const saveNote = () =>
@@ -171,9 +190,12 @@ export function PlanBlockMenu({
         type="button"
         onClick={() => setOpen(true)}
         title="Más acciones"
-        className={`focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-ui border text-[15px] ${
-          isSkipped ? "border-danger/40 bg-danger/12 text-danger" : "border-line text-ink-dim"
-        }`}
+        className={
+          triggerClassName ??
+          `focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-ui border text-[15px] ${
+            isSkipped ? "border-danger/40 bg-danger/12 text-danger" : "border-line text-ink-dim"
+          }`
+        }
       >
         ⋯
       </button>
@@ -264,6 +286,50 @@ export function PlanBlockMenu({
                     +{min < 60 ? `${min} min` : `${min / 60}h`}
                   </button>
                 ))}
+              </div>
+              <div className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                Cambiar horario
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="time"
+                  value={scheduleStart}
+                  onChange={(e) => setScheduleStart(e.target.value)}
+                  className="focus-ring min-h-11 flex-1 rounded-ui border border-line bg-canvas px-2 text-[13px] text-ink"
+                />
+                <span className="text-[12px] text-ink-dim">a</span>
+                <input
+                  type="time"
+                  value={scheduleEnd}
+                  onChange={(e) => setScheduleEnd(e.target.value)}
+                  className="focus-ring min-h-11 flex-1 rounded-ui border border-line bg-canvas px-2 text-[13px] text-ink"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-[7px]">
+                <button
+                  type="button"
+                  disabled={pending || !scheduleStart || !scheduleEnd}
+                  onClick={() => changeSchedule("today")}
+                  className="flex min-h-11 items-center justify-center rounded-ui border border-line bg-surface text-[13px] font-medium text-ink-muted disabled:opacity-50"
+                >
+                  Solo hoy
+                </button>
+                <button
+                  type="button"
+                  disabled={pending || !scheduleStart || !scheduleEnd}
+                  onClick={() => changeSchedule("weekday")}
+                  className="flex min-h-11 items-center justify-center rounded-ui border border-line bg-surface text-[13px] font-medium text-ink-muted disabled:opacity-50"
+                >
+                  Todos los {weekdayLabel}
+                </button>
+                <button
+                  type="button"
+                  disabled={pending || !scheduleStart || !scheduleEnd}
+                  onClick={() => changeSchedule("all")}
+                  className="flex min-h-11 items-center justify-center rounded-ui border border-line bg-surface text-[13px] font-medium text-ink-muted disabled:opacity-50"
+                >
+                  Todos los días
+                </button>
               </div>
               <div className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Mover</div>
               <div className="grid grid-cols-2 gap-[7px]">

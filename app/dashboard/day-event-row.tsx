@@ -4,7 +4,6 @@ import type { AgendaEvent } from "@/lib/agenda/day-events";
 import { fmtTime, fmtDuration } from "@/lib/agenda/time";
 import { primaryActionFor } from "@/lib/plan/primary-action";
 import { PlanBlockMenu } from "./plan/block-menu";
-import { DeferButton } from "./plan/defer-button";
 import { SubHabitsDropdown } from "./plan/block-check";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
@@ -110,10 +109,7 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
           <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
         )}
         {ev.kind === "plan" && (
-          <>
-            <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
-            <DeferButton date={date} blockId={ev.refId} text={ev.title} startTime={fmtTime(ev.start)} />
-          </>
+          <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
         )}
         {ev.itemType === "task" && ev.itemId && (
           <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />

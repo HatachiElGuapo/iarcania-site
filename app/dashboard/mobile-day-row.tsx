@@ -6,7 +6,6 @@ import { primaryActionFor } from "@/lib/plan/primary-action";
 import { BlockIcon } from "@/lib/icons/habit-icons";
 import { ListCard } from "@/components/ui/list-card";
 import { PlanBlockMenu } from "./plan/block-menu";
-import { DeferButton } from "./plan/defer-button";
 import { MobileSubHabits } from "./plan/mobile-sub-habits";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
@@ -58,13 +57,12 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
     </ListCard>
   );
 
-  // Ancho fijo para los botones finales (⋯/⏭/⋮) — sin esto, una fila de
-  // Plan (2 botones: PlanBlockMenu+DeferButton) le deja menos ancho a su
-  // ListCard que una de tarea/hábito (1 botón, TaskHabitMenu) o ninguno
-  // (citas/notas), así que cada tarjeta terminaba midiendo distinto.
+  // Ancho fijo para el botón final (⋯/⋮) — sin esto, una fila con botón y
+  // una sin (citas/notas) le dejan distinto ancho disponible a su
+  // ListCard, así que cada tarjeta terminaba midiendo distinto.
   // Reservando siempre el mismo espacio (justify-end, se ve vacío a la
-  // izquierda cuando hay menos botones) el ListCard de al lado queda con
-  // el mismo ancho disponible en todas las filas.
+  // izquierda cuando no hay botón) el ListCard de al lado queda con el
+  // mismo ancho disponible en todas las filas.
   return (
     <div className="flex w-full min-w-0 flex-col gap-1 box-border">
       <div className="flex w-full min-w-0 items-center gap-2 box-border">
@@ -75,18 +73,9 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         ) : (
           <div className="min-w-0 flex-1">{row}</div>
         )}
-        <div className="flex w-24 shrink-0 items-center justify-end gap-2">
+        <div className="flex w-11 shrink-0 items-center justify-end gap-2">
           {ev.kind === "plan" && (
-            <>
-              <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
-              <DeferButton
-                date={date}
-                blockId={ev.refId}
-                text={ev.title}
-                startTime={fmtTime(ev.start)}
-                className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-ui border border-line bg-transparent text-[12px] text-ink-dim transition-colors duration-120 hover:border-line-strong hover:text-ink"
-              />
-            </>
+            <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
           )}
           {ev.itemType === "task" && ev.itemId && (
             <TaskHabitMenu kind="task" id={ev.itemId} date={date} startTime={ev.autoTime ? "" : fmtTime(ev.start)} title={ev.title} />

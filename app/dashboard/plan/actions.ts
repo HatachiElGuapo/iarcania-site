@@ -511,6 +511,83 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
+// Cambia el horario de un bloque desde el menú "⋯" → "Cambiar horario":
+// "today" escribe un override de ese día nada más (igual que "Atrasar
+// hoy", pero con fin explícito en vez de conservar la duración de
+// siempre). "weekday"/"all" tocan la PLANTILLA (plan_blocks.start_time/
+// end_time) — "weekday" solo esta fila (ya representa un solo día de la
+// semana), "all" además busca las filas hermanas (mismo plan/persona/
+// texto, otro weekday) y las actualiza igual. En ambos casos de plantilla
+// también se actualiza hora_sugerida del hábito principal (no opcional)
+// enlazado a esos bloques, para que no quede desalineado con el nuevo
+// horario. resolvePlan lee plan_blocks/plan_overrides en vivo, así que la
+// línea de tiempo y los huecos "Libre"/Pendientes reflejan esto sin nada
+// más que revalidatePath.
+export async function updateBlockSchedule(input: {
+  date: string;
+  blockId: string;
+  startTime: string;
+  endTime: string;
+  scope: "today" | "weekday" | "all";
+}) {
+  const userId = await requireUserId();
+  if (!input?.blockId || !input.startTime || !input.endTime) throw new Error("Faltan datos");
+  const startTime = normalizeTime(input.startTime);
+  const endTime = normalizeTime(input.endTime);
+  if (toMinutes(endTime) <= toMinutes(startTime)) throw new Error("La hora de fin debe ser mayor que la de inicio.");
+
+  const block = await requireOwnedBlock(input.blockId, userId);
+
+  if (input.scope === "today") {
+    if (!input.date) throw new Error("Faltan datos");
+    assertDateMatchesWeekday(input.date, block.weekday);
+    const durationMinutes = toMinutes(endTime) - toMinutes(startTime);
+    await db
+      .insert(planOverrides)
+      .values({ planId: block.planId, date: input.date, blockId: input.blockId, startTime, durationMinutes, removed: false })
+      .onConflictDoUpdate({
+        target: [planOverrides.date, planOverrides.blockId],
+        set: { startTime, durationMinutes, removed: false, deferredQueueItem: false },
+      });
+    revalidatePath("/dashboard/plan");
+    revalidatePath("/dashboard/agenda");
+    revalidatePath("/dashboard");
+    return;
+  }
+
+  const blockIds =
+    input.scope === "all"
+      ? (
+          await db
+            .select({ id: planBlocks.id })
+            .from(planBlocks)
+            .where(
+              and(
+                eq(planBlocks.planId, block.planId),
+                eq(planBlocks.personId, block.personId),
+                eq(planBlocks.text, block.text),
+              ),
+            )
+        ).map((r) => r.id)
+      : [input.blockId];
+
+  await db.update(planBlocks).set({ startTime, endTime }).where(inArray(planBlocks.id, blockIds));
+
+  const principals = await db
+    .select({ activityId: planBlockActivities.activityId })
+    .from(planBlockActivities)
+    .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
+    .where(and(inArray(planBlockActivities.blockId, blockIds), eq(activities.isOptional, false)));
+  const principalIds = [...new Set(principals.map((p) => p.activityId))];
+  if (principalIds.length) {
+    await db.update(activities).set({ horaSugerida: startTime }).where(inArray(activities.id, principalIds));
+  }
+
+  revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
+}
+
 function normalizeDuration(raw: number): number {
   return Math.min(24 * 60, Math.max(20, Math.round((raw || 20) / 10) * 10));
 }
