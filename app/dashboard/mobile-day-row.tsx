@@ -7,8 +7,22 @@ import { BlockIcon } from "@/lib/icons/habit-icons";
 import { ListCard } from "@/components/ui/list-card";
 import { PlanBlockMenu } from "./plan/block-menu";
 import { MobileSubHabits } from "./plan/mobile-sub-habits";
+import { HabitTreeDnd } from "./plan/habit-tree-dnd";
+import { ExtrasSection } from "./plan/extras-section";
+import { useFlexibleBlockCollapse } from "./plan/flexible-collapse";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
+import type { HabitNode } from "@/lib/plan/sub-habits";
+
+function countDeep(nodes: HabitNode[]): { done: number; total: number } {
+  return nodes.reduce(
+    (acc, n) => {
+      const child = countDeep(n.children);
+      return { done: acc.done + (n.done ? 1 : 0) + child.done, total: acc.total + 1 + child.total };
+    },
+    { done: 0, total: 0 },
+  );
+}
 
 // Fila móvil de "Tu día" — extraída a su propio archivo "use client"
 // porque ahora necesita estado (el toggle ▸/▾ de MobileSubHabits exige
@@ -20,9 +34,14 @@ import { SafeActionButton } from "./safe-action-button";
 export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const primary = primaryActionFor(ev, date);
   const hasTree = (ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0);
+  const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(ev.refId, ev.done);
+  const flexibleCount = ev.flexible ? countDeep(ev.habitChecks ?? []) : null;
 
   const row = (
-    <ListCard accent={ev.accent} className="w-full min-w-0 box-border">
+    <ListCard
+      accent={ev.accent}
+      className={`w-full min-w-0 box-border ${ev.flexible && ev.done ? "border-success/40 bg-success/[0.06]" : ""}`}
+    >
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border text-[12px] ${
           ev.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
@@ -46,7 +65,13 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       <div className="min-w-0 flex-1">
         <div className={`truncate text-[15px] leading-tight ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}
-          {ev.flexible && <span className="text-[11px] text-ink-dim"> · cuando lo hagas</span>}
+          {ev.flexible && (
+            <span className="text-[11px] text-ink-dim">
+              {" "}
+              · cuando lo hagas
+              {flexibleCount && flexibleCount.total > 0 && ` · ${flexibleCount.done}/${flexibleCount.total}`}
+            </span>
+          )}
         </div>
         {ev.badge && (
           <span
@@ -90,13 +115,36 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       </div>
       {ev.kind === "plan" && hasTree && (
         <div className="ml-2">
-          <MobileSubHabits
-            date={date}
-            blockId={ev.refId}
-            blockText={ev.title}
-            subHabits={ev.habitChecks ?? []}
-            extras={ev.extras ?? []}
-          />
+          {ev.flexible ? (
+            <>
+              <button
+                type="button"
+                onClick={toggleFlexible}
+                className="focus-ring flex min-h-9 items-center gap-1 text-[12px] text-ink-dim hover:text-ink"
+              >
+                {flexibleOpen ? "▾" : "▸"} Hábitos
+                {flexibleCount && flexibleCount.total > 0 && ` (${flexibleCount.done}/${flexibleCount.total})`}
+              </button>
+              {flexibleOpen && (
+                <>
+                  {ev.habitChecks && ev.habitChecks.length > 0 && (
+                    <div className="rounded-ui border border-line bg-surface-sunken p-1.5">
+                      <HabitTreeDnd date={date} blockId={ev.refId} subHabits={ev.habitChecks} />
+                    </div>
+                  )}
+                  <ExtrasSection date={date} blockId={ev.refId} extras={ev.extras ?? []} />
+                </>
+              )}
+            </>
+          ) : (
+            <MobileSubHabits
+              date={date}
+              blockId={ev.refId}
+              blockText={ev.title}
+              subHabits={ev.habitChecks ?? []}
+              extras={ev.extras ?? []}
+            />
+          )}
         </div>
       )}
     </div>

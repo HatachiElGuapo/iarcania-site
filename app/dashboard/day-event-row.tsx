@@ -5,11 +5,25 @@ import { fmtTime, fmtDuration } from "@/lib/agenda/time";
 import { primaryActionFor } from "@/lib/plan/primary-action";
 import { PlanBlockMenu } from "./plan/block-menu";
 import { SubHabitsDropdown } from "./plan/block-check";
+import { HabitTreeDnd } from "./plan/habit-tree-dnd";
+import { ExtrasSection } from "./plan/extras-section";
+import { useFlexibleBlockCollapse } from "./plan/flexible-collapse";
 import { TaskHabitMenu } from "./day-row-menu";
 import { SafeActionButton } from "./safe-action-button";
 import { useToast } from "@/components/ui/toast";
 import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pickProtectorGainedMessage } from "@/lib/plan/praise";
 import { BlockIcon } from "@/lib/icons/habit-icons";
+import type { HabitNode } from "@/lib/plan/sub-habits";
+
+function countDeep(nodes: HabitNode[]): { done: number; total: number } {
+  return nodes.reduce(
+    (acc, n) => {
+      const child = countDeep(n.children);
+      return { done: acc.done + (n.done ? 1 : 0) + child.done, total: acc.total + 1 + child.total };
+    },
+    { done: 0, total: 0 },
+  );
+}
 
 // Una fila de "Tu día". El contenido (hora, ícono, título, badge) va DENTRO
 // de un <button type="submit"> que ocupa toda la fila — clickear en
@@ -22,6 +36,8 @@ import { BlockIcon } from "@/lib/icons/habit-icons";
 export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   const primary = primaryActionFor(ev, date);
   const toast = useToast();
+  const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(ev.refId, ev.done);
+  const flexibleCount = ev.flexible ? countDeep(ev.habitChecks ?? []) : null;
 
   function handlePlanResult(result: unknown) {
     if (!result || typeof result !== "object") return;
@@ -76,7 +92,13 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       <div className="min-w-0 flex-1">
         <span className={`block truncate text-body ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}
-          {ev.flexible && <span className="text-meta text-ink-dim"> · cuando lo hagas</span>}
+          {ev.flexible && (
+            <span className="text-meta text-ink-dim">
+              {" "}
+              · cuando lo hagas
+              {flexibleCount && flexibleCount.total > 0 && ` · ${flexibleCount.done}/${flexibleCount.total}`}
+            </span>
+          )}
         </span>
       </div>
       <span
@@ -89,12 +111,15 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
   );
 
   const isPlanBlock = ev.kind === "plan";
+  const flexibleDone = ev.flexible && ev.done;
 
   return (
     <div
       className={
         isPlanBlock
-          ? "my-1 flex flex-col gap-1 rounded-ui-lg border border-line bg-surface px-3 py-1"
+          ? `my-1 flex flex-col gap-1 rounded-ui-lg border px-3 py-1 ${
+              flexibleDone ? "border-success/40 bg-success/[0.06]" : "border-line bg-surface"
+            }`
           : "flex flex-col gap-1 px-3.5 py-1"
       }
     >
@@ -111,6 +136,16 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
         )}
+        {ev.flexible && flexibleCount && flexibleCount.total > 0 && (
+          <button
+            type="button"
+            onClick={toggleFlexible}
+            title={flexibleOpen ? "Minimizar" : "Expandir"}
+            className="focus-ring flex h-7 w-6 shrink-0 items-center justify-center text-[12px] text-ink-dim hover:text-ink"
+          >
+            {flexibleOpen ? "▾" : "▸"}
+          </button>
+        )}
         {ev.kind === "plan" && (
           <PlanBlockMenu date={date} blockId={ev.refId} startTime={fmtTime(ev.start)} text={ev.title} />
         )}
@@ -126,11 +161,22 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
           </a>
         )}
       </div>
-      {((ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0)) && (
-        <div className="ml-9">
-          <SubHabitsDropdown date={date} blockId={ev.refId} subHabits={ev.habitChecks ?? []} extras={ev.extras ?? []} />
-        </div>
-      )}
+      {ev.flexible
+        ? flexibleOpen && ((ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0)) && (
+            <div className="ml-9">
+              {ev.habitChecks && ev.habitChecks.length > 0 && (
+                <div className="rounded-ui border border-line bg-surface-sunken p-1.5">
+                  <HabitTreeDnd date={date} blockId={ev.refId} subHabits={ev.habitChecks} />
+                </div>
+              )}
+              <ExtrasSection date={date} blockId={ev.refId} extras={ev.extras ?? []} />
+            </div>
+          )
+        : ((ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0)) && (
+            <div className="ml-9">
+              <SubHabitsDropdown date={date} blockId={ev.refId} subHabits={ev.habitChecks ?? []} extras={ev.extras ?? []} />
+            </div>
+          )}
     </div>
   );
 }

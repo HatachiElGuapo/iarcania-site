@@ -34,6 +34,13 @@ function fmtRange(timeDue: string | null, timeEnd: string | null): string | null
   return timeEnd ? `de ${timeDue} a ${timeEnd}` : timeDue;
 }
 
+// "8:00 – 12:00" — para la fila de texto corrido de TodayFocusRow (sin
+// "de"/"a"; distinto de fmtRange, que sí los lleva para OtherActionRow).
+function fmtRangeShort(timeDue: string | null, timeEnd: string | null): string | null {
+  if (!timeDue) return null;
+  return timeEnd ? `${timeDue} – ${timeEnd}` : timeDue;
+}
+
 function filledCount(focus: FocusSlot[]) {
   return focus.filter((f) => f.title.trim() !== "").length;
 }
@@ -380,12 +387,120 @@ function DayTabContent({ day, onChange }: { day: DayActions; onChange: (next: Da
   );
 }
 
+// Una de las 3 acciones de hoy, en el tope de "Tu día" — una línea de
+// texto normal (no una caja de formulario): círculo a la izquierda,
+// número sutil, el texto (tocarlo lo vuelve editable ahí mismo, Enter o
+// salir guarda) y la hora a la derecha en chico. Sin taskId todavía (slot
+// vacío) muestra el placeholder tenue en vez de nada. Mismo
+// saveFocusSlot/toggleTaskStatus de siempre — solo cambia cómo se ve en
+// reposo, no la acción ni la validación (fin > inicio la sigue
+// aplicando saveFocusSlot en el servidor; acá no se edita la hora, eso
+// sigue viviendo en el modal completo de "Acciones").
+function TodayFocusRow({
+  slot,
+  date,
+  onSaved,
+  onToggled,
+}: {
+  slot: FocusSlot;
+  date: string;
+  onSaved: (rank: number, title: string, timeDue: string | null, timeEnd: string | null) => void;
+  onToggled: (rank: number, done: boolean) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(slot.title);
+  const [pending, startTransition] = useTransition();
+  const toast = useToast();
+
+  useEffect(() => setTitle(slot.title), [slot.title]);
+
+  function onToggleResult() {
+    onToggled(slot.rank, !slot.done);
+  }
+
+  function save() {
+    setEditing(false);
+    const trimmed = title.trim();
+    if (trimmed === slot.title.trim()) return;
+    startTransition(async () => {
+      try {
+        const fd = new FormData();
+        fd.set("date", date);
+        fd.set("rank", String(slot.rank));
+        fd.set("title", trimmed);
+        fd.set("timeDue", slot.timeDue ?? "");
+        fd.set("timeEnd", slot.timeEnd ?? "");
+        await saveFocusSlot(fd);
+        onSaved(slot.rank, trimmed, slot.timeDue, slot.timeEnd);
+      } catch (err) {
+        setTitle(slot.title);
+        toast.show({ message: err instanceof Error ? err.message : "No se pudo guardar.", tone: "error" });
+      }
+    });
+  }
+
+  const range = fmtRangeShort(slot.timeDue, slot.timeEnd);
+
+  return (
+    <div className="flex items-center gap-2.5 py-1">
+      {slot.taskId ? (
+        <SafeActionButton
+          action={toggleTaskStatus}
+          fields={{ id: slot.taskId, nextStatus: slot.done ? "pendiente" : "completada" }}
+          onResult={onToggleResult}
+          className="focus-ring flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+        >
+          <span
+            className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
+              slot.done ? "border-success bg-success text-white" : "border-line-strong"
+            }`}
+          >
+            {slot.done ? "✓" : ""}
+          </span>
+        </SafeActionButton>
+      ) : (
+        <span className="h-5 w-5 shrink-0 rounded-full border border-line-strong opacity-40" />
+      )}
+      <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{slot.rank + 1}</span>
+      {editing ? (
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              save();
+            } else if (e.key === "Escape") {
+              setTitle(slot.title);
+              setEditing(false);
+            }
+          }}
+          disabled={pending}
+          className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-ink outline-none"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className={`min-w-0 flex-1 truncate text-left text-[14px] ${
+            !slot.title.trim() ? "text-ink-dim" : slot.done ? "text-ink-dim line-through" : "text-ink"
+          }`}
+        >
+          {slot.title.trim() || "Escribe tu acción…"}
+        </button>
+      )}
+      {range && <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">{range}</span>}
+    </div>
+  );
+}
+
 // Vista en línea de las 3 acciones principales de hoy — para el tope de
-// la sección "Tu día" (destacada), sin abrir ningún modal: mismo
-// FocusSlotRow/saveFocusSlot que usa ActionsCard, con su propio estado
-// local resincronizado con las props (igual que ActionsCard). El "+
-// Acción" de acá abre el mismo modal compartido (useActionsModal), en la
-// pestaña "Hoy".
+// la sección "Tu día" (destacada), sin abrir ningún modal, con su propio
+// estado local resincronizado con las props (igual que ActionsCard). El
+// "+ Acción" de acá abre el mismo modal compartido (useActionsModal), en
+// la pestaña "Hoy" (ahí sigue viviendo la edición de hora).
 export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot[]; date: string }) {
   const { openModal } = useActionsModal();
   const [focus, setFocus] = useState(initialFocus);
@@ -403,15 +518,18 @@ export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot
   }
 
   return (
-    <div className="flex flex-col gap-1.5 border-b border-line bg-surface-sunken px-3.5 py-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Las 3 de hoy</span>
-        <button type="button" onClick={() => openModal("hoy")} className="text-meta text-accent hover:underline">
-          + Acción
-        </button>
+    <div className="flex flex-col gap-0.5 border-b border-line px-3.5 py-3">
+      <div className="flex items-center justify-between pb-1">
+        <span className="text-sm font-medium text-ink">Hoy</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[12px] tabular-nums text-ink-dim">{doneCount(focus)} de 3</span>
+          <button type="button" onClick={() => openModal("hoy")} className="text-[12px] text-accent hover:underline">
+            + Acción
+          </button>
+        </div>
       </div>
       {focus.map((slot) => (
-        <FocusSlotRow key={slot.rank} slot={slot} date={date} onSaved={onSlotSaved} onToggled={onSlotToggled} />
+        <TodayFocusRow key={slot.rank} slot={slot} date={date} onSaved={onSlotSaved} onToggled={onSlotToggled} />
       ))}
     </div>
   );
