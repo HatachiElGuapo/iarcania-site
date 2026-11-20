@@ -3,6 +3,7 @@
 import { type ReactNode, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast, type ToastInput } from "@/components/ui/toast";
+import { useBusyGuard } from "./busy-guard";
 import {
   pickBlockPraise,
   streakMilestoneCrossed,
@@ -76,6 +77,7 @@ export function SafeActionButton({
   const router = useRouter();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
+  useBusyGuard(pending);
 
   function handleClick() {
     startTransition(async () => {

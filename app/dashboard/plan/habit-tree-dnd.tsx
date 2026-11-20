@@ -26,6 +26,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "../safe-action-button";
+import { useBusyGuard } from "../busy-guard";
 import { toggleLogToday } from "../habitos/actions";
 import { reorderHabitNode, moveHabitNodeToParent, moveHabitNodeToTopLevel } from "./actions";
 import { HabitNodeMenu } from "./habit-node-menu";
@@ -315,6 +316,7 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
   const [activeId, setActiveId] = useState<string | null>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [busy, setBusy] = useState(false);
+  useBusyGuard(activeId !== null || busy);
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
 
   // El estado guardado en localStorage solo existe en el cliente — se

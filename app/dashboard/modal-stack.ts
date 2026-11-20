@@ -80,3 +80,10 @@ export function useModalStackEntry(open: boolean): { isTop: boolean; depth: numb
   const isTop = depth !== -1 && depth === stack.length - 1;
   return { isTop, depth: Math.max(0, depth) };
 }
+
+// Para AutoRefresh: no refrescar mientras haya un modal abierto (puede
+// tener un campo a mitad de editar) — consulta síncrona, sin suscripción,
+// AutoRefresh ya reintenta por su cuenta hasta que esto vuelva a false.
+export function isAnyModalOpen(): boolean {
+  return stack.length > 0;
+}
