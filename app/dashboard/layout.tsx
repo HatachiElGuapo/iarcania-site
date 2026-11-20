@@ -8,6 +8,7 @@ import { LogoutButton } from "@/components/app/logout-button";
 import { BottomNav } from "@/components/app/bottom-nav";
 import { ToastProvider } from "@/components/ui/toast";
 import { AutoRefresh } from "./auto-refresh";
+import { StaleActionGuard } from "./stale-action-guard";
 
 // Shell del dashboard — migrado al sistema visual nuevo (4c). Sidebar 220px
 // sobre surface-sunken, borde `line`, item activo con dorado (ver NavLinks).
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
   return (
     <ToastProvider>
     <AutoRefresh />
+    <StaleActionGuard />
     <div className="flex min-h-screen bg-canvas">
       <aside className="hidden w-[220px] shrink-0 flex-col border-r border-line bg-surface-sunken print:hidden md:flex">
         <Link

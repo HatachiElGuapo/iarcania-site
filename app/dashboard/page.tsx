@@ -722,28 +722,22 @@ export default async function RutinasPage({
                             : "sin registros todavía"}
                         </span>
                       </div>
-                      <form action={decrementLog}>
-                        <input type="hidden" name="activityId" value={v.id} />
-                        <input type="hidden" name="date" value={date} />
-                        <button
-                          type="submit"
-                          disabled={count === 0}
-                          className="focus-ring flex h-5 w-5 items-center justify-center rounded border border-line text-[11px] text-ink-dim hover:border-line-strong hover:text-ink disabled:opacity-30"
-                        >
-                          −
-                        </button>
-                      </form>
+                      <SafeActionButton
+                        action={decrementLog}
+                        fields={{ activityId: v.id, date }}
+                        disabled={count === 0}
+                        className="focus-ring flex h-5 w-5 items-center justify-center rounded border border-line text-[11px] text-ink-dim hover:border-line-strong hover:text-ink disabled:opacity-30"
+                      >
+                        −
+                      </SafeActionButton>
                       <span className="w-5 text-center text-sm font-semibold tabular-nums text-ink">{count}</span>
-                      <form action={incrementLog}>
-                        <input type="hidden" name="activityId" value={v.id} />
-                        <input type="hidden" name="date" value={date} />
-                        <button
-                          type="submit"
-                          className="focus-ring flex h-5 w-5 items-center justify-center rounded border border-line text-[11px] text-ink-dim hover:border-line-strong hover:text-ink"
-                        >
-                          +
-                        </button>
-                      </form>
+                      <SafeActionButton
+                        action={incrementLog}
+                        fields={{ activityId: v.id, date }}
+                        className="focus-ring flex h-5 w-5 items-center justify-center rounded border border-line text-[11px] text-ink-dim hover:border-line-strong hover:text-ink"
+                      >
+                        +
+                      </SafeActionButton>
                     </div>
                   );
                 })}
@@ -1160,28 +1154,22 @@ function MobileVicioRow({
             : "sin registros todavía"}
         </span>
       </div>
-      <form action={decrementLog}>
-        <input type="hidden" name="activityId" value={v.id} />
-        <input type="hidden" name="date" value={date} />
-        <button
-          type="submit"
-          disabled={count === 0}
-          className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[14px] text-ink-dim disabled:opacity-30"
-        >
-          −
-        </button>
-      </form>
+      <SafeActionButton
+        action={decrementLog}
+        fields={{ activityId: v.id, date }}
+        disabled={count === 0}
+        className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[14px] text-ink-dim disabled:opacity-30"
+      >
+        −
+      </SafeActionButton>
       <span className="w-6 shrink-0 text-center text-[15px] font-semibold tabular-nums text-ink">{count}</span>
-      <form action={incrementLog}>
-        <input type="hidden" name="activityId" value={v.id} />
-        <input type="hidden" name="date" value={date} />
-        <button
-          type="submit"
-          className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[14px] text-ink-dim"
-        >
-          +
-        </button>
-      </form>
+      <SafeActionButton
+        action={incrementLog}
+        fields={{ activityId: v.id, date }}
+        className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line text-[14px] text-ink-dim"
+      >
+        +
+      </SafeActionButton>
     </ListCard>
   );
 }

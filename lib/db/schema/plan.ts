@@ -192,6 +192,11 @@ export const planBlocks = pgTable(
     scriptId: uuid("script_id").references(() => scripts.id, {
       onDelete: "set null",
     }),
+    // Para que un bloque nuevo no aparezca "sin marcar" en fechas ANTERIORES
+    // a su creación (resolvePlan lo ignora si la fecha resuelta < esta,
+    // comparado por día) — default now() para los nuevos; las filas que ya
+    // existían al agregar esta columna se retrotraen a mano (ver migración).
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     planPersonWeekdayIdx: index("plan_blocks_person_weekday_idx").on(t.personId, t.weekday),

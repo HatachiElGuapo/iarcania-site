@@ -62,6 +62,11 @@ export type PlanBlockDef = {
   queueId: string | null;
   holidayText: string | null;
   flexible: boolean;
+  // "YYYY-MM-DD" (Bogotá) de plan_blocks.created_at — un bloque no resuelve
+  // para fechas anteriores a este día (ver el filtro al inicio del loop de
+  // bloques más abajo), así uno nuevo no aparece "sin marcar" para el
+  // pasado.
+  createdAt: string;
 };
 
 export type PlanOverride = {
@@ -221,6 +226,11 @@ export function resolvePlan(plan: PlanData, fromDate: string, toDate: string, to
     for (const p of plan.people) blocksByPerson[p.id] = [];
 
     for (const b of dayBlocks) {
+      // El bloque no existía todavía en esta fecha — no resuelve, ni
+      // siquiera como festivo/cola/override (no se marca "sin marcar" para
+      // un día anterior a que se haya creado).
+      if (cur < b.createdAt) continue;
+
       let text = b.text;
       let resolvedAsHoliday = false;
       let isProjected = false;

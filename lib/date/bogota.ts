@@ -12,6 +12,14 @@ export function todayISO(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 }
 
+// "YYYY-MM-DD" en Bogotá de un Date arbitrario (no necesariamente "ahora") —
+// mismo criterio de timezone que todayISO(), para columnas timestamp que
+// hay que comparar contra las fechas "YYYY-MM-DD" del resto de la app (ej.
+// plan_blocks.created_at en resolvePlan).
+export function dateToISOBogota(d: Date): string {
+  return d.toLocaleDateString("en-CA", { timeZone: TZ });
+}
+
 export function nowHHMM(): string {
   return new Date().toLocaleTimeString("en-GB", {
     timeZone: TZ,

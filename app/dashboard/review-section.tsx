@@ -1,13 +1,29 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import type { OrphanActivity, OrphanPlanBlock } from "@/lib/plan/orphans";
 import { addHabitToPlan, removePlanBlock } from "./plan/actions";
 import { archiveActivity, unarchiveActivity } from "./habitos/actions";
+import { SafeActionButton } from "./safe-action-button";
 
 const WEEKDAY_LABEL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const OPEN_STORAGE_KEY = "dashboard.review.open";
+
+// addHabitToPlan/removePlanBlock son Server Actions tipadas (reciben un
+// objeto, no FormData) — adaptadores finos para poder usarlas con
+// SafeActionButton (que siempre manda FormData), mismo patrón que
+// defer-button.tsx.
+async function addHabitToPlanFromForm(fd: FormData) {
+  return addHabitToPlan({
+    activityId: String(fd.get("activityId") || ""),
+    weekday: Number(fd.get("weekday") || 0),
+    startTime: String(fd.get("startTime") || ""),
+  });
+}
+
+async function removePlanBlockFromForm(fd: FormData) {
+  return removePlanBlock({ blockId: String(fd.get("blockId") || "") });
+}
 
 // "Por revisar" — desajustes entre hábitos (activities) y el Plan
 // (plan_blocks) que hoy son invisibles: un hábito activo sin bloque, o un
@@ -83,28 +99,9 @@ export function ReviewSection({
 }
 
 function OrphanActivityRow({ activity }: { activity: OrphanActivity }) {
-  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [weekday, setWeekday] = useState("0");
   const [startTime, setStartTime] = useState("");
-  const [pending, startTransition] = useTransition();
-
-  function run(action: () => Promise<void>) {
-    startTransition(async () => {
-      await action();
-      router.refresh();
-    });
-  }
-
-  const addToPlan = () =>
-    run(() => addHabitToPlan({ activityId: activity.id, weekday: Number(weekday), startTime }));
-
-  const archive = () =>
-    run(() => {
-      const fd = new FormData();
-      fd.set("id", activity.id);
-      return archiveActivity(fd);
-    });
 
   return (
     <div className="flex flex-col gap-2 rounded-ui border border-line bg-surface px-3 py-2.5">
@@ -117,14 +114,13 @@ function OrphanActivityRow({ activity }: { activity: OrphanActivity }) {
         >
           + Agregar al Plan
         </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={archive}
-          className="focus-ring rounded-ui border border-line px-2.5 py-1 text-[11px] text-ink-dim hover:text-danger disabled:opacity-50"
+        <SafeActionButton
+          action={archiveActivity}
+          fields={{ id: activity.id }}
+          className="focus-ring rounded-ui border border-line px-2.5 py-1 text-[11px] text-ink-dim hover:text-danger"
         >
           Archivar
-        </button>
+        </SafeActionButton>
       </div>
       {showForm && (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -145,14 +141,14 @@ function OrphanActivityRow({ activity }: { activity: OrphanActivity }) {
             onChange={(e) => setStartTime(e.target.value)}
             className="focus-ring rounded-ui border border-line bg-canvas px-2 py-1 text-[11px] text-ink"
           />
-          <button
-            type="button"
-            disabled={pending || !startTime}
-            onClick={addToPlan}
+          <SafeActionButton
+            action={addHabitToPlanFromForm}
+            fields={{ activityId: activity.id, weekday, startTime }}
+            disabled={!startTime}
             className="focus-ring rounded-ui border border-accent/40 bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-ink disabled:opacity-50"
           >
             Agregar
-          </button>
+          </SafeActionButton>
         </div>
       )}
     </div>
@@ -160,47 +156,26 @@ function OrphanActivityRow({ activity }: { activity: OrphanActivity }) {
 }
 
 function OrphanBlockRow({ block }: { block: OrphanPlanBlock }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  function run(action: () => Promise<void>) {
-    startTransition(async () => {
-      await action();
-      router.refresh();
-    });
-  }
-
-  const reactivate = () =>
-    run(() => {
-      const fd = new FormData();
-      fd.set("id", block.activityId);
-      return unarchiveActivity(fd);
-    });
-
-  const remove = () => run(() => removePlanBlock({ blockId: block.blockId }));
-
   return (
     <div className="flex items-center gap-2.5 rounded-ui border border-line bg-surface px-3 py-2.5">
       <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">
         {WEEKDAY_LABEL[block.weekday]} {block.startTime}
       </span>
       <span className="min-w-0 flex-1 truncate text-sm text-ink">{block.blockText}</span>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={reactivate}
-        className="focus-ring rounded-ui border border-accent/40 bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-ink disabled:opacity-50"
+      <SafeActionButton
+        action={unarchiveActivity}
+        fields={{ id: block.activityId }}
+        className="focus-ring rounded-ui border border-accent/40 bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-ink"
       >
         Reactivar
-      </button>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={remove}
-        className="focus-ring rounded-ui border border-line px-2.5 py-1 text-[11px] text-ink-dim hover:text-danger disabled:opacity-50"
+      </SafeActionButton>
+      <SafeActionButton
+        action={removePlanBlockFromForm}
+        fields={{ blockId: block.blockId }}
+        className="focus-ring rounded-ui border border-line px-2.5 py-1 text-[11px] text-ink-dim hover:text-danger"
       >
         Quitar del Plan
-      </button>
+      </SafeActionButton>
     </div>
   );
 }

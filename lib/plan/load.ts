@@ -15,6 +15,7 @@ import {
   planOverrides,
 } from "@/lib/db/schema/plan";
 import type { PlanData } from "./resolve";
+import { dateToISOBogota } from "@/lib/date/bogota";
 
 export type PlanContext = {
   plan: { id: string; name: string; startDate: string; endDate: string };
@@ -139,6 +140,7 @@ export function toPlanData(ctx: PlanContext): PlanData {
       queueId: b.queueId,
       holidayText: b.holidayText,
       flexible: b.flexible,
+      createdAt: dateToISOBogota(b.createdAt),
     })),
     holidays: ctx.holidays,
     events: ctx.events.map((e) => ({

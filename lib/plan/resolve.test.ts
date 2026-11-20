@@ -77,6 +77,7 @@ function loadPlanData(): PlanData {
           queueId: b.q ?? null,
           holidayText: b.hx ?? null,
           flexible: !!b.fl,
+          createdAt: "2000-01-01",
         });
       }
     });
