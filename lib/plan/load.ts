@@ -138,6 +138,7 @@ export function toPlanData(ctx: PlanContext): PlanData {
       isMinimum: b.isMinimum,
       queueId: b.queueId,
       holidayText: b.holidayText,
+      flexible: b.flexible,
     })),
     holidays: ctx.holidays,
     events: ctx.events.map((e) => ({

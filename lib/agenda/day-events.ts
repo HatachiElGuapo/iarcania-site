@@ -51,6 +51,10 @@ export type AgendaEvent = {
   // línea por defecto (ver lib/icons/habit-icons.tsx, BlockIcon). `icon`
   // ya trae el emoji viejo para el resto de los kinds, sin tocar.
   planKind?: string | null;
+  // Horario flexible (ej. Almuerzo, ver plan_blocks.flexible) — no vence a
+  // su propia hora de fin, se muestra "cuando lo hagas" en vez de una hora
+  // fija (day-event-row.tsx/mobile-day-row.tsx).
+  flexible?: boolean;
   // Override del final mostrado (ej. "24:00" en vez de "00:00" para un
   // bloque sin end que llega hasta la medianoche) — no cambia `duration`.
   endLabel?: string;
@@ -222,6 +226,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         habitChecks: splitPrincipalSecondary(habitTreesYesterday.get(b.blockId) ?? []).principal,
         extras: extrasYesterday.get(b.blockId) ?? [],
         planKind: b.kind,
+        flexible: b.flexible,
       };
     });
 
@@ -249,6 +254,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         planKind: b.kind,
         endLabel: b.endTime ? undefined : "24:00",
         projected: b.isProjected,
+        flexible: b.flexible,
       };
     });
 

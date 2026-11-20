@@ -62,9 +62,11 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       </span>
       <div className="flex w-16 shrink-0 flex-col items-start leading-tight">
         <span className="text-meta tabular-nums text-ink-dim">
-          {ev.autoTime ? "—" : `${fmtTime(ev.start)}–${fmtTime(ev.start + ev.duration)}`}
+          {ev.flexible ? "—" : ev.autoTime ? "—" : `${fmtTime(ev.start)}–${fmtTime(ev.start + ev.duration)}`}
         </span>
-        {!ev.autoTime && <span className="text-[9.5px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>}
+        {!ev.autoTime && !ev.flexible && (
+          <span className="text-[9.5px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>
+        )}
       </div>
       {ev.kind === "plan" ? (
         <BlockIcon kind={ev.planKind ?? null} className="h-[17px] w-[17px] shrink-0 text-ink-dim" />
@@ -74,6 +76,7 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       <div className="min-w-0 flex-1">
         <span className={`block truncate text-body ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}
+          {ev.flexible && <span className="text-meta text-ink-dim"> · cuando lo hagas</span>}
         </span>
       </div>
       <span

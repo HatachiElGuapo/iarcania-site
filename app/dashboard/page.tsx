@@ -23,8 +23,9 @@ import { HabitsCard } from "./habits-card";
 import { BlockIcon } from "@/lib/icons/habit-icons";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import { getDailyActions } from "@/lib/trabajo/daily-actions";
-import { ActionsCard, type DayActions } from "./acciones/actions-card";
+import { ActionsCard, TodayFocusList, type DayActions } from "./acciones/actions-card";
 import { ActionsModalProvider, ActionsHeaderButton } from "./acciones/actions-context";
+import { MORNING_END, EVENING_START, MORNING_END_MIN, EVENING_START_MIN } from "@/lib/agenda/day-sections";
 import {
   PageHeader,
   Card,
@@ -228,6 +229,20 @@ export default async function RutinasPage({
   const totalToday = events.length;
   const pctToday = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
 
+  // "Tu día" en 3 secciones por horario — el límite sale de configuración
+  // (lib/agenda/day-sections.ts), nunca del texto de los bloques. Matutina
+  // se despliega sola mientras tenga algo sin hacer, se pliega al
+  // completarse; nocturna se abre desde las 17:30 (solo relevante para
+  // hoy — otros días queda cerrada hasta que se la abra a mano).
+  const morningEvents = events.filter((e) => e.start < MORNING_END_MIN);
+  const middayEvents = events.filter((e) => e.start >= MORNING_END_MIN && e.start < EVENING_START_MIN);
+  const nightEvents = events.filter((e) => e.start >= EVENING_START_MIN);
+  const morningDone = morningEvents.filter((e) => e.done).length;
+  const middayDone = middayEvents.filter((e) => e.done).length;
+  const nightDone = nightEvents.filter((e) => e.done).length;
+  const morningOpen = morningEvents.length > 0 && morningDone < morningEvents.length;
+  const nightOpen = isToday && nowHHMM() >= "17:30";
+
   const logsByHabit = new Map<string, Set<string>>();
   const todayValueByHabit = new Map<string, number>();
   for (const l of habitLogs) {
@@ -354,6 +369,14 @@ export default async function RutinasPage({
         upcomingAppointments={upcomingAppointments}
         planPending={planPending}
         events={events}
+        morningEvents={morningEvents}
+        middayEvents={middayEvents}
+        nightEvents={nightEvents}
+        morningDone={morningDone}
+        middayDone={middayDone}
+        nightDone={nightDone}
+        morningOpen={morningOpen}
+        nightOpen={nightOpen}
         habitsView={habitsView}
         habitsDoneToday={habitsDoneToday}
         vicios={vicios}
@@ -572,55 +595,95 @@ export default async function RutinasPage({
       <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 
       <div className="grid items-start gap-4" style={{ gridTemplateColumns: "1.35fr 1fr" }}>
-        <Card
-          title="Tu día"
-          count={`${doneToday} / ${totalToday}`}
-          action={
-            <QuickAddPanel
-              trigger={<button className="text-accent hover:underline">+ Tarea</button>}
-              title="Nueva tarea"
-              action={createTask}
-              placeholder="Nueva tarea para hoy…"
-              hidden={{ dueDate: date }}
-              extras={
-                <>
-                  <Select name="priority" defaultValue="media">
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </Select>
-                  <Select name="category" defaultValue="">
-                    <option value="">Sin categoría</option>
-                    {Object.entries(CATS).map(([key, c]) => (
-                      <option key={key} value={key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </Select>
-                  <Input type="time" name="timeDue" />
-                </>
-              }
-            />
-          }
-          flush
-        >
-          <div className="flex flex-col divide-y divide-line">
-            {events.length === 0 ? (
-              <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
-            ) : (
-              <DayTimeline
-                items={events.map((e) => ({
-                  key: e.key,
-                  start: e.start,
-                  end: e.start + e.duration,
-                  done: e.done,
-                  node: <DayEventRow ev={e} date={date} />,
-                }))}
-                isToday={isToday}
+        <div className="flex flex-col gap-4">
+          <details open={morningOpen} className="overflow-hidden rounded-ui-lg border border-line bg-surface">
+            <summary className="flex cursor-pointer items-center gap-2.5 border-b border-line bg-surface-2 px-3.5 py-3">
+              <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                ☀ Rutina matutina
+              </span>
+              <span className="rounded-full border border-line bg-surface px-2 py-0.5 text-[10px] text-ink-muted">
+                {morningDone} / {morningEvents.length}
+              </span>
+            </summary>
+            <div className="flex flex-col divide-y divide-line">
+              {morningEvents.length === 0 ? (
+                <EmptyState icon="☀️">Nada agendado antes de las {MORNING_END}.</EmptyState>
+              ) : (
+                morningEvents.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
+              )}
+            </div>
+          </details>
+
+          <Card
+            title="Tu día"
+            count={`${middayDone} / ${middayEvents.length}`}
+            className="border-accent/40 ring-1 ring-accent/15"
+            action={
+              <QuickAddPanel
+                trigger={<button className="text-accent hover:underline">+ Tarea</button>}
+                title="Nueva tarea"
+                action={createTask}
+                placeholder="Nueva tarea para hoy…"
+                hidden={{ dueDate: date }}
+                extras={
+                  <>
+                    <Select name="priority" defaultValue="media">
+                      <option value="alta">Alta</option>
+                      <option value="media">Media</option>
+                      <option value="baja">Baja</option>
+                    </Select>
+                    <Select name="category" defaultValue="">
+                      <option value="">Sin categoría</option>
+                      {Object.entries(CATS).map(([key, c]) => (
+                        <option key={key} value={key}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Input type="time" name="timeDue" />
+                  </>
+                }
               />
-            )}
-          </div>
-        </Card>
+            }
+            flush
+          >
+            <TodayFocusList focus={hoyActions.focus} date={today} />
+            <div className="flex flex-col divide-y divide-line">
+              {middayEvents.length === 0 ? (
+                <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
+              ) : (
+                <DayTimeline
+                  items={middayEvents.map((e) => ({
+                    key: e.key,
+                    start: e.start,
+                    end: e.start + e.duration,
+                    done: e.done,
+                    node: <DayEventRow ev={e} date={date} />,
+                  }))}
+                  isToday={isToday}
+                />
+              )}
+            </div>
+          </Card>
+
+          <details open={nightOpen} className="overflow-hidden rounded-ui-lg border border-line bg-surface">
+            <summary className="flex cursor-pointer items-center gap-2.5 border-b border-line bg-surface-2 px-3.5 py-3">
+              <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                ☾ Rutina nocturna
+              </span>
+              <span className="rounded-full border border-line bg-surface px-2 py-0.5 text-[10px] text-ink-muted">
+                {nightDone} / {nightEvents.length}
+              </span>
+            </summary>
+            <div className="flex flex-col divide-y divide-line">
+              {nightEvents.length === 0 ? (
+                <EmptyState icon="☾">Nada agendado desde las {EVENING_START}.</EmptyState>
+              ) : (
+                nightEvents.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
+              )}
+            </div>
+          </details>
+        </div>
 
         <div className="flex flex-col gap-4">
           <ActionsCard
@@ -760,6 +823,14 @@ type MobileHoyProps = {
   upcomingAppointments: { id: string; title: string; type: string; datetime: Date }[];
   planPending: { blockId: string; date: string; startTime: string; text: string; kind: string }[];
   events: AgendaEvent[];
+  morningEvents: AgendaEvent[];
+  middayEvents: AgendaEvent[];
+  nightEvents: AgendaEvent[];
+  morningDone: number;
+  middayDone: number;
+  nightDone: number;
+  morningOpen: boolean;
+  nightOpen: boolean;
   habitsView: {
     id: string;
     name: string;
@@ -804,6 +875,14 @@ function MobileHoy({
   upcomingAppointments,
   planPending,
   events,
+  morningEvents,
+  middayEvents,
+  nightEvents,
+  morningDone,
+  middayDone,
+  nightDone,
+  morningOpen,
+  nightOpen,
   habitsView,
   habitsDoneToday,
   vicios,
@@ -912,9 +991,29 @@ function MobileHoy({
 
       <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 
-      <div className="flex flex-col gap-2">
+      <details open={morningOpen} className="overflow-hidden rounded-ui-lg border border-line bg-surface">
+        <summary className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5">
+          <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            ☀ Rutina matutina
+          </span>
+          <span className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] text-ink-muted">
+            {morningDone} / {morningEvents.length}
+          </span>
+        </summary>
+        <div className="flex flex-col gap-1.5 px-3.5 pb-3">
+          {morningEvents.length === 0 ? (
+            <EmptyState icon="☀️">Nada agendado antes de las {MORNING_END}.</EmptyState>
+          ) : (
+            morningEvents.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} />)
+          )}
+        </div>
+      </details>
+
+      <div className="flex flex-col gap-2 rounded-ui-lg border border-accent/40 bg-accent/[0.04] p-3">
         <div className="flex items-center justify-between">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Mi día</div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-accent">
+            Tu día · {middayDone}/{middayEvents.length}
+          </div>
           <NewTaskSheet
             action={createTask}
             date={date}
@@ -922,12 +1021,13 @@ function MobileHoy({
             trigger={<button className="text-[13px] text-accent">+ Tarea</button>}
           />
         </div>
+        <TodayFocusList focus={hoyActions.focus} date={today} />
         <div className="flex flex-col gap-1.5">
-          {events.length === 0 ? (
+          {middayEvents.length === 0 ? (
             <EmptyState icon="🗒️">No tienes nada para este día todavía — agrégalo con &ldquo;+ Tarea&rdquo;.</EmptyState>
           ) : (
             <DayTimeline
-              items={events.map((ev) => ({
+              items={middayEvents.map((ev) => ({
                 key: ev.key,
                 start: ev.start,
                 end: ev.start + ev.duration,
@@ -939,6 +1039,24 @@ function MobileHoy({
           )}
         </div>
       </div>
+
+      <details open={nightOpen} className="overflow-hidden rounded-ui-lg border border-line bg-surface">
+        <summary className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5">
+          <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            ☾ Rutina nocturna
+          </span>
+          <span className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] text-ink-muted">
+            {nightDone} / {nightEvents.length}
+          </span>
+        </summary>
+        <div className="flex flex-col gap-1.5 px-3.5 pb-3">
+          {nightEvents.length === 0 ? (
+            <EmptyState icon="☾">Nada agendado desde las {EVENING_START}.</EmptyState>
+          ) : (
+            nightEvents.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} />)
+          )}
+        </div>
+      </details>
 
       <ActionsCard
         hoy={{ date: today, ...hoyActions }}

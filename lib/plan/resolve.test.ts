@@ -21,6 +21,7 @@ type SeedBlock = {
   hx?: string;
   min?: boolean;
   p?: boolean;
+  fl?: boolean;
 };
 type SeedPerson = { id: string; name: string; days: Record<string, SeedBlock[]> };
 type SeedQueue = { n: string; cyc: boolean; fb?: string; glob?: boolean; items?: string[] };
@@ -75,6 +76,7 @@ function loadPlanData(): PlanData {
           isMinimum: !!b.min,
           queueId: b.q ?? null,
           holidayText: b.hx ?? null,
+          flexible: !!b.fl,
         });
       }
     });

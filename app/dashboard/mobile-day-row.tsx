@@ -32,9 +32,11 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       </span>
       <div className="flex w-14 shrink-0 flex-col items-start leading-tight">
         <span className="text-[11px] tabular-nums text-ink-dim">
-          {ev.autoTime ? "—" : `${fmtTime(ev.start)}–${fmtTime(ev.start + ev.duration)}`}
+          {ev.flexible || ev.autoTime ? "—" : `${fmtTime(ev.start)}–${fmtTime(ev.start + ev.duration)}`}
         </span>
-        {!ev.autoTime && <span className="text-[9px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>}
+        {!ev.autoTime && !ev.flexible && (
+          <span className="text-[9px] tabular-nums text-ink-dim/70">{fmtDuration(ev.duration)}</span>
+        )}
       </div>
       {ev.kind === "plan" ? (
         <BlockIcon kind={ev.planKind ?? null} className="h-4 w-4 shrink-0 text-ink-dim" />
@@ -44,6 +46,7 @@ export function MobileDayRow({ ev, date }: { ev: AgendaEvent; date: string }) {
       <div className="min-w-0 flex-1">
         <div className={`truncate text-[15px] leading-tight ${ev.done ? "text-ink-dim line-through" : "text-ink"}`}>
           {ev.title}
+          {ev.flexible && <span className="text-[11px] text-ink-dim"> · cuando lo hagas</span>}
         </div>
         {ev.badge && (
           <span

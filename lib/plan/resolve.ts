@@ -61,6 +61,7 @@ export type PlanBlockDef = {
   isMinimum: boolean;
   queueId: string | null;
   holidayText: string | null;
+  flexible: boolean;
 };
 
 export type PlanOverride = {
@@ -125,6 +126,7 @@ export type ResolvedBlock = {
   tentative: boolean;
   isMinimum: boolean;
   isHoliday: boolean;
+  flexible: boolean;
   // true = este texto es una PROYECCIÓN (cursor+1, +2… dentro del mismo
   // rango resuelto) — no la posición real persistida todavía. Pasa en
   // vistas de varios días (Agenda, semana): solo la primera ocurrencia de
@@ -281,6 +283,7 @@ export function resolvePlan(plan: PlanData, fromDate: string, toDate: string, to
         tentative: b.tentative,
         isMinimum: b.isMinimum,
         isHoliday: resolvedAsHoliday,
+        flexible: b.flexible,
         isProjected,
       });
     }

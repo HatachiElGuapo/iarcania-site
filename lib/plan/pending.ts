@@ -14,6 +14,7 @@ import { resolvePlan, type ResolvedBlock } from "./resolve";
 import { addDaysISO } from "@/lib/date/bogota";
 import { loadHabitTreesByBlock, type HabitNode } from "./sub-habits";
 import { splitPrincipalSecondary } from "./secondary";
+import { EVENING_START } from "@/lib/agenda/day-sections";
 
 export type PendingMinimumBlock = {
   blockId: string;
@@ -24,7 +25,7 @@ export type PendingMinimumBlock = {
 };
 
 function crossesMidnight(b: ResolvedBlock): boolean {
-  return !b.endTime || b.endTime < b.startTime;
+  return !b.flexible && (!b.endTime || b.endTime < b.startTime);
 }
 
 export async function getPendingMinimumsForPerson(
@@ -60,7 +61,7 @@ export async function getPendingMinimumsForPerson(
 
   for (const b of todayMinimums) {
     if (crossesMidnight(b)) continue; // vence mañana, no hoy
-    const dueTime = b.endTime ?? "23:59";
+    const dueTime = b.flexible ? EVENING_START : b.endTime ?? "23:59";
     if (nowHHMM < dueTime) continue;
     if (checkedSet.has(`${today}:${b.blockId}`)) continue;
     out.push({ blockId: b.blockId, text: b.text, startTime: b.startTime, dueTime, effectiveDate: today });

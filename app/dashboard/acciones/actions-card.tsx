@@ -47,7 +47,7 @@ function doneCount(focus: FocusSlot[]) {
 // todavía, propone fin = inicio + 1h (editable antes de guardar). El
 // checkbox solo existe una vez que el slot tiene una task detrás
 // (taskId), reusa toggleTaskStatus tal cual.
-function FocusSlotRow({
+export function FocusSlotRow({
   slot,
   date,
   onSaved,
@@ -376,6 +376,43 @@ function DayTabContent({ day, onChange }: { day: DayActions; onChange: (next: Da
         </div>
         <QuickAddOther date={day.date} onAdded={onOtherAdded} />
       </div>
+    </div>
+  );
+}
+
+// Vista en línea de las 3 acciones principales de hoy — para el tope de
+// la sección "Tu día" (destacada), sin abrir ningún modal: mismo
+// FocusSlotRow/saveFocusSlot que usa ActionsCard, con su propio estado
+// local resincronizado con las props (igual que ActionsCard). El "+
+// Acción" de acá abre el mismo modal compartido (useActionsModal), en la
+// pestaña "Hoy".
+export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot[]; date: string }) {
+  const { openModal } = useActionsModal();
+  const [focus, setFocus] = useState(initialFocus);
+
+  useEffect(() => setFocus(initialFocus), [initialFocus]);
+
+  function onSlotSaved(rank: number, title: string, timeDue: string | null, timeEnd: string | null) {
+    setFocus((prev) =>
+      prev.map((f) => (f.rank === rank ? { ...f, title, timeDue, timeEnd, taskId: f.taskId ?? "pending" } : f)),
+    );
+  }
+
+  function onSlotToggled(rank: number, done: boolean) {
+    setFocus((prev) => prev.map((f) => (f.rank === rank ? { ...f, done } : f)));
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 border-b border-line bg-surface-sunken px-3.5 py-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Las 3 de hoy</span>
+        <button type="button" onClick={() => openModal("hoy")} className="text-meta text-accent hover:underline">
+          + Acción
+        </button>
+      </div>
+      {focus.map((slot) => (
+        <FocusSlotRow key={slot.rank} slot={slot} date={date} onSaved={onSlotSaved} onToggled={onSlotToggled} />
+      ))}
     </div>
   );
 }

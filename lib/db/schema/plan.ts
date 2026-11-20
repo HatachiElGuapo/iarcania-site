@@ -175,6 +175,11 @@ export const planBlocks = pgTable(
     kind: text("kind").notNull(),
     tentative: boolean("tentative").notNull().default(false),
     isMinimum: boolean("is_minimum").notNull().default(false),
+    // Horario flexible (ej. Almuerzo): no vence a su propia hora de fin —
+    // solo cuenta como pendiente al cerrar la ventana de "Tu día"
+    // (EVENING_START, ver lib/agenda/day-sections.ts) y se muestra "cuando
+    // lo hagas" en vez de una hora fija (day-event-row.tsx/mobile-day-row.tsx).
+    flexible: boolean("flexible").notNull().default(false),
     queueId: uuid("queue_id").references(() => planQueues.id, { onDelete: "set null" }),
     holidayText: text("holiday_text"),
     // Contenido persistente del bloque — distinto de plan_checks.note (la
