@@ -924,17 +924,28 @@ export type HabitCascadeResult = {
   blockToastMessage: string | null;
 };
 
-// Punto de entrada desde toggleLogToday — TODO en una transacción: cascada
-// hacia abajo (el hábito clickeado y toda su descendencia quedan en
-// `done`) y, si su ancestro de primer nivel enlaza algún bloque, cascada
-// hacia arriba (si con esto todos los hábitos de primer nivel del bloque
-// —o todos los principales— quedan done, el bloque se marca done; si deja
-// de estarlo, se desmarca — salvo que esté "skipped", eso no se pisa).
+// Punto de entrada desde toggleLogToday/adjustCounter — TODO en una
+// transacción: cascada hacia abajo (el hábito clickeado y toda su
+// descendencia quedan en `done`) y, si su ancestro de primer nivel enlaza
+// algún bloque, cascada hacia arriba (si con esto todos los hábitos de
+// primer nivel del bloque —o todos los principales— quedan done, el
+// bloque se marca done; si deja de estarlo, se desmarca — salvo que esté
+// "skipped", eso no se pisa).
+//
+// `valueOverride` (hábitos con meta, ver lib/habits/counter.ts): el valor
+// REAL del log de `activityId` se escribe ANTES de calcular cualquier
+// done hacia arriba (padre/bloque), dentro de la misma transacción — si
+// se escribiera después (como hacía adjustCounter antes de este fix), el
+// cálculo de "¿el bloque queda done?" leía todavía el valor viejo
+// (insertado por setLogsForIdsTx con su default, o el parcial que ya
+// hubiera) y nunca llegaba a la meta, así que el bloque jamás se marcaba
+// aunque el hábito sí quedara done.
 export async function applyHabitToggle(
   userId: string,
   activityId: string,
   date: string,
   done: boolean,
+  valueOverride?: number,
 ): Promise<HabitCascadeResult> {
   const [activity] = await db
     .select({ parentId: activities.parentId })
@@ -988,6 +999,20 @@ export async function applyHabitToggle(
   await db.transaction(async (tx) => {
     const descendantIds = await collectDescendantIdsTx(tx, activityId);
     await setLogsForIdsTx(tx, userId, [activityId, ...descendantIds], date, done);
+
+    if (valueOverride != null) {
+      if (done) {
+        await tx
+          .update(activityLogs)
+          .set({ value: valueOverride })
+          .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, activityId), eq(activityLogs.date, date)));
+      } else if (valueOverride > 0) {
+        // setLogsForIdsTx (done=false) acaba de borrar la fila de
+        // `activityId` — un contador que bajó de la meta sigue teniendo
+        // progreso parcial, no vuelve a 0, así que se reescribe.
+        await tx.insert(activityLogs).values({ userId, activityId, date, value: valueOverride });
+      }
+    }
 
     // Padre completado: todos los hermanos (mismo parent_id) quedaron done
     // con este click — solo tiene sentido al marcar, no al desmarcar.

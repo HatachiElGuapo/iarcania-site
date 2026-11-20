@@ -384,17 +384,17 @@ export async function toggleLogToday(formData: FormData): Promise<{ done: boolea
   const isPrincipal = activity?.frequency === "diaria";
   const hasParent = !!activity?.parentId;
 
-  const cascade = await applyHabitToggle(userId, activityId, date, done);
-
-  // Marcar a mano un contador pone el valor exacto en la meta — sin esto,
-  // un log parcial preexistente (ej. 400/1000) quedaría intacto porque
-  // applyHabitToggle no inserta de nuevo sobre una fila que ya existía.
-  if (done && activity?.targetValue != null) {
-    await db
-      .update(activityLogs)
-      .set({ value: activity.targetValue })
-      .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
-  }
+  // Marcar a mano un contador pone el valor exacto en la meta — se pasa
+  // como valueOverride para que quede escrito ANTES de que la cascada
+  // calcule el done hacia arriba (si no, un log parcial preexistente
+  // haría que el bloque nunca se marque, aunque el hábito sí quede done).
+  const cascade = await applyHabitToggle(
+    userId,
+    activityId,
+    date,
+    done,
+    done && activity?.targetValue != null ? activity.targetValue : undefined,
+  );
 
   revalidateAll();
 
@@ -514,40 +514,33 @@ export async function adjustCounter(input: { activityId: string; date: string; d
   const wasDone = isCounterDone(current, activity.targetValue);
   const nowDone = isCounterDone(value, activity.targetValue);
 
-  // Vuelve a mirar si hay fila justo antes de escribir (no reusa `existing`
-  // de arriba): cuando esto se llama DESPUÉS de applyHabitToggle, la
-  // cascada ya pudo haber creado o borrado la fila, así que asumir el
-  // estado de antes causaría una fila duplicada o un UPDATE que no pega en
-  // nada.
-  async function writeValue() {
+  if (nowDone === wasDone) {
+    // No cruza la meta: solo corregir el valor, sin cascada — ni este
+    // hábito ni el bloque cambian de estado done/no-done.
     if (value === 0) {
       await db
         .delete(activityLogs)
         .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
-      return;
-    }
-    const [row] = await db
-      .select({ id: activityLogs.id })
-      .from(activityLogs)
-      .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
-    if (row) {
-      await db.update(activityLogs).set({ value }).where(eq(activityLogs.id, row.id));
     } else {
-      await db.insert(activityLogs).values({ userId, activityId, date, value });
+      const [row] = await db
+        .select({ id: activityLogs.id })
+        .from(activityLogs)
+        .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
+      if (row) {
+        await db.update(activityLogs).set({ value }).where(eq(activityLogs.id, row.id));
+      } else {
+        await db.insert(activityLogs).values({ userId, activityId, date, value });
+      }
     }
-  }
-
-  if (nowDone === wasDone) {
-    await writeValue();
     revalidateAll();
     return { value, done: nowDone, toastMessage: null };
   }
 
-  // Cruza la meta: la cascada primero (crea o borra el log de este
-  // hábito/descendientes y marca/desmarca el bloque/padre), después se
-  // reescribe el log con el valor real acumulado.
-  const cascade = await applyHabitToggle(userId, activityId, date, nowDone);
-  await writeValue();
+  // Cruza la meta: applyHabitToggle escribe el valor real ANTES de
+  // calcular el done hacia arriba (padre/bloque), todo en una sola
+  // transacción — así el bloque se marca/desmarca con el estado
+  // correcto, no con el valor intermedio que deja la cascada genérica.
+  const cascade = await applyHabitToggle(userId, activityId, date, nowDone, value);
   revalidateAll();
 
   let toastMessage: string | null = null;
