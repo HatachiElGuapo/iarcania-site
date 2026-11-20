@@ -49,6 +49,9 @@ export function HabitNodeMenu({
   const [hora, setHora] = useState(node.horaSugerida ?? "");
   const [isOptional, setIsOptional] = useState(node.isOptional);
   const [icon, setIcon] = useState(node.icon ?? "");
+  const [targetValue, setTargetValue] = useState(node.targetValue != null ? String(node.targetValue) : "");
+  const [unit, setUnit] = useState(node.unit ?? "");
+  const [countSteps, setCountSteps] = useState(node.countSteps ? node.countSteps.join(", ") : "");
   const [newParentId, setNewParentId] = useState("");
   const [childName, setChildName] = useState("");
   const [childOptional, setChildOptional] = useState(false);
@@ -81,6 +84,9 @@ export function HabitNodeMenu({
       fd.set("horaSugerida", hora);
       if (isOptional) fd.set("isOptional", "on");
       fd.set("icon", icon);
+      fd.set("targetValue", targetValue);
+      fd.set("unit", unit);
+      fd.set("countSteps", countSteps);
       return updateHabitNode(fd);
     });
 
@@ -215,6 +221,34 @@ export function HabitNodeMenu({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  Hábito contador (opcional)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min="1"
+                    value={targetValue}
+                    onChange={(e) => setTargetValue(e.target.value)}
+                    placeholder="Meta (ej: 1000)"
+                    className="focus-ring min-h-11 flex-1 rounded-ui border border-line bg-canvas px-3 text-[14px] text-ink placeholder:text-ink-dim"
+                  />
+                  <input
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    placeholder="Unidad (ej: saltos)"
+                    className="focus-ring min-h-11 flex-1 rounded-ui border border-line bg-canvas px-3 text-[14px] text-ink placeholder:text-ink-dim"
+                  />
+                </div>
+                <input
+                  value={countSteps}
+                  onChange={(e) => setCountSteps(e.target.value)}
+                  placeholder="Pasos de los botones, separados por coma (ej: 100, 200)"
+                  className="focus-ring min-h-11 rounded-ui border border-line bg-canvas px-3 text-[14px] text-ink placeholder:text-ink-dim"
+                />
               </div>
 
               <button

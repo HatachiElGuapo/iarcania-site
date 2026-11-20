@@ -16,6 +16,7 @@ import { kindInfo } from "@/lib/plan/kinds";
 import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type OrphanPlanBlock } from "@/lib/plan/orphans";
 import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMinimumBlock, type PendingSecondaryHabit } from "@/lib/plan/pending";
 import { computeVicioStats, type VicioStats } from "@/lib/habits/vicio-stats";
+import { isCounterDone } from "@/lib/habits/counter";
 import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
 import { SecondaryCard } from "./secondary-section";
 import { HabitsCard } from "./habits-card";
@@ -149,6 +150,9 @@ export default async function RutinasPage({
         horaSugerida: activities.horaSugerida,
         sortOrder: activities.sortOrder,
         icon: activities.icon,
+        targetValue: activities.targetValue,
+        unit: activities.unit,
+        countSteps: activities.countSteps,
       })
       .from(activities)
       .where(
@@ -160,7 +164,7 @@ export default async function RutinasPage({
         ),
       ),
     db
-      .select({ activityId: activityLogs.activityId, date: activityLogs.date })
+      .select({ activityId: activityLogs.activityId, date: activityLogs.date, value: activityLogs.value })
       .from(activityLogs)
       .where(and(eq(activityLogs.userId, userId), gte(activityLogs.date, lookbackStart), lte(activityLogs.date, date))),
     db
@@ -225,9 +229,11 @@ export default async function RutinasPage({
   const pctToday = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
 
   const logsByHabit = new Map<string, Set<string>>();
+  const todayValueByHabit = new Map<string, number>();
   for (const l of habitLogs) {
     if (!logsByHabit.has(l.activityId)) logsByHabit.set(l.activityId, new Set());
     logsByHabit.get(l.activityId)!.add(l.date);
+    if (l.date === date) todayValueByHabit.set(l.activityId, l.value);
   }
   const bestStreak = dailyHabits.length
     ? Math.max(...dailyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date)))
@@ -236,13 +242,19 @@ export default async function RutinasPage({
   const habitsView = dailyHabits
     .map((h) => {
       const dates = logsByHabit.get(h.id);
+      const currentValue = todayValueByHabit.get(h.id) ?? 0;
+      const done = h.targetValue != null ? isCounterDone(currentValue, h.targetValue) : (dates?.has(date) ?? false);
       return {
         id: h.id,
         name: h.name,
         horaSugerida: h.horaSugerida,
         sortOrder: h.sortOrder,
         icon: h.icon,
-        done: dates?.has(date) ?? false,
+        targetValue: h.targetValue,
+        unit: h.unit,
+        countSteps: h.countSteps,
+        currentValue,
+        done,
         streak: computeStreak(dates, date),
         week: weekCells(dates, date),
       };
@@ -753,6 +765,10 @@ type MobileHoyProps = {
     name: string;
     horaSugerida: string | null;
     icon: string | null;
+    targetValue: number | null;
+    unit: string | null;
+    countSteps: number[] | null;
+    currentValue: number;
     done: boolean;
     streak: number;
     week: { done: boolean }[];

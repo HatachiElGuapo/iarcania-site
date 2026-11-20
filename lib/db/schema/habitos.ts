@@ -55,6 +55,14 @@ export const activities = pgTable(
     // además TODOS los de primer nivel —incluidos los secundarios— quedan
     // done, el bloque también se marca done por esa otra vía.
     isOptional: boolean("is_optional").notNull().default(false),
+    // Hábito "contador": meta del día (ej. 1000), su unidad (ej. "saltos")
+    // y los pasos de los botones grandes +N (ej. {100,200}) — null en los
+    // demás hábitos, que siguen siendo un simple hecho/no-hecho. El valor
+    // de HOY vive en activity_logs.value (ya existente), comparado contra
+    // esta meta para decidir "done" (ver lib/habits/counter.ts).
+    targetValue: numeric("target_value", { precision: 10, scale: 2, mode: "number" }),
+    unit: text("unit"),
+    countSteps: integer("count_steps").array(),
     // Contenido persistente del hábito — distinto de activity_logs.notes
     // (la nota de un día puntual, "qué hiciste hoy"). Este es un texto que
     // se va afinando con el tiempo, sin fecha — ej. el guion de la rutina

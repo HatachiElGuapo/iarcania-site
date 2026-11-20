@@ -7,6 +7,7 @@ import { db } from "@/lib/db/client";
 import { activities, activityLogs, activityQueueItems } from "@/lib/db/schema/habitos";
 import { applyHabitToggle } from "@/app/dashboard/plan/actions";
 import { pickHabitPraise } from "@/lib/habits/praise";
+import { isCounterDone, parseCountSteps } from "@/lib/habits/counter";
 
 const FREQUENCIES = ["diaria", "semanal", "mensual", "unica", "recurrente", "trabajo"];
 
@@ -165,6 +166,10 @@ export async function updateActivity(formData: FormData) {
   const horaSugerida = String(formData.get("horaSugerida") || "") || null;
   const sortOrder = Number(formData.get("sortOrder")) || 0;
   const diasSemana = frequency === "trabajo" ? parseDiasSemana(formData) : null;
+  const rawTarget = Number(formData.get("targetValue"));
+  const targetValue = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : null;
+  const unit = String(formData.get("unit") || "").trim() || null;
+  const countSteps = parseCountSteps(String(formData.get("countSteps") || ""));
 
   if (!name) throw new Error("El nombre es obligatorio");
   if (!FREQUENCIES.includes(frequency)) {
@@ -173,7 +178,7 @@ export async function updateActivity(formData: FormData) {
 
   await db
     .update(activities)
-    .set({ name, category, frequency, horaSugerida, sortOrder, diasSemana })
+    .set({ name, category, frequency, horaSugerida, sortOrder, diasSemana, targetValue, unit, countSteps })
     .where(and(eq(activities.id, id), eq(activities.userId, userId)));
 
   revalidateAll();
@@ -360,20 +365,36 @@ export async function toggleLogToday(formData: FormData): Promise<{ done: boolea
   const activityId = String(formData.get("activityId") || "");
   const date = String(formData.get("date") || "");
 
-  const [existing] = await db
-    .select({ id: activityLogs.id })
-    .from(activityLogs)
-    .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
-  const done = !existing;
-
   const [activity] = await db
-    .select({ frequency: activities.frequency, parentId: activities.parentId })
+    .select({ frequency: activities.frequency, parentId: activities.parentId, targetValue: activities.targetValue })
     .from(activities)
     .where(and(eq(activities.id, activityId), eq(activities.userId, userId)));
+
+  const [existing] = await db
+    .select({ value: activityLogs.value })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
+  // Para un hábito contador, "hecho" depende de llegar a la meta, no de la
+  // mera existencia del log (puede haber un log con valor parcial, todavía
+  // no hecho) — marcar a mano siempre alterna el estado REAL, nunca solo la
+  // existencia de la fila.
+  const wasDone = isCounterDone(existing?.value, activity?.targetValue);
+  const done = !wasDone;
+
   const isPrincipal = activity?.frequency === "diaria";
   const hasParent = !!activity?.parentId;
 
   const cascade = await applyHabitToggle(userId, activityId, date, done);
+
+  // Marcar a mano un contador pone el valor exacto en la meta — sin esto,
+  // un log parcial preexistente (ej. 400/1000) quedaría intacto porque
+  // applyHabitToggle no inserta de nuevo sobre una fila que ya existía.
+  if (done && activity?.targetValue != null) {
+    await db
+      .update(activityLogs)
+      .set({ value: activity.targetValue })
+      .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
+  }
 
   revalidateAll();
 
@@ -383,7 +404,7 @@ export async function toggleLogToday(formData: FormData): Promise<{ done: boolea
   let allPrincipalDone = false;
   if (done && isPrincipal && !hasParent) {
     const dailyHabits = await db
-      .select({ id: activities.id })
+      .select({ id: activities.id, targetValue: activities.targetValue })
       .from(activities)
       .where(
         and(
@@ -394,8 +415,9 @@ export async function toggleLogToday(formData: FormData): Promise<{ done: boolea
         ),
       );
     if (dailyHabits.length > 0) {
-      const doneLogs = await db
-        .select({ activityId: activityLogs.activityId })
+      const targetById = new Map(dailyHabits.map((h) => [h.id, h.targetValue]));
+      const todayLogs = await db
+        .select({ activityId: activityLogs.activityId, value: activityLogs.value })
         .from(activityLogs)
         .where(
           and(
@@ -404,7 +426,10 @@ export async function toggleLogToday(formData: FormData): Promise<{ done: boolea
             inArray(activityLogs.activityId, dailyHabits.map((h) => h.id)),
           ),
         );
-      allPrincipalDone = new Set(doneLogs.map((l) => l.activityId)).size === dailyHabits.length;
+      const doneIds = new Set(
+        todayLogs.filter((l) => isCounterDone(l.value, targetById.get(l.activityId))).map((l) => l.activityId),
+      );
+      allPrincipalDone = doneIds.size === dailyHabits.length;
     }
   }
 
@@ -454,4 +479,90 @@ export async function decrementLog(formData: FormData) {
   if (last) await db.delete(activityLogs).where(eq(activityLogs.id, last.id));
 
   revalidateAll();
+}
+
+// Botones +100/+200/−100 de un hábito con meta ("1000 saltos"): un solo log
+// por día que se corrige en el acto (no una fila por click, a diferencia de
+// incrementLog/decrementLog de arriba, que son para "recurrentes"). Si el
+// nuevo valor cruza la meta hacia arriba o hacia abajo, pasa por
+// applyHabitToggle para que la cascada (padre/bloque, felicitación) se
+// dispare igual que con el checkbox — después se reescribe `value` con el
+// total real (puede pasarse de la meta, eso es válido), porque
+// applyHabitToggle solo sabe crear filas con 1 o borrarlas, no sumar.
+export async function adjustCounter(input: { activityId: string; date: string; delta: number }): Promise<{
+  value: number;
+  done: boolean;
+  toastMessage: string | null;
+}> {
+  const userId = await requireUserId();
+  const { activityId, date, delta } = input;
+  if (!activityId || !date || !Number.isFinite(delta)) throw new Error("Faltan datos");
+
+  const [activity] = await db
+    .select({ frequency: activities.frequency, parentId: activities.parentId, targetValue: activities.targetValue })
+    .from(activities)
+    .where(and(eq(activities.id, activityId), eq(activities.userId, userId)));
+  if (!activity) throw new Error("Hábito no encontrado");
+
+  const [existing] = await db
+    .select({ value: activityLogs.value })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
+
+  const current = existing?.value ?? 0;
+  const value = Math.max(0, current + delta);
+  const wasDone = isCounterDone(current, activity.targetValue);
+  const nowDone = isCounterDone(value, activity.targetValue);
+
+  // Vuelve a mirar si hay fila justo antes de escribir (no reusa `existing`
+  // de arriba): cuando esto se llama DESPUÉS de applyHabitToggle, la
+  // cascada ya pudo haber creado o borrado la fila, así que asumir el
+  // estado de antes causaría una fila duplicada o un UPDATE que no pega en
+  // nada.
+  async function writeValue() {
+    if (value === 0) {
+      await db
+        .delete(activityLogs)
+        .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
+      return;
+    }
+    const [row] = await db
+      .select({ id: activityLogs.id })
+      .from(activityLogs)
+      .where(and(eq(activityLogs.activityId, activityId), eq(activityLogs.userId, userId), eq(activityLogs.date, date)));
+    if (row) {
+      await db.update(activityLogs).set({ value }).where(eq(activityLogs.id, row.id));
+    } else {
+      await db.insert(activityLogs).values({ userId, activityId, date, value });
+    }
+  }
+
+  if (nowDone === wasDone) {
+    await writeValue();
+    revalidateAll();
+    return { value, done: nowDone, toastMessage: null };
+  }
+
+  // Cruza la meta: la cascada primero (crea o borra el log de este
+  // hábito/descendientes y marca/desmarca el bloque/padre), después se
+  // reescribe el log con el valor real acumulado.
+  const cascade = await applyHabitToggle(userId, activityId, date, nowDone);
+  await writeValue();
+  revalidateAll();
+
+  let toastMessage: string | null = null;
+  if (nowDone) {
+    const isPrincipal = activity.frequency === "diaria";
+    const hasParent = !!activity.parentId;
+    toastMessage =
+      cascade.blockToastMessage ??
+      pickHabitPraise({
+        isPrincipal,
+        allPrincipalDone: false,
+        hasParent,
+        parentJustCompleted: cascade.parentJustCompleted,
+      });
+  }
+
+  return { value, done: nowDone, toastMessage };
 }

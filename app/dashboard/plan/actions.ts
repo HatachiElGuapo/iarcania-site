@@ -28,6 +28,7 @@ import {
   pickProtectorGainedMessage,
 } from "@/lib/plan/praise";
 import { addDaysISO, weekdayMon0, todayISO, nowHHMM } from "@/lib/date/bogota";
+import { isCounterDone, parseCountSteps } from "@/lib/habits/counter";
 
 async function requireUserId() {
   const session = await auth();
@@ -161,10 +162,13 @@ async function collectDescendantIdsTx(tx: DbTx, activityId: string): Promise<str
 // los logs que la misma transacción ya escribió, no una copia vieja).
 async function isActivityDoneOnDateTx(tx: DbTx, userId: string, activityId: string, date: string): Promise<boolean> {
   const [log] = await tx
-    .select({ id: activityLogs.id })
+    .select({ value: activityLogs.value })
     .from(activityLogs)
     .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, activityId), eq(activityLogs.date, date)));
-  if (log) return true;
+  if (log) {
+    const [activity] = await tx.select({ targetValue: activities.targetValue }).from(activities).where(eq(activities.id, activityId));
+    if (isCounterDone(log.value, activity?.targetValue)) return true;
+  }
 
   const children = await tx
     .select({ id: activities.id })
@@ -1105,7 +1109,8 @@ async function subtreeHeight(activityId: string): Promise<number> {
   return 1 + Math.max(...heights);
 }
 
-// Nombre, hora sugerida y si es secundario (is_optional) — no toca
+// Nombre, hora sugerida, si es secundario (is_optional), ícono y la
+// configuración de "hábito contador" (meta/unidad/pasos) — no toca
 // frequency/categoría/etc, a diferencia de updateActivity en habitos/
 // actions.ts (que exige mandar la fila entera).
 export async function updateHabitNode(formData: FormData) {
@@ -1115,10 +1120,17 @@ export async function updateHabitNode(formData: FormData) {
   const horaSugerida = String(formData.get("horaSugerida") || "") || null;
   const isOptional = formData.get("isOptional") === "on";
   const icon = String(formData.get("icon") || "") || null;
+  const rawTarget = Number(formData.get("targetValue"));
+  const targetValue = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : null;
+  const unit = String(formData.get("unit") || "").trim() || null;
+  const countSteps = parseCountSteps(String(formData.get("countSteps") || ""));
   if (!id || !name) throw new Error("Faltan datos");
 
   await requireOwnedActivityRow(id, userId);
-  await db.update(activities).set({ name, horaSugerida, isOptional, icon }).where(eq(activities.id, id));
+  await db
+    .update(activities)
+    .set({ name, horaSugerida, isOptional, icon, targetValue, unit, countSteps })
+    .where(eq(activities.id, id));
 
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard");

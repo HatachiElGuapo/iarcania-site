@@ -6,7 +6,8 @@ import { useToast } from "@/components/ui/toast";
 import { Badge, EmptyState, Input } from "@/components/ui";
 import { QuickAddPanel } from "@/components/ui/quick-add-panel";
 import { SafeActionButton } from "./safe-action-button";
-import { toggleLogToday, createActivity } from "./habitos/actions";
+import { useBusyGuard } from "./busy-guard";
+import { toggleLogToday, createActivity, adjustCounter } from "./habitos/actions";
 import { CompactModalCard } from "./compact-modal-card";
 import { STREAK_MILESTONES } from "@/lib/plan/praise";
 import { HabitIcon } from "@/lib/icons/habit-icons";
@@ -16,19 +17,91 @@ export type HabitViewItem = {
   name: string;
   horaSugerida: string | null;
   icon: string | null;
+  targetValue: number | null;
+  unit: string | null;
+  countSteps: number[] | null;
+  currentValue: number;
   done: boolean;
   streak: number;
   week: { done: boolean }[];
 };
 
+// Tras un deploy, el bundle viejo referencia Server Actions que el server
+// nuevo ya no conoce — recargar trae el bundle nuevo con las acciones
+// correctas (mismo tratamiento que en habit-tree-dnd.tsx).
+function isStaleServerActionError(err: unknown): boolean {
+  return err instanceof Error && /Failed to find Server Action/i.test(err.message);
+}
+
+// Botones grandes +N/−N de un hábito con meta ("1000 saltos") — mismo
+// patrón que CounterControls en plan/habit-tree-dnd.tsx, acá para hábitos
+// de primer nivel (fuera de un bloque de Plan).
+function CounterControls({
+  h,
+  date,
+  onChanged,
+}: {
+  h: HabitViewItem;
+  date: string;
+  onChanged: (id: string, value: number, done: boolean, toastMessage: string | null) => void;
+}) {
+  const toast = useToast();
+  const [pending, setPending] = useState(false);
+  useBusyGuard(pending);
+  const steps = h.countSteps && h.countSteps.length > 0 ? h.countSteps : [100];
+
+  async function adjust(delta: number) {
+    setPending(true);
+    try {
+      const result = await adjustCounter({ activityId: h.id, date, delta });
+      onChanged(h.id, result.value, result.done, result.toastMessage);
+    } catch (err) {
+      if (isStaleServerActionError(err)) {
+        toast.show({ message: "Hay una versión nueva, recargando…", tone: "error" });
+        window.location.reload();
+        return;
+      }
+      toast.show({ message: err instanceof Error ? err.message : "No se pudo actualizar.", tone: "error" });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => adjust(-steps[0])}
+        className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-ui border border-line bg-surface px-3 text-[13px] font-medium text-ink-dim disabled:opacity-50"
+      >
+        −{steps[0]}
+      </button>
+      {steps.map((step) => (
+        <button
+          key={step}
+          type="button"
+          disabled={pending}
+          onClick={() => adjust(step)}
+          className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft px-3 text-[13px] font-medium text-ink disabled:opacity-50"
+        >
+          +{step}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function HabitRow({
   h,
   date,
   onToggled,
+  onCounterChanged,
 }: {
   h: HabitViewItem;
   date: string;
   onToggled: (id: string, done: boolean) => void;
+  onCounterChanged: (id: string, value: number, done: boolean, toastMessage: string | null) => void;
 }) {
   const toast = useToast();
 
@@ -37,6 +110,46 @@ function HabitRow({
     const r = result as { done: boolean; toastMessage: string | null };
     onToggled(h.id, r.done);
     if (r.toastMessage) toast.show({ message: r.toastMessage, tone: "success" });
+  }
+
+  function onCounterResult(id: string, value: number, done: boolean, toastMessage: string | null) {
+    onCounterChanged(id, value, done, toastMessage);
+    if (toastMessage) toast.show({ message: toastMessage, tone: "success" });
+  }
+
+  if (h.targetValue != null) {
+    return (
+      <div className="flex w-full flex-col gap-1.5 rounded-ui-lg border border-line bg-surface px-3.5 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <SafeActionButton
+            action={toggleLogToday}
+            fields={{ activityId: h.id, date }}
+            onResult={onResult}
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+              h.done ? "border-accent bg-accent text-white" : "border-line-strong"
+            }`}
+          >
+            {h.done ? "✓" : ""}
+          </SafeActionButton>
+          <HabitIcon icon={h.icon} className="h-4 w-4 shrink-0 text-ink-dim" />
+          <span className="min-w-0 flex-1">
+            <span className={`block truncate text-sm ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>{h.name}</span>
+          </span>
+          <span className="shrink-0 text-[12px] tabular-nums text-ink-dim">
+            {h.currentValue}/{h.targetValue}
+            {h.unit ? ` ${h.unit}` : ""}
+          </span>
+          <Badge tone="warm">🔥 {h.streak}</Badge>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-line">
+          <div
+            className="h-full rounded-full bg-accent-warm"
+            style={{ width: `${Math.min(100, (h.currentValue / h.targetValue) * 100)}%` }}
+          />
+        </div>
+        <CounterControls h={h} date={date} onChanged={onCounterResult} />
+      </div>
+    );
   }
 
   return (
@@ -98,6 +211,10 @@ export function HabitsCard({
 
   function onToggled(id: string, done: boolean) {
     setHabitsView((prev) => prev.map((h) => (h.id === id ? { ...h, done } : h)));
+  }
+
+  function onCounterChanged(id: string, value: number, done: boolean) {
+    setHabitsView((prev) => prev.map((h) => (h.id === id ? { ...h, currentValue: value, done } : h)));
   }
 
   const doneToday = habitsView.filter((h) => h.done).length;
@@ -167,7 +284,9 @@ export function HabitsCard({
           {habitsView.length === 0 ? (
             <EmptyState icon="🔥">Aún no sigues ningún hábito diario — creá el primero abajo.</EmptyState>
           ) : (
-            habitsView.map((h) => <HabitRow key={h.id} h={h} date={date} onToggled={onToggled} />)
+            habitsView.map((h) => (
+              <HabitRow key={h.id} h={h} date={date} onToggled={onToggled} onCounterChanged={onCounterChanged} />
+            ))
           )}
         </div>
 

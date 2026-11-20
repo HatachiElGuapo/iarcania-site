@@ -7,6 +7,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { planBlockActivities, planBlocks } from "@/lib/db/schema/plan";
+import { isCounterDone } from "@/lib/habits/counter";
 
 export type HabitNode = {
   activityId: string;
@@ -14,6 +15,10 @@ export type HabitNode = {
   isOptional: boolean;
   horaSugerida: string | null;
   icon: string | null;
+  targetValue: number | null;
+  unit: string | null;
+  countSteps: number[] | null;
+  currentValue: number;
   done: boolean;
   children: HabitNode[];
 };
@@ -26,6 +31,9 @@ type Row = {
   sortOrder: number;
   horaSugerida: string | null;
   icon: string | null;
+  targetValue: number | null;
+  unit: string | null;
+  countSteps: number[] | null;
 };
 
 // sort_order ascendente, nombre como desempate — mismo criterio en los 3
@@ -48,6 +56,9 @@ export async function loadHabitTreesByBlock(
       sortOrder: activities.sortOrder,
       horaSugerida: activities.horaSugerida,
       icon: activities.icon,
+      targetValue: activities.targetValue,
+      unit: activities.unit,
+      countSteps: activities.countSteps,
     })
     .from(planBlockActivities)
     .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
@@ -65,6 +76,9 @@ export async function loadHabitTreesByBlock(
           sortOrder: activities.sortOrder,
           horaSugerida: activities.horaSugerida,
           icon: activities.icon,
+          targetValue: activities.targetValue,
+          unit: activities.unit,
+          countSteps: activities.countSteps,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level1Ids), eq(activities.isActive, true)))
@@ -81,19 +95,22 @@ export async function loadHabitTreesByBlock(
           sortOrder: activities.sortOrder,
           horaSugerida: activities.horaSugerida,
           icon: activities.icon,
+          targetValue: activities.targetValue,
+          unit: activities.unit,
+          countSteps: activities.countSteps,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level2Ids), eq(activities.isActive, true)))
     : [];
 
   const allIds = [...level1Ids, ...level2Ids, ...level3Rows.map((r) => r.id)];
-  const doneLogs = allIds.length
+  const todayLogs = allIds.length
     ? await db
-        .select({ activityId: activityLogs.activityId })
+        .select({ activityId: activityLogs.activityId, value: activityLogs.value })
         .from(activityLogs)
         .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date), inArray(activityLogs.activityId, allIds)))
     : [];
-  const doneSet = new Set(doneLogs.map((l) => l.activityId));
+  const valueById = new Map(todayLogs.map((l) => [l.activityId, l.value]));
 
   const childrenByParent = new Map<string, Row[]>();
   for (const r of [...level2Rows, ...level3Rows]) {
@@ -104,16 +121,31 @@ export async function loadHabitTreesByBlock(
   }
   for (const list of childrenByParent.values()) list.sort(bySortOrder);
 
-  // done de un nodo = tiene su propio log ESE día, O (tiene hijos Y todos
-  // sus hijos done) — misma regla en los 3 niveles. El checkbox de un
-  // padre siempre marca/desmarca SU PROPIO log (toggleLogToday sobre su
-  // activityId) — nunca cascada hacia los hijos; "también se puede marcar
-  // directo" es justamente ese camino independiente del cómputo por hijos.
-  function buildNode(id: string, name: string, isOptional: boolean, horaSugerida: string | null, icon: string | null): HabitNode {
-    const childRows = childrenByParent.get(id) ?? [];
-    const children = childRows.map((c) => buildNode(c.id, c.name, c.isOptional, c.horaSugerida, c.icon));
-    const done = doneSet.has(id) || (children.length > 0 && children.every((c) => c.done));
-    return { activityId: id, name, isOptional, horaSugerida, icon, done, children };
+  // done de un nodo = su propio log llega a la meta (o, sin meta, tiene
+  // cualquier log ESE día), O (tiene hijos Y todos sus hijos done) — misma
+  // regla en los 3 niveles. El checkbox de un padre siempre marca/desmarca
+  // SU PROPIO log (toggleLogToday sobre su activityId) — nunca cascada
+  // hacia los hijos; "también se puede marcar directo" es justamente ese
+  // camino independiente del cómputo por hijos.
+  function buildNode(r: Omit<Row, "parentId">): HabitNode {
+    const childRows = childrenByParent.get(r.id) ?? [];
+    const children = childRows.map(buildNode);
+    const currentValue = valueById.get(r.id) ?? 0;
+    const ownDone = isCounterDone(valueById.get(r.id), r.targetValue);
+    const done = ownDone || (children.length > 0 && children.every((c) => c.done));
+    return {
+      activityId: r.id,
+      name: r.name,
+      isOptional: r.isOptional,
+      horaSugerida: r.horaSugerida,
+      icon: r.icon,
+      targetValue: r.targetValue,
+      unit: r.unit,
+      countSteps: r.countSteps,
+      currentValue,
+      done,
+      children,
+    };
   }
 
   const sortedLevel1Rows = [...level1Rows].sort(bySortOrder);
@@ -121,7 +153,7 @@ export async function loadHabitTreesByBlock(
   const byBlock = new Map<string, HabitNode[]>();
   for (const r of sortedLevel1Rows) {
     const list = byBlock.get(r.blockId) ?? [];
-    list.push(buildNode(r.id, r.name, r.isOptional, r.horaSugerida, r.icon));
+    list.push(buildNode(r));
     byBlock.set(r.blockId, list);
   }
   return byBlock;

@@ -143,6 +143,18 @@ export default async function GestionHabitosPage({
               ))}
             </div>
           )}
+          <div className="flex w-full flex-wrap items-end gap-3">
+            <span className="w-full text-[10.5px] text-ink-dim">Hábito contador (opcional):</span>
+            <Labeled label="Meta">
+              <Input type="number" min="1" name="targetValue" defaultValue={editing.targetValue ?? ""} className="w-28" />
+            </Labeled>
+            <Labeled label="Unidad">
+              <Input name="unit" defaultValue={editing.unit ?? ""} placeholder="ej: saltos" className="w-32" />
+            </Labeled>
+            <Labeled label="Pasos (+N, separados por coma)">
+              <Input name="countSteps" defaultValue={editing.countSteps?.join(", ") ?? ""} placeholder="100, 200" className="w-44" />
+            </Labeled>
+          </div>
           <Button type="submit">Guardar</Button>
           {showArchived ? (
             <Button

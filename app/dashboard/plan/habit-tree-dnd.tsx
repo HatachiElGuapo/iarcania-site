@@ -27,7 +27,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "../safe-action-button";
 import { useBusyGuard } from "../busy-guard";
-import { toggleLogToday } from "../habitos/actions";
+import { toggleLogToday, adjustCounter } from "../habitos/actions";
 import { reorderHabitNode, moveHabitNodeToParent, moveHabitNodeToTopLevel } from "./actions";
 import { HabitNodeMenu } from "./habit-node-menu";
 import type { HabitNode } from "@/lib/plan/sub-habits";
@@ -75,6 +75,12 @@ function removeNode(nodes: HabitNode[], id: string): { removed: HabitNode | null
     }
   }
   return { removed: null, rest: nodes };
+}
+
+function updateNodeValue(nodes: HabitNode[], id: string, value: number): HabitNode[] {
+  return nodes.map((n) =>
+    n.activityId === id ? { ...n, currentValue: value } : { ...n, children: updateNodeValue(n.children, id, value) },
+  );
 }
 
 function insertNode(nodes: HabitNode[], parentId: string | null, index: number, node: HabitNode): HabitNode[] {
@@ -196,12 +202,74 @@ function getProjection(items: FlatItem[], activeId: string, overId: string, offs
   return { depth, parentId: getParentId(), overIndex };
 }
 
+// Botones grandes +N/−N de un hábito con meta ("1000 saltos") — zona
+// táctil de 44px mínimo, actualización optimista (el valor/progreso se ve
+// de una, antes de que vuelva la respuesta del servidor). `−` siempre resta
+// el primer paso configurado (mismo que el primer botón "+"), no un valor
+// fijo aparte.
+function CounterControls({
+  node,
+  date,
+  onChanged,
+}: {
+  node: HabitNode;
+  date: string;
+  onChanged: (activityId: string, value: number, done: boolean, toastMessage: string | null) => void;
+}) {
+  const toast = useToast();
+  const [pending, setPending] = useState(false);
+  useBusyGuard(pending);
+  const steps = node.countSteps && node.countSteps.length > 0 ? node.countSteps : [100];
+
+  async function adjust(delta: number) {
+    setPending(true);
+    try {
+      const result = await adjustCounter({ activityId: node.activityId, date, delta });
+      onChanged(node.activityId, result.value, result.done, result.toastMessage);
+    } catch (err) {
+      if (isStaleServerActionError(err)) {
+        toast.show({ message: "Hay una versión nueva, recargando…", tone: "error" });
+        window.location.reload();
+        return;
+      }
+      toast.show({ message: err instanceof Error ? err.message : "No se pudo actualizar.", tone: "error" });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => adjust(-steps[0])}
+        className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-ui border border-line bg-surface px-3 text-[13px] font-medium text-ink-dim disabled:opacity-50"
+      >
+        −{steps[0]}
+      </button>
+      {steps.map((step) => (
+        <button
+          key={step}
+          type="button"
+          disabled={pending}
+          onClick={() => adjust(step)}
+          className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft px-3 text-[13px] font-medium text-ink disabled:opacity-50"
+        >
+          +{step}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function HabitRow({
   item,
   date,
   blockId,
   allNodes,
   onToggled,
+  onCounterChanged,
   collapsed,
   onToggleCollapse,
 }: {
@@ -210,6 +278,7 @@ function HabitRow({
   blockId: string;
   allNodes: HabitNode[];
   onToggled: (activityId: string, done: boolean) => void;
+  onCounterChanged: (activityId: string, value: number, done: boolean, toastMessage: string | null) => void;
   collapsed: boolean;
   onToggleCollapse: (activityId: string) => void;
 }) {
@@ -227,6 +296,11 @@ function HabitRow({
     // actualizado del servidor.
     onToggled(node.activityId, r.done);
     if (r.toastMessage) toast.show({ message: r.toastMessage, tone: "success" });
+  }
+
+  function onCounterResult(activityId: string, value: number, done: boolean, toastMessage: string | null) {
+    onCounterChanged(activityId, value, done, toastMessage);
+    if (toastMessage) toast.show({ message: toastMessage, tone: "success" });
   }
 
   return (
@@ -261,33 +335,66 @@ function HabitRow({
         ) : (
           <span className="w-4 shrink-0" />
         )}
-        <SafeActionButton
-          action={toggleLogToday}
-          fields={{ activityId: node.activityId, date }}
-          onResult={onHabitResult}
-          className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-ui py-1 text-left transition-colors duration-120 hover:bg-surface-2"
-        >
-          <span
-            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-ui border text-[10px] ${
-              node.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
-            }`}
+        {node.targetValue != null ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <SafeActionButton
+                action={toggleLogToday}
+                fields={{ activityId: node.activityId, date }}
+                onResult={onHabitResult}
+                className={`focus-ring flex h-5 w-5 shrink-0 items-center justify-center rounded-ui border text-[10px] ${
+                  node.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+                }`}
+              >
+                ✓
+              </SafeActionButton>
+              <HabitIcon icon={node.icon} className="h-3.5 w-3.5 shrink-0 text-ink-dim" />
+              <span className={`min-w-0 flex-1 truncate text-[12px] ${node.done ? "text-ink-dim line-through" : "text-ink"}`}>
+                {node.name}
+                {node.isOptional && <span className="ml-1 text-ink-dim">· secundario</span>}
+              </span>
+              <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">
+                {node.currentValue}/{node.targetValue}
+                {node.unit ? ` ${node.unit}` : ""}
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-line">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${Math.min(100, (node.currentValue / node.targetValue) * 100)}%` }}
+              />
+            </div>
+            <CounterControls node={node} date={date} onChanged={onCounterResult} />
+          </div>
+        ) : (
+          <SafeActionButton
+            action={toggleLogToday}
+            fields={{ activityId: node.activityId, date }}
+            onResult={onHabitResult}
+            className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-ui py-1 text-left transition-colors duration-120 hover:bg-surface-2"
           >
-            ✓
-          </span>
-          <HabitIcon icon={node.icon} className="h-3.5 w-3.5 shrink-0 text-ink-dim" />
-          {node.horaSugerida && (
-            <span className="shrink-0 text-[10px] tabular-nums text-ink-dim">{node.horaSugerida}</span>
-          )}
-          <span className={`min-w-0 truncate text-[12px] ${node.done ? "text-ink-dim line-through" : "text-ink"}`}>
-            {node.name}
-            {node.isOptional && <span className="ml-1 text-ink-dim">· secundario</span>}
-          </span>
-          {collapsed && node.children.length > 0 && (
-            <span className="shrink-0 text-[10px] tabular-nums text-ink-dim">
-              {node.children.filter((c) => c.done).length}/{node.children.length}
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-ui border text-[10px] ${
+                node.done ? "border-accent bg-accent text-white" : "border-line-strong text-transparent"
+              }`}
+            >
+              ✓
             </span>
-          )}
-        </SafeActionButton>
+            <HabitIcon icon={node.icon} className="h-3.5 w-3.5 shrink-0 text-ink-dim" />
+            {node.horaSugerida && (
+              <span className="shrink-0 text-[10px] tabular-nums text-ink-dim">{node.horaSugerida}</span>
+            )}
+            <span className={`min-w-0 truncate text-[12px] ${node.done ? "text-ink-dim line-through" : "text-ink"}`}>
+              {node.name}
+              {node.isOptional && <span className="ml-1 text-ink-dim">· secundario</span>}
+            </span>
+            {collapsed && node.children.length > 0 && (
+              <span className="shrink-0 text-[10px] tabular-nums text-ink-dim">
+                {node.children.filter((c) => c.done).length}/{node.children.length}
+              </span>
+            )}
+          </SafeActionButton>
+        )}
         <HabitNodeMenu date={date} blockId={blockId} node={node} depth={(depth + 1) as 1 | 2 | 3} allNodes={allNodes} />
       </div>
     </div>
@@ -339,6 +446,10 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
 
   function onToggled(activityId: string, done: boolean) {
     setTree((t) => cascadeDoneLocal(t, activityId, done));
+  }
+
+  function onCounterChanged(activityId: string, value: number, done: boolean) {
+    setTree((t) => cascadeDoneLocal(updateNodeValue(t, activityId, value), activityId, done));
   }
 
   // Por defecto: abierto si tiene hijos pendientes, cerrado si ya está
@@ -556,6 +667,7 @@ export function HabitTreeDnd({ date, blockId, subHabits }: { date: string; block
               blockId={blockId}
               allNodes={tree}
               onToggled={onToggled}
+              onCounterChanged={onCounterChanged}
               collapsed={collapsedIds.has(item.id)}
               onToggleCollapse={toggleCollapse}
             />
