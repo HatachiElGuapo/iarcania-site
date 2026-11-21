@@ -10,6 +10,7 @@ export const PLAN_KINDS: Record<string, { label: string; color: string; icon: st
   rutina: { label: "Rutina", color: "#5A5870", icon: "🔁" },
   descanso: { label: "Descanso", color: "#378ADD", icon: "🌙" },
   cita: { label: "Cita", color: "#E24B4A", icon: "📞" },
+  secundarios: { label: "Secundarios", color: "#9CA3AF", icon: "⏭️" },
 };
 
 export function kindInfo(kind: string | null) {

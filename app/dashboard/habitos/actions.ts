@@ -360,7 +360,11 @@ export async function deleteActivity(formData: FormData) {
 // click. `applyHabitToggle` hace TODA la escritura (el log del hábito, su
 // descendencia, y el/los bloque(s) que enlazan su ancestro de primer
 // nivel) en una sola transacción.
-export async function toggleLogToday(formData: FormData): Promise<{ done: boolean; toastMessage: string | null }> {
+export async function toggleLogToday(formData: FormData): Promise<{
+  done: boolean;
+  toastMessage: string | null;
+  reminder: { targetActivityId: string; text: string } | null;
+}> {
   const userId = await requireUserId();
   const activityId = String(formData.get("activityId") || "");
   const date = String(formData.get("date") || "");
@@ -446,7 +450,7 @@ export async function toggleLogToday(formData: FormData): Promise<{ done: boolea
     }
   }
 
-  return { done, toastMessage };
+  return { done, toastMessage, reminder: cascade.reminder };
 }
 
 // Contador (para "vicios" u otros hábitos frequency='recurrente'): cada
@@ -493,6 +497,7 @@ export async function adjustCounter(input: { activityId: string; date: string; d
   value: number;
   done: boolean;
   toastMessage: string | null;
+  reminder: { targetActivityId: string; text: string } | null;
 }> {
   const userId = await requireUserId();
   const { activityId, date, delta } = input;
@@ -533,7 +538,7 @@ export async function adjustCounter(input: { activityId: string; date: string; d
       }
     }
     revalidateAll();
-    return { value, done: nowDone, toastMessage: null };
+    return { value, done: nowDone, toastMessage: null, reminder: null };
   }
 
   // Cruza la meta: applyHabitToggle escribe el valor real ANTES de
@@ -557,5 +562,5 @@ export async function adjustCounter(input: { activityId: string; date: string; d
       });
   }
 
-  return { value, done: nowDone, toastMessage };
+  return { value, done: nowDone, toastMessage, reminder: cascade.reminder };
 }

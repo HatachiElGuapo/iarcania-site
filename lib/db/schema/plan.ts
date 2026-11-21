@@ -20,7 +20,17 @@ import { books } from "./libros";
 // Vocabulario compartido por plan_blocks.kind (NOT NULL) y plan_events.kind
 // (nullable — 3 eventos del seed, como el cumpleaños de Miguel, no traen
 // categoría).
-const PLAN_KINDS = ["ingresos", "juntos", "cuidado", "comida", "casa", "rutina", "descanso", "cita"] as const;
+const PLAN_KINDS = [
+  "ingresos",
+  "juntos",
+  "cuidado",
+  "comida",
+  "casa",
+  "rutina",
+  "descanso",
+  "cita",
+  "secundarios",
+] as const;
 
 export const plans = pgTable(
   "plans",

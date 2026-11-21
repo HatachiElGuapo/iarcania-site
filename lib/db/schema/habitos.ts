@@ -73,6 +73,15 @@ export const activities = pgTable(
     scriptId: uuid("script_id").references(() => scripts.id, {
       onDelete: "set null",
     }),
+    // Recordatorio al completar: si esta activity tiene reminder_activity_id
+    // Y ese destino no está done hoy, marcar esta activity como hecha abre
+    // un modal con reminder_text y un botón para marcar el destino también
+    // (ver applyHabitToggle). set null (no cascade) — borrar el destino no
+    // debe borrar la activity que lo recuerda, solo deja de recordar nada.
+    reminderActivityId: uuid("reminder_activity_id").references((): AnyPgColumn => activities.id, {
+      onDelete: "set null",
+    }),
+    reminderText: text("reminder_text"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -80,6 +89,7 @@ export const activities = pgTable(
   (t) => ({
     userIdx: index("activities_user_idx").on(t.userId),
     parentIdx: index("activities_parent_idx").on(t.parentId),
+    reminderActivityIdx: index("activities_reminder_activity_idx").on(t.reminderActivityId),
     frequencyCheck: check(
       "activities_frequency_chk",
       sql`${t.frequency} IN ('diaria','semanal','mensual','unica','recurrente','trabajo')`,

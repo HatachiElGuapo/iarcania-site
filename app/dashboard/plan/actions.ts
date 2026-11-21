@@ -180,6 +180,33 @@ async function isActivityDoneOnDateTx(tx: DbTx, userId: string, activityId: stri
   return results.every(Boolean);
 }
 
+// Misma regla que isActivityDoneOnDateTx, pero con la conexión normal
+// (fuera de cualquier transacción) — para el chequeo del recordatorio en
+// applyHabitToggle, que corre DESPUÉS de que la transacción de la
+// cascada ya cerró (el destino del recordatorio es una activity
+// cualquiera, no necesariamente parte de la misma rama/bloque que se
+// está marcando, así que no tiene sentido abrir una transacción nueva
+// solo para leerla).
+async function isActivityDoneOnDate(userId: string, activityId: string, date: string): Promise<boolean> {
+  const [log] = await db
+    .select({ value: activityLogs.value })
+    .from(activityLogs)
+    .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, activityId), eq(activityLogs.date, date)));
+  if (log) {
+    const [activity] = await db.select({ targetValue: activities.targetValue }).from(activities).where(eq(activities.id, activityId));
+    if (isCounterDone(log.value, activity?.targetValue)) return true;
+  }
+
+  const children = await db
+    .select({ id: activities.id })
+    .from(activities)
+    .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
+  if (children.length === 0) return false;
+
+  const results = await Promise.all(children.map((c) => isActivityDoneOnDate(userId, c.id, date)));
+  return results.every(Boolean);
+}
+
 async function setLogsForIdsTx(tx: DbTx, userId: string, ids: string[], date: string, done: boolean) {
   if (ids.length === 0) return;
   if (done) {
@@ -922,6 +949,11 @@ export async function removePlanBlock(input: { blockId: string }) {
 export type HabitCascadeResult = {
   parentJustCompleted: boolean;
   blockToastMessage: string | null;
+  // Si al marcar HECHO este hábito resultó tener reminder_activity_id
+  // configurado y ese destino no está done hoy — quien llama (toggleLogToday/
+  // adjustCounter) lo pasa tal cual en su resultado para que SafeActionButton
+  // abra el modal de recordatorio (ver app/dashboard/reminder-bus.ts).
+  reminder: { targetActivityId: string; text: string } | null;
 };
 
 // Punto de entrada desde toggleLogToday/adjustCounter — TODO en una
@@ -948,7 +980,11 @@ export async function applyHabitToggle(
   valueOverride?: number,
 ): Promise<HabitCascadeResult> {
   const [activity] = await db
-    .select({ parentId: activities.parentId })
+    .select({
+      parentId: activities.parentId,
+      reminderActivityId: activities.reminderActivityId,
+      reminderText: activities.reminderText,
+    })
     .from(activities)
     .where(and(eq(activities.id, activityId), eq(activities.userId, userId)));
   if (!activity) throw new Error("Hábito no encontrado");
@@ -1086,7 +1122,15 @@ export async function applyHabitToggle(
     }
   }
 
-  return { parentJustCompleted, blockToastMessage };
+  let reminder: { targetActivityId: string; text: string } | null = null;
+  if (done && activity.reminderActivityId && activity.reminderText) {
+    const targetDone = await isActivityDoneOnDate(userId, activity.reminderActivityId, date);
+    if (!targetDone) {
+      reminder = { targetActivityId: activity.reminderActivityId, text: activity.reminderText };
+    }
+  }
+
+  return { parentJustCompleted, blockToastMessage, reminder };
 }
 
 // ─── Gestión del árbol de hábitos (nombre/hora/secundario, orden, mover,

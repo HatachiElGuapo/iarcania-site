@@ -4,12 +4,26 @@ import { type ReactNode, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast, type ToastInput } from "@/components/ui/toast";
 import { useBusyGuard } from "./busy-guard";
+import { showReminder } from "./reminder-bus";
 import {
   pickBlockPraise,
   streakMilestoneCrossed,
   pickStreakMilestoneMessage,
   pickProtectorGainedMessage,
 } from "@/lib/plan/praise";
+
+// Recordatorio al completar un hábito (applyHabitToggle) — se revisa SIEMPRE,
+// pase o no `onResult` propio: ese prop reemplaza el toast de felicitación,
+// pero el recordatorio es un efecto global que no depende de qué pantalla
+// hizo el toggle (árbol, tarjetas, móvil). `fields.date` ya viaja en TODO
+// toggleLogToday/adjustCounter, así que siempre está disponible acá.
+function maybeShowReminder(result: unknown, fields: Record<string, string>) {
+  if (!result || typeof result !== "object" || !("reminder" in result)) return;
+  const r = result as { reminder: { targetActivityId: string; text: string } | null };
+  if (r.reminder && fields.date) {
+    showReminder({ targetActivityId: r.reminder.targetActivityId, text: r.reminder.text, date: fields.date });
+  }
+}
 
 // Si quien llama no pasa `onResult`, el resultado se interpreta solo por su
 // forma — así un uso genérico desde un Server Component (sin closures, que
@@ -87,6 +101,7 @@ export function SafeActionButton({
         const result = await action(fd);
         if (onResult) onResult(result);
         else defaultOnResult(result, toast);
+        maybeShowReminder(result, fields);
         router.refresh();
       } catch (err) {
         if (isStaleServerActionError(err)) {

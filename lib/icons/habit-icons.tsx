@@ -50,6 +50,7 @@ import {
   Heart,
   Utensils,
   Handshake,
+  SkipForward,
   type LucideIcon,
 } from "lucide-react";
 
@@ -110,6 +111,7 @@ export const BLOCK_KIND_ICONS: Record<string, LucideIcon> = {
   rutina: Repeat,
   descanso: Moon,
   cita: Phone,
+  secundarios: SkipForward,
 };
 
 // Genérico para cualquier hábito/subhábito sin activities.icon propio.

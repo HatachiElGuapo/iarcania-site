@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { AgendaEvent } from "@/lib/agenda/day-events";
 import { fmtTime, fmtDuration } from "@/lib/agenda/time";
 import { primaryActionFor } from "@/lib/plan/primary-action";
@@ -15,6 +16,8 @@ import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pi
 import { BlockIcon } from "@/lib/icons/habit-icons";
 import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import type { HabitNode } from "@/lib/plan/sub-habits";
+import { cascadeDoneInGroups, countTotals, SecondaryModalContent } from "./secondary-section";
+import type { SecondaryBand, SecondaryEntry } from "@/lib/plan/secondary";
 
 function countDeep(nodes: HabitNode[]): { done: number; total: number } {
   return nodes.reduce(
@@ -34,12 +37,30 @@ function countDeep(nodes: HabitNode[]): { done: number; total: number } {
 // curso"/"vencido" y la línea de "ahora" los agrega DayTimeline por
 // fuera (BlockTimelineState/NowMarkerSlot) — esta fila no sabe nada de
 // eso, solo pinta su propio contenido.
-export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
+export function DayEventRow({
+  ev,
+  date,
+  secondaryGroups,
+}: {
+  ev: AgendaEvent;
+  date: string;
+  secondaryGroups?: Record<SecondaryBand, SecondaryEntry[]>;
+}) {
   const primary = primaryActionFor(ev, date);
   const toast = useToast();
   const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(ev.refId, ev.done);
   const hasTree = (ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0) || false;
   const flexibleCount = ev.flexible ? countDeep(ev.habitChecks ?? []) : null;
+  const isSecondaryBlock = ev.kind === "plan" && ev.planKind === "secundarios";
+
+  const [secGroups, setSecGroups] = useState(secondaryGroups);
+  useEffect(() => {
+    if (secondaryGroups) setSecGroups(secondaryGroups);
+  }, [secondaryGroups]);
+  function onSecondaryToggled(activityId: string, done: boolean) {
+    setSecGroups((g) => g && cascadeDoneInGroups(g, activityId, done));
+  }
+  const secTotals = secGroups ? countTotals(secGroups) : null;
 
   function handlePlanResult(result: unknown) {
     if (!result || typeof result !== "object") return;
@@ -98,6 +119,9 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
               · cuando lo hagas
               {flexibleCount && flexibleCount.total > 0 && ` · ${flexibleCount.done}/${flexibleCount.total}`}
             </span>
+          )}
+          {isSecondaryBlock && secTotals && (
+            <span className="text-meta text-ink-dim"> · {secTotals.done}/{secTotals.total} secundarios</span>
           )}
         </span>
       </div>
@@ -158,7 +182,13 @@ export function DayEventRow({ ev, date }: { ev: AgendaEvent; date: string }) {
           </a>
         )}
       </div>
-      {hasTree &&
+      {isSecondaryBlock && secGroups && (
+        <div className="ml-9">
+          <SecondaryModalContent groups={secGroups} date={date} onToggled={onSecondaryToggled} />
+        </div>
+      )}
+      {!isSecondaryBlock &&
+        hasTree &&
         (ev.flexible ? (
           flexibleOpen && (
             <div className="ml-9">

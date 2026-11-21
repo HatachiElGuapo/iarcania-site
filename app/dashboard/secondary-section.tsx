@@ -44,7 +44,7 @@ function cascadeDoneLocal(nodes: HabitNode[], targetId: string, done: boolean): 
   return walk(nodes).list;
 }
 
-function cascadeDoneInGroups(
+export function cascadeDoneInGroups(
   groups: Record<SecondaryBand, SecondaryEntry[]>,
   activityId: string,
   done: boolean,
@@ -55,7 +55,7 @@ function cascadeDoneInGroups(
   return { manana: updateEntries(groups.manana), tarde: updateEntries(groups.tarde), noche: updateEntries(groups.noche) };
 }
 
-function countTotals(groups: Record<SecondaryBand, SecondaryEntry[]>) {
+export function countTotals(groups: Record<SecondaryBand, SecondaryEntry[]>) {
   const entries = [...groups.manana, ...groups.tarde, ...groups.noche];
   return { total: entries.length, done: entries.filter((e) => e.node.done).length };
 }
@@ -156,7 +156,10 @@ function SecondaryGroupEntry({
   );
 }
 
-function SecondaryModalContent({
+// Exportado también para el bloque de Plan kind="secundarios" (día-event-
+// row.tsx/mobile-day-row.tsx) — misma lista agrupada por franja, sin el
+// envoltorio de CompactModalCard.
+export function SecondaryModalContent({
   groups,
   date,
   onToggled,

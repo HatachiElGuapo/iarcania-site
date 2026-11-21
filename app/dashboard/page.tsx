@@ -609,7 +609,7 @@ export default async function RutinasPage({
               {morningEvents.length === 0 ? (
                 <EmptyState icon="☀️">Nada agendado antes de las {MORNING_END}.</EmptyState>
               ) : (
-                morningEvents.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
+                morningEvents.map((e) => <DayEventRow key={e.key} ev={e} date={date} secondaryGroups={secondaryGroups} />)
               )}
             </div>
           </details>
@@ -658,7 +658,7 @@ export default async function RutinasPage({
                     start: e.start,
                     end: e.start + e.duration,
                     done: e.done,
-                    node: <DayEventRow ev={e} date={date} />,
+                    node: <DayEventRow ev={e} date={date} secondaryGroups={secondaryGroups} />,
                   }))}
                   isToday={isToday}
                 />
@@ -679,7 +679,7 @@ export default async function RutinasPage({
               {nightEvents.length === 0 ? (
                 <EmptyState icon="☾">Nada agendado desde las {EVENING_START}.</EmptyState>
               ) : (
-                nightEvents.map((e) => <DayEventRow key={e.key} ev={e} date={date} />)
+                nightEvents.map((e) => <DayEventRow key={e.key} ev={e} date={date} secondaryGroups={secondaryGroups} />)
               )}
             </div>
           </details>
@@ -998,7 +998,7 @@ function MobileHoy({
           {morningEvents.length === 0 ? (
             <EmptyState icon="☀️">Nada agendado antes de las {MORNING_END}.</EmptyState>
           ) : (
-            morningEvents.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} />)
+            morningEvents.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} secondaryGroups={secondaryGroups} />)
           )}
         </div>
       </details>
@@ -1026,7 +1026,7 @@ function MobileHoy({
                 start: ev.start,
                 end: ev.start + ev.duration,
                 done: ev.done,
-                node: <MobileDayRow ev={ev} date={date} />,
+                node: <MobileDayRow ev={ev} date={date} secondaryGroups={secondaryGroups} />,
               }))}
               isToday={isToday}
             />
@@ -1047,7 +1047,7 @@ function MobileHoy({
           {nightEvents.length === 0 ? (
             <EmptyState icon="☾">Nada agendado desde las {EVENING_START}.</EmptyState>
           ) : (
-            nightEvents.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} />)
+            nightEvents.map((ev) => <MobileDayRow key={ev.key} ev={ev} date={date} secondaryGroups={secondaryGroups} />)
           )}
         </div>
       </details>
