@@ -22,6 +22,9 @@ export type HabitViewItem = {
   countSteps: number[] | null;
   currentValue: number;
   done: boolean;
+  weeklyTarget: number | null;
+  weekCount: number;
+  weekStreak: number;
   streak: number;
   week: { done: boolean }[];
 };
@@ -171,12 +174,23 @@ function HabitRow({
         <span className={`block truncate text-sm ${h.done ? "text-ink-dim line-through" : "text-ink"}`}>{h.name}</span>
         <span className="mt-0.5 block truncate text-[10px] text-ink-dim">{h.horaSugerida ?? "cualquier hora"}</span>
       </span>
-      <span className="flex shrink-0 gap-[2px]">
-        {h.week.map((c, i) => (
-          <span key={i} className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`} />
-        ))}
-      </span>
-      <Badge tone="warm">🔥 {h.streak}</Badge>
+      {h.weeklyTarget != null ? (
+        <>
+          <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">
+            {h.weekCount}/{h.weeklyTarget} esta semana
+          </span>
+          <Badge tone="warm">🔥 {h.weekStreak}</Badge>
+        </>
+      ) : (
+        <>
+          <span className="flex shrink-0 gap-[2px]">
+            {h.week.map((c, i) => (
+              <span key={i} className={`h-3.5 w-[7px] rounded-[2px] ${c.done ? "bg-success/25" : "bg-surface-2"}`} />
+            ))}
+          </span>
+          <Badge tone="warm">🔥 {h.streak}</Badge>
+        </>
+      )}
     </SafeActionButton>
   );
 }

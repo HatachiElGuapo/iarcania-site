@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { todayISO, addDaysISO, currentMonthRangeISO, BOGOTA_OFFSET } from "@/lib/date/bogota";
-import { computeDailyStreak } from "@/lib/habitos/streak";
+import { computeDailyStreak, computeWeeklyStreak } from "@/lib/habitos/streak";
 import { Table, TableHead, TableRow, EmptyState, cx, ListCard } from "@/components/ui";
 
 function currentWeekRange(today: string) {
@@ -14,6 +14,10 @@ function currentWeekRange(today: string) {
 }
 
 const COLS = "minmax(0,1fr) 110px 130px";
+
+function frequencyLabel(h: { frequency: string; weeklyTarget: number | null }): string {
+  return h.weeklyTarget != null ? `${h.weeklyTarget}x/semana` : h.frequency;
+}
 
 export default async function RachasPage() {
   const session = await auth();
@@ -26,7 +30,13 @@ export default async function RachasPage() {
     .where(and(eq(activities.userId, userId), eq(activities.isActive, true)))
     .orderBy(asc(activities.frequency), asc(activities.name));
 
-  const dailyIds = habits.filter((h) => h.frequency === "diaria").map((h) => h.id);
+  // weeklyTarget (ver lib/db/schema/habitos.ts): un hábito "diaria" con esto
+  // puesto no es diario de verdad — se le calcula racha en semanas, no en
+  // días (computeWeeklyStreak), así que necesita el mismo historial
+  // completo que un diario pero se excluye de dailyIds para no calcularle
+  // también una racha diaria sin sentido.
+  const dailyIds = habits.filter((h) => h.frequency === "diaria" && h.weeklyTarget == null).map((h) => h.id);
+  const weeklyTargetIds = habits.filter((h) => h.weeklyTarget != null).map((h) => h.id);
   const weeklyIds = habits.filter((h) => h.frequency === "semanal").map((h) => h.id);
   const monthlyIds = habits.filter((h) => h.frequency === "mensual").map((h) => h.id);
 
@@ -34,11 +44,13 @@ export default async function RachasPage() {
   const month = currentMonthRangeISO();
 
   const [dailyLogs, weeklyLogs, monthlyLogs] = await Promise.all([
-    dailyIds.length
+    dailyIds.length || weeklyTargetIds.length
       ? db
           .select({ activityId: activityLogs.activityId, date: activityLogs.date })
           .from(activityLogs)
-          .where(and(eq(activityLogs.userId, userId), inArray(activityLogs.activityId, dailyIds)))
+          .where(
+            and(eq(activityLogs.userId, userId), inArray(activityLogs.activityId, [...dailyIds, ...weeklyTargetIds])),
+          )
       : Promise.resolve([]),
     weeklyIds.length
       ? db
@@ -99,7 +111,7 @@ export default async function RachasPage() {
                 return (
                   <TableRow key={h.id} cols={COLS}>
                     <span className="truncate text-ink">{h.name}</span>
-                    <span className="text-meta text-ink-muted">{h.frequency}</span>
+                    <span className="text-meta text-ink-muted">{frequencyLabel(h)}</span>
                     <span className={cx("text-right text-sm font-semibold", tone)}>{indicator}</span>
                   </TableRow>
                 );
@@ -113,7 +125,7 @@ export default async function RachasPage() {
                 <ListCard key={h.id}>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[15px] text-ink">{h.name}</div>
-                    <div className="mt-0.5 text-[11px] text-ink-dim">{h.frequency}</div>
+                    <div className="mt-0.5 text-[11px] text-ink-dim">{frequencyLabel(h)}</div>
                   </div>
                   <span className={cx("shrink-0 text-[14px] font-semibold", tone)}>{indicator}</span>
                 </ListCard>
@@ -127,12 +139,19 @@ export default async function RachasPage() {
 }
 
 function streakIndicator(
-  h: { id: string; frequency: string },
+  h: { id: string; frequency: string; weeklyTarget: number | null },
   today: string,
   datesByActivity: Map<string, string[]>,
   doneThisWeek: Set<string>,
   doneThisMonth: Set<string>,
 ): { indicator: string; tone: string } {
+  if (h.weeklyTarget != null) {
+    const { countThisWeek, streakWeeks } = computeWeeklyStreak(datesByActivity.get(h.id) ?? [], h.weeklyTarget, today);
+    const base = `${countThisWeek}/${h.weeklyTarget} esta semana`;
+    return streakWeeks > 0
+      ? { indicator: `${base} · 🔥 ${streakWeeks} sem.`, tone: "text-accent-warm" }
+      : { indicator: base, tone: "text-ink-dim" };
+  }
   if (h.frequency === "diaria") {
     const streak = computeDailyStreak(datesByActivity.get(h.id) ?? [], today);
     return streak > 0

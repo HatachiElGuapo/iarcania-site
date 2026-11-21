@@ -17,6 +17,7 @@ import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type Orp
 import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMinimumBlock, type PendingSecondaryHabit } from "@/lib/plan/pending";
 import { computeVicioStats, type VicioStats } from "@/lib/habits/vicio-stats";
 import { isCounterDone } from "@/lib/habits/counter";
+import { computeWeeklyStreak } from "@/lib/habitos/streak";
 import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
 import { SecondaryCard } from "./secondary-section";
 import { HabitsCard } from "./habits-card";
@@ -154,6 +155,7 @@ export default async function RutinasPage({
         targetValue: activities.targetValue,
         unit: activities.unit,
         countSteps: activities.countSteps,
+        weeklyTarget: activities.weeklyTarget,
       })
       .from(activities)
       .where(
@@ -250,8 +252,12 @@ export default async function RutinasPage({
     logsByHabit.get(l.activityId)!.add(l.date);
     if (l.date === date) todayValueByHabit.set(l.activityId, l.value);
   }
-  const bestStreak = dailyHabits.length
-    ? Math.max(...dailyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date)))
+  // weeklyTarget (hábito no diario, ver lib/db/schema/habitos.ts) no entra
+  // en la racha diaria "mejor racha" del header — no tiene sentido medir en
+  // días algo que se espera saltar de a propósito.
+  const dailyOnlyHabits = dailyHabits.filter((h) => h.weeklyTarget == null);
+  const bestStreak = dailyOnlyHabits.length
+    ? Math.max(...dailyOnlyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date)))
     : 0;
 
   const habitsView = dailyHabits
@@ -259,6 +265,8 @@ export default async function RutinasPage({
       const dates = logsByHabit.get(h.id);
       const currentValue = todayValueByHabit.get(h.id) ?? 0;
       const done = h.targetValue != null ? isCounterDone(currentValue, h.targetValue) : (dates?.has(date) ?? false);
+      const { countThisWeek, streakWeeks } =
+        h.weeklyTarget != null ? computeWeeklyStreak([...(dates ?? [])], h.weeklyTarget, date) : { countThisWeek: 0, streakWeeks: 0 };
       return {
         id: h.id,
         name: h.name,
@@ -270,6 +278,9 @@ export default async function RutinasPage({
         countSteps: h.countSteps,
         currentValue,
         done,
+        weeklyTarget: h.weeklyTarget,
+        weekCount: countThisWeek,
+        weekStreak: streakWeeks,
         streak: computeStreak(dates, date),
         week: weekCells(dates, date),
       };
@@ -835,6 +846,9 @@ type MobileHoyProps = {
     countSteps: number[] | null;
     currentValue: number;
     done: boolean;
+    weeklyTarget: number | null;
+    weekCount: number;
+    weekStreak: number;
     streak: number;
     week: { done: boolean }[];
   }[];

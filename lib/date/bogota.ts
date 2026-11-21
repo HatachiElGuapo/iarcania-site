@@ -53,6 +53,11 @@ export function weekdayMon0(dateISO: string): number {
   return (jsDay + 6) % 7;
 }
 
+// Lunes de la semana (lunes–domingo) que contiene `dateISO`, Bogotá.
+export function mondayOfWeekISO(dateISO: string): string {
+  return addDaysISO(dateISO, -weekdayMon0(dateISO));
+}
+
 // Primer y último día del mes actual (Bogotá), sin arrastrar Date local.
 export function currentMonthRangeISO(): { from: string; to: string } {
   const today = todayISO();

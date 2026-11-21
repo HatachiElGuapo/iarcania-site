@@ -139,6 +139,10 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
           eq(activities.isActive, true),
           eq(activities.frequency, "diaria"),
           isNull(activities.parentId),
+          // weeklyTarget (hábito no diario, ver lib/db/schema/habitos.ts):
+          // no es "pendiente de hoy" — no se le dibuja como item virtual de
+          // Tu día, se marca desde la tarjeta de Hábitos cuando toque.
+          isNull(activities.weeklyTarget),
         ),
       ),
     db

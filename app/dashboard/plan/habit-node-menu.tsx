@@ -52,6 +52,7 @@ export function HabitNodeMenu({
   const [targetValue, setTargetValue] = useState(node.targetValue != null ? String(node.targetValue) : "");
   const [unit, setUnit] = useState(node.unit ?? "");
   const [countSteps, setCountSteps] = useState(node.countSteps ? node.countSteps.join(", ") : "");
+  const [weeklyTarget, setWeeklyTarget] = useState(node.weeklyTarget != null ? String(node.weeklyTarget) : "");
   const [newParentId, setNewParentId] = useState("");
   const [childName, setChildName] = useState("");
   const [childOptional, setChildOptional] = useState(false);
@@ -87,6 +88,7 @@ export function HabitNodeMenu({
       fd.set("targetValue", targetValue);
       fd.set("unit", unit);
       fd.set("countSteps", countSteps);
+      fd.set("weeklyTarget", weeklyTarget);
       return updateHabitNode(fd);
     });
 
@@ -247,6 +249,21 @@ export function HabitNodeMenu({
                   value={countSteps}
                   onChange={(e) => setCountSteps(e.target.value)}
                   placeholder="Pasos de los botones, separados por coma (ej: 100, 200)"
+                  className="focus-ring min-h-11 rounded-ui border border-line bg-canvas px-3 text-[14px] text-ink placeholder:text-ink-dim"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  Veces por semana (vacío = diario)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="7"
+                  value={weeklyTarget}
+                  onChange={(e) => setWeeklyTarget(e.target.value)}
+                  placeholder="ej: 2"
                   className="focus-ring min-h-11 rounded-ui border border-line bg-canvas px-3 text-[14px] text-ink placeholder:text-ink-dim"
                 />
               </div>

@@ -18,6 +18,7 @@ export type HabitNode = {
   targetValue: number | null;
   unit: string | null;
   countSteps: number[] | null;
+  weeklyTarget: number | null;
   currentValue: number;
   done: boolean;
   children: HabitNode[];
@@ -34,6 +35,7 @@ type Row = {
   targetValue: number | null;
   unit: string | null;
   countSteps: number[] | null;
+  weeklyTarget: number | null;
 };
 
 // sort_order ascendente, nombre como desempate — mismo criterio en los 3
@@ -59,6 +61,7 @@ export async function loadHabitTreesByBlock(
       targetValue: activities.targetValue,
       unit: activities.unit,
       countSteps: activities.countSteps,
+      weeklyTarget: activities.weeklyTarget,
     })
     .from(planBlockActivities)
     .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
@@ -79,6 +82,7 @@ export async function loadHabitTreesByBlock(
           targetValue: activities.targetValue,
           unit: activities.unit,
           countSteps: activities.countSteps,
+          weeklyTarget: activities.weeklyTarget,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level1Ids), eq(activities.isActive, true)))
@@ -98,6 +102,7 @@ export async function loadHabitTreesByBlock(
           targetValue: activities.targetValue,
           unit: activities.unit,
           countSteps: activities.countSteps,
+          weeklyTarget: activities.weeklyTarget,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level2Ids), eq(activities.isActive, true)))
@@ -142,6 +147,7 @@ export async function loadHabitTreesByBlock(
       targetValue: r.targetValue,
       unit: r.unit,
       countSteps: r.countSteps,
+      weeklyTarget: r.weeklyTarget,
       currentValue,
       done,
       children,

@@ -170,6 +170,8 @@ export async function updateActivity(formData: FormData) {
   const targetValue = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : null;
   const unit = String(formData.get("unit") || "").trim() || null;
   const countSteps = parseCountSteps(String(formData.get("countSteps") || ""));
+  const rawWeekly = Number(formData.get("weeklyTarget"));
+  const weeklyTarget = Number.isFinite(rawWeekly) && rawWeekly > 0 ? rawWeekly : null;
 
   if (!name) throw new Error("El nombre es obligatorio");
   if (!FREQUENCIES.includes(frequency)) {
@@ -178,7 +180,7 @@ export async function updateActivity(formData: FormData) {
 
   await db
     .update(activities)
-    .set({ name, category, frequency, horaSugerida, sortOrder, diasSemana, targetValue, unit, countSteps })
+    .set({ name, category, frequency, horaSugerida, sortOrder, diasSemana, targetValue, unit, countSteps, weeklyTarget })
     .where(and(eq(activities.id, id), eq(activities.userId, userId)));
 
   revalidateAll();
@@ -416,6 +418,7 @@ export async function toggleLogToday(formData: FormData): Promise<{
           eq(activities.isActive, true),
           eq(activities.frequency, "diaria"),
           isNull(activities.parentId),
+          isNull(activities.weeklyTarget),
         ),
       );
     if (dailyHabits.length > 0) {

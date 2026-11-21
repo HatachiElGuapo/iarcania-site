@@ -5,6 +5,7 @@ import {
   numeric,
   boolean,
   integer,
+  smallint,
   date,
   timestamp,
   index,
@@ -82,6 +83,13 @@ export const activities = pgTable(
       onDelete: "set null",
     }),
     reminderText: text("reminder_text"),
+    // Hábito no diario: cuántas veces por semana (lunes–domingo, Bogotá)
+    // hace falta marcarlo para cumplir la semana — null = diario (el
+    // comportamiento de siempre). Con esto puesto, no se le calcula racha
+    // diaria ni se le exige todos los días (ver computeWeeklyStreak en
+    // lib/habitos/streak.ts): se muestra "x/N esta semana" y la racha es
+    // en semanas consecutivas que cumplieron la meta.
+    weeklyTarget: smallint("weekly_target"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

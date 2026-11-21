@@ -330,6 +330,13 @@
       "when": 1795225758989,
       "tag": "0046_lethal_triton",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795296783205,
+      "tag": "0047_early_maggott",
+      "breakpoints": true
     }
   ]
 }

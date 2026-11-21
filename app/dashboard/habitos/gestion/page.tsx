@@ -155,6 +155,19 @@ export default async function GestionHabitosPage({
               <Input name="countSteps" defaultValue={editing.countSteps?.join(", ") ?? ""} placeholder="100, 200" className="w-44" />
             </Labeled>
           </div>
+          <div className="flex w-full flex-wrap items-end gap-3">
+            <Labeled label="Veces por semana (vacío = diario)">
+              <Input
+                type="number"
+                min="1"
+                max="7"
+                name="weeklyTarget"
+                defaultValue={editing.weeklyTarget ?? ""}
+                placeholder="ej: 2"
+                className="w-28"
+              />
+            </Labeled>
+          </div>
           <Button type="submit">Guardar</Button>
           {showArchived ? (
             <Button

@@ -1221,12 +1221,14 @@ export async function updateHabitNode(formData: FormData) {
   const targetValue = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : null;
   const unit = String(formData.get("unit") || "").trim() || null;
   const countSteps = parseCountSteps(String(formData.get("countSteps") || ""));
+  const rawWeekly = Number(formData.get("weeklyTarget"));
+  const weeklyTarget = Number.isFinite(rawWeekly) && rawWeekly > 0 ? rawWeekly : null;
   if (!id || !name) throw new Error("Faltan datos");
 
   await requireOwnedActivityRow(id, userId);
   await db
     .update(activities)
-    .set({ name, horaSugerida, isOptional, icon, targetValue, unit, countSteps })
+    .set({ name, horaSugerida, isOptional, icon, targetValue, unit, countSteps, weeklyTarget })
     .where(eq(activities.id, id));
 
   revalidatePath("/dashboard/plan");
