@@ -1050,17 +1050,45 @@ export async function applyHabitToggle(
       }
     }
 
-    // Padre completado: todos los hermanos (mismo parent_id) quedaron done
-    // con este click — solo tiene sentido al marcar, no al desmarcar.
-    if (done && activity.parentId) {
-      const siblings = await tx
+    // Cascada hacia arriba por TODO el árbol: cada ancestro (padre, abuelo)
+    // recibe su propio activity_log cuando TODOS sus hijos quedan done —
+    // se lo quita si deja de estarlo. Antes esto solo se calculaba como un
+    // booleano (`parentJustCompleted`, para el toast) sin escribir nada, así
+    // que un padre nunca tenía su propia fila en activity_logs aunque la UI
+    // lo mostrara "hecho" por cómputo — cualquier lectura directa de
+    // activity_logs (rachas, lista de hábitos) lo veía como no hecho. Corre
+    // tanto al marcar como al desmarcar: un hijo que se desmarca puede dejar
+    // de cumplir la condición y hay que borrar la fila del padre.
+    let ancestorId = activity.parentId;
+    let isImmediateParent = true;
+    while (ancestorId) {
+      const [ancestor] = await tx
+        .select({ id: activities.id, parentId: activities.parentId })
+        .from(activities)
+        .where(eq(activities.id, ancestorId));
+      if (!ancestor) break;
+
+      const children = await tx
         .select({ id: activities.id })
         .from(activities)
-        .where(and(eq(activities.parentId, activity.parentId), eq(activities.isActive, true)));
-      if (siblings.length > 0) {
-        const results = await Promise.all(siblings.map((s) => isActivityDoneOnDateTx(tx, userId, s.id, date)));
-        parentJustCompleted = results.every(Boolean);
+        .where(and(eq(activities.parentId, ancestor.id), eq(activities.isActive, true)));
+      const allChildrenDone =
+        children.length > 0 && (await Promise.all(children.map((c) => isActivityDoneOnDateTx(tx, userId, c.id, date)))).every(Boolean);
+
+      const [existingLog] = await tx
+        .select({ id: activityLogs.id })
+        .from(activityLogs)
+        .where(and(eq(activityLogs.userId, userId), eq(activityLogs.activityId, ancestor.id), eq(activityLogs.date, date)));
+
+      if (allChildrenDone && !existingLog) {
+        await tx.insert(activityLogs).values({ userId, activityId: ancestor.id, date });
+        if (isImmediateParent) parentJustCompleted = true;
+      } else if (!allChildrenDone && existingLog) {
+        await tx.delete(activityLogs).where(eq(activityLogs.id, existingLog.id));
       }
+
+      isImmediateParent = false;
+      ancestorId = ancestor.parentId;
     }
 
     for (const info of blockInfos) {
