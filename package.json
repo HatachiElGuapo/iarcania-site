@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run audit:rsc",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "audit:rsc": "node scripts/audit-rsc.mjs",
     "db:generate": "node --env-file=.env.local --env-file-if-exists=.env.development.local node_modules/.bin/drizzle-kit generate",
     "db:migrate": "node --env-file=.env.local --env-file-if-exists=.env.development.local node_modules/.bin/drizzle-kit migrate",
     "db:studio": "node --env-file=.env.local --env-file-if-exists=.env.development.local node_modules/.bin/drizzle-kit studio",

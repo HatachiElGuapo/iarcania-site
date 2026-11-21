@@ -455,6 +455,19 @@ export async function toggleLogToday(formData: FormData): Promise<{
   return { done, toastMessage, reminder: cascade.reminder };
 }
 
+// Wrapper de toggleLogToday para <form action> plano (ej. hábitos
+// "trabajo"/sin contador en app/dashboard/habitos/page.tsx): un <form
+// action> nativo exige `(formData) => void | Promise<void>`, pero
+// toggleLogToday devuelve el resultado tipado que necesita SafeActionButton
+// (toast, recordatorio). Vive ACÁ (archivo "use server") para que sea una
+// Server Action real — un adaptador armado inline en el Server Component
+// que renderiza el <form> no lo es, y React revienta al intentar
+// serializarlo para el cliente ("Functions cannot be passed directly to
+// Client Components").
+export async function toggleLogTodayVoid(formData: FormData): Promise<void> {
+  await toggleLogToday(formData);
+}
+
 // Contador (para "vicios" u otros hábitos frequency='recurrente'): cada
 // click suma una fila nueva — el conteo del día es la cantidad de filas,
 // no un booleano. decrementLog quita la última en vez de todo el día, para

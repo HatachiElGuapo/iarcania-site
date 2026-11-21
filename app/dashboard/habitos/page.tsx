@@ -7,7 +7,7 @@ import { Segmented, EmptyState, Button, cx, ListCard } from "@/components/ui";
 import { currentWorkItem } from "@/lib/habitos/work-queue";
 import { listScriptOptions, type ScriptOption } from "@/lib/scripts-picker";
 import { listBookOptions, type BookOption } from "@/lib/books-picker";
-import { toggleLogToday, incrementLog, decrementLog } from "./actions";
+import { toggleLogTodayVoid, incrementLog, decrementLog } from "./actions";
 
 const FREQ_TABS: { id: string; label: string }[] = [
   { id: "diaria", label: "Diarios" },
@@ -312,7 +312,7 @@ function HabitRow({
   if (freq === "trabajo") {
     return (
       <div className="flex items-start gap-3 rounded-ui border border-line bg-surface px-3.5 py-2">
-        <form action={async (fd) => { await toggleLogToday(fd); }} className="pt-0.5">
+        <form action={toggleLogTodayVoid} className="pt-0.5">
           <input type="hidden" name="activityId" value={h.id} />
           <input type="hidden" name="date" value={date} />
           <button
@@ -333,7 +333,7 @@ function HabitRow({
   }
   return (
     <div className="flex items-center gap-3 rounded-ui border border-line bg-surface px-3.5 py-2">
-      <form action={async (fd) => { await toggleLogToday(fd); }}>
+      <form action={toggleLogTodayVoid}>
         <input type="hidden" name="activityId" value={h.id} />
         <input type="hidden" name="date" value={date} />
         <button
@@ -382,7 +382,7 @@ function MobileHabitRow({
   if (freq === "trabajo") {
     return (
       <ListCard>
-        <form action={async (fd) => { await toggleLogToday(fd); }}>
+        <form action={toggleLogTodayVoid}>
           <input type="hidden" name="activityId" value={h.id} />
           <input type="hidden" name="date" value={date} />
           <button
@@ -431,7 +431,7 @@ function MobileHabitRow({
     );
   }
   return (
-    <form action={async (fd) => { await toggleLogToday(fd); }}>
+    <form action={toggleLogTodayVoid}>
       <input type="hidden" name="activityId" value={h.id} />
       <input type="hidden" name="date" value={date} />
       <button type="submit" className="contents">
