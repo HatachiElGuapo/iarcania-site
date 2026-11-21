@@ -16,7 +16,7 @@ import { SafeActionButton } from "./safe-action-button";
 import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 import { cascadeDoneInGroups, countTotals, SecondaryModalContent } from "./secondary-section";
-import type { SecondaryBand, SecondaryEntry } from "@/lib/plan/secondary";
+import { filterSecondaryGroupsForBlock, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary-bands";
 
 function countDeep(nodes: HabitNode[]): { done: number; total: number } {
   return nodes.reduce(
@@ -57,7 +57,12 @@ export function MobileDayRow({
   function onSecondaryToggled(activityId: string, done: boolean) {
     setSecGroups((g) => g && cascadeDoneInGroups(g, activityId, done));
   }
-  const secTotals = secGroups ? countTotals(secGroups) : null;
+  // El bloque "secundarios" solo muestra/cuenta Mañana+Tarde que vencen
+  // antes de que termine ESTE bloque — Noche (y lo que vence después)
+  // sigue en la tarjeta "Secundarios"/Pendientes, no acá.
+  const secGroupsForBlock =
+    isSecondaryBlock && secGroups ? filterSecondaryGroupsForBlock(secGroups, fmtTime(ev.start + ev.duration)) : null;
+  const secTotals = secGroupsForBlock ? countTotals(secGroupsForBlock) : null;
 
   const row = (
     <ListCard
@@ -136,9 +141,9 @@ export function MobileDayRow({
           )}
         </div>
       </div>
-      {isSecondaryBlock && secGroups && (
+      {isSecondaryBlock && secGroupsForBlock && (
         <div className="ml-2">
-          <SecondaryModalContent groups={secGroups} date={date} onToggled={onSecondaryToggled} />
+          <SecondaryModalContent groups={secGroupsForBlock} date={date} onToggled={onSecondaryToggled} />
         </div>
       )}
       {!isSecondaryBlock && ev.kind === "plan" && hasTree && (

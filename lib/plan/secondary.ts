@@ -6,6 +6,14 @@ import type { PlanContext } from "./load";
 import { toPlanData } from "./load";
 import { resolvePlan } from "./resolve";
 import { loadHabitTreesByBlock, type HabitNode } from "./sub-habits";
+import { bandOf, groupSecondaryEntries, filterSecondaryGroupsForBlock, type SecondaryBand, type SecondaryEntry } from "./secondary-bands";
+
+// Re-exportados tal cual — los tipos/helpers puros viven en secondary-
+// bands.ts (sin imports de DB) para que los componentes "use client" los
+// puedan importar sin arrastrar loadHabitTreesByBlock/lib/db/client.ts a
+// su bundle. Este archivo (con DB real) los reexporta para no romper a
+// quien ya los importaba de acá.
+export { bandOf, groupSecondaryEntries, filterSecondaryGroupsForBlock, type SecondaryBand, type SecondaryEntry };
 
 // Separa un árbol en { principal, secondary }: un nodo is_optional=true se
 // saca ENTERO (con todo su propio subárbol tal cual, sin volver a
@@ -27,31 +35,6 @@ export function splitPrincipalSecondary(nodes: HabitNode[]): { principal: HabitN
     }
   }
   return { principal, secondary };
-}
-
-export type SecondaryBand = "manana" | "tarde" | "noche";
-
-export type SecondaryEntry = {
-  node: HabitNode;
-  dueTime: string;
-  blockId: string;
-  blockText: string;
-  blockStartTime: string;
-};
-
-// Mañana: antes de 12:00. Tarde: 12:00–18:00. Noche: después de 18:00.
-export function bandOf(hhmm: string): SecondaryBand {
-  const [h] = hhmm.split(":").map(Number);
-  if (h < 12) return "manana";
-  if (h < 18) return "tarde";
-  return "noche";
-}
-
-export function groupSecondaryEntries(entries: SecondaryEntry[]): Record<SecondaryBand, SecondaryEntry[]> {
-  const groups: Record<SecondaryBand, SecondaryEntry[]> = { manana: [], tarde: [], noche: [] };
-  for (const e of entries) groups[bandOf(e.dueTime)].push(e);
-  (Object.keys(groups) as SecondaryBand[]).forEach((k) => groups[k].sort((a, b) => a.dueTime.localeCompare(b.dueTime)));
-  return groups;
 }
 
 // Todos los secundarios (principales de nivel 1 marcados is_optional, o
