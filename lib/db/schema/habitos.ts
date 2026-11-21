@@ -33,9 +33,12 @@ export const activities = pgTable(
     category: text("category"),
     // 'diaria' | 'semanal' | 'mensual' | 'unica' | 'recurrente' | 'trabajo'
     frequency: text("frequency").notNull().default("diaria"),
-    // Solo para frequency='trabajo': qué días de la semana aplica (0=lunes
-    // … 6=domingo, mismo orden que plan_blocks.weekday). Null en los demás
-    // tipos.
+    // Qué días de la semana aplica este hábito — null o vacío = todos los
+    // días. 0=lunes…6=domingo, el índice que calcula weekdayMon0() (lib/
+    // date/bogota.ts), NUNCA comparado contra plan_blocks.weekday (ver
+    // lib/habits/schedule.ts, isScheduledOnDate). Antes solo se usaba para
+    // frequency='trabajo' (qué días corre la cola); ahora filtra en qué
+    // días aparece/cuenta cualquier hábito.
     diasSemana: integer("dias_semana").array(),
     horaSugerida: text("hora_sugerida"),
     // Nombre de ícono lucide-react (ej. "Sun", "BedDouble") — null = usa

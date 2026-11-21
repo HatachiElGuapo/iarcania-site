@@ -3,7 +3,15 @@
 // fase activa, si es festivo, y los bloques/eventos resueltos.
 //
 // Reglas (docs/plan/plan-iarcania-spec.md § Resolver), en este orden:
-//  1. Bloques del día = plan_blocks de ese weekday (0=lunes…6=domingo).
+//  1. Bloques del día = plan_blocks de ese weekday — el índice que calcula
+//     weekdayMon0() (lib/date/bogota.ts) para la fecha, 0=lunes…6=domingo.
+//     Es la convención que escribe TODO el código de Plan que inserta o
+//     mueve bloques (scripts/seed-plan.ts, /dashboard/plan/semana,
+//     moveBlock/assertDateMatchesWeekday en actions.ts) — si una fila de
+//     plan_blocks no la sigue (ej. cargada a mano con otro criterio, como
+//     el EXTRACT(DOW) de Postgres, que es 0=domingo), hay que corregir ESE
+//     dato, no esta comparación: cambiarla rompería la resolución de todos
+//     los demás bloques, que sí están bien.
 //  2. Festivo + el bloque tiene holidayText → usa ese texto, no avanza la
 //     posición de su cola.
 //  3. Bloque con cola → posición actual por (fase, cola), o solo por cola
@@ -52,7 +60,7 @@ export type PlanQueueItem = {
 export type PlanBlockDef = {
   id: string;
   personId: string;
-  weekday: number; // 0-6, 0=lunes
+  weekday: number; // 0-6, mismo índice que weekdayMon0() — ver comentario arriba
   startTime: string;
   endTime: string | null;
   text: string;

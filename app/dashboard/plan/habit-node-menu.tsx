@@ -24,8 +24,11 @@ function flatten(nodes: HabitNode[], depth: number): FlatNode[] {
   return nodes.flatMap((n) => [{ activityId: n.activityId, name: n.name, depth }, ...flatten(n.children, depth + 1)]);
 }
 
-// L M M J V S D — 0=lunes…6=domingo, mismo orden que weekdayMon0/
-// plan_blocks.weekday (ver lib/habits/schedule.ts).
+// L M M J V S D — 0=lunes…6=domingo, el mismo índice que calcula
+// weekdayMon0() para activities.dias_semana (ver lib/habits/schedule.ts).
+// Campo propio de activities, sin relación con plan_blocks.weekday — cada
+// uno se compara contra su propia conversión Mon-0 de la fecha, nunca uno
+// contra el otro.
 const WEEKDAY_LETTERS = ["L", "M", "M", "J", "V", "S", "D"];
 
 // "⋯" de cada hábito/subhábito del árbol de un bloque — editar

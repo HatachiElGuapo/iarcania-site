@@ -176,7 +176,12 @@ export const planBlocks = pgTable(
     personId: uuid("person_id")
       .notNull()
       .references(() => planPeople.id, { onDelete: "cascade" }),
-    // 0 = lunes … 6 = domingo
+    // Índice que calcula weekdayMon0() (lib/date/bogota.ts) para la fecha,
+    // 0=lunes…6=domingo — NO necesariamente el EXTRACT(DOW) nativo de
+    // Postgres (que es 0=domingo). Todo el código que escribe esta columna
+    // (scripts/seed-plan.ts, /dashboard/plan/semana, moveBlock en
+    // actions.ts) usa ese mismo índice; el resolver (lib/plan/resolve.ts)
+    // la compara contra weekdayMon0(fecha) tal cual.
     weekday: integer("weekday").notNull(),
     startTime: text("start_time").notNull(),
     // null = hasta dormir (bloque abierto)
