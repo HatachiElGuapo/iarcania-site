@@ -24,6 +24,10 @@ function flatten(nodes: HabitNode[], depth: number): FlatNode[] {
   return nodes.flatMap((n) => [{ activityId: n.activityId, name: n.name, depth }, ...flatten(n.children, depth + 1)]);
 }
 
+// L M M J V S D — 0=lunes…6=domingo, mismo orden que weekdayMon0/
+// plan_blocks.weekday (ver lib/habits/schedule.ts).
+const WEEKDAY_LETTERS = ["L", "M", "M", "J", "V", "S", "D"];
+
 // "⋯" de cada hábito/subhábito del árbol de un bloque — editar
 // nombre/hora/secundario, subir/bajar de orden, mover a otro padre o al
 // primer nivel, agregar un subhábito, o desactivarlo. Mismo patrón de
@@ -53,6 +57,7 @@ export function HabitNodeMenu({
   const [unit, setUnit] = useState(node.unit ?? "");
   const [countSteps, setCountSteps] = useState(node.countSteps ? node.countSteps.join(", ") : "");
   const [weeklyTarget, setWeeklyTarget] = useState(node.weeklyTarget != null ? String(node.weeklyTarget) : "");
+  const [diasSemana, setDiasSemana] = useState<number[]>(node.diasSemana ?? []);
   const [newParentId, setNewParentId] = useState("");
   const [childName, setChildName] = useState("");
   const [childOptional, setChildOptional] = useState(false);
@@ -89,6 +94,7 @@ export function HabitNodeMenu({
       fd.set("unit", unit);
       fd.set("countSteps", countSteps);
       fd.set("weeklyTarget", weeklyTarget);
+      for (const d of diasSemana) fd.append("diasSemana", String(d));
       return updateHabitNode(fd);
     });
 
@@ -266,6 +272,33 @@ export function HabitNodeMenu({
                   placeholder="ej: 2"
                   className="focus-ring min-h-11 rounded-ui border border-line bg-canvas px-3 text-[14px] text-ink placeholder:text-ink-dim"
                 />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  Días (vacío = todos)
+                </label>
+                <div className="grid grid-cols-7 gap-1">
+                  {WEEKDAY_LETTERS.map((letter, d) => {
+                    const active = diasSemana.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() =>
+                          setDiasSemana((prev) =>
+                            prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b),
+                          )
+                        }
+                        className={`flex h-9 items-center justify-center rounded-ui border text-[12px] font-medium ${
+                          active ? "border-accent bg-accent-soft text-ink" : "border-line text-ink-dim"
+                        }`}
+                      >
+                        {letter}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <button

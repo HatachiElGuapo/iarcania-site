@@ -139,7 +139,7 @@ export default async function RachasPage() {
 }
 
 function streakIndicator(
-  h: { id: string; frequency: string; weeklyTarget: number | null },
+  h: { id: string; frequency: string; weeklyTarget: number | null; diasSemana: number[] | null },
   today: string,
   datesByActivity: Map<string, string[]>,
   doneThisWeek: Set<string>,
@@ -153,7 +153,9 @@ function streakIndicator(
       : { indicator: base, tone: "text-ink-dim" };
   }
   if (h.frequency === "diaria") {
-    const streak = computeDailyStreak(datesByActivity.get(h.id) ?? [], today);
+    // diasSemana (ver lib/habits/schedule.ts): los días que no aplican no
+    // rompen ni cuentan la racha.
+    const streak = computeDailyStreak(datesByActivity.get(h.id) ?? [], today, h.diasSemana);
     return streak > 0
       ? { indicator: `🔥 ${streak} día${streak === 1 ? "" : "s"}`, tone: "text-accent-warm" }
       : { indicator: "—", tone: "text-ink-dim" };

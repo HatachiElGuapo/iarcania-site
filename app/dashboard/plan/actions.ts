@@ -29,6 +29,7 @@ import {
 } from "@/lib/plan/praise";
 import { addDaysISO, weekdayMon0, todayISO, nowHHMM } from "@/lib/date/bogota";
 import { isCounterDone, parseCountSteps } from "@/lib/habits/counter";
+import { isScheduledOnDate, parseDiasSemana } from "@/lib/habits/schedule";
 
 async function requireUserId() {
   const session = await auth();
@@ -146,20 +147,23 @@ export async function linkBlockScript(formData: FormData) {
 // bloque cascada hacia TODOS sus hábitos) como por applyHabitToggle
 // (marcar un hábito cascada hacia sus descendientes y hacia el/los
 // bloque(s) que enlazan su ancestro de primer nivel).
-async function collectDescendantIdsTx(tx: DbTx, activityId: string): Promise<string[]> {
+async function collectDescendantIdsTx(tx: DbTx, activityId: string, date: string): Promise<string[]> {
   const children = await tx
-    .select({ id: activities.id })
+    .select({ id: activities.id, diasSemana: activities.diasSemana })
     .from(activities)
     .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
-  let ids = children.map((c) => c.id);
-  for (const c of children) ids = ids.concat(await collectDescendantIdsTx(tx, c.id));
+  const scheduled = children.filter((c) => isScheduledOnDate(c.diasSemana, date));
+  let ids = scheduled.map((c) => c.id);
+  for (const c of scheduled) ids = ids.concat(await collectDescendantIdsTx(tx, c.id, date));
   return ids;
 }
 
 // done de una activity ese día = tiene su propio log, O (tiene hijos
-// activos Y todos ellos están done) — misma regla recursiva que
-// lib/plan/sub-habits.ts, pero leyendo DENTRO de la transacción (así ve
-// los logs que la misma transacción ya escribió, no una copia vieja).
+// activos Y PROGRAMADOS ese día de la semana (ver isScheduledOnDate) y
+// todos ellos están done) — misma regla recursiva que lib/plan/sub-
+// habits.ts, pero leyendo DENTRO de la transacción (así ve los logs que
+// la misma transacción ya escribió, no una copia vieja). Un hijo que no
+// aplica ese día no cuenta para nada, ni para bien ni para mal.
 async function isActivityDoneOnDateTx(tx: DbTx, userId: string, activityId: string, date: string): Promise<boolean> {
   const [log] = await tx
     .select({ value: activityLogs.value })
@@ -171,12 +175,13 @@ async function isActivityDoneOnDateTx(tx: DbTx, userId: string, activityId: stri
   }
 
   const children = await tx
-    .select({ id: activities.id })
+    .select({ id: activities.id, diasSemana: activities.diasSemana })
     .from(activities)
     .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
-  if (children.length === 0) return false;
+  const scheduled = children.filter((c) => isScheduledOnDate(c.diasSemana, date));
+  if (scheduled.length === 0) return false;
 
-  const results = await Promise.all(children.map((c) => isActivityDoneOnDateTx(tx, userId, c.id, date)));
+  const results = await Promise.all(scheduled.map((c) => isActivityDoneOnDateTx(tx, userId, c.id, date)));
   return results.every(Boolean);
 }
 
@@ -198,12 +203,13 @@ async function isActivityDoneOnDate(userId: string, activityId: string, date: st
   }
 
   const children = await db
-    .select({ id: activities.id })
+    .select({ id: activities.id, diasSemana: activities.diasSemana })
     .from(activities)
     .where(and(eq(activities.parentId, activityId), eq(activities.isActive, true)));
-  if (children.length === 0) return false;
+  const scheduled = children.filter((c) => isScheduledOnDate(c.diasSemana, date));
+  if (scheduled.length === 0) return false;
 
-  const results = await Promise.all(children.map((c) => isActivityDoneOnDate(userId, c.id, date)));
+  const results = await Promise.all(scheduled.map((c) => isActivityDoneOnDate(userId, c.id, date)));
   return results.every(Boolean);
 }
 
@@ -229,12 +235,13 @@ async function setLogsForIdsTx(tx: DbTx, userId: string, ids: string[], date: st
 // marcar/desmarcar el bloque marca/desmarca todo lo que enlaza.
 async function cascadeBlockHabitsTx(tx: DbTx, userId: string, blockId: string, date: string, done: boolean) {
   const level1 = await tx
-    .select({ id: activities.id })
+    .select({ id: activities.id, diasSemana: activities.diasSemana })
     .from(planBlockActivities)
     .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
     .where(and(eq(planBlockActivities.blockId, blockId), eq(activities.isActive, true)));
-  let ids = level1.map((a) => a.id);
-  for (const a of level1) ids = ids.concat(await collectDescendantIdsTx(tx, a.id));
+  const scheduled = level1.filter((a) => isScheduledOnDate(a.diasSemana, date));
+  let ids = scheduled.map((a) => a.id);
+  for (const a of scheduled) ids = ids.concat(await collectDescendantIdsTx(tx, a.id, date));
   await setLogsForIdsTx(tx, userId, ids, date, done);
 }
 
@@ -1033,7 +1040,7 @@ export async function applyHabitToggle(
   const blockOutcomes: { info: BlockInfo; nowDone: boolean }[] = [];
 
   await db.transaction(async (tx) => {
-    const descendantIds = await collectDescendantIdsTx(tx, activityId);
+    const descendantIds = await collectDescendantIdsTx(tx, activityId, date);
     await setLogsForIdsTx(tx, userId, [activityId, ...descendantIds], date, done);
 
     if (valueOverride != null) {
@@ -1063,17 +1070,29 @@ export async function applyHabitToggle(
     let isImmediateParent = true;
     while (ancestorId) {
       const [ancestor] = await tx
-        .select({ id: activities.id, parentId: activities.parentId })
+        .select({ id: activities.id, parentId: activities.parentId, diasSemana: activities.diasSemana })
         .from(activities)
         .where(eq(activities.id, ancestorId));
       if (!ancestor) break;
 
+      // Un ancestro que no aplica ESE día de la semana no tiene un estado
+      // de done que tenga sentido hoy — no se le escribe ni borra nada,
+      // pero se sigue subiendo (su propio padre lo excluye solo de su
+      // cómputo, vía el mismo filtro de abajo).
+      if (!isScheduledOnDate(ancestor.diasSemana, date)) {
+        isImmediateParent = false;
+        ancestorId = ancestor.parentId;
+        continue;
+      }
+
       const children = await tx
-        .select({ id: activities.id })
+        .select({ id: activities.id, diasSemana: activities.diasSemana })
         .from(activities)
         .where(and(eq(activities.parentId, ancestor.id), eq(activities.isActive, true)));
+      const scheduledChildren = children.filter((c) => isScheduledOnDate(c.diasSemana, date));
       const allChildrenDone =
-        children.length > 0 && (await Promise.all(children.map((c) => isActivityDoneOnDateTx(tx, userId, c.id, date)))).every(Boolean);
+        scheduledChildren.length > 0 &&
+        (await Promise.all(scheduledChildren.map((c) => isActivityDoneOnDateTx(tx, userId, c.id, date)))).every(Boolean);
 
       const [existingLog] = await tx
         .select({ id: activityLogs.id })
@@ -1092,11 +1111,12 @@ export async function applyHabitToggle(
     }
 
     for (const info of blockInfos) {
-      const level1 = await tx
-        .select({ id: activities.id, isOptional: activities.isOptional })
+      const level1Raw = await tx
+        .select({ id: activities.id, isOptional: activities.isOptional, diasSemana: activities.diasSemana })
         .from(planBlockActivities)
         .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
         .where(and(eq(planBlockActivities.blockId, info.blockId), eq(activities.isActive, true)));
+      const level1 = level1Raw.filter((a) => isScheduledOnDate(a.diasSemana, date));
       if (level1.length === 0) continue;
 
       const doneFlags = await Promise.all(level1.map((a) => isActivityDoneOnDateTx(tx, userId, a.id, date)));
@@ -1223,12 +1243,13 @@ export async function updateHabitNode(formData: FormData) {
   const countSteps = parseCountSteps(String(formData.get("countSteps") || ""));
   const rawWeekly = Number(formData.get("weeklyTarget"));
   const weeklyTarget = Number.isFinite(rawWeekly) && rawWeekly > 0 ? rawWeekly : null;
+  const diasSemana = parseDiasSemana(formData);
   if (!id || !name) throw new Error("Faltan datos");
 
   await requireOwnedActivityRow(id, userId);
   await db
     .update(activities)
-    .set({ name, horaSugerida, isOptional, icon, targetValue, unit, countSteps, weeklyTarget })
+    .set({ name, horaSugerida, isOptional, icon, targetValue, unit, countSteps, weeklyTarget, diasSemana })
     .where(eq(activities.id, id));
 
   revalidatePath("/dashboard/plan");

@@ -1,18 +1,37 @@
 import { addDaysISO, mondayOfWeekISO } from "@/lib/date/bogota";
+import { isScheduledOnDate } from "@/lib/habits/schedule";
 
 // Racha real calculada sobre el historial completo — a diferencia del
 // original, que en la tarjeta resumen solo mostraba "✓ hoy"/"✓ esta semana"
 // sin contar días consecutivos de verdad. Camina por strings "YYYY-MM-DD"
 // vía addDaysISO en vez de mutar un Date con setDate() — evita cualquier
 // dependencia de la timezone del proceso.
-export function computeDailyStreak(logDates: string[], todayISO: string): number {
+//
+// diasSemana (ver lib/habits/schedule.ts): un día que no aplica se SALTA
+// sin romper la racha ni contar — mismo trato que "hoy sin marcar todavía"
+// (gracia), pero aplicado a cualquier día no programado, no solo a hoy.
+export function computeDailyStreak(logDates: string[], todayISO: string, diasSemana?: number[] | null): number {
   const dates = new Set(logDates);
-  let cursor = dates.has(todayISO) ? todayISO : addDaysISO(todayISO, -1);
-
+  let cursor = todayISO;
   let streak = 0;
-  while (dates.has(cursor)) {
-    streak++;
-    cursor = addDaysISO(cursor, -1);
+  let graceUsed = false;
+
+  while (true) {
+    if (!isScheduledOnDate(diasSemana, cursor)) {
+      cursor = addDaysISO(cursor, -1);
+      continue;
+    }
+    if (dates.has(cursor)) {
+      streak++;
+      cursor = addDaysISO(cursor, -1);
+      continue;
+    }
+    if (!graceUsed && cursor === todayISO) {
+      graceUsed = true;
+      cursor = addDaysISO(cursor, -1);
+      continue;
+    }
+    break;
   }
   return streak;
 }

@@ -8,6 +8,7 @@ import { db } from "@/lib/db/client";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { planBlockActivities, planBlocks } from "@/lib/db/schema/plan";
 import { isCounterDone } from "@/lib/habits/counter";
+import { isScheduledOnDate } from "@/lib/habits/schedule";
 
 export type HabitNode = {
   activityId: string;
@@ -19,6 +20,7 @@ export type HabitNode = {
   unit: string | null;
   countSteps: number[] | null;
   weeklyTarget: number | null;
+  diasSemana: number[] | null;
   currentValue: number;
   done: boolean;
   children: HabitNode[];
@@ -36,6 +38,7 @@ type Row = {
   unit: string | null;
   countSteps: number[] | null;
   weeklyTarget: number | null;
+  diasSemana: number[] | null;
 };
 
 // sort_order ascendente, nombre como desempate — mismo criterio en los 3
@@ -62,6 +65,7 @@ export async function loadHabitTreesByBlock(
       unit: activities.unit,
       countSteps: activities.countSteps,
       weeklyTarget: activities.weeklyTarget,
+      diasSemana: activities.diasSemana,
     })
     .from(planBlockActivities)
     .innerJoin(activities, eq(activities.id, planBlockActivities.activityId))
@@ -83,6 +87,7 @@ export async function loadHabitTreesByBlock(
           unit: activities.unit,
           countSteps: activities.countSteps,
           weeklyTarget: activities.weeklyTarget,
+          diasSemana: activities.diasSemana,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level1Ids), eq(activities.isActive, true)))
@@ -103,6 +108,7 @@ export async function loadHabitTreesByBlock(
           unit: activities.unit,
           countSteps: activities.countSteps,
           weeklyTarget: activities.weeklyTarget,
+          diasSemana: activities.diasSemana,
         })
         .from(activities)
         .where(and(inArray(activities.parentId, level2Ids), eq(activities.isActive, true)))
@@ -117,9 +123,13 @@ export async function loadHabitTreesByBlock(
     : [];
   const valueById = new Map(todayLogs.map((l) => [l.activityId, l.value]));
 
+  // activities.dias_semana: un hijo/nieto que no aplica HOY se saca del
+  // árbol por completo — no se muestra y no cuenta para el done de su
+  // padre (ver isScheduledOnDate). Se filtra ACÁ, antes de agrupar por
+  // padre, para que ni aparezca en childrenByParent.
   const childrenByParent = new Map<string, Row[]>();
   for (const r of [...level2Rows, ...level3Rows]) {
-    if (!r.parentId) continue;
+    if (!r.parentId || !isScheduledOnDate(r.diasSemana, date)) continue;
     const list = childrenByParent.get(r.parentId) ?? [];
     list.push(r);
     childrenByParent.set(r.parentId, list);
@@ -148,13 +158,14 @@ export async function loadHabitTreesByBlock(
       unit: r.unit,
       countSteps: r.countSteps,
       weeklyTarget: r.weeklyTarget,
+      diasSemana: r.diasSemana,
       currentValue,
       done,
       children,
     };
   }
 
-  const sortedLevel1Rows = [...level1Rows].sort(bySortOrder);
+  const sortedLevel1Rows = [...level1Rows].filter((r) => isScheduledOnDate(r.diasSemana, date)).sort(bySortOrder);
 
   const byBlock = new Map<string, HabitNode[]>();
   for (const r of sortedLevel1Rows) {

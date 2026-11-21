@@ -1,7 +1,7 @@
 // node --import tsx --test lib/habitos/streak.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeWeeklyStreak } from "./streak";
+import { computeDailyStreak, computeWeeklyStreak } from "./streak";
 
 // 2026-11-23 es lunes.
 const MONDAY = "2026-11-23";
@@ -36,4 +36,19 @@ test("una semana sin cumplir la meta corta la racha ahí", () => {
   ];
   const { streakWeeks } = computeWeeklyStreak(logs, 2, MONDAY);
   assert.equal(streakWeeks, 2);
+});
+
+test("diasSemana: los días que no aplican se saltan sin romper la racha", () => {
+  // lun/mié/vie marcados tres veces seguidas, hoy (lunes) todavía sin
+  // marcar — no debe romper, y los martes/jueves/fin de semana sin log no
+  // cuentan como días perdidos.
+  const logs = ["2026-11-16", "2026-11-18", "2026-11-20"];
+  const streak = computeDailyStreak(logs, MONDAY, [0, 2, 4]);
+  assert.equal(streak, 3);
+});
+
+test("diasSemana: un día programado sin marcar sí corta la racha", () => {
+  const logs = ["2026-11-20"]; // solo el viernes
+  const streak = computeDailyStreak(logs, MONDAY, [0, 2, 4]);
+  assert.equal(streak, 1);
 });

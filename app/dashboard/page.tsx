@@ -17,7 +17,8 @@ import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type Orp
 import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMinimumBlock, type PendingSecondaryHabit } from "@/lib/plan/pending";
 import { computeVicioStats, type VicioStats } from "@/lib/habits/vicio-stats";
 import { isCounterDone } from "@/lib/habits/counter";
-import { computeWeeklyStreak } from "@/lib/habitos/streak";
+import { computeDailyStreak, computeWeeklyStreak } from "@/lib/habitos/streak";
+import { isScheduledOnDate } from "@/lib/habits/schedule";
 import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
 import { SecondaryCard } from "./secondary-section";
 import { HabitsCard } from "./habits-card";
@@ -102,22 +103,21 @@ function fmtDayShort(iso: string) {
 
 // Racha actual: días consecutivos con log terminando en `from` — si `from`
 // (hoy) todavía no tiene log, la racha previa sigue contando desde ayer
-// (no se rompe hasta que cierre el día sin marcarlo).
-function computeStreak(dates: Set<string> | undefined, from: string): number {
-  if (!dates || dates.size === 0) return 0;
-  let d = dates.has(from) ? from : addDaysISO(from, -1);
-  let streak = 0;
-  while (dates.has(d)) {
-    streak++;
-    d = addDaysISO(d, -1);
-  }
-  return streak;
+// (no se rompe hasta que cierre el día sin marcarlo). diasSemana (hábito
+// no todos los días, ver lib/habits/schedule.ts): los días que no aplican
+// se saltan sin romper ni contar — ver computeDailyStreak.
+function computeStreak(dates: Set<string> | undefined, from: string, diasSemana?: number[] | null): number {
+  return computeDailyStreak(dates ? [...dates] : [], from, diasSemana);
 }
 
-function weekCells(dates: Set<string> | undefined, upTo: string) {
-  const cells: { done: boolean }[] = [];
+// Los días que no aplican (diasSemana) se pintan igual que "hecho" — no
+// tiene sentido mostrarlos como "perdido" si el hábito ni corre ese día.
+function weekCells(dates: Set<string> | undefined, upTo: string, diasSemana?: number[] | null) {
+  const cells: { done: boolean; scheduled: boolean }[] = [];
   for (let i = 6; i >= 0; i--) {
-    cells.push({ done: dates?.has(addDaysISO(upTo, -i)) ?? false });
+    const d = addDaysISO(upTo, -i);
+    const scheduled = isScheduledOnDate(diasSemana, d);
+    cells.push({ done: (dates?.has(d) ?? false) || !scheduled, scheduled });
   }
   return cells;
 }
@@ -156,6 +156,7 @@ export default async function RutinasPage({
         unit: activities.unit,
         countSteps: activities.countSteps,
         weeklyTarget: activities.weeklyTarget,
+        diasSemana: activities.diasSemana,
       })
       .from(activities)
       .where(
@@ -257,10 +258,13 @@ export default async function RutinasPage({
   // días algo que se espera saltar de a propósito.
   const dailyOnlyHabits = dailyHabits.filter((h) => h.weeklyTarget == null);
   const bestStreak = dailyOnlyHabits.length
-    ? Math.max(...dailyOnlyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date)))
+    ? Math.max(...dailyOnlyHabits.map((h) => computeStreak(logsByHabit.get(h.id), date, h.diasSemana)))
     : 0;
 
+  // diasSemana (ver lib/habits/schedule.ts): un hábito con días restringidos
+  // no aparece en la tarjeta de Hábitos los días que no le tocan.
   const habitsView = dailyHabits
+    .filter((h) => isScheduledOnDate(h.diasSemana, date))
     .map((h) => {
       const dates = logsByHabit.get(h.id);
       const currentValue = todayValueByHabit.get(h.id) ?? 0;
@@ -281,8 +285,8 @@ export default async function RutinasPage({
         weeklyTarget: h.weeklyTarget,
         weekCount: countThisWeek,
         weekStreak: streakWeeks,
-        streak: computeStreak(dates, date),
-        week: weekCells(dates, date),
+        streak: computeStreak(dates, date, h.diasSemana),
+        week: weekCells(dates, date, h.diasSemana),
       };
     })
     // hora_sugerida ascendente (sin hora al final), luego sort_order, luego nombre.
@@ -850,7 +854,7 @@ type MobileHoyProps = {
     weekCount: number;
     weekStreak: number;
     streak: number;
-    week: { done: boolean }[];
+    week: { done: boolean; scheduled: boolean }[];
   }[];
   habitsDoneToday: number;
   vicios: { id: string; name: string }[];

@@ -26,7 +26,7 @@ export type HabitViewItem = {
   weekCount: number;
   weekStreak: number;
   streak: number;
-  week: { done: boolean }[];
+  week: { done: boolean; scheduled: boolean }[];
 };
 
 // Tras un deploy, el bundle viejo referencia Server Actions que el server

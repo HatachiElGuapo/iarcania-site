@@ -19,6 +19,7 @@ import { loadHabitTreesByBlock, type HabitNode } from "@/lib/plan/sub-habits";
 import { splitPrincipalSecondary } from "@/lib/plan/secondary";
 import { getPlanExtrasByBlock, type PlanExtra } from "@/lib/plan/extras";
 import { addDaysISO, todayISO } from "@/lib/date/bogota";
+import { isScheduledOnDate } from "@/lib/habits/schedule";
 
 export type AgendaEvent = {
   key: string;
@@ -131,7 +132,12 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
       .from(appointments)
       .where(and(eq(appointments.userId, userId), eq(appointments.status, "pendiente"))),
     db
-      .select({ id: activities.id, name: activities.name, horaSugerida: activities.horaSugerida })
+      .select({
+        id: activities.id,
+        name: activities.name,
+        horaSugerida: activities.horaSugerida,
+        diasSemana: activities.diasSemana,
+      })
       .from(activities)
       .where(
         and(
@@ -299,7 +305,9 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
 
   let habitCursor = HABIT_FALLBACK_START;
   const virtualHabits = dailyHabits
-    .filter((h) => !overriddenHabitIds.has(h.id) && !linkedActivityIds.has(h.id))
+    .filter(
+      (h) => !overriddenHabitIds.has(h.id) && !linkedActivityIds.has(h.id) && isScheduledOnDate(h.diasSemana, date),
+    )
     .map((h) => {
       const hasTime = !!h.horaSugerida && /^\d{1,2}:\d{2}$/.test(h.horaSugerida);
       const start = hasTime ? toMinutes(h.horaSugerida as string) : habitCursor;

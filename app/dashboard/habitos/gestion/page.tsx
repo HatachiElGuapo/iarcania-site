@@ -128,21 +128,20 @@ export default async function GestionHabitosPage({
           <Labeled label="Hora sugerida">
             <Input type="time" name="horaSugerida" defaultValue={editing.horaSugerida ?? ""} className="w-32" />
           </Labeled>
-          {editing.frequency === "trabajo" && (
-            <div className="flex w-full flex-wrap gap-3">
-              {WEEKDAYS.map((d) => (
-                <label key={d.value} className="flex items-center gap-1.5 text-xs text-ink-muted">
-                  <input
-                    type="checkbox"
-                    name="diasSemana"
-                    value={d.value}
-                    defaultChecked={editing.diasSemana?.includes(d.value)}
-                  />
-                  {d.label}
-                </label>
-              ))}
-            </div>
-          )}
+          <div className="flex w-full flex-wrap items-center gap-3">
+            <span className="text-[10.5px] text-ink-dim">Días (vacío = todos):</span>
+            {WEEKDAYS.map((d) => (
+              <label key={d.value} className="flex items-center gap-1.5 text-xs text-ink-muted">
+                <input
+                  type="checkbox"
+                  name="diasSemana"
+                  value={d.value}
+                  defaultChecked={editing.diasSemana?.includes(d.value)}
+                />
+                {d.label}
+              </label>
+            ))}
+          </div>
           <div className="flex w-full flex-wrap items-end gap-3">
             <span className="w-full text-[10.5px] text-ink-dim">Hábito contador (opcional):</span>
             <Labeled label="Meta">
@@ -216,7 +215,7 @@ export default async function GestionHabitosPage({
             <Input type="time" name="horaSugerida" className="w-32" />
           </Labeled>
           <div className="flex w-full flex-wrap items-center gap-3">
-            <span className="text-[10.5px] text-ink-dim">Días (solo para Trabajo):</span>
+            <span className="text-[10.5px] text-ink-dim">Días (vacío = todos):</span>
             {WEEKDAYS.map((d) => (
               <label key={d.value} className="flex items-center gap-1.5 text-xs text-ink-muted">
                 <input type="checkbox" name="diasSemana" value={d.value} />

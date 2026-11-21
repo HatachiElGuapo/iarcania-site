@@ -8,13 +8,9 @@ import { activities, activityLogs, activityQueueItems } from "@/lib/db/schema/ha
 import { applyHabitToggle } from "@/app/dashboard/plan/actions";
 import { pickHabitPraise } from "@/lib/habits/praise";
 import { isCounterDone, parseCountSteps } from "@/lib/habits/counter";
+import { isScheduledOnDate, parseDiasSemana } from "@/lib/habits/schedule";
 
 const FREQUENCIES = ["diaria", "semanal", "mensual", "unica", "recurrente", "trabajo"];
-
-function parseDiasSemana(formData: FormData): number[] | null {
-  const raw = formData.getAll("diasSemana").map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
-  return raw.length ? raw.sort((a, b) => a - b) : null;
-}
 
 async function requireUserId() {
   const session = await auth();
@@ -103,7 +99,7 @@ export async function createActivity(formData: FormData) {
   const frequency = String(formData.get("frequency") || "diaria");
   const horaSugerida = String(formData.get("horaSugerida") || "") || null;
   const sortOrder = Number(formData.get("sortOrder")) || 0;
-  const diasSemana = frequency === "trabajo" ? parseDiasSemana(formData) : null;
+  const diasSemana = parseDiasSemana(formData);
 
   if (!name) throw new Error("El nombre es obligatorio");
   if (!FREQUENCIES.includes(frequency)) {
@@ -165,7 +161,7 @@ export async function updateActivity(formData: FormData) {
   const frequency = String(formData.get("frequency") || "diaria");
   const horaSugerida = String(formData.get("horaSugerida") || "") || null;
   const sortOrder = Number(formData.get("sortOrder")) || 0;
-  const diasSemana = frequency === "trabajo" ? parseDiasSemana(formData) : null;
+  const diasSemana = parseDiasSemana(formData);
   const rawTarget = Number(formData.get("targetValue"));
   const targetValue = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : null;
   const unit = String(formData.get("unit") || "").trim() || null;
@@ -409,8 +405,8 @@ export async function toggleLogToday(formData: FormData): Promise<{
   // lib/plan/sub-habits.ts para la regla de done por árbol).
   let allPrincipalDone = false;
   if (done && isPrincipal && !hasParent) {
-    const dailyHabits = await db
-      .select({ id: activities.id, targetValue: activities.targetValue })
+    const dailyHabitsRaw = await db
+      .select({ id: activities.id, targetValue: activities.targetValue, diasSemana: activities.diasSemana })
       .from(activities)
       .where(
         and(
@@ -421,6 +417,9 @@ export async function toggleLogToday(formData: FormData): Promise<{
           isNull(activities.weeklyTarget),
         ),
       );
+    // diasSemana (ver lib/habits/schedule.ts): un hábito que no aplica hoy
+    // no cuenta para "día cumplido" — como si no existiera ese día.
+    const dailyHabits = dailyHabitsRaw.filter((h) => isScheduledOnDate(h.diasSemana, date));
     if (dailyHabits.length > 0) {
       const targetById = new Map(dailyHabits.map((h) => [h.id, h.targetValue]));
       const todayLogs = await db
