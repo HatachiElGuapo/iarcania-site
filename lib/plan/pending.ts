@@ -81,11 +81,19 @@ export async function getPendingMinimumsForPerson(
 export type PendingSecondaryHabit = {
   activityId: string;
   name: string;
+  icon: string | null;
   horaSugerida: string | null;
   dueTime: string; // hora_sugerida si la tiene, si no la hora de fin del bloque
   blockId: string;
   blockText: string;
   blockStartTime: string;
+  // Hábito contador (ver lib/habits/counter.ts) — mismo CounterControls/
+  // adjustCounter que en el árbol del Plan y SecondaryCard (ver pending-
+  // panel.tsx). null en un hábito simple hecho/no-hecho.
+  targetValue: number | null;
+  unit: string | null;
+  countSteps: number[] | null;
+  currentValue: number;
 };
 
 // Un nodo entero (él mismo y toda su descendencia) sin ningún registro
@@ -142,11 +150,16 @@ export async function getPendingSecondaryHabits(
         out.push({
           activityId: n.activityId,
           name: n.name,
+          icon: n.icon,
           horaSugerida: n.horaSugerida,
           dueTime,
           blockId,
           blockText,
           blockStartTime,
+          targetValue: n.targetValue,
+          unit: n.unit,
+          countSteps: n.countSteps,
+          currentValue: n.currentValue,
         });
       }
       walk(n.children, blockId, blockText, blockStartTime, blockDueTime);

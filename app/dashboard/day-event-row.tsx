@@ -16,7 +16,7 @@ import { pickBlockPraise, streakMilestoneCrossed, pickStreakMilestoneMessage, pi
 import { BlockIcon } from "@/lib/icons/habit-icons";
 import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import type { HabitNode } from "@/lib/plan/sub-habits";
-import { cascadeDoneInGroups, countTotals, SecondaryModalContent } from "./secondary-section";
+import { cascadeDoneInGroups, countTotals, updateValueInGroups, SecondaryModalContent } from "./secondary-section";
 import { filterSecondaryGroupsForBlock, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary-bands";
 
 function countDeep(nodes: HabitNode[]): { done: number; total: number } {
@@ -59,6 +59,9 @@ export function DayEventRow({
   }, [secondaryGroups]);
   function onSecondaryToggled(activityId: string, done: boolean) {
     setSecGroups((g) => g && cascadeDoneInGroups(g, activityId, done));
+  }
+  function onSecondaryCounterChanged(activityId: string, value: number, done: boolean) {
+    setSecGroups((g) => g && cascadeDoneInGroups(updateValueInGroups(g, activityId, value), activityId, done));
   }
   // El bloque "secundarios" solo muestra/cuenta Mañana+Tarde que vencen
   // antes de que termine ESTE bloque — Noche (y lo que vence después)
@@ -189,7 +192,12 @@ export function DayEventRow({
       </div>
       {isSecondaryBlock && secGroupsForBlock && (
         <div className="ml-9">
-          <SecondaryModalContent groups={secGroupsForBlock} date={date} onToggled={onSecondaryToggled} />
+          <SecondaryModalContent
+            groups={secGroupsForBlock}
+            date={date}
+            onToggled={onSecondaryToggled}
+            onCounterChanged={onSecondaryCounterChanged}
+          />
         </div>
       )}
       {!isSecondaryBlock &&

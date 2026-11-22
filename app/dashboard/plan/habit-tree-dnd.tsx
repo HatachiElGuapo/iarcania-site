@@ -27,9 +27,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "../safe-action-button";
 import { useBusyGuard } from "../busy-guard";
-import { toggleLogToday, adjustCounter } from "../habitos/actions";
+import { toggleLogToday } from "../habitos/actions";
 import { reorderHabitNode, moveHabitNodeToParent, moveHabitNodeToTopLevel } from "./actions";
 import { HabitNodeMenu } from "./habit-node-menu";
+import { CounterControls } from "./counter-controls";
 import type { HabitNode } from "@/lib/plan/sub-habits";
 import { HabitIcon } from "@/lib/icons/habit-icons";
 
@@ -202,67 +203,6 @@ function getProjection(items: FlatItem[], activeId: string, overId: string, offs
   return { depth, parentId: getParentId(), overIndex };
 }
 
-// Botones grandes +N/−N de un hábito con meta ("1000 saltos") — zona
-// táctil de 44px mínimo, actualización optimista (el valor/progreso se ve
-// de una, antes de que vuelva la respuesta del servidor). `−` siempre resta
-// el primer paso configurado (mismo que el primer botón "+"), no un valor
-// fijo aparte.
-function CounterControls({
-  node,
-  date,
-  onChanged,
-}: {
-  node: HabitNode;
-  date: string;
-  onChanged: (activityId: string, value: number, done: boolean, toastMessage: string | null) => void;
-}) {
-  const toast = useToast();
-  const [pending, setPending] = useState(false);
-  useBusyGuard(pending);
-  const steps = node.countSteps && node.countSteps.length > 0 ? node.countSteps : [100];
-
-  async function adjust(delta: number) {
-    setPending(true);
-    try {
-      const result = await adjustCounter({ activityId: node.activityId, date, delta });
-      onChanged(node.activityId, result.value, result.done, result.toastMessage);
-    } catch (err) {
-      if (isStaleServerActionError(err)) {
-        toast.show({ message: "Hay una versión nueva, recargando…", tone: "error" });
-        window.location.reload();
-        return;
-      }
-      toast.show({ message: err instanceof Error ? err.message : "No se pudo actualizar.", tone: "error" });
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => adjust(-steps[0])}
-        className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-ui border border-line bg-surface px-3 text-[13px] font-medium text-ink-dim disabled:opacity-50"
-      >
-        −{steps[0]}
-      </button>
-      {steps.map((step) => (
-        <button
-          key={step}
-          type="button"
-          disabled={pending}
-          onClick={() => adjust(step)}
-          className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft px-3 text-[13px] font-medium text-ink disabled:opacity-50"
-        >
-          +{step}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function HabitRow({
   item,
   date,
@@ -364,7 +304,7 @@ function HabitRow({
                 style={{ width: `${Math.min(100, (node.currentValue / node.targetValue) * 100)}%` }}
               />
             </div>
-            <CounterControls node={node} date={date} onChanged={onCounterResult} />
+            <CounterControls activityId={node.activityId} countSteps={node.countSteps} date={date} onChanged={onCounterResult} />
           </div>
         ) : (
           <SafeActionButton
