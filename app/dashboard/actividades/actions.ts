@@ -28,7 +28,13 @@ export async function getTaskDetail(id: string) {
   return row ?? null;
 }
 
-export async function createTask(formData: FormData) {
+// Devuelve el id de la task recién creada — lo usa new-task-form.ts (ver
+// app/dashboard/new-task-form.ts) para enlazarla a "Las 3 de hoy" con
+// linkTaskToFocusSlot (acciones/actions.ts) en un segundo paso, cuando se
+// marcó "Es una de mis 3 acciones". Los demás llamadores (QuickAddOther,
+// NewTaskSheet viejo) ya ignoraban el valor devuelto, así que no rompe
+// nada agregar el retorno.
+export async function createTask(formData: FormData): Promise<{ id: string }> {
   const userId = await requireUserId();
   const title = String(formData.get("title") || "").trim();
   const category = String(formData.get("category") || "") || null;
@@ -48,22 +54,35 @@ export async function createTask(formData: FormData) {
     if (eh * 60 + em <= sh * 60 + sm) throw new Error("La hora de fin debe ser mayor que la de inicio");
   }
 
-  await db.insert(tasks).values({
-    userId,
-    title,
-    category,
-    priority,
-    dueDate,
-    timeDue,
-    timeEnd,
-    notes,
-  });
+  const [row] = await db
+    .insert(tasks)
+    .values({
+      userId,
+      title,
+      category,
+      priority,
+      dueDate,
+      timeDue,
+      timeEnd,
+      notes,
+    })
+    .returning({ id: tasks.id });
 
   revalidatePath("/dashboard/actividades");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/agenda");
   revalidatePath("/dashboard/trabajo");
   revalidatePath("/dashboard/trabajo/tareas");
+  return { id: row.id };
+}
+
+// Mismo createTask, sin el valor de retorno — para los <form action>/
+// <QuickCapture> que no lo necesitan: TS no deja asignar una función que
+// devuelve Promise<{id}> a una prop tipada `(fd) => void | Promise<void>`
+// (esa laxitud de "función void acepta cualquier retorno" no atraviesa un
+// Promise), así que estos sitios usan este wrapper en vez de createTask.
+export async function createTaskForm(formData: FormData): Promise<void> {
+  await createTask(formData);
 }
 
 // Cambiar la hora (y de paso la fecha, si hace falta) de una tarea ya

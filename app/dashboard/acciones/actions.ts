@@ -103,3 +103,51 @@ export async function saveFocusSlot(formData: FormData) {
   await syncTomorrowActionsHabit(userId);
   revalidateAll();
 }
+
+// Qué posiciones (0/1/2 = "Acción 1/2/3") ya están ocupadas en un día —
+// para el selector "Es una de mis 3 acciones" de NewTaskPanel/NewTaskSheet
+// (new-task-form.ts), que necesita saber en vivo cuáles quedan libres
+// para la fecha que se vaya eligiendo ahí (Hoy/Mañana/otra).
+export async function getFocusAvailability(date: string): Promise<{ rank: number; title: string }[]> {
+  const userId = await requireUserId();
+  if (!date) return [];
+  const rows = await db
+    .select({ sortOrder: dailyFocus.sortOrder, title: tasks.title })
+    .from(dailyFocus)
+    .innerJoin(tasks, eq(tasks.id, dailyFocus.taskId))
+    .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.date, date), eq(dailyFocus.listType, "hoy")));
+  return rows.map((r) => ({ rank: r.sortOrder, title: r.title }));
+}
+
+// Enlaza una task YA CREADA (ver createTask en actividades/actions.ts) a
+// una posición libre de "Las 3 de hoy" de un día — usado por el selector
+// "Es una de mis 3 acciones" al crear una tarea nueva, en vez de crear la
+// task de cero como hace saveFocusSlot (ahí el título llega vacío, acá ya
+// existe). Falla si esa posición ya está ocupada — el cliente ya la
+// revisó con getFocusAvailability, esto es el resguardo final contra una
+// carrera entre pestañas.
+export async function linkTaskToFocusSlot(input: { date: string; rank: number; taskId: string }): Promise<void> {
+  const userId = await requireUserId();
+  const { date, rank, taskId } = input;
+  if (!date || ![0, 1, 2].includes(rank) || !taskId) throw new Error("Faltan datos");
+
+  const [owned] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
+  if (!owned) throw new Error("Tarea no encontrada");
+
+  const [existing] = await db
+    .select({ id: dailyFocus.id })
+    .from(dailyFocus)
+    .where(
+      and(
+        eq(dailyFocus.userId, userId),
+        eq(dailyFocus.date, date),
+        eq(dailyFocus.listType, "hoy"),
+        eq(dailyFocus.sortOrder, rank),
+      ),
+    );
+  if (existing) throw new Error(`Acción ${rank + 1} ya está ocupada`);
+
+  await db.insert(dailyFocus).values({ userId, date, listType: "hoy", taskId, sortOrder: rank });
+  await syncTomorrowActionsHabit(userId);
+  revalidateAll();
+}

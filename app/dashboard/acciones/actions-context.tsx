@@ -40,18 +40,3 @@ export function useActionsModal(): Ctx {
   if (!ctx) throw new Error("useActionsModal debe usarse dentro de ActionsModalProvider");
   return ctx;
 }
-
-// Botón suelto para el encabezado del dashboard — abre el mismo modal que
-// la tarjeta "Acciones" de la grilla, directo en la pestaña Mañana.
-export function ActionsHeaderButton() {
-  const { openModal } = useActionsModal();
-  return (
-    <button
-      type="button"
-      onClick={() => openModal("manana")}
-      className="focus-ring inline-flex items-center justify-center gap-2 rounded-ui border border-line px-3.5 py-2 text-body font-medium text-ink-dim transition-colors duration-120 hover:border-line-strong hover:text-ink"
-    >
-      + Acción
-    </button>
-  );
-}

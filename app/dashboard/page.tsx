@@ -6,7 +6,6 @@ import { tasks } from "@/lib/db/schema/trabajo";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
 import { appointments } from "@/lib/db/schema/citas";
 import { planChecks } from "@/lib/db/schema/plan";
-import { CATS } from "@/lib/constants/cats";
 import { todayISO, addDaysISO, nowHHMM } from "@/lib/date/bogota";
 import { buildDayEvents, type AgendaEvent } from "@/lib/agenda/day-events";
 import { fmtTime, fmtDuration } from "@/lib/agenda/time";
@@ -27,7 +26,7 @@ import { BlockIcon } from "@/lib/icons/habit-icons";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import { getDailyActions } from "@/lib/trabajo/daily-actions";
 import { ActionsCard, TodayFocusList, type DayActions } from "./acciones/actions-card";
-import { ActionsModalProvider, ActionsHeaderButton } from "./acciones/actions-context";
+import { ActionsModalProvider } from "./acciones/actions-context";
 import { MORNING_END, EVENING_START, MORNING_END_MIN, EVENING_START_MIN } from "@/lib/agenda/day-sections";
 import {
   PageHeader,
@@ -39,15 +38,12 @@ import {
   Badge,
   EmptyState,
   QuickCapture,
-  Select,
-  Input,
   catInfo,
 } from "@/components/ui";
-import { QuickAddPanel } from "@/components/ui/quick-add-panel";
 import { SectionHeader } from "@/components/ui/section-header";
 import { ListCard } from "@/components/ui/list-card";
-import { createTask } from "./actividades/actions";
 import { createActivity, incrementLog, decrementLog } from "./habitos/actions";
+import { NewTaskPanel } from "./new-task-panel";
 import { NewTaskSheet } from "./new-task-sheet";
 import { DayEventRow } from "./day-event-row";
 import { MobileDayRow } from "./mobile-day-row";
@@ -427,35 +423,13 @@ export default async function RutinasPage({
             <Button variant="secondary" href={`/dashboard/agenda?date=${date}`}>
               Agenda del día
             </Button>
-            <ActionsHeaderButton />
-            <QuickAddPanel
+            <NewTaskPanel
               trigger={
                 <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-ui bg-accent px-3.5 py-2 text-body font-medium text-white transition-colors duration-120 hover:bg-accent/90">
                   + Nueva tarea
                 </button>
               }
-              title="Nueva tarea"
-              action={createTask}
-              placeholder="Nueva tarea para hoy…"
-              hidden={{ dueDate: date }}
-              extras={
-                <>
-                  <Select name="priority" defaultValue="media">
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </Select>
-                  <Select name="category" defaultValue="">
-                    <option value="">Sin categoría</option>
-                    {Object.entries(CATS).map(([key, c]) => (
-                      <option key={key} value={key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </Select>
-                  <Input type="time" name="timeDue" />
-                </>
-              }
+              date={date}
             />
           </>
         }
@@ -642,33 +616,7 @@ export default async function RutinasPage({
             title="Tu día"
             count={`${middayDone} / ${middayEvents.length}`}
             className="border-accent/40 ring-1 ring-accent/15"
-            action={
-              <QuickAddPanel
-                trigger={<button className="text-accent hover:underline">+ Tarea</button>}
-                title="Nueva tarea"
-                action={createTask}
-                placeholder="Nueva tarea para hoy…"
-                hidden={{ dueDate: date }}
-                extras={
-                  <>
-                    <Select name="priority" defaultValue="media">
-                      <option value="alta">Alta</option>
-                      <option value="media">Media</option>
-                      <option value="baja">Baja</option>
-                    </Select>
-                    <Select name="category" defaultValue="">
-                      <option value="">Sin categoría</option>
-                      {Object.entries(CATS).map(([key, c]) => (
-                        <option key={key} value={key}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </Select>
-                    <Input type="time" name="timeDue" />
-                  </>
-                }
-              />
-            }
+            action={<NewTaskPanel trigger={<button className="text-accent hover:underline">+ Tarea</button>} date={date} />}
             flush
           >
             <TodayFocusList focus={hoyActions.focus} date={today} />
@@ -1041,7 +989,6 @@ function MobileHoy({
             Tu día · {middayDone}/{middayEvents.length}
           </div>
           <NewTaskSheet
-            action={createTask}
             date={date}
             openSignal={composeOpen}
             trigger={<button className="text-[13px] text-accent">+ Tarea</button>}

@@ -567,11 +567,13 @@ function TodayFocusRow({
 
 // Vista en línea de las 3 acciones principales de hoy — para el tope de
 // la sección "Tu día" (destacada), sin abrir ningún modal, con su propio
-// estado local resincronizado con las props (igual que ActionsCard). El
-// "+ Acción" de acá abre el mismo modal compartido (useActionsModal), en
-// la pestaña "Hoy" (ahí sigue viviendo la edición de hora).
+// estado local resincronizado con las props (igual que ActionsCard). Las
+// 3 se editan/marcan directo acá (texto, hora, checkbox) — para agregar
+// una tarea nueva como una de las 3 está el selector "Es una de mis 3
+// acciones" de NewTaskPanel/NewTaskSheet (new-task-form.ts); el "+
+// Acción" que abría el modal en la pestaña "Hoy" se quitó de acá (sigue
+// existiendo la tarjeta "Acciones" completa para ver/editar Hoy/Mañana).
 export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot[]; date: string }) {
-  const { openModal } = useActionsModal();
   const [focus, setFocus] = useState(initialFocus);
 
   useEffect(() => setFocus(initialFocus), [initialFocus]);
@@ -594,12 +596,7 @@ export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot
     <div className="flex flex-col gap-0.5 border-b border-line px-3.5 py-3">
       <div className="flex items-center justify-between pb-1">
         <span className="text-sm font-medium text-ink">Hoy</span>
-        <div className="flex items-center gap-2.5">
-          <span className="text-[12px] tabular-nums text-ink-dim">{doneCount(focus)} de 3</span>
-          <button type="button" onClick={() => openModal("hoy")} className="text-[12px] text-accent hover:underline">
-            + Acción
-          </button>
-        </div>
+        <span className="text-[12px] tabular-nums text-ink-dim">{doneCount(focus)} de 3</span>
       </div>
       {focus.map((slot) => (
         <TodayFocusRow key={slot.rank} slot={slot} date={date} onSaved={onSlotSaved} onToggled={onSlotToggled} />
@@ -609,9 +606,10 @@ export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot
 }
 
 // Tarjeta compacta "Acciones" — en reposo "Hoy · X/3 hechas" y "Mañana ·
-// Y/3 definidas". Comparte el modal (vía ActionsModalProvider/
-// useActionsModal) con el botón "+ Acción" del encabezado — cualquiera
-// de los dos abre el mismo diálogo.
+// Y/3 definidas". Único punto para ver/editar Hoy/Mañana (vía
+// ActionsModalProvider/useActionsModal) — ya no comparte el modal con
+// ningún botón "+ Acción" suelto, se quitó tanto del encabezado como de
+// la sección "Hoy" (ver TodayFocusList).
 export function ActionsCard({ hoy: initialHoy, manana: initialManana }: { hoy: DayActions; manana: DayActions }) {
   const { open, tab, setTab, close, openModal } = useActionsModal();
   const [hoy, setHoy] = useState(initialHoy);

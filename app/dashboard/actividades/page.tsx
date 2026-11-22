@@ -24,7 +24,7 @@ import {
   cx,
 } from "@/components/ui";
 import {
-  createTask,
+  createTaskForm,
   toggleTaskStatus,
   archiveTask,
   unarchiveTask,
@@ -540,7 +540,7 @@ export default async function ActividadesPage({
       {/* Quick-add fijo */}
       <div id="nueva-tarea" className="mt-4">
         <QuickCapture
-          action={createTask}
+          action={createTaskForm}
           placeholder="Título de la tarea…"
           submitLabel="+ Nueva tarea"
           extras={

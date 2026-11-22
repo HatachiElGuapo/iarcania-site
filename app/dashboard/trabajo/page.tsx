@@ -9,7 +9,7 @@ import {
   removeFromFocus,
   createWorkNote,
 } from "./actions";
-import { createTask } from "../actividades/actions";
+import { createTaskForm } from "../actividades/actions";
 import { todayISO } from "@/lib/date/bogota";
 
 const CHANNELS = [
@@ -151,7 +151,7 @@ export default async function TrabajoHoyPage({
         )}
 
         <form
-          action={createTask}
+          action={createTaskForm}
           className="flex flex-wrap items-end gap-3 rounded-ui-lg border border-dashed border-line p-3"
         >
           <Labeled label="Nueva tarea">

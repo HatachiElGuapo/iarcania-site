@@ -7,7 +7,7 @@ import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { agendaItems } from "@/lib/db/schema/agenda";
 import { activities, activityLogs } from "@/lib/db/schema/habitos";
-import { tasks } from "@/lib/db/schema/trabajo";
+import { tasks, dailyFocus } from "@/lib/db/schema/trabajo";
 import { appointments } from "@/lib/db/schema/citas";
 import { planChecks } from "@/lib/db/schema/plan";
 import { CATS } from "@/lib/constants/cats";
@@ -112,7 +112,7 @@ export type DayEventsResult = {
 };
 
 export async function buildDayEvents(userId: string, date: string): Promise<DayEventsResult> {
-  const [blocks, allTasks, citas, dailyHabits, habitLogs] = await Promise.all([
+  const [blocks, allTasks, citas, dailyHabits, habitLogs, focusRows] = await Promise.all([
     db
       .select()
       .from(agendaItems)
@@ -167,7 +167,16 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
       .select({ activityId: activityLogs.activityId, value: activityLogs.value })
       .from(activityLogs)
       .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date))),
+    // Las "3 acciones" de ESTE día (daily_focus, list_type='hoy') se ven
+    // solo en TodayFocusList (page.tsx) — se excluyen de la lista general
+    // de tasks acá y, por lo tanto, también de la grilla de Agenda (que
+    // lee `events` de esta misma función), para que no salgan repetidas.
+    db
+      .select({ taskId: dailyFocus.taskId })
+      .from(dailyFocus)
+      .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.date, date), eq(dailyFocus.listType, "hoy"))),
   ]);
+  const focusTaskIds = new Set(focusRows.map((f) => f.taskId));
 
   const doneHabitIds = new Set(habitLogs.map((l) => l.activityId));
   const valueByHabit = new Map(habitLogs.map((l) => [l.activityId, l.value]));
@@ -301,7 +310,8 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
   const dueTodayTasks = allTasks
     // Las "extras de hoy" de un bloque de Plan (plan_block_id) no van
     // sueltas acá — se pintan adentro de su bloque (ver planBlockEvents).
-    .filter((t) => t.dueDate === date && !scheduledTaskIds.has(t.id) && !t.planBlockId)
+    // Las de daily_focus tampoco — se ven solo en "Hoy" (ver focusTaskIds).
+    .filter((t) => t.dueDate === date && !scheduledTaskIds.has(t.id) && !t.planBlockId && !focusTaskIds.has(t.id))
     .map((t) => {
       const hasTime = !!t.timeDue && /^\d{1,2}:\d{2}$/.test(t.timeDue);
       const start = hasTime ? toMinutes(t.timeDue as string) : taskCursor;
@@ -362,6 +372,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
 
   const blockEvents: AgendaEvent[] = blocks
     .filter((b) => !(b.itemType === "habito" && b.itemId && linkedActivityIds.has(b.itemId)))
+    .filter((b) => !(b.itemType === "task" && b.itemId && focusTaskIds.has(b.itemId)))
     .map((b) => {
       const meta = TYPE_META[b.itemType] ?? TYPE_META.nota;
       const title =
