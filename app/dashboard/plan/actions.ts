@@ -27,7 +27,7 @@ import {
   pickStreakMilestoneMessage,
   pickProtectorGainedMessage,
 } from "@/lib/plan/praise";
-import { addDaysISO, weekdayMon0, todayISO, nowHHMM } from "@/lib/date/bogota";
+import { addDaysISO, weekdayMon0, dateToISOBogota, todayISO, nowHHMM } from "@/lib/date/bogota";
 import { isCounterDone, parseCountSteps } from "@/lib/habits/counter";
 import { isScheduledOnDate, parseDiasSemana } from "@/lib/habits/schedule";
 
@@ -54,6 +54,7 @@ export async function requireOwnedBlock(blockId: string, userId: string) {
       holidayText: planBlocks.holidayText,
       text: planBlocks.text,
       isMinimum: planBlocks.isMinimum,
+      createdAt: planBlocks.createdAt,
       ownerId: plans.ownerId,
     })
     .from(planBlocks)
@@ -1019,6 +1020,14 @@ export async function applyHabitToggle(
     for (const { blockId } of blockLinks) {
       const block = await requireOwnedBlock(blockId, userId).catch(() => null);
       if (!block) continue;
+      // Un hábito puede estar enlazado a varios plan_blocks con el MISMO
+      // texto/kind pero un weekday distinto cada uno (ej. "Secundarios
+      // pendientes" con una fila por día de la semana) — solo el que
+      // corresponde al weekday de ESTA fecha (y que ya existía para esa
+      // fecha, igual que filtra resolvePlan) puede recibir el plan_check.
+      // Sin este filtro, marcar el hábito escribía el check en los 7.
+      if (block.weekday !== weekdayMon0(date)) continue;
+      if (date < dateToISOBogota(block.createdAt)) continue;
       const [existingCheck] = await db
         .select({ status: planChecks.status })
         .from(planChecks)
