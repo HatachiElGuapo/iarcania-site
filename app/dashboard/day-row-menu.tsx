@@ -44,6 +44,7 @@ export function TaskHabitMenu({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [time, setTime] = useState(startTime);
   const [note, setNote] = useState("");
   // Cantidad del log de hoy (activity_logs.value) — no se expone como
@@ -130,7 +131,10 @@ export function TaskHabitMenu({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setConfirmDelete(false);
+          setOpen(true);
+        }}
         title="Más acciones"
         className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-ui border border-line text-[15px] text-ink-dim"
       >
@@ -232,14 +236,35 @@ export function TaskHabitMenu({
               </div>
 
               {kind === "task" ? (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={remove}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-ui border border-danger/40 bg-danger/12 text-[13px] font-medium text-danger disabled:opacity-50"
-                >
-                  Eliminar tarea
-                </button>
+                confirmDelete ? (
+                  <div className="flex items-center gap-2 rounded-ui border border-danger/40 bg-danger/12 p-2">
+                    <span className="flex-1 text-[12px] text-danger">¿Borrar «{title}»? No se puede deshacer.</span>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="flex min-h-9 items-center justify-center rounded-ui border border-line px-3 text-[13px] text-ink-muted"
+                    >
+                      Conservar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={remove}
+                      className="flex min-h-9 items-center justify-center rounded-ui bg-danger px-3 text-[13px] font-medium text-white disabled:opacity-50"
+                    >
+                      Borrar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex min-h-11 items-center justify-center gap-2 rounded-ui border border-danger/40 bg-danger/12 text-[13px] font-medium text-danger disabled:opacity-50"
+                  >
+                    Eliminar tarea
+                  </button>
+                )
               ) : (
                 <button
                   type="button"

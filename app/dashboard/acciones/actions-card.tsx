@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition, type FocusEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type FocusEvent } from "react";
 import { useToast } from "@/components/ui/toast";
 import { SafeActionButton } from "../safe-action-button";
 import { saveFocusSlot } from "./actions";
 import { createTask, toggleTaskStatus, rescheduleTask } from "../actividades/actions";
 import { CompactModalCard } from "../compact-modal-card";
 import { useActionsModal } from "./actions-context";
+import { FocusSlotMenu } from "./focus-slot-menu";
 import { addDaysISO } from "@/lib/date/bogota";
 import { fmtDuration } from "@/lib/agenda/time";
 import { planCardWrapperClass, planCardCheckboxClass } from "@/lib/plan/block-style";
 import type { FocusSlot, OtherAction } from "@/lib/trabajo/daily-actions";
+
+const EMPTY_SLOT = (rank: number): FocusSlot => ({ rank, taskId: null, title: "", timeDue: null, timeEnd: null, done: false });
 
 export type DayActions = { date: string; focus: FocusSlot[]; others: OtherAction[] };
 
@@ -54,17 +57,23 @@ export function FocusSlotRow({
   date,
   onSaved,
   onToggled,
+  onOptimisticRemove,
+  onRestore,
 }: {
   slot: FocusSlot;
   date: string;
   onSaved: (rank: number, title: string, timeDue: string | null, timeEnd: string | null) => void;
   onToggled: (rank: number, done: boolean) => void;
+  onOptimisticRemove: (rank: number) => void;
+  onRestore: (rank: number, original: FocusSlot) => void;
 }) {
   const [title, setTitle] = useState(slot.title);
   const [timeDue, setTimeDue] = useState(slot.timeDue ?? "");
   const [timeEnd, setTimeEnd] = useState(slot.timeEnd ?? "");
   const [pending, startTransition] = useTransition();
   const toast = useToast();
+  const titleRef = useRef<HTMLInputElement>(null);
+  const timeDueRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitle(slot.title);
@@ -143,6 +152,7 @@ export function FocusSlotRow({
         Acción {slot.rank + 1}
       </span>
       <input
+        ref={titleRef}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
@@ -161,6 +171,7 @@ export function FocusSlotRow({
       <div className="flex shrink-0 items-center gap-1 text-[11px] text-ink-dim">
         <span>de</span>
         <input
+          ref={timeDueRef}
           type="time"
           value={timeDue}
           onChange={(e) => onStartChange(e.target.value)}
@@ -188,6 +199,16 @@ export function FocusSlotRow({
           className="focus-ring w-[92px] rounded-ui border border-line bg-canvas px-1.5 py-1 text-[12px] text-ink-dim"
         />
       </div>
+      {slot.taskId && (
+        <FocusSlotMenu
+          slot={slot}
+          date={date}
+          onEdit={() => titleRef.current?.focus()}
+          onChangeSchedule={() => timeDueRef.current?.focus()}
+          onOptimisticRemove={() => onOptimisticRemove(slot.rank)}
+          onRestore={() => onRestore(slot.rank, slot)}
+        />
+      )}
     </div>
   );
 }
@@ -349,6 +370,14 @@ function DayTabContent({ day, onChange }: { day: DayActions; onChange: (next: Da
     onChange({ ...day, focus: day.focus.map((f) => (f.rank === rank ? { ...f, done } : f)) });
   }
 
+  function onSlotRemoved(rank: number) {
+    onChange({ ...day, focus: day.focus.map((f) => (f.rank === rank ? EMPTY_SLOT(rank) : f)) });
+  }
+
+  function onSlotRestored(rank: number, original: FocusSlot) {
+    onChange({ ...day, focus: day.focus.map((f) => (f.rank === rank ? original : f)) });
+  }
+
   function onOtherToggled(id: string, done: boolean) {
     onChange({ ...day, others: day.others.map((o) => (o.id === id ? { ...o, done } : o)) });
   }
@@ -366,7 +395,15 @@ function DayTabContent({ day, onChange }: { day: DayActions; onChange: (next: Da
       <div className="flex flex-col gap-1.5">
         <div className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-muted">Las 3 de hoy</div>
         {day.focus.map((slot) => (
-          <FocusSlotRow key={slot.rank} slot={slot} date={day.date} onSaved={onSlotSaved} onToggled={onSlotToggled} />
+          <FocusSlotRow
+            key={slot.rank}
+            slot={slot}
+            date={day.date}
+            onSaved={onSlotSaved}
+            onToggled={onSlotToggled}
+            onOptimisticRemove={onSlotRemoved}
+            onRestore={onSlotRestored}
+          />
         ))}
       </div>
       <div className="flex flex-col gap-1.5">
@@ -389,20 +426,24 @@ function DayTabContent({ day, onChange }: { day: DayActions; onChange: (next: Da
 // la misma validación fin > inicio de saveFocusSlot); el texto se vuelve
 // editable al tocarlo (Enter o salir guarda); vacía, la tarjeta se ve
 // tenue con "Acción N · Escribe tu acción…" y las horas en su "--:--"
-// nativo. "⋯" vacía la acción (mismo saveFocusSlot con título vacío que
-// ya usa el modal completo para borrarla — ahí es borrar el texto a
-// mano, acá un acceso directo). Mismo saveFocusSlot/toggleTaskStatus de
-// siempre, nada de lógica nueva.
+// nativo. "⋯" abre el menú (FocusSlotMenu): Editar/Cambiar horario
+// enfocan los campos de acá mismo; Mover a mañana, Quitar de mis acciones
+// y Borrar tarea son las dos últimas con confirmación + Deshacer (ver ese
+// archivo). Mismo saveFocusSlot/toggleTaskStatus de siempre para lo demás.
 function TodayFocusRow({
   slot,
   date,
   onSaved,
   onToggled,
+  onOptimisticRemove,
+  onRestore,
 }: {
   slot: FocusSlot;
   date: string;
   onSaved: (rank: number, title: string, timeDue: string | null, timeEnd: string | null) => void;
   onToggled: (rank: number, done: boolean) => void;
+  onOptimisticRemove: (rank: number) => void;
+  onRestore: (rank: number, original: FocusSlot) => void;
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState(slot.title);
@@ -410,6 +451,7 @@ function TodayFocusRow({
   const [timeEnd, setTimeEnd] = useState(slot.timeEnd ?? "");
   const [pending, startTransition] = useTransition();
   const toast = useToast();
+  const timeDueRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitle(slot.title);
@@ -471,11 +513,6 @@ function TodayFocusRow({
     save(title, timeDue, value);
   }
 
-  function clear() {
-    setTitle("");
-    save("", timeDue, timeEnd);
-  }
-
   const isEmpty = !slot.title.trim();
   const durationMin = slot.timeDue && slot.timeEnd ? toMinutes(slot.timeEnd) - toMinutes(slot.timeDue) : null;
 
@@ -502,6 +539,7 @@ function TodayFocusRow({
       <div className="flex w-[118px] shrink-0 flex-col items-start leading-tight">
         <div className="flex items-center gap-1 text-[11px] tabular-nums text-ink-dim">
           <input
+            ref={timeDueRef}
             type="time"
             value={timeDue}
             onChange={(e) => onStartChange(e.target.value)}
@@ -552,15 +590,16 @@ function TodayFocusRow({
           </button>
         )}
       </div>
-      <button
-        type="button"
-        onClick={clear}
-        disabled={pending || isEmpty}
-        title="Vaciar acción"
-        className="shrink-0 px-1 text-meta text-ink-dim hover:text-ink disabled:opacity-30"
-      >
-        ⋯
-      </button>
+      {slot.taskId && (
+        <FocusSlotMenu
+          slot={slot}
+          date={date}
+          onEdit={() => setEditingTitle(true)}
+          onChangeSchedule={() => timeDueRef.current?.focus()}
+          onOptimisticRemove={() => onOptimisticRemove(slot.rank)}
+          onRestore={() => onRestore(slot.rank, slot)}
+        />
+      )}
     </div>
   );
 }
@@ -592,6 +631,14 @@ export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot
     setFocus((prev) => prev.map((f) => (f.rank === rank ? { ...f, done } : f)));
   }
 
+  function onSlotRemoved(rank: number) {
+    setFocus((prev) => prev.map((f) => (f.rank === rank ? EMPTY_SLOT(rank) : f)));
+  }
+
+  function onSlotRestored(rank: number, original: FocusSlot) {
+    setFocus((prev) => prev.map((f) => (f.rank === rank ? original : f)));
+  }
+
   return (
     <div className="flex flex-col gap-0.5 border-b border-line px-3.5 py-3">
       <div className="flex items-center justify-between pb-1">
@@ -599,7 +646,15 @@ export function TodayFocusList({ focus: initialFocus, date }: { focus: FocusSlot
         <span className="text-[12px] tabular-nums text-ink-dim">{doneCount(focus)} de 3</span>
       </div>
       {focus.map((slot) => (
-        <TodayFocusRow key={slot.rank} slot={slot} date={date} onSaved={onSlotSaved} onToggled={onSlotToggled} />
+        <TodayFocusRow
+          key={slot.rank}
+          slot={slot}
+          date={date}
+          onSaved={onSlotSaved}
+          onToggled={onSlotToggled}
+          onOptimisticRemove={onSlotRemoved}
+          onRestore={onSlotRestored}
+        />
       ))}
     </div>
   );

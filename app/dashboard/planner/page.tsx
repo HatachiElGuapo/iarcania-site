@@ -15,6 +15,7 @@ import {
 import { todayISO, addDaysISO, BOGOTA_OFFSET } from "@/lib/date/bogota";
 import { createScript, deleteScript, toggleChecklist } from "../guiones/actions";
 import { updatePlannerFields, createDerivado, updateDerivadoEstado, deleteDerivado } from "./actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type Script = InferSelectModel<typeof scripts>;
 type Derivado = InferSelectModel<typeof scriptDerivados>;
@@ -290,15 +291,21 @@ function ContenidoCard({ script, derivados }: { script: Script; derivados: Deriv
                       </button>
                     </form>
                     {d.notas && <span className="text-ink-dim">{d.notas}</span>}
-                    <form action={deleteDerivado} className="ml-auto">
-                      <input type="hidden" name="id" value={d.id} />
-                      <button
-                        type="submit"
-                        className="focus-ring text-ink-dim transition-colors duration-120 hover:text-danger"
-                      >
-                        ×
-                      </button>
-                    </form>
+                    <ConfirmDialog
+                      trigger={
+                        <button
+                          type="button"
+                          className="focus-ring text-ink-dim transition-colors duration-120 hover:text-danger"
+                        >
+                          ×
+                        </button>
+                      }
+                      title={`¿Borrar el derivado de ${d.plataforma}?`}
+                      body="No se puede deshacer."
+                      action={deleteDerivado}
+                      hidden={{ id: d.id }}
+                      className="ml-auto"
+                    />
                   </div>
                 );
               })}
@@ -330,12 +337,17 @@ function ContenidoCard({ script, derivados }: { script: Script; derivados: Deriv
           </form>
         </div>
 
-        <form action={deleteScript}>
-          <input type="hidden" name="id" value={script.id} />
-          <Button type="submit" variant="danger" size="sm">
-            Eliminar
-          </Button>
-        </form>
+        <ConfirmDialog
+          trigger={
+            <Button type="button" variant="danger" size="sm">
+              Eliminar
+            </Button>
+          }
+          title={`¿Borrar «${script.title}»?`}
+          body="No se puede deshacer."
+          action={deleteScript}
+          hidden={{ id: script.id }}
+        />
       </div>
     </details>
   );

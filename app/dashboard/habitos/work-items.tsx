@@ -1,4 +1,5 @@
 import { Select, Input, Textarea, Button } from "@/components/ui";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { ScriptOption } from "@/lib/scripts-picker";
 import type { BookOption } from "@/lib/books-picker";
 import { addActivityQueueItem, updateActivityQueueItem, deleteActivityQueueItem, moveActivityQueueItem } from "./actions";
@@ -146,15 +147,22 @@ function WorkItemRow({
               ))}
             </Select>
           </div>
-          <div className="flex gap-2">
-            <Button type="submit" size="sm">
-              Guardar
-            </Button>
-            <Button type="submit" formAction={deleteActivityQueueItem} variant="danger" size="sm">
+          <Button type="submit" size="sm">
+            Guardar
+          </Button>
+        </form>
+        <ConfirmDialog
+          trigger={
+            <Button type="button" variant="danger" size="sm">
               Borrar item
             </Button>
-          </div>
-        </form>
+          }
+          title={`¿Borrar «${item.text}»?`}
+          body="No se puede deshacer."
+          action={deleteActivityQueueItem}
+          hidden={{ id: item.id }}
+          className="mt-1.5"
+        />
       </details>
     </div>
   );

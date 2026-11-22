@@ -37,6 +37,7 @@ import {
   updateNote,
   deleteNote,
 } from "./actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type Book = InferSelectModel<typeof books>;
 
@@ -181,12 +182,17 @@ export default async function LibrosPage({
           {tab === "notas" && <NotesTab bookId={activeBook.id} userId={userId} />}
 
           <div className="mt-4 border-t border-line pt-4">
-            <form action={deleteBook}>
-              <input type="hidden" name="id" value={activeBook.id} />
-              <Button type="submit" variant="danger" size="sm">
-                Eliminar libro
-              </Button>
-            </form>
+            <ConfirmDialog
+              trigger={
+                <Button type="button" variant="danger" size="sm">
+                  Eliminar libro
+                </Button>
+              }
+              title={`¿Borrar «${activeBook.title}»?`}
+              body="No se puede deshacer."
+              action={deleteBook}
+              hidden={{ id: activeBook.id }}
+            />
           </div>
         </Card>
       )}
@@ -221,9 +227,17 @@ async function ChaptersTab({ bookId, userId }: { bookId: string; userId: string 
                   <Button type="submit" variant="secondary" size="sm">
                     Guardar notas
                   </Button>
-                  <Button type="submit" variant="danger" size="sm" formAction={deleteChapter}>
-                    Eliminar
-                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button type="button" variant="danger" size="sm">
+                        Eliminar
+                      </Button>
+                    }
+                    title={`¿Borrar el capítulo ${c.number}?`}
+                    body="No se puede deshacer."
+                    action={deleteChapter}
+                    hidden={{ id: c.id }}
+                  />
                 </div>
               </form>
             </details>
@@ -271,12 +285,18 @@ async function CharactersTab({ bookId, userId }: { bookId: string; userId: strin
                     {c.role}
                   </span>
                 )}
-                <form action={deleteCharacter} className="ml-auto">
-                  <input type="hidden" name="id" value={c.id} />
-                  <button type="submit" className="text-xs text-ink-dim hover:text-danger">
-                    ×
-                  </button>
-                </form>
+                <ConfirmDialog
+                  trigger={
+                    <button type="button" className="text-xs text-ink-dim hover:text-danger">
+                      ×
+                    </button>
+                  }
+                  title={`¿Borrar a «${c.name}»?`}
+                  body="No se puede deshacer."
+                  action={deleteCharacter}
+                  hidden={{ id: c.id }}
+                  className="ml-auto"
+                />
               </div>
               {c.description && <p className="mt-1 text-xs text-ink-dim">{c.description}</p>}
             </div>
@@ -332,9 +352,17 @@ async function ScenariosTab({ bookId, userId }: { bookId: string; userId: string
                   <Button type="submit" variant="secondary" size="sm">
                     Guardar
                   </Button>
-                  <Button type="submit" variant="danger" size="sm" formAction={deleteScenario}>
-                    Eliminar
-                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button type="button" variant="danger" size="sm">
+                        Eliminar
+                      </Button>
+                    }
+                    title={`¿Borrar «${s.title}»?`}
+                    body="No se puede deshacer."
+                    action={deleteScenario}
+                    hidden={{ id: s.id }}
+                  />
                 </div>
               </form>
             </details>
@@ -386,9 +414,17 @@ async function NotesTab({ bookId, userId }: { bookId: string; userId: string }) 
                   <Button type="submit" variant="secondary" size="sm">
                     Guardar
                   </Button>
-                  <Button type="submit" variant="danger" size="sm" formAction={deleteNote}>
-                    Eliminar
-                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button type="button" variant="danger" size="sm">
+                        Eliminar
+                      </Button>
+                    }
+                    title={`¿Borrar «${n.title || "esta nota"}»?`}
+                    body="No se puede deshacer."
+                    action={deleteNote}
+                    hidden={{ id: n.id }}
+                  />
                 </div>
               </form>
             </details>

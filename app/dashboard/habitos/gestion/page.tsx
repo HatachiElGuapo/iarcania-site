@@ -12,6 +12,7 @@ import {
   Input,
   Select,
 } from "@/components/ui";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   createActivity,
   updateActivity,
@@ -182,13 +183,23 @@ export default async function GestionHabitosPage({
               Archivar
             </Button>
           )}
-          <Button type="submit" variant="danger" formAction={deleteActivity}>
-            Eliminar
-          </Button>
           <Button variant="secondary" href={base}>
             Cancelar
           </Button>
         </form>
+      )}
+      {editing && (
+        <ConfirmDialog
+          trigger={
+            <Button type="button" variant="danger">
+              Eliminar
+            </Button>
+          }
+          title={`¿Borrar «${editing.name}»?`}
+          body="No se puede deshacer."
+          action={deleteActivity}
+          hidden={{ id: editing.id }}
+        />
       )}
 
       {!showArchived && (

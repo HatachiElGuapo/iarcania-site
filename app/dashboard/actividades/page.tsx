@@ -32,6 +32,7 @@ import {
   rescheduleTask,
 } from "./actions";
 import { BulkRescheduleOverdueButton } from "./bulk-reschedule-button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type Task = InferSelectModel<typeof tasks>;
 
@@ -188,12 +189,13 @@ export default async function ActividadesPage({
                       Restaurar
                     </button>
                   </form>
-                  <form action={deleteTask}>
-                    <input type="hidden" name="id" value={task.id} />
-                    <button type="submit" className="text-xs text-ink-muted hover:text-danger">
-                      Eliminar
-                    </button>
-                  </form>
+                  <ConfirmDialog
+                    trigger={<button type="button" className="text-xs text-ink-muted hover:text-danger">Eliminar</button>}
+                    title={`¿Borrar «${task.title}»?`}
+                    body="No se puede deshacer."
+                    action={deleteTask}
+                    hidden={{ id: task.id }}
+                  />
                 </div>
               ))}
             </div>
@@ -474,12 +476,13 @@ export default async function ActividadesPage({
                                 Archivar
                               </button>
                             </form>
-                            <form action={deleteTask}>
-                              <input type="hidden" name="id" value={t.id} />
-                              <button type="submit" className="hover:text-danger">
-                                Eliminar
-                              </button>
-                            </form>
+                            <ConfirmDialog
+                              trigger={<button type="button" className="hover:text-danger">Eliminar</button>}
+                              title={`¿Borrar «${t.title}»?`}
+                              body="No se puede deshacer."
+                              action={deleteTask}
+                              hidden={{ id: t.id }}
+                            />
                           </span>
                         </TableRow>
                       );

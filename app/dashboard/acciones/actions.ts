@@ -151,3 +151,70 @@ export async function linkTaskToFocusSlot(input: { date: string; rank: number; t
   await syncTomorrowActionsHabit(userId);
   revalidateAll();
 }
+
+// "Quitar de mis acciones" del menú ⋯ (FocusSlotMenu) — desenlaza SOLO la
+// fila de daily_focus, la task sigue existiendo con su due_date intacto
+// (pasa a verse como "otra acción" suelta, no una de las 3 principales).
+// Deshacer es volver a enlazarla: mismo taskId/date/rank, por eso el
+// "Deshacer" del toast llama a linkTaskToFocusSlot con estos mismos datos.
+export async function unlinkFocusSlot(input: { date: string; rank: number; taskId: string }): Promise<void> {
+  const userId = await requireUserId();
+  const { date, rank, taskId } = input;
+  if (!date || ![0, 1, 2].includes(rank) || !taskId) throw new Error("Faltan datos");
+
+  await db
+    .delete(dailyFocus)
+    .where(
+      and(
+        eq(dailyFocus.userId, userId),
+        eq(dailyFocus.date, date),
+        eq(dailyFocus.listType, "hoy"),
+        eq(dailyFocus.sortOrder, rank),
+        eq(dailyFocus.taskId, taskId),
+      ),
+    );
+
+  await syncTomorrowActionsHabit(userId);
+  revalidateAll();
+}
+
+// "Mover a mañana" del menú ⋯ — mueve la task (due_date) Y su fila de
+// daily_focus un día después de `date` (la fecha de ESE slot, no
+// necesariamente HOY), conservando la misma posición (rank). Falla si esa
+// posición ya está ocupada mañana — no pisa otra acción.
+export async function moveFocusSlotToTomorrow(input: { date: string; rank: number; taskId: string }): Promise<void> {
+  const userId = await requireUserId();
+  const { date, rank, taskId } = input;
+  if (!date || ![0, 1, 2].includes(rank) || !taskId) throw new Error("Faltan datos");
+
+  const tomorrow = addDaysISO(date, 1);
+  const [occupiedTomorrow] = await db
+    .select({ id: dailyFocus.id })
+    .from(dailyFocus)
+    .where(
+      and(
+        eq(dailyFocus.userId, userId),
+        eq(dailyFocus.date, tomorrow),
+        eq(dailyFocus.listType, "hoy"),
+        eq(dailyFocus.sortOrder, rank),
+      ),
+    );
+  if (occupiedTomorrow) throw new Error(`Mañana, Acción ${rank + 1} ya está ocupada`);
+
+  await db.update(tasks).set({ dueDate: tomorrow }).where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
+  await db
+    .update(dailyFocus)
+    .set({ date: tomorrow })
+    .where(
+      and(
+        eq(dailyFocus.userId, userId),
+        eq(dailyFocus.date, date),
+        eq(dailyFocus.listType, "hoy"),
+        eq(dailyFocus.sortOrder, rank),
+        eq(dailyFocus.taskId, taskId),
+      ),
+    );
+
+  await syncTomorrowActionsHabit(userId);
+  revalidateAll();
+}

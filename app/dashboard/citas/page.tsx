@@ -7,6 +7,7 @@ import { EVENT_TYPE_CATS } from "@/lib/constants/event-type-cats";
 import { PageHeader, SectionHeader, Section, Badge, EmptyState, Button, Labeled, Input, Select, cx } from "@/components/ui";
 import { listScriptOptions, type ScriptOption } from "@/lib/scripts-picker";
 import { ScriptLinkPanel } from "../script-link";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   createAppointment,
   completeAppointment,
@@ -247,12 +248,17 @@ function CitaCard({
             </form>
           </>
         )}
-        <form action={deleteAppointment}>
-          <input type="hidden" name="id" value={cita.id} />
-          <Button type="submit" variant="danger" size="sm">
-            🗑️ Eliminar
-          </Button>
-        </form>
+        <ConfirmDialog
+          trigger={
+            <Button type="button" variant="danger" size="sm">
+              🗑️ Eliminar
+            </Button>
+          }
+          title={`¿Borrar «${cita.title}»?`}
+          body="No se puede deshacer."
+          action={deleteAppointment}
+          hidden={{ id: cita.id }}
+        />
       </div>
     </div>
   );

@@ -12,11 +12,21 @@ import { cx } from "./cx";
 export type ToastInput = {
   message: string;
   tone?: "success" | "error";
+  // Cuánto dura en pantalla (ms) — 4000 por defecto. Un toast con `undo`
+  // que de verdad vaya a deshacer algo (no solo una Server Action
+  // inversa, sino una ventana real para cancelar un borrado diferido —
+  // ver acciones/actions-card.tsx) suele necesitar más que los 4s de
+  // siempre.
+  durationMs?: number;
   undo?: {
     label?: string;
-    action: (formData: FormData) => void | Promise<void>; // Server Action inversa
-    fields?: Record<string, string>;
-  };
+  } & (
+    | { action: (formData: FormData) => void | Promise<void>; fields?: Record<string, string>; onClick?: undefined }
+    // Deshacer como callback plano (ej. cancelar un borrado diferido en
+    // el propio cliente, sin Server Action de por medio) en vez de una
+    // Server Action inversa.
+    | { onClick: () => void; action?: undefined; fields?: undefined }
+  );
 };
 
 type Toast = ToastInput & { id: number };
@@ -30,7 +40,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback((t: ToastInput) => {
     const id = Date.now() + Math.random();
     setItems((x) => [...x, { ...t, id }]);
-    setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), 4000);
+    setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), t.durationMs ?? 4000);
   }, []);
 
   return (
@@ -49,17 +59,29 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               {t.tone === "error" ? "⚠" : "✓"}
             </span>
             <span className="flex-1">{t.message}</span>
-            {t.undo && (
-              <form action={t.undo.action}>
-                {t.undo.fields &&
-                  Object.entries(t.undo.fields).map(([k, v]) => (
-                    <input key={k} type="hidden" name={k} value={v} />
-                  ))}
-                <button type="submit" className="focus-ring rounded-ui px-1 text-meta text-ink-muted hover:text-ink">
+            {t.undo &&
+              (t.undo.onClick ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    t.undo!.onClick!();
+                    setItems((x) => x.filter((i) => i.id !== t.id));
+                  }}
+                  className="focus-ring rounded-ui px-1 text-meta text-ink-muted hover:text-ink"
+                >
                   {t.undo.label ?? "Deshacer"}
                 </button>
-              </form>
-            )}
+              ) : (
+                <form action={t.undo.action}>
+                  {t.undo.fields &&
+                    Object.entries(t.undo.fields).map(([k, v]) => (
+                      <input key={k} type="hidden" name={k} value={v} />
+                    ))}
+                  <button type="submit" className="focus-ring rounded-ui px-1 text-meta text-ink-muted hover:text-ink">
+                    {t.undo.label ?? "Deshacer"}
+                  </button>
+                </form>
+              ))}
           </div>
         ))}
       </div>

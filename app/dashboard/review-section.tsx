@@ -156,6 +156,8 @@ function OrphanActivityRow({ activity }: { activity: OrphanActivity }) {
 }
 
 function OrphanBlockRow({ block }: { block: OrphanPlanBlock }) {
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
   return (
     <div className="flex items-center gap-2.5 rounded-ui border border-line bg-surface px-3 py-2.5">
       <span className="shrink-0 text-[11px] tabular-nums text-ink-dim">
@@ -169,13 +171,33 @@ function OrphanBlockRow({ block }: { block: OrphanPlanBlock }) {
       >
         Reactivar
       </SafeActionButton>
-      <SafeActionButton
-        action={removePlanBlockFromForm}
-        fields={{ blockId: block.blockId }}
-        className="focus-ring rounded-ui border border-line px-2.5 py-1 text-[11px] text-ink-dim hover:text-danger"
-      >
-        Quitar del Plan
-      </SafeActionButton>
+      {confirmRemove ? (
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setConfirmRemove(false)}
+            className="focus-ring rounded-ui border border-line px-2 py-1 text-[11px] text-ink-muted"
+          >
+            Conservar
+          </button>
+          <SafeActionButton
+            action={removePlanBlockFromForm}
+            fields={{ blockId: block.blockId }}
+            className="focus-ring rounded-ui bg-danger px-2.5 py-1 text-[11px] font-medium text-white"
+          >
+            Quitar
+          </SafeActionButton>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmRemove(true)}
+          title={`¿Quitar «${block.blockText}» del Plan? No se puede deshacer.`}
+          className="focus-ring rounded-ui border border-line px-2.5 py-1 text-[11px] text-ink-dim hover:text-danger"
+        >
+          Quitar del Plan
+        </button>
+      )}
     </div>
   );
 }

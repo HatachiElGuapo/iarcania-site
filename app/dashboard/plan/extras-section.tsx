@@ -36,6 +36,7 @@ function ExtraRow({
 }) {
   const toast = useToast();
   const [pending, startTransition] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   function onToggleResult() {
     onToggled(extra.id, !extra.done);
@@ -84,14 +85,35 @@ function ExtraRow({
       >
         {"⏭︎"}
       </SafeActionButton>
-      <button
-        type="button"
-        onClick={remove}
-        disabled={pending}
-        className="focus-ring flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border border-line text-[11px] text-ink-dim hover:border-danger/40 hover:text-danger disabled:opacity-50"
-      >
-        🗑
-      </button>
+      {confirmDelete ? (
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(false)}
+            className="focus-ring flex h-6 items-center justify-center rounded-ui border border-line px-1.5 text-[10px] text-ink-muted"
+          >
+            Conservar
+          </button>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={pending}
+            title="Confirmar borrado"
+            className="focus-ring flex h-6 items-center justify-center rounded-ui bg-danger px-1.5 text-[10px] font-medium text-white disabled:opacity-50"
+          >
+            Borrar
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          title={`¿Borrar «${extra.title}»? No se puede deshacer.`}
+          className="focus-ring flex h-6 w-6 shrink-0 items-center justify-center rounded-ui border border-line text-[11px] text-ink-dim hover:border-danger/40 hover:text-danger"
+        >
+          🗑
+        </button>
+      )}
     </div>
   );
 }

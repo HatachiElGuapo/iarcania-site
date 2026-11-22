@@ -110,6 +110,7 @@ export function ScriptCard({
   const [presData, setPresData] = useState<PresData>((script.presData as PresData) || {});
   const [generandoPres, setGenerandoPres] = useState(false);
   const [errorPres, setErrorPres] = useState<string | null>(null);
+  const [confirmDeleteScript, setConfirmDeleteScript] = useState(false);
 
   // Tema de marca vivo: cambia con el dropdown de canal (transición 300ms).
   const t = themes[canal] ?? theme ?? defaultTheme(canal);
@@ -396,15 +397,27 @@ export function ScriptCard({
                   >
                     ▶ Presentar
                   </Button>
-                  <Button
-                    type="submit"
-                    formAction={deleteScript}
-                    variant="danger"
-                    size="sm"
-                    className="ml-auto"
-                  >
-                    Eliminar
-                  </Button>
+                  {confirmDeleteScript ? (
+                    <span className="ml-auto flex items-center gap-1.5 text-[12px] text-danger">
+                      ¿Borrar «{script.title}»?
+                      <Button type="button" variant="secondary" size="sm" onClick={() => setConfirmDeleteScript(false)}>
+                        Conservar
+                      </Button>
+                      <Button type="submit" formAction={deleteScript} variant="danger" size="sm">
+                        Borrar
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={() => setConfirmDeleteScript(true)}
+                    >
+                      Eliminar
+                    </Button>
+                  )}
                 </div>
               </form>
             </div>
