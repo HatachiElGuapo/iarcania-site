@@ -20,6 +20,7 @@ import { splitPrincipalSecondary } from "@/lib/plan/secondary";
 import { getPlanExtrasByBlock, type PlanExtra } from "@/lib/plan/extras";
 import { addDaysISO, todayISO } from "@/lib/date/bogota";
 import { isScheduledOnDate } from "@/lib/habits/schedule";
+import { isCounterDone } from "@/lib/habits/counter";
 
 export type AgendaEvent = {
   key: string;
@@ -63,6 +64,14 @@ export type AgendaEvent = {
   // (cursor+1, +2… — ver resolve.ts), no la posición real todavía. Pasa
   // al navegar a días futuros en Agenda.
   projected?: boolean;
+  // Hábito contador (activities.target_value, ver lib/habits/counter.ts) —
+  // solo para itemType="habit"/"habito" de primer nivel (virtual o
+  // materializado). null/undefined en un hábito simple hecho/no-hecho; los
+  // de un árbol de Plan ya traen lo mismo adentro de habitChecks.
+  targetValue?: number | null;
+  unit?: string | null;
+  countSteps?: number[] | null;
+  currentValue?: number;
 };
 
 const TYPE_META: Record<string, { icon: string; label: string; accent: string }> = {
@@ -137,6 +146,9 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         name: activities.name,
         horaSugerida: activities.horaSugerida,
         diasSemana: activities.diasSemana,
+        targetValue: activities.targetValue,
+        unit: activities.unit,
+        countSteps: activities.countSteps,
       })
       .from(activities)
       .where(
@@ -152,12 +164,13 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         ),
       ),
     db
-      .select({ activityId: activityLogs.activityId })
+      .select({ activityId: activityLogs.activityId, value: activityLogs.value })
       .from(activityLogs)
       .where(and(eq(activityLogs.userId, userId), eq(activityLogs.date, date))),
   ]);
 
   const doneHabitIds = new Set(habitLogs.map((l) => l.activityId));
+  const valueByHabit = new Map(habitLogs.map((l) => [l.activityId, l.value]));
 
   // Bloques resueltos de Plan para la columna de este usuario (si tiene una
   // en algún plan). Un bloque puede tener uno o más hábitos enlazados
@@ -274,6 +287,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
   const taskById = new Map(allTasks.map((t) => [t.id, t]));
   const citaTitleById = new Map(citas.map((c) => [c.id, c.title]));
   const habitNameById = new Map(dailyHabits.map((h) => [h.id, h.name]));
+  const habitInfoById = new Map(dailyHabits.map((h) => [h.id, h]));
   const scheduledTaskIds = new Set(blocks.filter((b) => b.itemType === "task" && b.itemId).map((b) => b.itemId));
   const pendingTasks = allTasks.filter((t) => t.status !== "completada");
   const backlog = pendingTasks.filter((t) => !scheduledTaskIds.has(t.id));
@@ -312,8 +326,39 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
       const hasTime = !!h.horaSugerida && /^\d{1,2}:\d{2}$/.test(h.horaSugerida);
       const start = hasTime ? toMinutes(h.horaSugerida as string) : habitCursor;
       if (!hasTime) habitCursor += HABIT_DURATION;
-      return { id: h.id, name: h.name, start, autoTime: !hasTime, done: doneHabitIds.has(h.id) };
+      const currentValue = valueByHabit.get(h.id) ?? 0;
+      const done = h.targetValue != null ? isCounterDone(currentValue, h.targetValue) : doneHabitIds.has(h.id);
+      return {
+        id: h.id,
+        name: h.name,
+        start,
+        autoTime: !hasTime,
+        done,
+        targetValue: h.targetValue,
+        unit: h.unit,
+        countSteps: h.countSteps,
+        currentValue,
+      };
     });
+
+  // Un hábito "habito" materializado como bloque real puede tener meta
+  // (target_value) igual que uno virtual — done depende de llegar a la
+  // meta, no de la mera existencia del log (ver isCounterDone).
+  function isHabitDone(activityId: string): boolean {
+    const info = habitInfoById.get(activityId);
+    if (info?.targetValue != null) return isCounterDone(valueByHabit.get(activityId), info.targetValue);
+    return doneHabitIds.has(activityId);
+  }
+  function habitCounterFields(activityId: string) {
+    const info = habitInfoById.get(activityId);
+    if (!info) return {};
+    return {
+      targetValue: info.targetValue,
+      unit: info.unit,
+      countSteps: info.countSteps,
+      currentValue: valueByHabit.get(activityId) ?? 0,
+    };
+  }
 
   const blockEvents: AgendaEvent[] = blocks
     .filter((b) => !(b.itemType === "habito" && b.itemId && linkedActivityIds.has(b.itemId)))
@@ -341,12 +386,13 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         badge: meta.label,
         done:
           b.itemType === "habito" && b.itemId
-            ? doneHabitIds.has(b.itemId)
+            ? isHabitDone(b.itemId)
             : b.itemType === "task" && b.itemId
               ? taskById.get(b.itemId)?.status === "completada"
               : false,
         autoTime: false,
         editHref: `/dashboard/agenda?date=${date}&edit=${b.id}`,
+        ...(b.itemType === "habito" && b.itemId ? habitCounterFields(b.itemId) : {}),
       };
     });
 
@@ -365,6 +411,10 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
     done: h.done,
     autoTime: h.autoTime,
     editHref: null,
+    targetValue: h.targetValue,
+    unit: h.unit,
+    countSteps: h.countSteps,
+    currentValue: h.currentValue,
   }));
 
   const taskEvents: AgendaEvent[] = dueTodayTasks.map((t) => ({

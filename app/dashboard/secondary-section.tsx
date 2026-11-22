@@ -203,7 +203,11 @@ function SecondaryRow({
   );
 }
 
-function SecondaryGroupEntry({
+// Exportado también para el modal de "Progreso del día" (day-progress-
+// panel.tsx) — reusa la misma fila (hora · bloque, checkbox/contador,
+// DeferButton) para su grupo "Secundarios", sin el agrupado por franja de
+// SecondaryModalContent (ahí van todos juntos, ordenados por hora).
+export function SecondaryGroupEntry({
   entry,
   date,
   onToggled,

@@ -22,6 +22,7 @@ import { isScheduledOnDate } from "@/lib/habits/schedule";
 import { getSecondaryHabitsForPerson, groupSecondaryEntries, type SecondaryBand, type SecondaryEntry } from "@/lib/plan/secondary";
 import { SecondaryCard } from "./secondary-section";
 import { HabitsCard } from "./habits-card";
+import { DayProgressPanel } from "./day-progress-panel";
 import { BlockIcon } from "@/lib/icons/habit-icons";
 import { getStreakForPerson } from "@/lib/plan/streak";
 import { getDailyActions } from "@/lib/trabajo/daily-actions";
@@ -32,6 +33,7 @@ import {
   PageHeader,
   Card,
   MetricCard,
+  Progress,
   Stepper,
   Button,
   Badge,
@@ -493,18 +495,25 @@ export default async function RutinasPage({
           tasks={overdueTasks}
         />
         <MetricCard value={bestStreak} label="mejor racha" sub="días" tone="warm" />
-        <div className="flex flex-col justify-center gap-2 rounded-ui-lg border border-accent/25 bg-accent/[0.06] px-3.5 py-3">
-          <div className="flex justify-between text-meta text-ink-muted">
-            <span>Progreso del día</span>
-            <span className="font-semibold text-accent">
-              {doneToday} / {totalToday} · {pctToday}%
-            </span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-line">
-            <div className="h-full rounded-full bg-accent" style={{ width: `${pctToday}%` }} />
-          </div>
-          <div className="text-[10px] text-ink-dim">Todo lo de hoy: tareas, hábitos, Plan y citas agendadas.</div>
-        </div>
+        <DayProgressPanel
+          trigger={
+            <div className="flex flex-col justify-center gap-2 rounded-ui-lg border border-accent/25 bg-accent/[0.06] px-3.5 py-3">
+              <div className="flex justify-between text-meta text-ink-muted">
+                <span>Progreso del día</span>
+                <span className="font-semibold text-accent">
+                  {doneToday} / {totalToday} · {pctToday}%
+                </span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-line">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${pctToday}%` }} />
+              </div>
+              <div className="text-[10px] text-ink-dim">Todo lo de hoy: tareas, hábitos, Plan y citas agendadas.</div>
+            </div>
+          }
+          events={events}
+          secondaryGroups={secondaryGroups}
+          date={date}
+        />
       </div>
 
       {planPerson && (
@@ -925,7 +934,12 @@ function MobileHoy({
             current={isToday}
           />
         }
-        progress={{ value: `${doneToday} / ${totalToday}`, pct: pctToday }}
+      />
+      <DayProgressPanel
+        trigger={<Progress pct={pctToday} value={`${doneToday} / ${totalToday}`} tone="success" />}
+        events={events}
+        secondaryGroups={secondaryGroups}
+        date={date}
       />
 
       {(overdueCount > 0 || upcomingAppointments.length > 0) && (
