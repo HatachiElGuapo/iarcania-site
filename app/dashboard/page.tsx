@@ -313,11 +313,17 @@ export default async function RutinasPage({
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
     secondaryGroups = groupSecondaryEntries(await getSecondaryHabitsForPerson(planCtx, userId, planPerson.personId, date));
+    // La racha es SIEMPRE hasta HOY real (America/Bogota) — sin importar
+    // qué `date` se esté mirando (Stepper, ?date= en la URL). Antes vivía
+    // adentro del `if (isToday)` de abajo, así que navegar a cualquier
+    // otro día dejaba streakResult en el {0,0,0} default: el encabezado y
+    // la tarjeta de Hábitos mostraban racha 0 aunque la base tuviera todo
+    // cumplido — este bloque no depende de `isToday` ni de `date`.
+    streakResult = await getStreakForPerson(planCtx, planPerson.personId, today);
     if (isToday) {
-      [pendingMinimums, pendingSecondary, streakResult] = await Promise.all([
+      [pendingMinimums, pendingSecondary] = await Promise.all([
         getPendingMinimumsForPerson(planCtx, planPerson.personId, today, nowHHMM()),
         getPendingSecondaryHabits(planCtx, userId, planPerson.personId, today, nowHHMM()),
-        getStreakForPerson(planCtx, planPerson.personId, today),
       ]);
     }
     if (yesterday >= planCtx.plan.startDate) {
