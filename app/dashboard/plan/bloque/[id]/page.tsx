@@ -31,7 +31,7 @@ export default async function BlockDetailPage({ params }: { params: Promise<{ id
         title={block.text}
         eyebrow={`${kind.icon} ${kind.label} · ${WEEKDAY_LABELS[block.weekday]} · ${block.startTime}${block.endTime ? `–${block.endTime}` : ""}`}
         action={
-          <a href="/dashboard/plan" className="text-[12px] text-ink-dim">
+          <a href="/dashboard" className="text-[12px] text-ink-dim">
             ← Rutinas
           </a>
         }

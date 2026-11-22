@@ -252,7 +252,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         badge: info.label,
         done: planCheckByKey.get(`${yesterday}:${b.blockId}`) === "done",
         autoTime: false,
-        editHref: `/dashboard/plan?date=${yesterday}`,
+        editHref: `/dashboard?date=${yesterday}`,
         // Solo principales — los secundarios (is_optional) salen de acá y
         // se muestran aparte en el panel "Secundarios" del dashboard.
         habitChecks: splitPrincipalSecondary(habitTreesYesterday.get(b.blockId) ?? []).principal,
@@ -280,7 +280,7 @@ export async function buildDayEvents(userId: string, date: string): Promise<DayE
         badge: info.label,
         done: planCheckByKey.get(`${date}:${b.blockId}`) === "done",
         autoTime: false,
-        editHref: `/dashboard/plan?date=${date}`,
+        editHref: `/dashboard?date=${date}`,
         habitChecks: splitPrincipalSecondary(habitTreesToday.get(b.blockId) ?? []).principal,
         extras: extrasToday.get(b.blockId) ?? [],
         planKind: b.kind,

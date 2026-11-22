@@ -1,13 +1,14 @@
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { planChecks, planBlocks } from "@/lib/db/schema/plan";
+import { planChecks, planBlocks, plans } from "@/lib/db/schema/plan";
 import { loadPlanContextForUser, toPlanData } from "@/lib/plan/load";
 import { resolvePlan } from "@/lib/plan/resolve";
 import { todayISO, diffDaysISO } from "@/lib/date/bogota";
 import { Card, Input, Textarea, Select, Labeled, Button, Progress, EmptyState } from "@/components/ui";
 import { listScriptOptions, type ScriptOption } from "@/lib/scripts-picker";
 import { listBookOptions, type BookOption } from "@/lib/books-picker";
+import { ResetPlanStartButton } from "../reset-plan-start-button";
 import {
   updatePhase,
   createPhase,
@@ -30,6 +31,8 @@ export default async function PlanFasesPage() {
   if (!ctx) {
     return <EmptyState icon="🗺️">Todavía no hay ningún plan importado.</EmptyState>;
   }
+  const [{ ownerId } = { ownerId: null }] = await db.select({ ownerId: plans.ownerId }).from(plans).where(eq(plans.id, ctx.plan.id));
+  const isOwner = ownerId === userId;
 
   const [scriptOptions, bookOptions] = await Promise.all([listScriptOptions(userId), listBookOptions(userId)]);
 
@@ -113,6 +116,12 @@ export default async function PlanFasesPage() {
         borrá o moví un item de una — &ldquo;Pegar varios de una vez&rdquo; sigue disponible para cargar
         una lista larga de un tirón.
       </p>
+
+      {isOwner && (
+        <div className="mb-5">
+          <ResetPlanStartButton planId={ctx.plan.id} />
+        </div>
+      )}
 
       <Card title="Colas globales" className="mb-5">
         <p className="mb-2.5 text-meta text-ink-dim">

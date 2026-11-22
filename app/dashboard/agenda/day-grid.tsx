@@ -478,8 +478,8 @@ export function DayGrid({
                     {ev.kind === "plan" ? (
                       // Plantilla de Plan: se mueve y redimensiona solo para
                       // hoy (plan_overrides) — no se borra acá.
-                      <a href={ev.editHref ?? "/dashboard/plan"} className={`${btn} no-underline`}>
-                        Ver en Plan →
+                      <a href={ev.editHref ?? "/dashboard"} className={`${btn} no-underline`}>
+                        Ver en Rutinas →
                       </a>
                     ) : (
                       <>

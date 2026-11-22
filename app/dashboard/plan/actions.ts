@@ -514,6 +514,8 @@ export async function setOverride(formData: FormData) {
     });
 
   revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
 }
 
 // Quita un bloque de un día concreto (no de la plantilla semanal).
@@ -535,6 +537,8 @@ export async function removeForDay(formData: FormData) {
     });
 
   revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
 }
 
 function normalizeTime(raw: string): string {
@@ -870,6 +874,8 @@ export async function clearOverride(formData: FormData) {
   await db.delete(planOverrides).where(and(eq(planOverrides.date, date), eq(planOverrides.blockId, blockId)));
 
   revalidatePath("/dashboard/plan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/agenda");
 }
 
 // "Reiniciar desde hoy": pone plans.start_date en hoy (America/Bogota).

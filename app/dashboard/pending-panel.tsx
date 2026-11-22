@@ -85,7 +85,7 @@ export function PendingPanel({
                   pendingMinimums.map((p) => (
                     <a
                       key={p.blockId}
-                      href={`/dashboard/plan?date=${p.effectiveDate}`}
+                      href={`/dashboard?date=${p.effectiveDate}`}
                       className="flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface-2"
                     >
                       <span className="w-14 shrink-0 text-meta tabular-nums text-ink-dim">{p.dueTime}</span>

@@ -10,7 +10,7 @@ import { todayISO, addDaysISO, nowHHMM } from "@/lib/date/bogota";
 import { buildDayEvents, type AgendaEvent } from "@/lib/agenda/day-events";
 import { fmtTime, fmtDuration } from "@/lib/agenda/time";
 import { findPlanPersonForUser, loadPlanContextById, toPlanData } from "@/lib/plan/load";
-import { resolvePlan } from "@/lib/plan/resolve";
+import { resolvePlan, type ResolvedBlock, type ResolvedEvent } from "@/lib/plan/resolve";
 import { kindInfo } from "@/lib/plan/kinds";
 import { getOrphanActivities, getOrphanPlanBlocks, type OrphanActivity, type OrphanPlanBlock } from "@/lib/plan/orphans";
 import { getPendingMinimumsForPerson, getPendingSecondaryHabits, type PendingMinimumBlock, type PendingSecondaryHabit } from "@/lib/plan/pending";
@@ -57,6 +57,7 @@ import { DeferButton } from "./plan/defer-button";
 import { PendingPanel } from "./pending-panel";
 import { OverduePanel, type OverdueTask } from "./overdue-panel";
 import { ReviewSection } from "./review-section";
+import { HouseholdPlanSection, PlanDayEventsCard } from "./plan/household-section";
 
 const PRIORITY_COLOR: Record<string, string> = {
   alta: "text-danger",
@@ -309,10 +310,32 @@ export default async function RutinasPage({
   let pendingSecondary: PendingSecondaryHabit[] = [];
   let secondaryGroups: Record<SecondaryBand, SecondaryEntry[]> = { manana: [], tarde: [], noche: [] };
   let streakResult = { streak: 0, protectors: 0, best: 0 };
+  // "Plan de la casa" (otras personas del plan) y "Eventos del día" —
+  // antes solo vivían en la vista de día de /dashboard/plan (quitada, ver
+  // household-section.tsx). householdPeople vacío = usuario solo en el
+  // plan, la sección no se muestra.
+  let planPeopleAll: { id: string; name: string }[] = [];
+  let householdPeople: { id: string; name: string }[] = [];
+  let householdBlocksByPerson: Record<string, ResolvedBlock[]> = {};
+  let householdCheckByBlockId = new Map<string, { status: string; note: string | null }>();
+  let planDayEvents: ResolvedEvent[] = [];
   const yesterday = addDaysISO(today, -1);
   if (planPerson) {
     const planCtx = await loadPlanContextById(planPerson.planId);
     secondaryGroups = groupSecondaryEntries(await getSecondaryHabitsForPerson(planCtx, userId, planPerson.personId, date));
+
+    const [planDay] = resolvePlan(toPlanData(planCtx), date, date);
+    planDayEvents = planDay?.events ?? [];
+    planPeopleAll = planCtx.people;
+    householdPeople = planCtx.people.filter((p) => p.id !== planPerson.personId);
+    if (planDay && householdPeople.length > 0) {
+      householdBlocksByPerson = Object.fromEntries(householdPeople.map((p) => [p.id, planDay.blocksByPerson[p.id] ?? []]));
+      const householdChecks = await db
+        .select({ blockId: planChecks.blockId, status: planChecks.status, note: planChecks.note })
+        .from(planChecks)
+        .where(and(eq(planChecks.planId, planPerson.planId), eq(planChecks.date, date)));
+      householdCheckByBlockId = new Map(householdChecks.map((c) => [c.blockId, { status: c.status, note: c.note }]));
+    }
     // La racha es SIEMPRE hasta HOY real (America/Bogota) — sin importar
     // qué `date` se esté mirando (Stepper, ?date= en la URL). Antes vivía
     // adentro del `if (isToday)` de abajo, así que navegar a cualquier
@@ -412,6 +435,11 @@ export default async function RutinasPage({
         upcomingTasks={upcomingTasks}
         orphanActivities={orphanActivities}
         orphanBlocks={orphanBlocks}
+        planDayEvents={planDayEvents}
+        planPeopleAll={planPeopleAll}
+        householdPeople={householdPeople}
+        householdBlocksByPerson={householdBlocksByPerson}
+        householdCheckByBlockId={householdCheckByBlockId}
       />
       <div className="hidden flex-col gap-4 p-8 md:flex">
         <PageHeader
@@ -428,6 +456,9 @@ export default async function RutinasPage({
             />
             <Button variant="secondary" href={`/dashboard/agenda?date=${date}`}>
               Agenda del día
+            </Button>
+            <Button variant="secondary" href="/dashboard/plan/semana">
+              Editar semana
             </Button>
             <NewTaskPanel
               trigger={
@@ -595,6 +626,14 @@ export default async function RutinasPage({
           </div>
         </Card>
       )}
+
+      <PlanDayEventsCard events={planDayEvents} people={planPeopleAll} />
+      <HouseholdPlanSection
+        people={householdPeople}
+        blocksByPerson={householdBlocksByPerson}
+        checkByBlockId={householdCheckByBlockId}
+        date={date}
+      />
 
       <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 
@@ -834,6 +873,11 @@ type MobileHoyProps = {
   upcomingTasks: { id: string; dueDate: string | null; title: string; category: string | null; priority: string }[];
   orphanActivities: OrphanActivity[];
   orphanBlocks: OrphanPlanBlock[];
+  planDayEvents: ResolvedEvent[];
+  planPeopleAll: { id: string; name: string }[];
+  householdPeople: { id: string; name: string }[];
+  householdBlocksByPerson: Record<string, ResolvedBlock[]>;
+  householdCheckByBlockId: Map<string, { status: string; note: string | null }>;
 };
 
 function MobileHoy({
@@ -874,6 +918,11 @@ function MobileHoy({
   upcomingTasks,
   orphanActivities,
   orphanBlocks,
+  planDayEvents,
+  planPeopleAll,
+  householdPeople,
+  householdBlocksByPerson,
+  householdCheckByBlockId,
 }: MobileHoyProps) {
   return (
     <div className="flex flex-col gap-6 p-4 pb-28 md:hidden">
@@ -889,6 +938,9 @@ function MobileHoy({
           />
         }
       />
+      <a href="/dashboard/plan/semana" className="self-start text-[12px] text-accent hover:underline">
+        Editar semana →
+      </a>
       <DayProgressPanel
         trigger={<Progress pct={pctToday} value={`${doneToday} / ${totalToday}`} tone="success" />}
         events={events}
@@ -968,6 +1020,14 @@ function MobileHoy({
       )}
 
       <SecondaryCard groups={secondaryGroups} pendingActivityIds={pendingSecondaryIds} date={date} />
+
+      <PlanDayEventsCard events={planDayEvents} people={planPeopleAll} />
+      <HouseholdPlanSection
+        people={householdPeople}
+        blocksByPerson={householdBlocksByPerson}
+        checkByBlockId={householdCheckByBlockId}
+        date={date}
+      />
 
       <ReviewSection orphanActivities={orphanActivities} orphanBlocks={orphanBlocks} />
 

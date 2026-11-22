@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { moveBlockForDay, moveBlock, moveBlockToEndOfQueue, setCheck, getPlanCheck, updateBlockSchedule } from "./actions";
+import {
+  moveBlockForDay,
+  moveBlock,
+  moveBlockToEndOfQueue,
+  setCheck,
+  getPlanCheck,
+  updateBlockSchedule,
+  setOverride,
+  removeForDay,
+  clearOverride,
+} from "./actions";
 import { addPlanExtra } from "./extras-actions";
 import { addDaysISO, weekdayMon0 } from "@/lib/date/bogota";
 import { useToast } from "@/components/ui/toast";
@@ -62,6 +72,8 @@ export function PlanBlockMenu({
   const [extraEnd, setExtraEnd] = useState("");
   const [scheduleStart, setScheduleStart] = useState(startTime);
   const [scheduleEnd, setScheduleEnd] = useState("");
+  const [overrideText, setOverrideText] = useState(text);
+  const [confirmRemoveToday, setConfirmRemoveToday] = useState(false);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -75,7 +87,9 @@ export function PlanBlockMenu({
       .finally(() => setLoadingCheck(false));
     setScheduleStart(startTime);
     setScheduleEnd("");
-  }, [open, blockId, date, startTime]);
+    setOverrideText(text);
+    setConfirmRemoveToday(false);
+  }, [open, blockId, date, startTime, text]);
 
   const weekdayLabel = WEEKDAY_LABELS[weekdayMon0(date)];
 
@@ -162,6 +176,39 @@ export function PlanBlockMenu({
       return setCheck(fd);
     });
 
+  // Texto de SOLO hoy (plan_overrides) — no toca la plantilla semanal.
+  // "Restaurar" siempre visible: si no había override, clearOverride no
+  // hace nada (no hay fila que borrar), así que no hace falta saber de
+  // antemano si existe uno.
+  const saveOverrideText = () => {
+    if (!overrideText.trim() || overrideText.trim() === text) return;
+    run(() => {
+      const fd = new FormData();
+      fd.set("date", date);
+      fd.set("blockId", blockId);
+      fd.set("text", overrideText.trim());
+      return setOverride(fd);
+    });
+  };
+  const restoreOriginalText = () =>
+    run(() => {
+      const fd = new FormData();
+      fd.set("date", date);
+      fd.set("blockId", blockId);
+      return clearOverride(fd);
+    });
+
+  // Quita el bloque de HOY (plan_overrides.removed) — no de la plantilla.
+  // Destructivo en el sentido de "este día deja de verse hasta que alguien
+  // lo deshaga a mano desde Semana/Deshacer" — pide confirmación antes.
+  const removeToday = () =>
+    run(() => {
+      const fd = new FormData();
+      fd.set("date", date);
+      fd.set("blockId", blockId);
+      return removeForDay(fd);
+    });
+
   const header = (
     <div className="shrink-0">
       <div className="flex justify-center pt-[11px]">
@@ -234,6 +281,35 @@ export function PlanBlockMenu({
                 >
                   Guardar nota
                 </button>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  Texto de hoy (no toca la plantilla)
+                </label>
+                <input
+                  value={overrideText}
+                  onChange={(e) => setOverrideText(e.target.value)}
+                  className="focus-ring min-h-11 rounded-ui border border-line bg-canvas px-3 text-[15px] text-ink"
+                />
+                <div className="grid grid-cols-2 gap-[7px]">
+                  <button
+                    type="button"
+                    disabled={pending || !overrideText.trim() || overrideText.trim() === text}
+                    onClick={saveOverrideText}
+                    className="flex min-h-11 items-center justify-center rounded-ui border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={restoreOriginalText}
+                    className="flex min-h-11 items-center justify-center rounded-ui border border-line text-[13px] font-medium text-ink-muted disabled:opacity-50"
+                  >
+                    Restaurar original
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -387,6 +463,38 @@ export function PlanBlockMenu({
               >
                 {isSkipped ? "Quitar salto" : "✗ Saltar este bloque"}
               </button>
+
+              {confirmRemoveToday ? (
+                <div className="flex flex-col gap-1.5 rounded-ui border border-danger/40 bg-danger/12 p-2">
+                  <span className="text-[12px] text-danger">¿Quitar «{text}» de hoy? No se puede deshacer.</span>
+                  <div className="grid grid-cols-2 gap-[7px]">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemoveToday(false)}
+                      className="flex min-h-11 items-center justify-center rounded-ui border border-line text-[13px] text-ink-muted"
+                    >
+                      Conservar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={removeToday}
+                      className="flex min-h-11 items-center justify-center rounded-ui bg-danger text-[13px] font-medium text-white disabled:opacity-50"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setConfirmRemoveToday(true)}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-ui border border-line text-[13px] font-medium text-ink-dim disabled:opacity-50"
+                >
+                  Quitar hoy
+                </button>
+              )}
             </div>
       </BottomSheetModal>
     </>

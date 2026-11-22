@@ -154,7 +154,7 @@ export default async function PlanHistorialPage() {
             return (
               <a
                 key={d.date}
-                href={`/dashboard/plan?date=${d.date}`}
+                href={`/dashboard?date=${d.date}`}
                 className="focus-ring-inset flex items-center gap-3 px-3.5 py-2 text-meta hover:bg-surface-2"
               >
                 <span className="w-24 shrink-0 text-ink-muted">{dateLong}</span>
