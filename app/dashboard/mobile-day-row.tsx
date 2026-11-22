@@ -46,7 +46,6 @@ export function MobileDayRow({
 }) {
   const primary = primaryActionFor(ev, date);
   const hasTree = (ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0);
-  const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(ev.refId, ev.done);
   const flexibleCount = ev.flexible ? countDeep(ev.habitChecks ?? []) : null;
   const isSecondaryBlock = ev.kind === "plan" && ev.planKind === "secundarios";
 
@@ -66,6 +65,16 @@ export function MobileDayRow({
   const secGroupsForBlock =
     isSecondaryBlock && secGroups ? filterSecondaryGroupsForBlock(secGroups, fmtTime(ev.start + ev.duration)) : null;
   const secTotals = secGroupsForBlock ? countTotals(secGroupsForBlock) : null;
+  // Mismo plegado que un bloque flexible (useFlexibleBlockCollapse, ▸/▾
+  // recordado en localStorage) — comparten blockId como clave, nunca
+  // coinciden en el mismo bloque. El "done" que lo pliega solo es distinto:
+  // en un flexible es el plan_check del bloque; acá es "no queda ningún
+  // secundario pendiente" (sin secundarios hoy también pliega).
+  const secondaryAllDone = secTotals ? secTotals.total === 0 || secTotals.done === secTotals.total : false;
+  const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(
+    ev.refId,
+    isSecondaryBlock ? secondaryAllDone : ev.done,
+  );
 
   const row = (
     <ListCard
@@ -146,12 +155,22 @@ export function MobileDayRow({
       </div>
       {isSecondaryBlock && secGroupsForBlock && (
         <div className="ml-2">
-          <SecondaryModalContent
-            groups={secGroupsForBlock}
-            date={date}
-            onToggled={onSecondaryToggled}
-            onCounterChanged={onSecondaryCounterChanged}
-          />
+          <button
+            type="button"
+            onClick={toggleFlexible}
+            className="focus-ring flex min-h-9 items-center gap-1 text-[12px] text-ink-dim hover:text-ink"
+          >
+            {flexibleOpen ? "▾" : "▸"} Secundarios pendientes
+            {secTotals && ` (${secTotals.done}/${secTotals.total})`}
+          </button>
+          {flexibleOpen && (
+            <SecondaryModalContent
+              groups={secGroupsForBlock}
+              date={date}
+              onToggled={onSecondaryToggled}
+              onCounterChanged={onSecondaryCounterChanged}
+            />
+          )}
         </div>
       )}
       {!isSecondaryBlock && ev.kind === "plan" && hasTree && (

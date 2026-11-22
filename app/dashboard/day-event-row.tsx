@@ -48,7 +48,6 @@ export function DayEventRow({
 }) {
   const primary = primaryActionFor(ev, date);
   const toast = useToast();
-  const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(ev.refId, ev.done);
   const hasTree = (ev.habitChecks && ev.habitChecks.length > 0) || (ev.extras && ev.extras.length > 0) || false;
   const flexibleCount = ev.flexible ? countDeep(ev.habitChecks ?? []) : null;
   const isSecondaryBlock = ev.kind === "plan" && ev.planKind === "secundarios";
@@ -69,6 +68,16 @@ export function DayEventRow({
   const secGroupsForBlock =
     isSecondaryBlock && secGroups ? filterSecondaryGroupsForBlock(secGroups, fmtTime(ev.start + ev.duration)) : null;
   const secTotals = secGroupsForBlock ? countTotals(secGroupsForBlock) : null;
+  // Mismo plegado que un bloque flexible (useFlexibleBlockCollapse, ▸/▾
+  // recordado en localStorage) — comparten blockId como clave, nunca
+  // coinciden en el mismo bloque. El "done" que lo pliega solo es distinto:
+  // en un flexible es el plan_check del bloque; acá es "no queda ningún
+  // secundario pendiente" (sin secundarios hoy también pliega).
+  const secondaryAllDone = secTotals ? secTotals.total === 0 || secTotals.done === secTotals.total : false;
+  const { open: flexibleOpen, toggle: toggleFlexible } = useFlexibleBlockCollapse(
+    ev.refId,
+    isSecondaryBlock ? secondaryAllDone : ev.done,
+  );
 
   function handlePlanResult(result: unknown) {
     if (!result || typeof result !== "object") return;
@@ -165,7 +174,7 @@ export function DayEventRow({
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
         )}
-        {ev.flexible && hasTree && (
+        {((ev.flexible && hasTree) || isSecondaryBlock) && (
           <button
             type="button"
             onClick={toggleFlexible}
@@ -190,7 +199,7 @@ export function DayEventRow({
           </a>
         )}
       </div>
-      {isSecondaryBlock && secGroupsForBlock && (
+      {isSecondaryBlock && secGroupsForBlock && flexibleOpen && (
         <div className="ml-9">
           <SecondaryModalContent
             groups={secGroupsForBlock}
